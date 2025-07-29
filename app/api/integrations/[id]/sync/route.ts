@@ -6,14 +6,6 @@ import Product from '@/models/Product';
 import Order from '@/models/Order';
 import { UserRole } from '@/models/User';
 
-// Define UserRole constants for backward compatibility
-const UserRoleConstants = {
-  ADMIN: 'admin' as const,
-  SUPPLIER: 'supplier' as const,
-  MARKETER: 'marketer' as const,
-  WHOLESALER: 'wholesaler' as const,
-};
-
 interface RouteParams {
   params: {
     id: string;
@@ -23,7 +15,7 @@ interface RouteParams {
 // POST /api/integrations/[id]/sync - Trigger sync with external store
 export const POST = withAuth(async (req: NextRequest, { user, params }: RouteParams & { user: any }) => {
   try {
-    if (user.role !== UserRoleConstants.MARKETER && user.role !== UserRoleConstants.WHOLESALER) {
+    if (user.role !== 'marketer' && user.role !== 'wholesaler') {
       return NextResponse.json(
         { error: 'غير مصرح لك بتنفيذ المزامنة' },
         { status: 403 }

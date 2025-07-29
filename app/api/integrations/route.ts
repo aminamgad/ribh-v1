@@ -5,14 +5,6 @@ import connectDB from '@/lib/database';
 import StoreIntegration, { IntegrationType, IntegrationStatus } from '@/models/StoreIntegration';
 import { UserRole } from '@/models/User';
 
-// Define UserRole constants for backward compatibility
-const UserRoleConstants = {
-  ADMIN: 'admin' as const,
-  SUPPLIER: 'supplier' as const,
-  MARKETER: 'marketer' as const,
-  WHOLESALER: 'wholesaler' as const,
-};
-
 // Validation schema
 const createIntegrationSchema = z.object({
   type: z.enum(['easy_orders', 'youcan']),
@@ -35,7 +27,7 @@ const createIntegrationSchema = z.object({
 export const GET = withAuth(async (req: NextRequest, { user }) => {
   try {
     // Only marketers and wholesalers can have store integrations
-    if (user.role !== UserRoleConstants.MARKETER && user.role !== UserRoleConstants.WHOLESALER) {
+    if (user.role !== 'marketer' && user.role !== 'wholesaler') {
       return NextResponse.json(
         { error: 'غير مصرح لك بالوصول إلى التكاملات' },
         { status: 403 }
@@ -78,7 +70,7 @@ export const GET = withAuth(async (req: NextRequest, { user }) => {
 export const POST = withAuth(async (req: NextRequest, { user }) => {
   try {
     // Only marketers and wholesalers can create store integrations
-    if (user.role !== UserRoleConstants.MARKETER && user.role !== UserRoleConstants.WHOLESALER) {
+    if (user.role !== 'marketer' && user.role !== 'wholesaler') {
       return NextResponse.json(
         { error: 'غير مصرح لك بإنشاء تكاملات' },
         { status: 403 }

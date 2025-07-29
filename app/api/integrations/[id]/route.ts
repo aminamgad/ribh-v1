@@ -5,14 +5,6 @@ import connectDB from '@/lib/database';
 import StoreIntegration, { IntegrationStatus } from '@/models/StoreIntegration';
 import { UserRole } from '@/models/User';
 
-// Define UserRole constants for backward compatibility
-const UserRoleConstants = {
-  ADMIN: 'admin' as const,
-  SUPPLIER: 'supplier' as const,
-  MARKETER: 'marketer' as const,
-  WHOLESALER: 'wholesaler' as const,
-};
-
 // Validation schema for updates
 const updateIntegrationSchema = z.object({
   storeName: z.string().min(1).optional(),
@@ -40,7 +32,7 @@ interface RouteParams {
 // GET /api/integrations/[id] - Get specific integration
 export const GET = withAuth(async (req: NextRequest, { user, params }: RouteParams & { user: any }) => {
   try {
-    if (user.role !== UserRoleConstants.MARKETER && user.role !== UserRoleConstants.WHOLESALER && user.role !== UserRoleConstants.ADMIN) {
+    if (user.role !== 'marketer' && user.role !== 'wholesaler' && user.role !== 'admin') {
       return NextResponse.json(
         { error: 'غير مصرح لك بالوصول إلى هذا التكامل' },
         { status: 403 }
@@ -59,7 +51,7 @@ export const GET = withAuth(async (req: NextRequest, { user, params }: RoutePara
     }
 
     // Check ownership (admin can view all)
-    if (user.role !== UserRoleConstants.ADMIN && integration.userId.toString() !== user.id) {
+    if (user.role !== 'admin' && integration.userId.toString() !== user.id) {
       return NextResponse.json(
         { error: 'غير مصرح لك بالوصول إلى هذا التكامل' },
         { status: 403 }

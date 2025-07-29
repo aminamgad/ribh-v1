@@ -311,12 +311,12 @@ const systemSettingsSchema = new Schema<SystemSettings>({
 systemSettingsSchema.index({ updatedAt: -1 });
 
 // Static method to get current settings
-systemSettingsSchema.statics.getCurrentSettings = function() {
+systemSettingsSchema.statics.getCurrentSettings = async function() {
   return this.findOne().sort({ updatedAt: -1 });
 };
 
 // Static method to create or update settings
-systemSettingsSchema.statics.updateSettings = function(settingsData: any, userId: string) {
+systemSettingsSchema.statics.updateSettings = async function(settingsData: any, userId: string) {
   return this.findOneAndUpdate(
     {},
     { ...settingsData, updatedBy: userId },
