@@ -134,5 +134,6 @@ coverage/
 .local
 
 # Old files
-server.js
-next.config.js 
+# Keep important files
+!server.js
+!next.config.js 

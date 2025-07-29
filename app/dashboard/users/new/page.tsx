@@ -329,14 +329,14 @@ export default function CreateUserPage() {
                   </span>
                 )}
                 <span className={`badge ${
-                  watchedValues.role === 'admin' ? 'badge-danger' :
-                  watchedValues.role === 'supplier' ? 'badge-blue' :
-                  watchedValues.role === 'marketer' ? 'badge-success' :
+                  (watchedValues.role as string) === 'admin' ? 'badge-danger' :
+                  (watchedValues.role as string) === 'supplier' ? 'badge-blue' :
+                  (watchedValues.role as string) === 'marketer' ? 'badge-success' :
                   'badge-purple'
                 }`}>
-                  {watchedValues.role === 'admin' ? 'الإدارة' :
-                   watchedValues.role === 'supplier' ? 'المورد' :
-                   watchedValues.role === 'marketer' ? 'المسوق' :
+                  {(watchedValues.role as string) === 'admin' ? 'الإدارة' :
+                   (watchedValues.role as string) === 'supplier' ? 'المورد' :
+                   (watchedValues.role as string) === 'marketer' ? 'المسوق' :
                    'تاجر الجملة'}
                 </span>
               </div>

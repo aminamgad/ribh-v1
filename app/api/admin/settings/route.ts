@@ -79,7 +79,7 @@ async function getSettings(req: NextRequest, user: any) {
   try {
     await connectDB();
     
-    let settings = await SystemSettings.getCurrentSettings();
+    let settings = await SystemSettings.findOne().sort({ updatedAt: -1 });
     
     // If no settings exist, create default settings
     if (!settings) {
@@ -166,7 +166,11 @@ async function updateSettings(req: NextRequest, user: any) {
     }
     
     // Update settings
-    const updatedSettings = await SystemSettings.updateSettings(validatedData, user._id);
+    const updatedSettings = await SystemSettings.findOneAndUpdate(
+      {},
+      { ...validatedData, updatedBy: user._id },
+      { new: true, upsert: true }
+    );
     
     return NextResponse.json({
       success: true,

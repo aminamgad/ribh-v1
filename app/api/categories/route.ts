@@ -56,7 +56,7 @@ async function getCategories(req: NextRequest, user: any) {
     // Attach subcategories to their parents
     const categoriesWithSubs = parentCategories.map(parent => {
       const subs = subcategories.filter(sub => 
-        sub.parentId && sub.parentId._id.toString() === parent._id.toString()
+        sub.parentId && String(sub.parentId._id) === String(parent._id)
       );
       return {
         ...parent,
@@ -77,7 +77,7 @@ async function getCategories(req: NextRequest, user: any) {
     });
     
     // Transform categories for frontend
-    const transformedCategories = categoriesWithSubs.map(category => ({
+    const transformedCategories = (categoriesWithSubs as any[]).map(category => ({
       _id: category._id,
       name: category.name,
       nameEn: category.nameEn,
@@ -98,7 +98,7 @@ async function getCategories(req: NextRequest, user: any) {
   } catch (error) {
     console.error('Error fetching categories:', error);
     return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء جلب الفئات', error: error.message },
+      { success: false, message: 'حدث خطأ أثناء جلب الفئات', error: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }
@@ -196,7 +196,7 @@ async function createCategory(req: NextRequest, user: any) {
     }
     
     return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء إضافة الفئة', error: error.message },
+      { success: false, message: 'حدث خطأ أثناء إضافة الفئة', error: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }

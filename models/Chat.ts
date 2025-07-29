@@ -206,7 +206,12 @@ chatSchema.methods.addMessage = async function(
   await this.save();
   
   // Emit socket event for real-time updates
-  const io = require('@/lib/socket').getIO();
+  let io;
+  try {
+    io = require('@/lib/socket').getIO();
+  } catch (error) {
+    console.warn('Socket.io not available:', error);
+  }
   if (io) {
     this.participants.forEach(participantId => {
       if (participantId.toString() !== senderId) {
@@ -236,7 +241,12 @@ chatSchema.methods.markAsRead = async function(userId: string): Promise<void> {
     await this.save();
     
     // Emit read receipt
-    const io = require('@/lib/socket').getIO();
+    let io;
+    try {
+      io = require('@/lib/socket').getIO();
+    } catch (error) {
+      console.warn('Socket.io not available:', error);
+    }
     if (io) {
       this.participants.forEach(participantId => {
         if (participantId.toString() !== userId) {

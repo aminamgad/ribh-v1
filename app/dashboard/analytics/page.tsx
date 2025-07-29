@@ -137,9 +137,9 @@ export default function AnalyticsPage() {
               <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {analytics?.revenue.total.toLocaleString()} ₪
               </p>
-              <div className={`flex items-center text-sm mt-1 ${analytics?.revenue.growth >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
-                {analytics?.revenue.growth >= 0 ? <ArrowUp className="w-4 h-4 ml-1" /> : <ArrowDown className="w-4 h-4 ml-1" />}
-                {Math.abs(analytics?.revenue.growth || 0)}%
+              <div className={`flex items-center text-sm mt-1 ${(analytics?.revenue.growth ?? 0) >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
+                {(analytics?.revenue.growth ?? 0) >= 0 ? <ArrowUp className="w-4 h-4 ml-1" /> : <ArrowDown className="w-4 h-4 ml-1" />}
+                {Math.abs(analytics?.revenue.growth ?? 0)}%
               </div>
             </div>
             <div className="bg-primary-100 dark:bg-primary-900 p-3 rounded-lg">
@@ -155,9 +155,9 @@ export default function AnalyticsPage() {
               <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {analytics?.orders.total.toLocaleString()}
               </p>
-              <div className={`flex items-center text-sm mt-1 ${analytics?.orders.growth >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
-                {analytics?.orders.growth >= 0 ? <ArrowUp className="w-4 h-4 ml-1" /> : <ArrowDown className="w-4 h-4 ml-1" />}
-                {Math.abs(analytics?.orders.growth || 0)}%
+              <div className={`flex items-center text-sm mt-1 ${(analytics?.orders.growth ?? 0) >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
+                {(analytics?.orders.growth ?? 0) >= 0 ? <ArrowUp className="w-4 h-4 ml-1" /> : <ArrowDown className="w-4 h-4 ml-1" />}
+                {Math.abs(analytics?.orders.growth ?? 0)}%
               </div>
             </div>
             <div className="bg-success-100 dark:bg-success-900 p-3 rounded-lg">
@@ -173,9 +173,9 @@ export default function AnalyticsPage() {
               <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {analytics?.products.total.toLocaleString()}
               </p>
-              <div className={`flex items-center text-sm mt-1 ${analytics?.products.growth >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
-                {analytics?.products.growth >= 0 ? <ArrowUp className="w-4 h-4 ml-1" /> : <ArrowDown className="w-4 h-4 ml-1" />}
-                {Math.abs(analytics?.products.growth || 0)}%
+              <div className={`flex items-center text-sm mt-1 ${(analytics?.products.growth ?? 0) >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
+                {(analytics?.products.growth ?? 0) >= 0 ? <ArrowUp className="w-4 h-4 ml-1" /> : <ArrowDown className="w-4 h-4 ml-1" />}
+                {Math.abs(analytics?.products.growth ?? 0)}%
               </div>
             </div>
             <div className="bg-warning-100 dark:bg-warning-900 p-3 rounded-lg">
@@ -191,9 +191,9 @@ export default function AnalyticsPage() {
               <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {analytics?.users.total.toLocaleString()}
               </p>
-              <div className={`flex items-center text-sm mt-1 ${analytics?.users.growth >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
-                {analytics?.users.growth >= 0 ? <ArrowUp className="w-4 h-4 ml-1" /> : <ArrowDown className="w-4 h-4 ml-1" />}
-                {Math.abs(analytics?.users.growth || 0)}%
+              <div className={`flex items-center text-sm mt-1 ${(analytics?.users.growth ?? 0) >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
+                {(analytics?.users.growth ?? 0) >= 0 ? <ArrowUp className="w-4 h-4 ml-1" /> : <ArrowDown className="w-4 h-4 ml-1" />}
+                {Math.abs(analytics?.users.growth ?? 0)}%
               </div>
             </div>
             <div className="bg-secondary-100 dark:bg-secondary-900 p-3 rounded-lg">

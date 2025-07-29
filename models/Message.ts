@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import { Message } from '@/types';
 
-export interface MessageDocument extends Message, Document {}
+export interface MessageDocument extends Omit<Message, '_id'>, Document {}
 
 const messageSchema = new Schema<MessageDocument>({
   senderId: {
@@ -50,7 +50,7 @@ const messageSchema = new Schema<MessageDocument>({
     type: Schema.Types.ObjectId,
     ref: 'User'
   }
-}, {
+} as any, {
   timestamps: true,
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
@@ -76,8 +76,8 @@ messageSchema.statics.findConversations = function(userId: string) {
     {
       $match: {
         $or: [
-          { senderId: mongoose.Types.ObjectId(userId) },
-          { receiverId: mongoose.Types.ObjectId(userId) }
+          { senderId: new mongoose.Types.ObjectId(userId) },
+          { receiverId: new mongoose.Types.ObjectId(userId) }
         ]
       }
     },
@@ -85,7 +85,7 @@ messageSchema.statics.findConversations = function(userId: string) {
       $addFields: {
         conversationId: {
           $cond: {
-            if: { $eq: ['$senderId', mongoose.Types.ObjectId(userId)] },
+            if: { $eq: ['$senderId', new mongoose.Types.ObjectId(userId)] },
             then: { $concat: ['$senderId', '-', '$receiverId'] },
             else: { $concat: ['$receiverId', '-', '$senderId'] }
           }
@@ -101,7 +101,7 @@ messageSchema.statics.findConversations = function(userId: string) {
             $cond: [
               {
                 $and: [
-                  { $eq: ['$receiverId', mongoose.Types.ObjectId(userId)] },
+                  { $eq: ['$receiverId', new mongoose.Types.ObjectId(userId)] },
                   { $eq: ['$isRead', false] }
                 ]
               },

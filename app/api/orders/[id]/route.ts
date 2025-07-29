@@ -7,7 +7,7 @@ import Wallet from '@/models/Wallet';
 // Helper function to add profit to marketer's wallet
 async function addProfitToWallet(userId: string, profit: number, orderId: string) {
   try {
-    let wallet = await Wallet.findByUser(userId);
+    let wallet = await Wallet.findOne({ userId });
     
     if (!wallet) {
       // Create wallet if it doesn't exist
@@ -41,7 +41,7 @@ async function addProfitToWallet(userId: string, profit: number, orderId: string
 }
 
 // PUT /api/orders/[id] - Update order status
-export const PUT = withAuth(async (req: NextRequest, user, { params }: { params: { id: string } }) => {
+export const PUT = withAuth(async (req: NextRequest, user: any, { params }: { params: { id: string } }) => {
   try {
     await connectDB();
     const body = await req.json();
@@ -99,7 +99,7 @@ export const PUT = withAuth(async (req: NextRequest, user, { params }: { params:
 });
 
 // GET /api/orders/[id] - Get order details
-export const GET = withAuth(async (req: NextRequest, user, { params }: { params: { id: string } }) => {
+export const GET = withAuth(async (req: NextRequest, user: any, { params }: { params: { id: string } }) => {
   try {
     await connectDB();
     

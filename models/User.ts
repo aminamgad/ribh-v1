@@ -2,9 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { User } from '@/types';
 
-export type UserRole = 'admin' | 'supplier' | 'marketer' | 'wholesaler';
-
-export interface UserDocument extends User, Document {
+export interface UserDocument extends Omit<User, '_id'>, Document {
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
@@ -143,7 +141,7 @@ const userSchema = new Schema<UserDocument>({
       min: [50, 'الحد الأدنى للسحب التلقائي يجب أن يكون 50 ₪ على الأقل']
     }
   }
-}, {
+} as any, {
   timestamps: true,
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
@@ -166,7 +164,7 @@ userSchema.pre('save', async function(next) {
   
   try {
     const salt = await bcrypt.genSalt(12);
-    this.password = await bcrypt.hash(this.password, salt);
+    (this as any).password = await bcrypt.hash((this as any).password, salt);
     next();
   } catch (error) {
     next(error as Error);
@@ -189,9 +187,8 @@ userSchema.statics.findByEmail = function(email: string) {
 };
 
 // Static method to find active users by role
-userSchema.statics.findActiveByRole = function(role: UserRole) {
+userSchema.statics.findActiveByRole = function(role: string) {
   return this.find({ role, isActive: true, isVerified: true });
 };
 
-export { UserRole };
 export default mongoose.models.User || mongoose.model<UserDocument>('User', userSchema); 

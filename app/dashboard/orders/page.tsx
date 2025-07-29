@@ -83,7 +83,7 @@ export default function OrdersPage() {
         const data = await response.json();
         console.log('Orders API response:', data);
         console.log('User role:', user?.role, 'User ID:', user?._id);
-        console.log('Orders for user:', data.orders?.map(o => ({
+        console.log('Orders for user:', data.orders?.map((o: any) => ({
           id: o._id,
           supplierId: o.supplierId,
           customerId: o.customerId,

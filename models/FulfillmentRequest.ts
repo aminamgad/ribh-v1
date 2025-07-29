@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import { FulfillmentRequest } from '@/types';
 
-export interface FulfillmentRequestDocument extends FulfillmentRequest, Document {}
+export interface FulfillmentRequestDocument extends Omit<FulfillmentRequest, '_id'>, Document {}
 
 const fulfillmentProductSchema = new Schema({
   productId: {
@@ -68,7 +68,7 @@ const fulfillmentRequestSchema = new Schema<FulfillmentRequestDocument>({
   },
   expectedDeliveryDate: Date,
   actualDeliveryDate: Date
-}, {
+} as any, {
   timestamps: true,
   toJSON: { virtuals: true },
   toObject: { virtuals: true }

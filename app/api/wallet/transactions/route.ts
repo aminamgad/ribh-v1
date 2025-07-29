@@ -50,7 +50,7 @@ async function getTransactions(req: NextRequest, user: any) {
     const total = await wallet.getTransactionCount(query);
     
     // Transform transactions for frontend
-    const transformedTransactions = transactions.map(transaction => ({
+    const transformedTransactions = transactions.map((transaction: any) => ({
       _id: transaction._id,
       type: transaction.type,
       amount: transaction.amount,

@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import { Category } from '@/types';
 
-export interface CategoryDocument extends Category, Document {}
+export interface CategoryDocument extends Omit<Category, '_id'>, Document {}
 
 const categorySchema = new Schema<CategoryDocument>({
   name: {
@@ -41,8 +41,8 @@ const categorySchema = new Schema<CategoryDocument>({
     type: String,
     unique: true,
     sparse: true,
-    trim: true
-  },
+    required: true
+  } as any,
   metaTitle: {
     type: String,
     trim: true,
@@ -61,7 +61,7 @@ const categorySchema = new Schema<CategoryDocument>({
     type: Number,
     default: 0
   }
-}, {
+} as any, {
   timestamps: true,
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
@@ -84,15 +84,15 @@ categorySchema.virtual('subcategories', {
 // Virtual for full path
 categorySchema.virtual('fullPath').get(function() {
   if (this.parentId) {
-    return `${this.parentId.name} > ${this.name}`;
+    return `${(this.parentId as any).name} > ${this.name}`;
   }
   return this.name;
 });
 
 // Pre-save middleware to generate slug
 categorySchema.pre('save', function(next) {
-  if (!this.slug) {
-    this.slug = this.name
+  if (!(this as any).slug) {
+    (this as any).slug = this.name
       .toLowerCase()
       .replace(/[^\w\s-]/g, '')
       .replace(/[\s_-]+/g, '-')

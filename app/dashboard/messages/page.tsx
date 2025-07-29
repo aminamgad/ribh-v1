@@ -181,7 +181,7 @@ export default function MessagesPage() {
         setMessages(data.messages);
         
         // Update last message IDs
-        lastMessageIdsRef.current = currentMessageIds;
+        lastMessageIdsRef.current = currentMessageIds as Set<string>;
         
         // Show notification if new messages arrived in current conversation
         if (newMessages.length > 0) {
@@ -230,7 +230,7 @@ export default function MessagesPage() {
           receiverId: conversation.otherUser._id,
           subject: newMessage.subject,
           content: newMessage.content,
-          productId: conversation.lastMessage.productId?._id
+          productId: (conversation.lastMessage as any).productId?._id
         }),
       });
 

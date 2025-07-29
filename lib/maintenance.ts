@@ -11,7 +11,7 @@ export async function checkMaintenanceMode(req: NextRequest): Promise<NextRespon
     }
     
     await connectDB();
-    const settings = await SystemSettings.getCurrentSettings();
+    const settings = await SystemSettings.findOne().sort({ updatedAt: -1 });
     
     if (settings?.maintenanceMode) {
       // Allow admin users to bypass maintenance mode
@@ -46,7 +46,7 @@ export async function getMaintenanceStatus(): Promise<{
 }> {
   try {
     await connectDB();
-    const settings = await SystemSettings.getCurrentSettings();
+    const settings = await SystemSettings.findOne().sort({ updatedAt: -1 });
     
     return {
       maintenanceMode: settings?.maintenanceMode || false,

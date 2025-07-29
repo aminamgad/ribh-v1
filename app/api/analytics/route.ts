@@ -201,7 +201,12 @@ async function getAnalytics(req: NextRequest, user: any) {
     });
     
     // Users analytics (admin only)
-    let usersData = {
+    let usersData: {
+      byRole: any[];
+      newSignups: any[];
+      total: number;
+      growth: number;
+    } = {
       byRole: [],
       newSignups: [],
       total: 0,
@@ -262,7 +267,7 @@ async function getAnalytics(req: NextRequest, user: any) {
         byRole: usersByRole,
         newSignups,
         total: totalUsers,
-        growth: parseFloat(usersGrowth)
+        growth: typeof usersGrowth === 'string' ? parseFloat(usersGrowth) : usersGrowth
       };
     }
     
@@ -277,7 +282,7 @@ async function getAnalytics(req: NextRequest, user: any) {
           revenue: item.revenue
         })),
         total: currentTotal,
-        growth: parseFloat(revenueGrowth)
+        growth: typeof revenueGrowth === 'string' ? parseFloat(revenueGrowth) : revenueGrowth
       },
       orders: {
         daily: dailyOrders.map(item => ({
@@ -289,7 +294,7 @@ async function getAnalytics(req: NextRequest, user: any) {
           count: item.count
         })),
         total: totalOrders,
-        growth: parseFloat(ordersGrowth)
+        growth: typeof ordersGrowth === 'string' ? parseFloat(ordersGrowth) : ordersGrowth
       },
       products: {
         topSelling: topSellingProducts,

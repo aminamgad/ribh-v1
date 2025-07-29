@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
   try {
     await connectDB();
     
-    let settings = await SystemSettings.getCurrentSettings();
+    let settings = await SystemSettings.findOne().sort({ updatedAt: -1 });
     
     // If no settings exist, create default settings
     if (!settings) {

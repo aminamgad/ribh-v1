@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { withAuth } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import StoreIntegration, { IntegrationType, IntegrationStatus } from '@/models/StoreIntegration';
-import { UserRole } from '@/models/User';
+import { UserRole } from '@/types';
 
 // Validation schema
 const createIntegrationSchema = z.object({
@@ -24,7 +24,7 @@ const createIntegrationSchema = z.object({
 });
 
 // GET /api/integrations - Get user's store integrations
-export const GET = withAuth(async (req: NextRequest, { user }) => {
+export const GET = withAuth(async (req: NextRequest, { user }: { user: any }) => {
   try {
     // Only marketers and wholesalers can have store integrations
     if (user.role !== 'marketer' && user.role !== 'wholesaler') {
@@ -67,7 +67,7 @@ export const GET = withAuth(async (req: NextRequest, { user }) => {
 });
 
 // POST /api/integrations - Create new store integration
-export const POST = withAuth(async (req: NextRequest, { user }) => {
+export const POST = withAuth(async (req: NextRequest, { user }: { user: any }) => {
   try {
     // Only marketers and wholesalers can create store integrations
     if (user.role !== 'marketer' && user.role !== 'wholesaler') {

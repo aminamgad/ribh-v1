@@ -379,7 +379,7 @@ export default function ChatPage() {
                         </div>
                         {chat.lastMessage && (
                           <p className="text-xs text-gray-600 dark:text-slate-400 truncate">
-                            {typeof chat.lastMessage === 'string' ? chat.lastMessage : chat.lastMessage.message}
+                            {typeof chat.lastMessage === 'string' ? chat.lastMessage : (chat.lastMessage as any).message}
                           </p>
                         )}
                         <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
@@ -444,7 +444,7 @@ export default function ChatPage() {
               {currentChat.messages && currentChat.messages.length > 0 ? (
                 currentChat.messages.map((message, index) => {
                   // تحسين تحديد الرسائل - رسائلي أم لا
-                  const isMe = message.senderId?._id === user?._id || message.senderId === user?._id;
+                  const isMe = (message.senderId as any)?._id === user?._id || (message.senderId as any) === user?._id;
                   
                   // إضافة console.log للتأكد من التحديد الصحيح
                   console.log('Message debug:', {

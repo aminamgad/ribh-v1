@@ -15,7 +15,9 @@ async function getProduct(req: NextRequest, user: any, { params }: RouteParams) 
     const product = await Product.findById(params.id)
       .populate('categoryId', 'name')
       .populate('supplierId', 'name companyName')
-      .lean();
+      .populate('approvedBy', 'name')
+      .populate('rejectedBy', 'name')
+      .lean() as any;
 
     if (!product) {
       return NextResponse.json(

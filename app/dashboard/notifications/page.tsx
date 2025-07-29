@@ -89,7 +89,7 @@ export default function NotificationsPage() {
         items.push(
           <div key={key} className="flex justify-between py-1">
             <span className="text-gray-600 dark:text-slate-400 font-medium">{key}:</span>
-            <span className="text-gray-900 dark:text-slate-100">{displayValue}</span>
+            <span className="text-gray-900 dark:text-slate-100">{displayValue as any}</span>
           </div>
         );
       }

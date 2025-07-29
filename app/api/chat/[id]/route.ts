@@ -31,7 +31,7 @@ interface RouteParams {
 }
 
 // GET /api/chat/[id] - Get chat details with messages
-export const GET = withAuth(async (req: NextRequest, user, { params }: RouteParams) => {
+export const GET = withAuth(async (req: NextRequest, user: any, { params }: RouteParams) => {
   try {
     await connectDB();
 
@@ -75,7 +75,7 @@ export const GET = withAuth(async (req: NextRequest, user, { params }: RoutePara
 });
 
 // POST /api/chat/[id] - Send message in chat
-export const POST = withAuth(async (req: NextRequest, user, { params }: RouteParams) => {
+export const POST = withAuth(async (req: NextRequest, user: any, { params }: RouteParams) => {
   try {
     const body = await req.json();
     const validatedData = sendMessageSchema.parse(body);
@@ -141,7 +141,7 @@ export const POST = withAuth(async (req: NextRequest, user, { params }: RoutePar
 });
 
 // PUT /api/chat/[id] - Update chat (status, priority, etc.)
-export const PUT = withAuth(async (req: NextRequest, user, { params }: RouteParams) => {
+export const PUT = withAuth(async (req: NextRequest, user: any, { params }: RouteParams) => {
   try {
     const body = await req.json();
     const validatedData = updateChatSchema.parse(body);
@@ -196,7 +196,12 @@ export const PUT = withAuth(async (req: NextRequest, user, { params }: RoutePara
 
     // Notify participants of status change
     if (validatedData.status) {
-      const io = require('@/lib/socket').getIO();
+      let io;
+      try {
+        io = require('@/lib/socket').getIO();
+      } catch (error) {
+        console.warn('Socket.io not available:', error);
+      }
       if (io) {
         chat.participants.forEach((participantId: any) => {
           if (participantId.toString() !== user._id.toString()) {
@@ -236,7 +241,7 @@ export const PUT = withAuth(async (req: NextRequest, user, { params }: RoutePara
 });
 
 // DELETE /api/chat/[id] - Delete chat (admin only)
-export const DELETE = withAuth(async (req: NextRequest, user, { params }: RouteParams) => {
+export const DELETE = withAuth(async (req: NextRequest, user: any, { params }: RouteParams) => {
   try {
     if (user.role !== 'admin') {
       return NextResponse.json(

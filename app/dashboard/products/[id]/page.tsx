@@ -130,7 +130,7 @@ export default function ProductDetailPage() {
     if (isFavorite(product._id)) {
       await removeFromFavorites(product._id);
     } else {
-      await addToFavorites(product);
+      await addToFavorites(product as any);
     }
   };
 
@@ -154,7 +154,7 @@ export default function ProductDetailPage() {
 
     try {
       // استخدام المنتج الأصلي بدلاً من إنشاء كائن جديد
-      addToCart(product);
+      addToCart(product as any);
       
       // إشعار واحد فقط
       toast.success(`تم إضافة ${product.name} إلى السلة بنجاح`);

@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import { Order, OrderStatus } from '@/types';
 
-export interface OrderDocument extends Order, Document {}
+export interface OrderDocument extends Omit<Order, '_id'>, Document {}
 
 const orderItemSchema = new Schema({
   productId: {
@@ -160,7 +160,7 @@ const orderSchema = new Schema<OrderDocument>({
     trim: true,
     maxlength: [1000, 'ملاحظات الإدارة لا يمكن أن تتجاوز 1000 حرف']
   }
-}, {
+} as any, {
   timestamps: true,
   toJSON: { virtuals: true },
   toObject: { virtuals: true }

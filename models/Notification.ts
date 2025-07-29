@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import { Notification } from '@/types';
 
-export interface NotificationDocument extends Notification, Document {}
+export interface NotificationDocument extends Omit<Notification, '_id'>, Document {}
 
 const notificationSchema = new Schema<NotificationDocument>({
   userId: {
@@ -41,7 +41,7 @@ const notificationSchema = new Schema<NotificationDocument>({
   },
   readAt: Date,
   expiresAt: Date
-}, {
+} as any, {
   timestamps: true,
   toJSON: { virtuals: true },
   toObject: { virtuals: true }

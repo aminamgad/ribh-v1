@@ -57,7 +57,7 @@ async function getFulfillmentRequests(req: NextRequest, user: any) {
     const transformedRequests = requests.map(request => ({
       _id: request._id,
       supplierName: request.supplierId?.name || request.supplierId?.companyName,
-      products: request.products.map(product => ({
+      products: request.products.map((product: any) => ({
         productName: product.productId?.name,
         quantity: product.quantity,
         currentStock: product.currentStock

@@ -4,6 +4,7 @@ import connectDB from '@/lib/database';
 import User from '@/models/User';
 import Product from '@/models/Product';
 import Order from '@/models/Order';
+import { Product as ProductType } from '@/types';
 
 interface RouteParams {
   params: { id: string };
@@ -14,7 +15,7 @@ async function getUserDetail(req: NextRequest, user: any, { params }: RouteParam
   try {
     await connectDB();
     
-    const userDetail = await User.findById(params.id).select('-password').lean();
+    const userDetail = await User.findById(params.id).select('-password').lean() as import('@/types').User | null;
     
     if (!userDetail) {
       return NextResponse.json(
@@ -33,13 +34,13 @@ async function getUserDetail(req: NextRequest, user: any, { params }: RouteParam
     });
 
     // Get recent products (if supplier)
-    let recentProducts = [];
+    let recentProducts: Partial<ProductType>[] = [];
     if (userDetail.role === 'supplier') {
-      recentProducts = await Product.find({ supplierId: params.id })
+      recentProducts = (await Product.find({ supplierId: params.id })
         .select('name images marketerPrice isApproved')
         .sort({ createdAt: -1 })
         .limit(5)
-        .lean();
+        .lean()) as any as Partial<ProductType>[];
     }
 
     // Get recent orders

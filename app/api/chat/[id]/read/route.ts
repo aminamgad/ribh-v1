@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/lib/auth';
+import { getCurrentUser } from '@/lib/auth';
 import Chat from '@/models/Chat';
 import Message from '@/models/Message';
 import connectDB from '@/lib/database';
@@ -9,7 +9,7 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const user = await withAuth(request);
+    const user = await getCurrentUser(request);
     if (!user) {
       return NextResponse.json({ success: false, message: 'غير مصرح' }, { status: 401 });
     }

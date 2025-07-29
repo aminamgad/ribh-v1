@@ -417,7 +417,10 @@ export default function IntegrationsPage() {
                         apiKey: '',
                         apiSecret: '',
                         webhookUrl: '',
-                        settings: integration.settings
+                        settings: {
+                          ...integration.settings,
+                          priceMarkup: integration.settings.priceMarkup ?? 0
+                        }
                       });
                       setShowAddModal(true);
                     }}

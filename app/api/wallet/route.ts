@@ -22,7 +22,7 @@ async function getWallet(req: NextRequest, user: any) {
     }
     
     // Get system settings for withdrawal limits
-    const settings = await SystemSettings.getCurrentSettings();
+    const settings = await SystemSettings.findOne().sort({ updatedAt: -1 });
     const minimumWithdrawal = settings?.minimumWithdrawal || 100;
     const maximumWithdrawal = settings?.maximumWithdrawal || 10000;
     const withdrawalFee = settings?.withdrawalFee || 0;
@@ -74,7 +74,7 @@ async function requestWithdrawal(req: NextRequest, user: any) {
     }
     
     // Get system settings
-    const settings = await SystemSettings.getCurrentSettings();
+    const settings = await SystemSettings.findOne().sort({ updatedAt: -1 });
     const minimumWithdrawal = settings?.minimumWithdrawal || 100;
     const maximumWithdrawal = settings?.maximumWithdrawal || 10000;
     const withdrawalFee = settings?.withdrawalFee || 0;

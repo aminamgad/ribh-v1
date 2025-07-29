@@ -4,7 +4,7 @@ import connectDB from '@/lib/database';
 import Order from '@/models/Order';
 
 // POST /api/orders/[id]/fulfill - Fulfill order (for suppliers)
-export const POST = withAuth(async (req: NextRequest, user, { params }: { params: { id: string } }) => {
+export const POST = withAuth(async (req: NextRequest, user: any, { params }: { params: { id: string } }) => {
   try {
     await connectDB();
     

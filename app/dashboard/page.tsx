@@ -816,7 +816,7 @@ export default function DashboardPage() {
                   <div>
                     <p className="text-sm font-medium text-gray-900 dark:text-slate-100">آخر إضافة للمفضلة</p>
                     <p className="text-xs text-gray-500 dark:text-slate-400">
-                      {stats?.favoritesCount > 0 ? 'هذا الشهر' : 'لا توجد مفضلة'}
+                      {(stats?.favoritesCount ?? 0) > 0 ? 'هذا الشهر' : 'لا توجد مفضلة'}
                     </p>
                   </div>
                 </div>

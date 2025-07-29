@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { withAuth } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import StoreIntegration, { IntegrationStatus } from '@/models/StoreIntegration';
-import { UserRole } from '@/models/User';
+import { UserRole } from '@/types';
 
 // Validation schema for updates
 const updateIntegrationSchema = z.object({
@@ -94,7 +94,7 @@ export const GET = withAuth(async (req: NextRequest, { user, params }: RoutePara
 // PUT /api/integrations/[id] - Update integration
 export const PUT = withAuth(async (req: NextRequest, { user, params }: RouteParams & { user: any }) => {
   try {
-    if (user.role !== UserRoleConstants.MARKETER && user.role !== UserRoleConstants.WHOLESALER) {
+    if (user.role !== 'marketer' && user.role !== 'wholesaler') {
       return NextResponse.json(
         { error: 'غير مصرح لك بتحديث التكاملات' },
         { status: 403 }
@@ -169,7 +169,7 @@ export const PUT = withAuth(async (req: NextRequest, { user, params }: RoutePara
 // DELETE /api/integrations/[id] - Delete integration
 export const DELETE = withAuth(async (req: NextRequest, { user, params }: RouteParams & { user: any }) => {
   try {
-    if (user.role !== UserRoleConstants.MARKETER && user.role !== UserRoleConstants.WHOLESALER) {
+    if (user.role !== 'marketer' && user.role !== 'wholesaler') {
       return NextResponse.json(
         { error: 'غير مصرح لك بحذف التكاملات' },
         { status: 403 }

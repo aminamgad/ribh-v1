@@ -178,7 +178,7 @@ async function updateCategory(req: NextRequest, user: any, { params }: RoutePara
     }
     
     return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء تحديث الفئة', error: error.message },
+      { success: false, message: 'حدث خطأ أثناء تحديث الفئة', error: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }

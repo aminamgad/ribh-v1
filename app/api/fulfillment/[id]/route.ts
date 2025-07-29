@@ -22,7 +22,7 @@ async function getFulfillmentRequest(req: NextRequest, user: any, { params }: { 
       .populate('supplierId', 'name companyName email phone')
       .populate('approvedBy', 'name')
       .populate('rejectedBy', 'name')
-      .lean();
+      .lean() as any;
     
     if (!request) {
       return NextResponse.json(
@@ -46,7 +46,7 @@ async function getFulfillmentRequest(req: NextRequest, user: any, { params }: { 
         supplierName: request.supplierId?.name || request.supplierId?.companyName,
         supplierEmail: request.supplierId?.email,
         supplierPhone: request.supplierId?.phone,
-        products: request.products.map(product => ({
+        products: request.products.map((product: any) => ({
           productName: product.productId?.name,
           productImages: product.productId?.images,
           quantity: product.quantity,

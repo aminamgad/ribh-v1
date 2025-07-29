@@ -14,7 +14,9 @@ async function getFavorites(req: NextRequest, user: any) {
   try {
     await connectDB();
     
-    const favorites = await Favorite.getUserFavorites(user._id);
+    const favorites = await Favorite.find({ userId: user._id })
+      .populate('productId')
+      .lean();
     
     // Filter out any null products (deleted products)
     const validFavorites = favorites

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
-import { Search, Filter, Eye, Edit, Shield, UserCheck, UserX, Mail, Phone } from 'lucide-react';
+import { Search, Filter, Eye, Edit, Shield, UserCheck, UserX, Mail, Phone, UserPlus } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 
@@ -160,7 +160,7 @@ export default function AdminUsersPage() {
           href="/dashboard/admin/users/new"
           className="btn-primary"
         >
-          <User className="w-4 h-4 ml-2" />
+          <UserPlus className="w-4 h-4 ml-2" />
           إضافة مستخدم جديد
         </Link>
       </div>

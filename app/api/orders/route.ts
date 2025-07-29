@@ -31,13 +31,13 @@ const orderSchema = z.object({
 // Helper function to calculate commission based on system settings
 async function calculateCommission(subtotal: number): Promise<number> {
   try {
-    const settings = await SystemSettings.getCurrentSettings();
+    const settings = await SystemSettings.findOne().sort({ updatedAt: -1 });
     if (!settings || !settings.commissionRates || settings.commissionRates.length === 0) {
       return subtotal * 0.1; // Default 10% if no settings
     }
     
     // Find the appropriate commission rate based on order value
-    const rate = settings.commissionRates.find(rate => 
+    const rate = settings.commissionRates.find((rate: any) => 
       subtotal >= rate.minPrice && subtotal <= rate.maxPrice
     );
     
@@ -46,7 +46,7 @@ async function calculateCommission(subtotal: number): Promise<number> {
     }
     
     // If no matching rate found, use the highest rate for orders above max
-    const highestRate = settings.commissionRates.reduce((max, current) => 
+    const highestRate = settings.commissionRates.reduce((max: any, current: any) => 
       current.rate > max.rate ? current : max
     );
     
@@ -60,7 +60,7 @@ async function calculateCommission(subtotal: number): Promise<number> {
 // Helper function to add profit to marketer's wallet
 async function addProfitToWallet(userId: string, profit: number, orderId: string) {
   try {
-    let wallet = await Wallet.findByUser(userId);
+    let wallet = await Wallet.findOne({ userId });
     
     if (!wallet) {
       // Create wallet if it doesn't exist
@@ -172,7 +172,7 @@ async function getOrders(req: NextRequest, user: any) {
       supplierId: order.supplierId._id || order.supplierId,
       customerId: order.customerId._id || order.customerId,
       supplierName: order.supplierId?.name || order.supplierId?.companyName,
-      items: order.items.map(item => ({
+      items: order.items.map((item: any) => ({
         productName: item.productId?.name,
         quantity: item.quantity,
         price: item.price
@@ -217,7 +217,7 @@ async function createOrder(req: NextRequest, user: any) {
     const validatedData = orderSchema.parse(body);
     
     // Get system settings for order validation
-    const settings = await SystemSettings.getCurrentSettings();
+    const settings = await SystemSettings.findOne().sort({ updatedAt: -1 });
     const minOrderValue = settings?.minOrderValue || 0;
     const maxOrderValue = settings?.maxOrderValue || 50000;
     const autoApproveOrders = settings?.autoApproveOrders || false;

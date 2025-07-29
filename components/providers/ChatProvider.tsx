@@ -138,7 +138,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
       console.error('Error fetching chats:', error);
       setChats([]);
       // Only show error if it's not a network/auth issue
-      const errorMessage = error.message || '';
+      const errorMessage = (error as any).message || '';
       if (!errorMessage.includes('401') && !errorMessage.includes('Unauthorized')) {
         toast.error('حدث خطأ في جلب المحادثات');
       }
@@ -165,7 +165,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
         // تحسين تحديد الرسائل - إضافة debug
         if (chat.messages) {
           chat.messages.forEach((message: ChatMessage, index: number) => {
-            const isMe = message.senderId?._id === user?._id || message.senderId === user?._id;
+            const isMe = (message.senderId as any)?._id === user?._id || (message.senderId as any) === user?._id;
             console.log(`Message ${index + 1}:`, {
               messageId: message._id,
               senderId: message.senderId?._id || message.senderId,

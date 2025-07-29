@@ -4,7 +4,7 @@ import connectDB from '@/lib/database';
 import StoreIntegration, { IntegrationStatus } from '@/models/StoreIntegration';
 import Product from '@/models/Product';
 import Order from '@/models/Order';
-import { UserRole } from '@/models/User';
+import { UserRole } from '@/types';
 
 interface RouteParams {
   params: {
@@ -145,7 +145,7 @@ export const POST = withAuth(async (req: NextRequest, { user, params }: RoutePar
 // GET /api/integrations/[id]/sync - Get sync status
 export const GET = withAuth(async (req: NextRequest, { user, params }: RouteParams & { user: any }) => {
   try {
-    if (user.role !== UserRole.MARKETER && user.role !== UserRole.WHOLESALER && user.role !== UserRole.ADMIN) {
+    if (user.role !== 'marketer' && user.role !== 'wholesaler' && user.role !== 'admin') {
       return NextResponse.json(
         { error: 'غير مصرح لك بعرض حالة المزامنة' },
         { status: 403 }
@@ -164,7 +164,7 @@ export const GET = withAuth(async (req: NextRequest, { user, params }: RoutePara
     }
 
     // Check ownership (admin can view all)
-    if (user.role !== UserRole.ADMIN && integration.userId.toString() !== user.id) {
+    if (user.role !== 'admin' && integration.userId.toString() !== user.id) {
       return NextResponse.json(
         { error: 'غير مصرح لك بعرض حالة المزامنة لهذا التكامل' },
         { status: 403 }

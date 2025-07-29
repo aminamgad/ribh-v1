@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import { Product } from '@/types';
 
-export interface ProductDocument extends Product, Document {}
+export interface ProductDocument extends Omit<Product, '_id'>, Document {}
 
 const productSchema = new Schema<ProductDocument>({
   name: {
@@ -146,7 +146,7 @@ const productSchema = new Schema<ProductDocument>({
     width: { type: Number, min: 0 },
     height: { type: Number, min: 0 }
   }
-}, {
+} as any, {
   timestamps: true,
   toJSON: { virtuals: true },
   toObject: { virtuals: true }

@@ -10,7 +10,7 @@ import { z } from 'zod';
 async function getProductSchema() {
   let settings;
   try {
-    settings = await SystemSettings.getCurrentSettings();
+    settings = await SystemSettings.findOne().sort({ updatedAt: -1 });
   } catch (error) {
     console.warn('Failed to fetch system settings in schema, using defaults:', error);
     settings = null;
@@ -164,7 +164,7 @@ async function getProducts(req: NextRequest, user: any) {
   } catch (error) {
     console.error('Error fetching products:', error);
     return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء جلب المنتجات', error: error.message },
+      { success: false, message: 'حدث خطأ أثناء جلب المنتجات', error: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }
@@ -178,7 +178,7 @@ async function createProduct(req: NextRequest, user: any) {
     // Get system settings
     let settings;
     try {
-      settings = await SystemSettings.getCurrentSettings();
+      settings = await SystemSettings.findOne().sort({ updatedAt: -1 });
     } catch (error) {
       console.warn('Failed to fetch system settings, using defaults:', error);
       settings = null;
@@ -349,7 +349,7 @@ async function createProduct(req: NextRequest, user: any) {
       );
     }
     
-    if (error.code === 11000) {
+    if ((error as any).code === 11000) {
       return NextResponse.json(
         { success: false, message: 'SKU موجود بالفعل. يرجى استخدام SKU مختلف' },
         { status: 400 }
@@ -357,7 +357,7 @@ async function createProduct(req: NextRequest, user: any) {
     }
     
     return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء إضافة المنتج', error: error.message },
+      { success: false, message: 'حدث خطأ أثناء إضافة المنتج', error: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }

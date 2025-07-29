@@ -5,6 +5,7 @@ import connectDB from '@/lib/database';
 import Chat, { ChatStatus } from '@/models/Chat';
 import User from '@/models/User';
 import { sendNotificationToUser } from '@/lib/socket';
+import Message from '@/models/Message';
 
 // Validation schema
 const createChatSchema = z.object({
@@ -15,7 +16,7 @@ const createChatSchema = z.object({
 });
 
 // GET /api/chat - Get user's chats
-export const GET = withAuth(async (req: NextRequest, user) => {
+export const GET = withAuth(async (req: NextRequest, user: any) => {
   try {
     await connectDB();
 
@@ -78,14 +79,14 @@ export const GET = withAuth(async (req: NextRequest, user) => {
   } catch (error) {
     console.error('Error fetching chats:', error);
     return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء جلب المحادثات', error: error.message },
+      { success: false, message: 'حدث خطأ أثناء جلب المحادثات', error: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }
 });
 
 // POST /api/chat - Create new chat
-export const POST = withAuth(async (req: NextRequest, user) => {
+export const POST = withAuth(async (req: NextRequest, user: any) => {
   try {
     const body = await req.json();
     const validatedData = createChatSchema.parse(body);
@@ -137,7 +138,12 @@ export const POST = withAuth(async (req: NextRequest, user) => {
       chat = existingChat;
       
       // Add the initial message
-      await chat.addMessage(user._id.toString(), validatedData.message);
+      await Message.create({
+        chatId: chat._id,
+        senderId: user._id,
+        content: validatedData.message,
+        type: 'text'
+      });
     } else {
       // Create new chat
       chat = await Chat.createChat(
@@ -147,7 +153,12 @@ export const POST = withAuth(async (req: NextRequest, user) => {
       );
       
       // Add the initial message
-      await chat.addMessage(user._id.toString(), validatedData.message);
+      await Message.create({
+        chatId: chat._id,
+        senderId: user._id,
+        content: validatedData.message,
+        type: 'text'
+      });
     }
 
     // Populate participants
@@ -174,7 +185,7 @@ export const POST = withAuth(async (req: NextRequest, user) => {
         priority: chat.priority,
         lastMessage: chat.lastMessage,
         lastMessageAt: chat.lastMessageAt,
-        unreadCount: chat.getUnreadCount(user._id.toString()),
+        unreadCount: 0, // سيتم حسابها من الرسائل غير المقروءة
         createdAt: chat.createdAt
       }
     }, { status: 201 });
@@ -188,7 +199,7 @@ export const POST = withAuth(async (req: NextRequest, user) => {
     
     console.error('Error creating chat:', error);
     return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء إنشاء المحادثة', error: error.message },
+      { success: false, message: 'حدث خطأ أثناء إنشاء المحادثة', error: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }
