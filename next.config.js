@@ -30,6 +30,10 @@ const nextConfig = {
       },
     ];
   },
+  // Disable serverless functions for Vercel
+  experimental: {
+    serverComponentsExternalPackages: ['mongoose'],
+  },
 };
 
 module.exports = nextConfig; 

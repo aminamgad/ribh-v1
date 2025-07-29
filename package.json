@@ -4,11 +4,9 @@
   "description": "Ribh (ربح) - Arabic Multi-Role eCommerce Platform",
   "private": true,
   "scripts": {
-    "dev": "node server.js",
-    "dev:next": "next dev",
+    "dev": "next dev",
     "build": "next build",
-    "start": "NODE_ENV=production node server.js",
-    "start:next": "next start",
+    "start": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
     "setup": "node scripts/setup.js",

@@ -5,7 +5,7 @@ const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 
 const dev = process.env.NODE_ENV !== 'production';
-const hostname = 'localhost';
+const hostname = process.env.HOSTNAME || 'localhost';
 const port = process.env.PORT || 3000;
 
 // Create the Next.js app
@@ -13,6 +13,9 @@ const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'ribh-secret-key-change-in-production';
+
+// Check if we're in Vercel environment
+const isVercel = process.env.VERCEL === '1';
 
 app.prepare().then(() => {
   // Create HTTP server
@@ -27,14 +30,16 @@ app.prepare().then(() => {
     }
   });
 
-  // Create Socket.io server
-  const io = new Server(server, {
-    cors: {
-      origin: process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${port}`,
-      methods: ['GET', 'POST'],
-      credentials: true,
-    },
-  });
+  // Only create Socket.io server if not in Vercel
+  if (!isVercel) {
+    // Create Socket.io server
+    const io = new Server(server, {
+      cors: {
+        origin: process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${port}`,
+        methods: ['GET', 'POST'],
+        credentials: true,
+      },
+    });
 
   // Socket.io authentication middleware
   io.use(async (socket, next) => {
@@ -228,39 +233,46 @@ app.prepare().then(() => {
     });
   });
 
-  // Store socket.io instance globally for use in API routes
-  global.io = io;
+    // Store socket.io instance globally for use in API routes
+    global.io = io;
 
-  // Helper functions for sending notifications from API routes
-  global.sendNotificationToUser = (userId, notification) => {
-    io.to(`user:${userId}`).emit('notification', {
-      ...notification,
-      timestamp: new Date(),
-    });
-  };
+    // Helper functions for sending notifications from API routes
+    global.sendNotificationToUser = (userId, notification) => {
+      io.to(`user:${userId}`).emit('notification', {
+        ...notification,
+        timestamp: new Date(),
+      });
+    };
 
-  global.sendNotificationToRole = (role, notification) => {
-    io.to(`role:${role}`).emit('notification', {
-      ...notification,
-      timestamp: new Date(),
-    });
-  };
+    global.sendNotificationToRole = (role, notification) => {
+      io.to(`role:${role}`).emit('notification', {
+        ...notification,
+        timestamp: new Date(),
+      });
+    };
 
-  global.broadcastNotification = (notification) => {
-    io.emit('notification', {
-      ...notification,
-      timestamp: new Date(),
-    });
-  };
+    global.broadcastNotification = (notification) => {
+      io.emit('notification', {
+        ...notification,
+        timestamp: new Date(),
+      });
+    };
 
-  // Start the server
-  server
-    .once('error', (err) => {
-      console.error('Server error:', err);
-      process.exit(1);
-    })
-    .listen(port, () => {
+    // Start the server
+    server
+      .once('error', (err) => {
+        console.error('Server error:', err);
+        process.exit(1);
+      })
+      .listen(port, () => {
+        console.log(`> Ready on http://${hostname}:${port}`);
+        console.log(`> Socket.io server running`);
+      });
+  } else {
+    // For Vercel, just start the server without Socket.io
+    server.listen(port, () => {
       console.log(`> Ready on http://${hostname}:${port}`);
-      console.log(`> Socket.io server running`);
+      console.log(`> Running on Vercel (Socket.io disabled)`);
     });
+  }
 }); 
