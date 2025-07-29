@@ -12,7 +12,7 @@ const messageSchema = new Schema<MessageDocument>({
   receiverId: {
     type: Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: false
   },
   productId: {
     type: Schema.Types.ObjectId,
@@ -21,7 +21,7 @@ const messageSchema = new Schema<MessageDocument>({
   },
   subject: {
     type: String,
-    required: [true, 'موضوع الرسالة مطلوب'],
+    required: false,
     trim: true,
     maxlength: [200, 'موضوع الرسالة لا يمكن أن يتجاوز 200 حرف']
   },

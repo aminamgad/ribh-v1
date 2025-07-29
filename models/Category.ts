@@ -40,8 +40,7 @@ const categorySchema = new Schema<CategoryDocument>({
   slug: {
     type: String,
     unique: true,
-    sparse: true,
-    required: true
+    sparse: true
   } as any,
   metaTitle: {
     type: String,

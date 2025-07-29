@@ -150,6 +150,20 @@ async function createCategory(req: NextRequest, user: any) {
         { status: 400 }
       );
     }
+
+    // Generate slug
+    let slug = validatedData.name
+      .toLowerCase()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/[\s_-]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+
+    let uniqueSlug = slug;
+    let counter = 2;
+    while (await Category.findOne({ slug: uniqueSlug })) {
+      uniqueSlug = `${slug}-${counter}`;
+      counter++;
+    }
     
     // Create category
     const categoryData = {
@@ -159,7 +173,8 @@ async function createCategory(req: NextRequest, user: any) {
       image: validatedData.image || '',
       parentId: validatedData.parentId || null,
       order: validatedData.order || 0,
-      isActive: validatedData.isActive !== undefined ? validatedData.isActive : true
+      isActive: validatedData.isActive !== undefined ? validatedData.isActive : true,
+      slug: uniqueSlug
     };
     
     const category = await Category.create(categoryData);

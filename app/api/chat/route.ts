@@ -44,14 +44,14 @@ export const GET = withAuth(async (req: NextRequest, user: any) => {
 
     // Get chats
     const [chats, total] = await Promise.all([
-      Chat.find(query)
+      (Chat as any).find(query)
         .populate('participants', 'name email role companyName')
         .populate('closedBy', 'name')
         .sort({ lastMessageAt: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
-      Chat.countDocuments(query)
+      (Chat as any).countDocuments(query)
     ]);
 
     // Add unread count for each chat
@@ -126,7 +126,7 @@ export const POST = withAuth(async (req: NextRequest, user: any) => {
     }
 
     // Check for existing active chat
-    const existingChat = await Chat.findOne({
+    const existingChat = await (Chat as any).findOne({
       participants: { $all: participants },
       status: { $ne: ChatStatus.CLOSED }
     });
@@ -137,32 +137,36 @@ export const POST = withAuth(async (req: NextRequest, user: any) => {
       // Use existing chat
       chat = existingChat;
       
-      // Add the initial message
-      await Message.create({
-        chatId: chat._id,
+      // Add the initial message directly to messages array
+      (chat as any).messages.push({
         senderId: user._id,
-        content: validatedData.message,
-        type: 'text'
-      });
+        message: validatedData.message,
+        type: 'text' as any,
+        isRead: false,
+        createdAt: new Date()
+      } as any);
+      await chat.save();
     } else {
       // Create new chat
-      chat = await Chat.createChat(
+      chat = await (Chat as any).createChat(
         participants,
         validatedData.subject,
         validatedData.category
       );
       
-      // Add the initial message
-      await Message.create({
-        chatId: chat._id,
+      // Add the initial message directly to messages array
+      (chat as any).messages.push({
         senderId: user._id,
-        content: validatedData.message,
-        type: 'text'
-      });
+        message: validatedData.message,
+        type: 'text' as any,
+        isRead: false,
+        createdAt: new Date()
+      } as any);
+      await chat.save();
     }
 
     // Populate participants
-    await chat.populate('participants', 'name email role companyName');
+    await (chat as any).populate('participants', 'name email role companyName');
 
     // Send notification to recipient
     sendNotificationToUser(recipientId, {
@@ -178,15 +182,15 @@ export const POST = withAuth(async (req: NextRequest, user: any) => {
       message: 'تم إنشاء المحادثة بنجاح',
       chat: {
         _id: chat._id,
-        participants: chat.participants,
-        subject: chat.subject,
-        status: chat.status,
-        category: chat.category,
-        priority: chat.priority,
-        lastMessage: chat.lastMessage,
-        lastMessageAt: chat.lastMessageAt,
+        participants: (chat as any).participants,
+        subject: (chat as any).subject,
+        status: (chat as any).status,
+        category: (chat as any).category,
+        priority: (chat as any).priority,
+        lastMessage: (chat as any).lastMessage,
+        lastMessageAt: (chat as any).lastMessageAt,
         unreadCount: 0, // سيتم حسابها من الرسائل غير المقروءة
-        createdAt: chat.createdAt
+        createdAt: (chat as any).createdAt
       }
     }, { status: 201 });
   } catch (error) {

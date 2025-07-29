@@ -30,7 +30,7 @@ export interface IChatMessage {
   createdAt: Date;
 }
 
-export interface IChat extends Document {
+export interface IChat extends Document, IChatMethods {
   participants: mongoose.Types.ObjectId[];
   participantRoles: {
     userId: mongoose.Types.ObjectId;
@@ -155,7 +155,7 @@ const chatSchema = new Schema<IChat, IChatModel, IChatMethods>({
     type: Map,
     of: Schema.Types.Mixed
   }
-}, {
+} as any, {
   timestamps: true
 });
 
@@ -356,7 +356,7 @@ chatSchema.virtual('unreadCount').get(function() {
 });
 
 // Create and export model
-const Chat = (mongoose.models.Chat as IChatModel) || 
+const Chat = mongoose.models.Chat || 
   mongoose.model<IChat, IChatModel>('Chat', chatSchema);
 
 export default Chat; 
