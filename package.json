@@ -3,22 +3,19 @@
   "version": "1.0.0",
   "description": "Ribh (ربح) - Arabic Multi-Role eCommerce Platform",
   "private": true,
-  "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=8.0.0"
-  },
   "scripts": {
-    "dev": "next dev",
+    "dev": "node server.js",
+    "dev:next": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "NODE_ENV=production node server.js",
+    "start:next": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
     "setup": "node scripts/setup.js",
     "create-admin": "node scripts/create-admin.js",
     "admin": "node scripts/create-admin.js",
     "simple-admin": "node scripts/simple-admin.js",
-    "check-admin": "node scripts/check-admin.js",
-    "vercel-build": "next build"
+    "check-admin": "node scripts/check-admin.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.2",
