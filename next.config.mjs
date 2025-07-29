@@ -34,6 +34,10 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['mongoose'],
   },
+  // Disable styled-jsx for Vercel
+  compiler: {
+    styledComponents: false,
+  },
 };
 
-module.exports = nextConfig; 
+export default nextConfig; 

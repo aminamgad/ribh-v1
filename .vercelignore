@@ -88,4 +88,8 @@ scripts/
 
 # OS files
 .DS_Store
-Thumbs.db 
+Thumbs.db
+
+# Old config files
+next.config.js
+server.js 
