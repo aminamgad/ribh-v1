@@ -1,8 +1,6 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export interface SystemSettings extends Document {
-  getCommissionRate(price: number): number;
-}
   // Commission settings
   commissionRates: {
     minPrice: number;
@@ -72,6 +70,9 @@ export interface SystemSettings extends Document {
   // Updated by
   updatedBy: mongoose.Types.ObjectId;
   updatedAt: Date;
+  
+  // Methods
+  getCommissionRate(price: number): number;
 }
 
 const commissionRateSchema = new Schema({
