@@ -1,6 +1,8 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export interface SystemSettings extends Document {
+  getCommissionRate(price: number): number;
+}
   // Commission settings
   commissionRates: {
     minPrice: number;
@@ -334,4 +336,9 @@ systemSettingsSchema.virtual('getCommissionRate').get(function(price: number) {
   return rate ? rate.rate : 10; // Default 10% if no matching rate
 });
 
-export default mongoose.models.SystemSettings || mongoose.model<SystemSettings>('SystemSettings', systemSettingsSchema); 
+interface SystemSettingsModel extends Model<SystemSettings> {
+  getCurrentSettings(): Promise<SystemSettings | null>;
+  updateSettings(settingsData: any, userId: string): Promise<SystemSettings>;
+}
+
+export default mongoose.models.SystemSettings || mongoose.model<SystemSettings, SystemSettingsModel>('SystemSettings', systemSettingsSchema); 
