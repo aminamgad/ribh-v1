@@ -10,6 +10,11 @@ export function middleware(request: NextRequest) {
   response.headers.set('Referrer-Policy', 'origin-when-cross-origin');
   response.headers.set('X-XSS-Protection', '1; mode=block');
   
+  // Handle favicon requests to prevent styled-jsx errors
+  if (request.nextUrl.pathname === '/favicon.ico' || request.nextUrl.pathname === '/favicon.png') {
+    return new NextResponse(null, { status: 404 });
+  }
+  
   return response;
 }
 

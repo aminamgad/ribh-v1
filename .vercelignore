@@ -92,4 +92,6 @@ Thumbs.db
 
 # Old config files
 next.config.js
-server.js 
+server.js
+*.js.map
+*.ts.map 

@@ -48,8 +48,15 @@ const nextConfig = {
         tls: false,
       };
     }
+    // Disable styled-jsx
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      'styled-jsx/style': false,
+    };
     return config;
   },
+  // Disable styled-jsx completely
+  swcMinify: true,
 };
 
 export default nextConfig; 

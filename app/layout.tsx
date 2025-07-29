@@ -20,6 +20,11 @@ export const metadata: Metadata = {
   authors: [{ name: 'Ribh Team' }],
   viewport: 'width=device-width, initial-scale=1',
   robots: 'index, follow',
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon.ico',
+    apple: '/icon.png',
+  },
   openGraph: {
     title: 'ربح - منصة التجارة الإلكترونية الذكية',
     description: 'منصة ربح (Ribh) - نظام تجارة إلكترونية متعدد الأدوار',

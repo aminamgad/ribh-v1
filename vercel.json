@@ -6,6 +6,12 @@
       "use": "@vercel/next"
     }
   ],
+  "routes": [
+    {
+      "source": "/(.*)",
+      "destination": "/"
+    }
+  ],
   "functions": {
     "app/api/**/*.ts": {
       "maxDuration": 30
