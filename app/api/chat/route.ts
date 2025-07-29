@@ -4,6 +4,7 @@ import { withAuth } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import Chat, { ChatStatus } from '@/models/Chat';
 import User from '@/models/User';
+import { sendNotificationToUser } from '@/lib/socket';
 
 // Validation schema
 const createChatSchema = z.object({
@@ -152,16 +153,14 @@ export const POST = withAuth(async (req: NextRequest, user) => {
     // Populate participants
     await chat.populate('participants', 'name email role companyName');
 
-    // Send notification to recipient if socket is available
-    if (global.sendNotificationToUser) {
-      global.sendNotificationToUser(recipientId, {
-        title: 'رسالة جديدة',
-        message: `رسالة جديدة من ${user.name}: ${validatedData.subject}`,
-        type: 'info',
-        actionUrl: `/dashboard/chat?id=${chat._id}`,
-        metadata: { chatId: chat._id, senderId: user._id }
-      });
-    }
+    // Send notification to recipient
+    sendNotificationToUser(recipientId, {
+      title: 'رسالة جديدة',
+      message: `رسالة جديدة من ${user.name}: ${validatedData.subject}`,
+      type: 'info',
+      actionUrl: `/dashboard/chat?id=${chat._id}`,
+      metadata: { chatId: chat._id, senderId: user._id }
+    });
 
     return NextResponse.json({
       success: true,

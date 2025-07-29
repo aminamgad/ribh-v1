@@ -172,24 +172,5 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Helper function to get Socket.io instance
-export function getSocketIO() {
-  return global.io;
-}
-
-// Helper function to send notification to user
-export function sendNotificationToUser(userId: string, notification: any) {
-  if (global.io) {
-    global.io.to(`user:${userId}`).emit('notification', notification);
-  }
-}
-
-// Helper function to send notification to role
-export function sendNotificationToRole(role: string, notification: any) {
-  if (global.io) {
-    global.io.to(`role:${role}`).emit('notification', notification);
-  }
-}
-
 // Export the initialization function for use in custom server
 export { initializeSocket }; 

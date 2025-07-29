@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth';
 import Chat from '@/models/Chat';
 import Message from '@/models/Message';
-import { connectDB } from '@/lib/database';
+import connectDB from '@/lib/database';
 
 export async function POST(
   request: NextRequest,
