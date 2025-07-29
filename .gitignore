@@ -131,4 +131,8 @@ test-results/
 coverage/
 
 # Local development
-.local 
+.local
+
+# Old files
+server.js
+next.config.js 

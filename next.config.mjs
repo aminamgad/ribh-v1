@@ -34,10 +34,6 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['mongoose'],
   },
-  // Disable styled-jsx for Vercel
-  compiler: {
-    styledComponents: false,
-  },
   // Add webpack configuration
   webpack: (config, { isServer }) => {
     if (!isServer) {
@@ -48,10 +44,11 @@ const nextConfig = {
         tls: false,
       };
     }
-    // Disable styled-jsx
+    // Disable styled-jsx completely
     config.resolve.alias = {
       ...config.resolve.alias,
       'styled-jsx/style': false,
+      'styled-jsx': false,
     };
     return config;
   },
