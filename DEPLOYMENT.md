@@ -16,13 +16,15 @@ NODE_ENV=production
 ```
 
 ### 2. Build Settings
-- **Framework Preset**: Node.js
+- **Framework Preset**: Next.js
 - **Build Command**: `npm run build`
 - **Output Directory**: `.next`
 - **Install Command**: `npm install`
 
-### 3. Custom Server
-This project uses a custom server (`server.js`) for Socket.io support. The `vercel.json` file is configured to use this server.
+### 3. Important Notes
+- Socket.io is **disabled** in Vercel environment for compatibility
+- The app will work without real-time features on Vercel
+- For full functionality, consider using a different hosting provider
 
 ### 4. Database
 Make sure your MongoDB database is accessible from Vercel's servers. You can use:
@@ -31,14 +33,20 @@ Make sure your MongoDB database is accessible from Vercel's servers. You can use
 
 ### 5. Common Issues
 
-#### Issue: Build fails with TypeScript errors
-**Solution**: Make sure all imports are correct and all types are properly defined.
+#### Issue: 500 Internal Server Error
+**Solution**: 
+1. Check that all environment variables are set
+2. Ensure MongoDB connection string is correct
+3. Check Vercel logs for specific errors
 
-#### Issue: Socket.io not working
-**Solution**: The custom server handles Socket.io. Make sure `vercel.json` is properly configured.
+#### Issue: Build fails
+**Solution**: 
+1. Make sure all imports are correct
+2. Check TypeScript errors
+3. Ensure all dependencies are installed
 
-#### Issue: Database connection fails
-**Solution**: Check your `MONGODB_URI` environment variable and ensure your database is accessible.
+#### Issue: Socket.io errors
+**Solution**: Socket.io is automatically disabled in Vercel environment. This is normal.
 
 ### 6. Local Testing
 Before deploying, test locally:
@@ -52,5 +60,12 @@ npm start
 2. Connect your repository to Vercel
 3. Set environment variables
 4. Deploy
+
+### 8. Alternative Hosting
+For full Socket.io functionality, consider:
+- Railway
+- Render
+- DigitalOcean
+- AWS
 
 The project should now deploy successfully on Vercel! 
