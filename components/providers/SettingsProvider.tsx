@@ -1,7 +1,6 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useAuth } from './AuthProvider';
 
 interface SystemSettings {
   _id: string;
@@ -61,7 +60,6 @@ interface SettingsContextType {
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
   const [settings, setSettings] = useState<SystemSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -175,13 +173,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   // Refresh settings every 5 minutes
   useEffect(() => {
     const interval = setInterval(() => {
-      if (user?.role === 'admin') {
-        fetchSettings();
-      }
+      fetchSettings();
     }, 5 * 60 * 1000); // 5 minutes
 
     return () => clearInterval(interval);
-  }, [user?.role]);
+  }, []);
 
   const value: SettingsContextType = {
     settings,
