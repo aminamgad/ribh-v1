@@ -94,4 +94,8 @@ Thumbs.db
 next.config.js
 server.js
 *.js.map
-*.ts.map 
+*.ts.map
+
+# Disable server.js completely
+server.js
+server.js.map 

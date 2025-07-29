@@ -17,7 +17,8 @@
     "create-admin": "node scripts/create-admin.js",
     "admin": "node scripts/create-admin.js",
     "simple-admin": "node scripts/simple-admin.js",
-    "check-admin": "node scripts/check-admin.js"
+    "check-admin": "node scripts/check-admin.js",
+    "vercel-build": "next build"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.2",

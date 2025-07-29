@@ -54,6 +54,13 @@ const nextConfig = {
   },
   // Disable styled-jsx completely
   swcMinify: true,
+  // Disable server.js completely
+  serverRuntimeConfig: {
+    // Will only be available on the server side
+  },
+  publicRuntimeConfig: {
+    // Will be available on both server and client
+  },
 };
 
 export default nextConfig; 

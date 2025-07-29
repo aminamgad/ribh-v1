@@ -25,11 +25,17 @@ export const metadata: Metadata = {
     shortcut: '/favicon.ico',
     apple: '/icon.png',
   },
+  manifest: '/manifest.json',
   openGraph: {
     title: 'ربح - منصة التجارة الإلكترونية الذكية',
     description: 'منصة ربح (Ribh) - نظام تجارة إلكترونية متعدد الأدوار',
     type: 'website',
     locale: 'ar_EG',
+  },
+  other: {
+    'X-Frame-Options': 'DENY',
+    'X-Content-Type-Options': 'nosniff',
+    'Referrer-Policy': 'origin-when-cross-origin',
   },
 };
 
@@ -43,6 +49,9 @@ export default function RootLayout({
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="icon" href="/favicon.ico" />
+        <link rel="apple-touch-icon" href="/icon.png" />
+        <link rel="manifest" href="/manifest.json" />
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -66,6 +75,11 @@ export default function RootLayout({
         />
       </head>
       <body className="arabic-text-optimized antialiased bg-gray-50 dark:bg-slate-900 text-gray-900 dark:text-slate-100">
+        <noscript>
+          <div style={{ padding: '20px', textAlign: 'center', backgroundColor: '#fef2f2', color: '#dc2626' }}>
+            يرجى تفعيل JavaScript لتشغيل هذا التطبيق.
+          </div>
+        </noscript>
         <ThemeProvider>
           <AuthProvider>
             <SettingsProvider>
