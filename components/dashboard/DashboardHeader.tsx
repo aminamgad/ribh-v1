@@ -91,7 +91,7 @@ export default function DashboardHeader() {
           {user?.role === 'admin' && (
             <div className="hidden md:flex flex-1 max-w-md mx-8">
               <div className="relative w-full">
-                <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-slate-400" />
+                <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-500 dark:text-slate-300" />
                 <input
                   type="text"
                   placeholder="البحث في المنصة..."
@@ -112,7 +112,7 @@ export default function DashboardHeader() {
                 href="/dashboard/cart" 
                 className="relative p-3 rounded-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 shadow-lg hover:shadow-xl dark:hover:shadow-slate-900/30 transition-all duration-300 group hover:scale-105"
               >
-                <ShoppingCart className="w-5 h-5 text-gray-600 dark:text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-300" />
+                <ShoppingCart className="w-5 h-5 text-gray-600 dark:text-slate-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-300" />
                 {totalItems > 0 && (
                   <span className="absolute -top-1 -right-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-bounce shadow-lg">
                     {totalItems}
@@ -126,7 +126,7 @@ export default function DashboardHeader() {
               href="/dashboard/chat" 
               className="relative p-3 rounded-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 shadow-lg hover:shadow-xl dark:hover:shadow-slate-900/30 transition-all duration-300 group hover:scale-105"
             >
-              <MessageSquare className="w-5 h-5 text-gray-600 dark:text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-300" />
+              <MessageSquare className="w-5 h-5 text-gray-600 dark:text-slate-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-300" />
               {totalUnreadChats > 0 && (
                 <span className="absolute -top-1 -right-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-bounce shadow-lg">
                   {totalUnreadChats}
@@ -139,7 +139,7 @@ export default function DashboardHeader() {
               href="/dashboard/notifications" 
               className="relative p-3 rounded-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 shadow-lg hover:shadow-xl dark:hover:shadow-slate-900/30 transition-all duration-300 group hover:scale-105"
             >
-              <Bell className="w-5 h-5 text-gray-600 dark:text-slate-400 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors duration-300" />
+              <Bell className="w-5 h-5 text-gray-600 dark:text-slate-300 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors duration-300" />
               {unreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-bounce shadow-lg">
                   {unreadCount}
@@ -164,7 +164,7 @@ export default function DashboardHeader() {
                 <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-500 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-300 shadow-lg">
                   <User className="h-5 w-5 text-white" />
                 </div>
-                <ChevronDown className={`h-4 w-4 text-gray-500 dark:text-slate-400 transition-transform duration-300 ${showUserMenu ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`h-4 w-4 text-gray-500 dark:text-slate-300 transition-transform duration-300 ${showUserMenu ? 'rotate-180' : ''}`} />
               </button>
 
               {/* Dropdown Menu */}
@@ -172,7 +172,7 @@ export default function DashboardHeader() {
                 <div className="absolute left-0 mt-3 w-64 rounded-2xl shadow-2xl bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border border-gray-200/50 dark:border-slate-700/50 py-2 z-50 animate-scale-in">
                   <div className="px-4 py-3 border-b border-gray-100 dark:border-slate-700">
                     <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">{user?.name}</p>
-                    <p className="text-xs text-gray-500 dark:text-slate-400">{user?.email}</p>
+                    <p className="text-xs text-gray-500 dark:text-slate-300">{user?.email}</p>
                     <div className="mt-2">
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${roleColors[user?.role || 'marketer']}`}>
                         {roleLabels[user?.role || 'marketer']}

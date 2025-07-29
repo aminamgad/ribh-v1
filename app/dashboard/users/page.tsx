@@ -173,7 +173,7 @@ export default function AdminUsersPage() {
               <Shield className="w-5 h-5 text-primary-600 dark:text-primary-400" />
             </div>
             <div className="mr-3">
-              <p className="text-sm text-gray-600 dark:text-slate-400">إجمالي المستخدمين</p>
+              <p className="text-sm text-gray-600 dark:text-slate-300">إجمالي المستخدمين</p>
               <p className="text-xl font-bold text-gray-900 dark:text-slate-100">{stats.total}</p>
             </div>
           </div>
@@ -185,7 +185,7 @@ export default function AdminUsersPage() {
               <UserCheck className="w-5 h-5 text-success-600 dark:text-success-400" />
             </div>
             <div className="mr-3">
-              <p className="text-sm text-gray-600 dark:text-slate-400">نشط</p>
+              <p className="text-sm text-gray-600 dark:text-slate-300">نشط</p>
               <p className="text-xl font-bold text-gray-900 dark:text-slate-100">{stats.active}</p>
             </div>
           </div>
@@ -197,7 +197,7 @@ export default function AdminUsersPage() {
               <Shield className="w-5 h-5 text-warning-600 dark:text-warning-400" />
             </div>
             <div className="mr-3">
-              <p className="text-sm text-gray-600 dark:text-slate-400">محقق</p>
+              <p className="text-sm text-gray-600 dark:text-slate-300">محقق</p>
               <p className="text-xl font-bold text-gray-900 dark:text-slate-100">{stats.verified}</p>
             </div>
           </div>
@@ -209,7 +209,7 @@ export default function AdminUsersPage() {
               <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             </div>
             <div className="mr-3">
-              <p className="text-sm text-gray-600 dark:text-slate-400">الموردين</p>
+              <p className="text-sm text-gray-600 dark:text-slate-300">الموردين</p>
               <p className="text-xl font-bold text-gray-900 dark:text-slate-100">{stats.suppliers}</p>
             </div>
           </div>
@@ -221,7 +221,7 @@ export default function AdminUsersPage() {
               <User className="w-5 h-5 text-green-600 dark:text-green-400" />
             </div>
             <div className="mr-3">
-              <p className="text-sm text-gray-600 dark:text-slate-400">المسوقين</p>
+              <p className="text-sm text-gray-600 dark:text-slate-300">المسوقين</p>
               <p className="text-xl font-bold text-gray-900 dark:text-slate-100">{stats.marketers}</p>
             </div>
           </div>
@@ -233,7 +233,7 @@ export default function AdminUsersPage() {
               <User className="w-5 h-5 text-purple-600 dark:text-purple-400" />
             </div>
             <div className="mr-3">
-              <p className="text-sm text-gray-600 dark:text-slate-400">الجملة</p>
+              <p className="text-sm text-gray-600 dark:text-slate-300">الجملة</p>
               <p className="text-xl font-bold text-gray-900 dark:text-slate-100">{stats.wholesalers}</p>
             </div>
           </div>
@@ -245,7 +245,7 @@ export default function AdminUsersPage() {
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
             <div className="relative">
-              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-300 w-4 h-4" />
               <input
                 type="text"
                 placeholder="البحث بالاسم، البريد الإلكتروني، أو الهاتف..."
@@ -310,18 +310,18 @@ export default function AdminUsersPage() {
                       <div>
                         <p className="font-medium text-gray-900 dark:text-slate-100">{userItem.name}</p>
                         {userItem.companyName && (
-                          <p className="text-sm text-gray-500 dark:text-slate-400">{userItem.companyName}</p>
+                          <p className="text-sm text-gray-500 dark:text-slate-300">{userItem.companyName}</p>
                         )}
                       </div>
                     </td>
                     <td className="table-cell">
                       <div className="space-y-1">
                         <div className="flex items-center text-sm">
-                          <Mail className="w-4 h-4 ml-1 text-gray-400 dark:text-slate-400" />
+                          <Mail className="w-4 h-4 ml-1 text-gray-400 dark:text-slate-300" />
                           {userItem.email}
                         </div>
                         <div className="flex items-center text-sm">
-                          <Phone className="w-4 h-4 ml-1 text-gray-400 dark:text-slate-400" />
+                          <Phone className="w-4 h-4 ml-1 text-gray-400 dark:text-slate-300" />
                           {userItem.phone}
                         </div>
                       </div>

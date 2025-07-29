@@ -413,7 +413,7 @@ export default function DashboardSidebar() {
           )}
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="p-2 text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 hover:bg-gray-100/80 dark:hover:bg-slate-700/80 rounded-xl transition-all duration-200 group"
+            className="p-2 text-gray-600 dark:text-slate-300 hover:text-gray-900 dark:hover:text-slate-100 hover:bg-gray-100/80 dark:hover:bg-slate-700/80 rounded-xl transition-all duration-200 group"
           >
             <ChevronRight className={`w-4 h-4 transition-transform duration-200 ${collapsed ? 'rotate-180' : ''} group-hover:scale-110`} />
           </button>
@@ -434,7 +434,7 @@ export default function DashboardSidebar() {
                   className={`group flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 relative overflow-hidden ${
                     isActive
                       ? `bg-gradient-to-r ${item.bgGradient} ${item.borderColor} border-r-4 shadow-lg dark:shadow-slate-900/30 text-gray-900 dark:text-slate-100`
-                      : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100/80 dark:hover:bg-slate-700/80 hover:text-gray-900 dark:hover:text-slate-100'
+                      : 'text-gray-600 dark:text-slate-300 hover:bg-gray-100/80 dark:hover:bg-slate-700/80 hover:text-gray-900 dark:hover:text-slate-100'
                   } ${collapsed ? 'justify-center' : ''}`}
                 >
                   {/* Active background gradient */}
@@ -449,7 +449,7 @@ export default function DashboardSidebar() {
                       : 'bg-gray-100/80 dark:bg-slate-700/80 group-hover:bg-gray-200/80 dark:group-hover:bg-slate-600/80'
                   }`}>
                     <Icon className={`w-4 h-4 transition-all duration-300 ${
-                      isActive ? 'text-white' : 'text-gray-500 dark:text-slate-400 group-hover:text-gray-700 dark:group-hover:text-slate-200'
+                      isActive ? 'text-white' : 'text-gray-500 dark:text-slate-300 group-hover:text-gray-700 dark:group-hover:text-slate-200'
                     }`} />
                   </div>
                   
@@ -495,7 +495,7 @@ export default function DashboardSidebar() {
                 <div className="text-sm font-semibold text-gray-900 dark:text-slate-100">
                   {user?.isVerified ? 'حساب موثق' : 'حساب قيد المراجعة'}
                 </div>
-                <div className="text-xs text-gray-500 dark:text-slate-400">
+                <div className="text-xs text-gray-500 dark:text-slate-300">
                   {user?.role === 'supplier' && !user?.isVerified
                     ? 'في انتظار موافقة الإدارة'
                     : 'حساب نشط'}

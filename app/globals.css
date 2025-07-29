@@ -713,15 +713,27 @@
 
 /* تحسين تباين الألوان في الوضع المظلم */
 .dark .text-gray-600 {
-  @apply text-slate-400;
-}
-
-.dark .text-gray-700 {
   @apply text-slate-300;
 }
 
+.dark .text-gray-700 {
+  @apply text-slate-200;
+}
+
 .dark .text-gray-500 {
-  @apply text-slate-500;
+  @apply text-slate-400;
+}
+
+.dark .text-gray-400 {
+  @apply text-slate-300;
+}
+
+.dark .text-slate-400 {
+  @apply text-slate-300;
+}
+
+.dark .text-slate-500 {
+  @apply text-slate-300;
 }
 
 .dark .border-gray-200 {
@@ -752,7 +764,7 @@
 
 /* تحسين تباين الألوان للحقول */
 .dark .input-field {
-  @apply bg-slate-800 border-slate-600 text-slate-100 placeholder-slate-400;
+  @apply bg-slate-800 border-slate-600 text-slate-100 placeholder-slate-300;
 }
 
 .dark .input-field:focus {
@@ -779,4 +791,48 @@
 
 .dark .table-row-hover:hover {
   @apply bg-slate-700;
+} 
+
+/* تحسين تباين الألوان للروابط */
+.dark .text-gray-600.dark\:text-gray-400 {
+  @apply text-slate-300;
+}
+
+.dark .text-gray-500.dark\:text-gray-400 {
+  @apply text-slate-300;
+}
+
+.dark .text-gray-500.dark\:text-slate-400 {
+  @apply text-slate-300;
+}
+
+.dark .text-gray-600.dark\:text-slate-400 {
+  @apply text-slate-300;
+}
+
+/* تحسين تباين الألوان للأيقونات */
+.dark .text-gray-400 {
+  @apply text-slate-300;
+}
+
+.dark .text-slate-400 {
+  @apply text-slate-300;
+}
+
+.dark .text-slate-500 {
+  @apply text-slate-300;
+}
+
+/* تحسين تباين الألوان للبطاقات في الصفحة الرئيسية */
+.dark .card {
+  @apply bg-slate-800/90 border-slate-700 text-slate-100;
+}
+
+/* تحسين تباين الألوان للنصوص الثانوية */
+.dark .text-gray-400.dark\:text-gray-500 {
+  @apply text-slate-300;
+}
+
+.dark .text-gray-400.dark\:text-slate-500 {
+  @apply text-slate-300;
 } 

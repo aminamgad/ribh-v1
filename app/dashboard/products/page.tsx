@@ -460,14 +460,14 @@ export default function ProductsPage() {
                 {/* Product Info */}
                 <div className="space-y-2">
                   <h3 className="font-semibold text-gray-900 dark:text-slate-100 line-clamp-2">{product.name}</h3>
-                  <p className="text-sm text-gray-600 dark:text-slate-400 line-clamp-2">{product.description}</p>
+                  <p className="text-sm text-gray-600 dark:text-slate-300 line-clamp-2">{product.description}</p>
 
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-lg font-bold text-primary-600 dark:text-primary-400">
                         {user?.role === 'wholesaler' ? product.wholesalePrice : product.marketerPrice} ₪
                       </p>
-                      <p className="text-xs text-gray-500 dark:text-slate-500">
+                      <p className="text-xs text-gray-500 dark:text-slate-300">
                         المخزون: {product.stockQuantity}
                       </p>
                     </div>

@@ -162,7 +162,7 @@ export default function WalletPage() {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100">
             {user?.role === 'admin' ? 'إدارة المحافظ' : 'المحفظة'}
           </h1>
-          <p className="text-gray-600 dark:text-slate-400 mt-2">
+          <p className="text-gray-600 dark:text-slate-300 mt-2">
             {user?.role === 'admin' 
               ? 'إدارة محافظ جميع المستخدمين والمعاملات المالية'
               : 'إدارة رصيدك والمعاملات المالية'
@@ -190,7 +190,7 @@ export default function WalletPage() {
                 <Wallet className="w-5 h-5 text-primary-600 dark:text-primary-400" />
               </div>
               <div className="mr-3">
-                <p className="text-sm text-gray-600 dark:text-slate-400">الرصيد المتاح</p>
+                <p className="text-sm text-gray-600 dark:text-slate-300">الرصيد المتاح</p>
                 <p className="text-xl font-bold text-gray-900 dark:text-slate-100">{wallet.availableBalance.toFixed(2)} ₪</p>
               </div>
             </div>
@@ -202,7 +202,7 @@ export default function WalletPage() {
                 <TrendingUp className="w-5 h-5 text-success-600 dark:text-success-400" />
               </div>
               <div className="mr-3">
-                <p className="text-sm text-gray-600 dark:text-slate-400">إجمالي الأرباح</p>
+                <p className="text-sm text-gray-600 dark:text-slate-300">إجمالي الأرباح</p>
                 <p className="text-xl font-bold text-gray-900 dark:text-slate-100">{wallet.totalEarnings.toFixed(2)} ₪</p>
               </div>
             </div>
@@ -214,7 +214,7 @@ export default function WalletPage() {
                 <Clock className="w-5 h-5 text-warning-600 dark:text-warning-400" />
               </div>
               <div className="mr-3">
-                <p className="text-sm text-gray-600 dark:text-slate-400">رصيد معلق</p>
+                <p className="text-sm text-gray-600 dark:text-slate-300">رصيد معلق</p>
                 <p className="text-xl font-bold text-gray-900 dark:text-slate-100">{wallet.pendingBalance.toFixed(2)} ₪</p>
               </div>
             </div>
@@ -226,7 +226,7 @@ export default function WalletPage() {
                 <Download className="w-5 h-5 text-secondary-600 dark:text-secondary-400" />
               </div>
               <div className="mr-3">
-                <p className="text-sm text-gray-600 dark:text-slate-400">إجمالي السحوبات</p>
+                <p className="text-sm text-gray-600 dark:text-slate-300">إجمالي السحوبات</p>
                 <p className="text-xl font-bold text-gray-900 dark:text-slate-100">{wallet.totalWithdrawals.toFixed(2)} ₪</p>
               </div>
             </div>
@@ -255,10 +255,10 @@ export default function WalletPage() {
                   min={withdrawalSettings.minimumWithdrawal}
                   max={Math.min(wallet?.availableBalance || 0, withdrawalSettings.maximumWithdrawal)}
                 />
-                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-slate-400">₪</span>
+                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-slate-300">₪</span>
               </div>
               {wallet && (
-                <div className="text-sm text-gray-500 dark:text-slate-400 mt-1 space-y-1">
+                <div className="text-sm text-gray-500 dark:text-slate-300 mt-1 space-y-1">
                   <p>الرصيد المتاح: {wallet.availableBalance.toFixed(2)} ₪</p>
                   <p>الحد الأدنى: {withdrawalSettings.minimumWithdrawal} ₪</p>
                   <p>الحد الأقصى: {Math.min(wallet.availableBalance, withdrawalSettings.maximumWithdrawal)} ₪</p>
@@ -295,9 +295,9 @@ export default function WalletPage() {
         
         {transactions.length === 0 ? (
           <div className="text-center py-8">
-            <Wallet className="w-16 h-16 text-gray-400 dark:text-slate-500 mx-auto mb-4" />
+            <Wallet className="w-16 h-16 text-gray-400 dark:text-slate-300 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100 mb-2">لا توجد معاملات</h3>
-            <p className="text-gray-600 dark:text-slate-400">لم تقم بأي معاملات مالية بعد.</p>
+            <p className="text-gray-600 dark:text-slate-300">لم تقم بأي معاملات مالية بعد.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -333,7 +333,7 @@ export default function WalletPage() {
                       </td>
                       <td className="table-cell">
                         <span className="text-gray-900 dark:text-slate-100">{transaction.description}</span>
-                        <p className="text-xs text-gray-500 dark:text-slate-400">#{transaction.reference}</p>
+                        <p className="text-xs text-gray-500 dark:text-slate-300">#{transaction.reference}</p>
                       </td>
                       <td className="table-cell">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[transaction.status]}`}>
@@ -344,7 +344,7 @@ export default function WalletPage() {
                         </span>
                       </td>
                       <td className="table-cell">
-                        <div className="text-sm text-gray-500 dark:text-slate-400">
+                        <div className="text-sm text-gray-500 dark:text-slate-300">
                           {new Date(transaction.createdAt).toLocaleDateString('ar-EG')}
                         </div>
                       </td>
@@ -361,7 +361,7 @@ export default function WalletPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="card">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-3">معلومات مهمة</h3>
-          <ul className="space-y-2 text-sm text-gray-600 dark:text-slate-400">
+          <ul className="space-y-2 text-sm text-gray-600 dark:text-slate-300">
             <li className="flex items-start">
               <span className="text-primary-600 dark:text-primary-400 ml-2">•</span>
               الحد الأدنى للسحب: {withdrawalSettings.minimumWithdrawal} ₪
@@ -391,7 +391,7 @@ export default function WalletPage() {
         
         <div className="card">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-3">كيفية زيادة رصيدك</h3>
-          <ul className="space-y-2 text-sm text-gray-600 dark:text-slate-400">
+          <ul className="space-y-2 text-sm text-gray-600 dark:text-slate-300">
             <li className="flex items-start">
               <span className="text-success-600 dark:text-success-400 ml-2">•</span>
               {user?.role === 'supplier' && 'بيع منتجاتك عبر المنصة'}

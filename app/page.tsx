@@ -18,7 +18,7 @@ export default function HomePage() {
                 <h1 className="text-3xl font-bold text-primary-600 dark:text-primary-400">
                   {settings?.platformName || 'ربح'}
                 </h1>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-gray-700 dark:text-gray-300">
                   {settings?.platformDescription || 'منصة التجارة الإلكترونية الذكية'}
                 </p>
               </div>
@@ -44,7 +44,7 @@ export default function HomePage() {
                 {settings?.platformName || 'ربح'}
               </span> الذكية
             </h1>
-            <p className="text-xl text-gray-600 dark:text-gray-400 mb-8 max-w-3xl mx-auto">
+            <p className="text-xl text-gray-700 dark:text-gray-300 mb-8 max-w-3xl mx-auto">
               {settings?.platformDescription || 'منصة تجارة إلكترونية متعددة الأدوار تربط الموردين والمسوقين وتجار الجملة في نظام واحد متكامل لتحقيق الأرباح للجميع'}
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -66,7 +66,7 @@ export default function HomePage() {
             <h2 className="text-4xl font-bold text-slate-100 mb-4">
               لماذا تختار منصة {settings?.platformName || 'ربح'}؟
             </h2>
-            <p className="text-xl text-slate-400">
+            <p className="text-xl text-slate-300">
               نظام متكامل مصمم خصيصاً لاحتياجات السوق المصري
             </p>
           </div>
@@ -77,7 +77,7 @@ export default function HomePage() {
                 <Users className="w-8 h-8 text-primary-600 dark:text-primary-400" />
               </div>
               <h3 className="text-xl font-semibold text-slate-100 mb-2">أدوار متعددة</h3>
-              <p className="text-slate-400">
+              <p className="text-slate-300">
                 موردين، مسوقين، تجار جملة، وإدارة مركزية
               </p>
             </div>
@@ -87,7 +87,7 @@ export default function HomePage() {
                 <TrendingUp className="w-8 h-8 text-success-600 dark:text-success-400" />
               </div>
               <h3 className="text-xl font-semibold text-slate-100 mb-2">عمولات ذكية</h3>
-              <p className="text-slate-400">
+              <p className="text-slate-300">
                 نظام عمولات ديناميكي حسب نطاق الأسعار
               </p>
             </div>
@@ -97,7 +97,7 @@ export default function HomePage() {
                 <Shield className="w-8 h-8 text-warning-600 dark:text-warning-400" />
               </div>
               <h3 className="text-xl font-semibold text-slate-100 mb-2">حماية متكاملة</h3>
-              <p className="text-slate-400">
+              <p className="text-slate-300">
                 محفظة إلكترونية آمنة ومراقبة إدارية شاملة
               </p>
             </div>
@@ -107,7 +107,7 @@ export default function HomePage() {
                 <ShoppingBag className="w-8 h-8 text-secondary-600 dark:text-secondary-400" />
               </div>
               <h3 className="text-xl font-semibold text-slate-100 mb-2">توصيل موثوق</h3>
-              <p className="text-slate-400">
+              <p className="text-slate-300">
                 نظام توصيل متكامل مع دفع عند الاستلام
               </p>
             </div>
@@ -122,7 +122,7 @@ export default function HomePage() {
             <h2 className="text-4xl font-bold text-slate-100 mb-4">
               أدوار المنصة
             </h2>
-            <p className="text-xl text-slate-400">
+            <p className="text-xl text-slate-300">
               كل دور له مميزاته ومسؤولياته الخاصة
             </p>
           </div>
@@ -135,24 +135,24 @@ export default function HomePage() {
                   <ShoppingBag className="w-10 h-10 text-primary-600 dark:text-primary-400" />
                 </div>
                 <h3 className="text-2xl font-bold text-slate-100 mb-2">المورد</h3>
-                <p className="text-slate-400">رفع المنتجات وإدارة المخزون</p>
+                <p className="text-slate-300">رفع المنتجات وإدارة المخزون</p>
               </div>
               <ul className="space-y-3 text-right">
                 <li className="flex items-center">
                   <Star className="w-5 h-5 text-primary-500 dark:text-primary-400 ml-2" />
-                  <span className="text-slate-300">رفع المنتجات للمنصة</span>
+                  <span className="text-slate-200">رفع المنتجات للمنصة</span>
                 </li>
                 <li className="flex items-center">
                   <Star className="w-5 h-5 text-primary-500 dark:text-primary-400 ml-2" />
-                  <span className="text-slate-300">إدارة المخزون والأسعار</span>
+                  <span className="text-slate-200">إدارة المخزون والأسعار</span>
                 </li>
                 <li className="flex items-center">
                   <Star className="w-5 h-5 text-primary-500 dark:text-primary-400 ml-2" />
-                  <span className="text-slate-300">متابعة الطلبات والتوصيل</span>
+                  <span className="text-slate-200">متابعة الطلبات والتوصيل</span>
                 </li>
                 <li className="flex items-center">
                   <Star className="w-5 h-5 text-primary-500 dark:text-primary-400 ml-2" />
-                  <span className="text-slate-300">ربح من المبيعات</span>
+                  <span className="text-slate-200">ربح من المبيعات</span>
                 </li>
               </ul>
             </div>
@@ -164,24 +164,24 @@ export default function HomePage() {
                   <TrendingUp className="w-10 h-10 text-success-600 dark:text-success-400" />
                 </div>
                 <h3 className="text-2xl font-bold text-slate-100 mb-2">المسوق</h3>
-                <p className="text-slate-400">تسويق المنتجات للعملاء</p>
+                <p className="text-slate-300">تسويق المنتجات للعملاء</p>
               </div>
               <ul className="space-y-3 text-right">
                 <li className="flex items-center">
                   <Star className="w-5 h-5 text-success-500 dark:text-success-400 ml-2" />
-                  <span className="text-slate-300">تصفح المنتجات المعتمدة</span>
+                  <span className="text-slate-200">تصفح المنتجات المعتمدة</span>
                 </li>
                 <li className="flex items-center">
                   <Star className="w-5 h-5 text-success-500 dark:text-success-400 ml-2" />
-                  <span className="text-slate-300">طلب المنتجات للعملاء</span>
+                  <span className="text-slate-200">طلب المنتجات للعملاء</span>
                 </li>
                 <li className="flex items-center">
                   <Star className="w-5 h-5 text-success-500 dark:text-success-400 ml-2" />
-                  <span className="text-slate-300">متابعة الطلبات والتوصيل</span>
+                  <span className="text-slate-200">متابعة الطلبات والتوصيل</span>
                 </li>
                 <li className="flex items-center">
                   <Star className="w-5 h-5 text-success-500 dark:text-success-400 ml-2" />
-                  <span className="text-slate-300">ربح من العمولات</span>
+                  <span className="text-slate-200">ربح من العمولات</span>
                 </li>
               </ul>
             </div>
@@ -193,24 +193,24 @@ export default function HomePage() {
                   <Users className="w-10 h-10 text-warning-600 dark:text-warning-400" />
                 </div>
                 <h3 className="text-2xl font-bold text-slate-100 mb-2">تاجر الجملة</h3>
-                <p className="text-slate-400">شراء بأسعار الجملة وإعادة البيع</p>
+                <p className="text-slate-300">شراء بأسعار الجملة وإعادة البيع</p>
               </div>
               <ul className="space-y-3 text-right">
                 <li className="flex items-center">
                   <Star className="w-5 h-5 text-warning-500 dark:text-warning-400 ml-2" />
-                  <span className="text-slate-300">أسعار جملة خاصة</span>
+                  <span className="text-slate-200">أسعار جملة خاصة</span>
                 </li>
                 <li className="flex items-center">
                   <Star className="w-5 h-5 text-warning-500 dark:text-warning-400 ml-2" />
-                  <span className="text-slate-300">شراء كميات كبيرة</span>
+                  <span className="text-slate-200">شراء كميات كبيرة</span>
                 </li>
                 <li className="flex items-center">
                   <Star className="w-5 h-5 text-warning-500 dark:text-warning-400 ml-2" />
-                  <span className="text-slate-300">إعادة البيع مباشرة</span>
+                  <span className="text-slate-200">إعادة البيع مباشرة</span>
                 </li>
                 <li className="flex items-center">
                   <Star className="w-5 h-5 text-warning-500 dark:text-warning-400 ml-2" />
-                  <span className="text-slate-300">أرباح أعلى من المسوقين</span>
+                  <span className="text-slate-200">أرباح أعلى من المسوقين</span>
                 </li>
               </ul>
             </div>
@@ -240,13 +240,13 @@ export default function HomePage() {
           <div className="grid md:grid-cols-4 gap-8">
             <div>
               <h3 className="text-2xl font-bold mb-4">{settings?.platformName || 'ربح'}</h3>
-              <p className="text-gray-400 dark:text-gray-500">
+              <p className="text-gray-300 dark:text-gray-400">
                 {settings?.platformDescription || 'منصة التجارة الإلكترونية الذكية التي تربط الموردين والمسوقين وتجار الجملة'}
               </p>
             </div>
             <div>
               <h4 className="text-lg font-semibold mb-4">الخدمات</h4>
-              <ul className="space-y-2 text-gray-400 dark:text-gray-500">
+              <ul className="space-y-2 text-gray-300 dark:text-gray-400">
                 <li>تسويق المنتجات</li>
                 <li>بيع الجملة</li>
                 <li>إدارة المخزون</li>
@@ -255,7 +255,7 @@ export default function HomePage() {
             </div>
             <div>
               <h4 className="text-lg font-semibold mb-4">الدعم</h4>
-              <ul className="space-y-2 text-gray-400 dark:text-gray-500">
+              <ul className="space-y-2 text-gray-300 dark:text-gray-400">
                 <li>الأسئلة الشائعة</li>
                 <li>الدعم الفني</li>
                 <li>سياسة الخصوصية</li>
@@ -264,14 +264,14 @@ export default function HomePage() {
             </div>
             <div>
               <h4 className="text-lg font-semibold mb-4">تواصل معنا</h4>
-              <ul className="space-y-2 text-gray-400 dark:text-gray-500">
+              <ul className="space-y-2 text-gray-300 dark:text-gray-400">
                 <li>البريد الإلكتروني: {settings?.contactEmail || 'info@ribh.com'}</li>
                 <li>الهاتف: {settings?.contactPhone || '+20 123 456 789'}</li>
                 <li>العنوان: القاهرة، مصر</li>
               </ul>
             </div>
           </div>
-          <div className="border-t border-gray-800 dark:border-gray-700 mt-8 pt-8 text-center text-gray-400 dark:text-gray-500">
+          <div className="border-t border-gray-800 dark:border-gray-700 mt-8 pt-8 text-center text-gray-300 dark:text-gray-400">
             <p>&copy; 2024 منصة {settings?.platformName || 'ربح'}. جميع الحقوق محفوظة.</p>
           </div>
         </div>
