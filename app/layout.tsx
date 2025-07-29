@@ -21,9 +21,9 @@ export const metadata: Metadata = {
   viewport: 'width=device-width, initial-scale=1',
   robots: 'index, follow',
   icons: {
-    icon: '/favicon.ico',
-    shortcut: '/favicon.ico',
-    apple: '/icon.png',
+    icon: '/icon.svg',
+    shortcut: '/icon.svg',
+    apple: '/icon.svg',
   },
   manifest: '/manifest.json',
   openGraph: {
@@ -49,8 +49,8 @@ export default function RootLayout({
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link rel="icon" href="/favicon.ico" />
-        <link rel="apple-touch-icon" href="/icon.png" />
+        <link rel="icon" href="/icon.svg" />
+        <link rel="apple-touch-icon" href="/icon.svg" />
         <link rel="manifest" href="/manifest.json" />
         <script
           dangerouslySetInnerHTML={{
