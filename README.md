@@ -86,8 +86,23 @@ npm run dev
 ### خطوات النشر:
 1. **رفع الكود إلى GitHub**
 2. **ربط المستودع بـ Vercel**
-3. **تعيين المتغيرات البيئية**
+3. **تعيين المتغيرات البيئية في Vercel Dashboard:**
+   ```
+   MONGODB_URI=your-mongodb-connection-string
+   JWT_SECRET=your-super-secret-jwt-key
+   CLOUDINARY_CLOUD_NAME=your-cloud-name
+   CLOUDINARY_API_KEY=your-api-key
+   CLOUDINARY_API_SECRET=your-api-secret
+   NEXTAUTH_URL=https://your-app.vercel.app
+   NEXTAUTH_SECRET=your-nextauth-secret
+   NODE_ENV=production
+   ```
 4. **النشر**
+
+### حل المشاكل الشائعة:
+- إذا ظهر خطأ 500، تحقق من المتغيرات البيئية
+- إذا لم تعمل الصور، تحقق من إعدادات Cloudinary
+- إذا لم تعمل قاعدة البيانات، تحقق من MongoDB URI
 
 راجع [DEPLOYMENT.md](./DEPLOYMENT.md) للتعليمات التفصيلية.
 
