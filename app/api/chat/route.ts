@@ -55,7 +55,7 @@ export const GET = withAuth(async (req: NextRequest, user: any) => {
     ]);
 
     // Add unread count for each chat
-    const chatsWithUnread = chats.map(chat => {
+    const chatsWithUnread = chats.map((chat: any) => {
       const unreadCount = chat.messages?.filter(
         (message: any) => message.senderId.toString() !== user._id.toString() && !message.isRead
       ).length || 0;

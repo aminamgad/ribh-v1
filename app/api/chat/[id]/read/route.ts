@@ -25,7 +25,7 @@ export async function POST(
     }
 
     // التحقق من أن المستخدم مشارك في المحادثة
-    const isParticipant = chat.participants.some(p => p._id.toString() === user._id.toString());
+    const isParticipant = chat.participants.some((p: any) => p._id.toString() === user._id.toString());
     if (!isParticipant) {
       return NextResponse.json({ success: false, message: 'غير مصرح' }, { status: 403 });
     }
