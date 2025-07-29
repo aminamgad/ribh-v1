@@ -2,7 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { User } from '@/types';
 
-type UserRole = 'admin' | 'supplier' | 'marketer' | 'wholesaler';
+export type UserRole = 'admin' | 'supplier' | 'marketer' | 'wholesaler';
 
 export interface UserDocument extends User, Document {
   comparePassword(candidatePassword: string): Promise<boolean>;

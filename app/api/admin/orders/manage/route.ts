@@ -73,6 +73,7 @@ async function manageOrders(req: NextRequest, user: any) {
     // Update orders
     const updatePromises = orders.map(async (order) => {
       const newStatus = getNewStatus(validatedData.action);
+      const currentStatus = order.status;
       const updateData: any = {
         status: newStatus,
         adminNotes: validatedData.adminNotes
