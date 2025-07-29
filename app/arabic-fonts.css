@@ -1,0 +1,157 @@
+/* Arabic Fonts Optimization */
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@200;300;400;500;600;700;800;900&family=IBM+Plex+Sans+Arabic:wght@100;200;300;400;500;600;700&family=Tajawal:wght@200;300;400;500;700;800;900&display=swap');
+
+/* Font Loading Optimization */
+.font-cairo {
+  font-family: 'Cairo', 'IBM Plex Sans Arabic', 'Tajawal', Arial, sans-serif;
+  font-display: swap;
+}
+
+.font-ibm-plex {
+  font-family: 'IBM Plex Sans Arabic', 'Cairo', 'Tajawal', Arial, sans-serif;
+  font-display: swap;
+}
+
+.font-tajawal {
+  font-family: 'Tajawal', 'Cairo', 'IBM Plex Sans Arabic', Arial, sans-serif;
+  font-display: swap;
+}
+
+/* Arabic Text Rendering Optimization */
+.arabic-text-optimized {
+  font-family: 'Cairo', 'IBM Plex Sans Arabic', 'Tajawal', Arial, sans-serif;
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-align: justify;
+  text-justify: inter-word;
+  line-height: 1.8;
+  letter-spacing: 0.01em;
+}
+
+/* Headings with Arabic Optimization */
+.arabic-heading {
+  font-family: 'Cairo', 'IBM Plex Sans Arabic', 'Tajawal', Arial, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.arabic-heading-light {
+  font-family: 'Cairo', 'IBM Plex Sans Arabic', 'Tajawal', Arial, sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Body Text with Arabic Optimization */
+.arabic-body {
+  font-family: 'Cairo', 'IBM Plex Sans Arabic', 'Tajawal', Arial, sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  line-height: 1.6;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.arabic-body-medium {
+  font-family: 'Cairo', 'IBM Plex Sans Arabic', 'Tajawal', Arial, sans-serif;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1.5;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Buttons with Arabic Optimization */
+.arabic-button {
+  font-family: 'Cairo', 'IBM Plex Sans Arabic', 'Tajawal', Arial, sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Input Fields with Arabic Optimization */
+.arabic-input {
+  font-family: 'Cairo', 'IBM Plex Sans Arabic', 'Tajawal', Arial, sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  line-height: 1.5;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Tables with Arabic Optimization */
+.arabic-table {
+  font-family: 'Cairo', 'IBM Plex Sans Arabic', 'Tajawal', Arial, sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  line-height: 1.4;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.arabic-table-header {
+  font-family: 'Cairo', 'IBM Plex Sans Arabic', 'Tajawal', Arial, sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.3;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Numbers and Currency with Arabic Optimization */
+.arabic-numbers {
+  font-family: 'IBM Plex Sans Arabic', 'Cairo', 'Tajawal', Arial, sans-serif;
+  font-feature-settings: "tnum";
+  font-variant-numeric: tabular-nums;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.arabic-currency {
+  font-family: 'IBM Plex Sans Arabic', 'Cairo', 'Tajawal', Arial, sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Small Text with Arabic Optimization */
+.arabic-small {
+  font-family: 'Cairo', 'IBM Plex Sans Arabic', 'Tajawal', Arial, sans-serif;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Caption Text with Arabic Optimization */
+.arabic-caption {
+  font-family: 'Cairo', 'IBM Plex Sans Arabic', 'Tajawal', Arial, sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  line-height: 1.3;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+} 
