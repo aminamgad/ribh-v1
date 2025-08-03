@@ -1,490 +1,359 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
-import { useCart } from '@/components/providers/CartProvider';
-import { ShoppingCart, Trash2, Plus, Minus, ShoppingBag, ArrowRight } from 'lucide-react';
-import Link from 'next/link';
-import toast from 'react-hot-toast';
+import { toast } from 'react-hot-toast';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
-interface ShippingAddress {
-  fullName: string;
-  phone: string;
-  address: string;
-  city: string;
-  region: string;
-  postalCode: string;
-  notes?: string;
+interface CartItem {
+  _id: string;
+  name: string;
+  price: number;
+  costPrice: number;
+  image: string;
+  quantity: number;
+}
+
+interface SystemSettings {
+  minimumOrderValue: number;
+  maximumOrderValue: number;
+  shippingCost: number;
+  freeShippingThreshold: number;
 }
 
 export default function CartPage() {
   const { user } = useAuth();
   const router = useRouter();
-  const { items, totalPrice, updateQuantity, removeFromCart, clearCart } = useCart();
-  const [showCheckout, setShowCheckout] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [marketerPrices, setMarketerPrices] = useState<Record<string, number>>({});
-  const [shippingAddress, setShippingAddress] = useState<ShippingAddress>({
-    fullName: user?.name || '',
-    phone: user?.phone || '',
-    address: '',
-    city: '',
-    region: '',
-    postalCode: '',
-    notes: ''
-  });
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerAddress, setCustomerAddress] = useState('');
+  const [orderNotes, setOrderNotes] = useState('');
+  const [marketerPrices, setMarketerPrices] = useState<{[key: string]: number}>({});
+  const [systemSettings, setSystemSettings] = useState<SystemSettings | null>(null);
 
-  // Initialize marketer prices
-  React.useEffect(() => {
-    const initialPrices: Record<string, number> = {};
-    items.forEach(item => {
-      if (!marketerPrices[item.product._id]) {
-        initialPrices[item.product._id] = item.price;
+  useEffect(() => {
+    fetchCartItems();
+    fetchSystemSettings();
+  }, []);
+
+  const fetchCartItems = async () => {
+    try {
+      const response = await fetch('/api/cart');
+      const data = await response.json();
+      
+      if (data.success) {
+        setCartItems(data.items);
       }
-    });
-    if (Object.keys(initialPrices).length > 0) {
-      setMarketerPrices(prev => ({ ...prev, ...initialPrices }));
+    } catch (error) {
+      console.error('خطأ في جلب عناصر السلة:', error);
     }
-  }, [items]);
-
-  const shippingCost = totalPrice > 500 ? 0 : 30; // Free shipping over 500
-  const finalTotal = totalPrice + shippingCost;
-
-  // Calculate marketer profit - using cost price
-  const calculateMarketerProfit = () => {
-    return items.reduce((total, item) => {
-      const currentPrice = marketerPrices[item.product._id] || item.product.marketerPrice;
-      const costPrice = item.product.costPrice; // سعر التكلفة للمورد
-      
-      // الربح = السعر الحالي - سعر التكلفة
-      const profit = (currentPrice - costPrice) * item.quantity;
-      
-      console.log('Product:', item.product.name, {
-        costPrice,
-        marketerPrice: item.product.marketerPrice,
-        currentPrice,
-        profit,
-        quantity: item.quantity
-      });
-      
-      return total + profit;
-    }, 0);
   };
 
-  const marketerProfit = calculateMarketerProfit();
-  const totalWithProfit = finalTotal + marketerProfit;
-
-  // Helper function to format prices
-  const formatPrice = (price: number) => {
-    if (!price || isNaN(price)) return '0';
-    return price.toFixed(2);
+  const fetchSystemSettings = async () => {
+    try {
+      const response = await fetch('/api/settings');
+      const data = await response.json();
+      
+      if (data.success) {
+        setSystemSettings(data.settings);
+      }
+    } catch (error) {
+      console.error('خطأ في جلب إعدادات النظام:', error);
+    }
   };
 
-  const handlePriceChange = (productId: string, newPrice: number) => {
+  const updateMarketerPrice = (productId: string, price: number) => {
     setMarketerPrices(prev => ({
       ...prev,
-      [productId]: newPrice
+      [productId]: price
     }));
   };
 
-  const handleCheckout = async () => {
-    // Validate address
-    if (!shippingAddress.fullName || !shippingAddress.phone || !shippingAddress.address || 
-        !shippingAddress.city || !shippingAddress.region) {
-      toast.error('يرجى ملء جميع حقول العنوان المطلوبة');
-      return;
-    }
-
-    setLoading(true);
+  const removeFromCart = async (productId: string) => {
     try {
-      // Create order for each supplier
-      const ordersBySupplier = items.reduce((acc, item) => {
-        const supplierId = item.product.supplierId;
-        if (!acc[supplierId]) {
-          acc[supplierId] = [];
-        }
-        acc[supplierId].push(item);
-        return acc;
-      }, {} as Record<string, typeof items>);
-
-      const orderPromises = Object.entries(ordersBySupplier).map(async ([supplierId, supplierItems]) => {
-        const subtotal = supplierItems.reduce((sum, item) => {
-          const itemTotal = (item.price || 0) * (item.quantity || 0);
-          return sum + (isNaN(itemTotal) ? 0 : itemTotal);
-        }, 0);
-        const supplierShipping = subtotal > 500 ? 0 : 30;
-        
-        const response = await fetch('/api/orders', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            items: supplierItems.map(item => ({
-              productId: item.product._id,
-              quantity: item.quantity
-            })),
-            shippingAddress: {
-              fullName: shippingAddress.fullName,
-              phone: shippingAddress.phone,
-              street: shippingAddress.address,
-              city: shippingAddress.city,
-              governorate: shippingAddress.region,
-              postalCode: shippingAddress.postalCode || '',
-              notes: shippingAddress.notes || ''
-            },
-            customerName: shippingAddress.fullName,
-            customerPhone: shippingAddress.phone,
-            notes: shippingAddress.notes
-          }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'فشل في إنشاء الطلب');
-        }
-
-        return response.json();
+      const response = await fetch(`/api/cart/${productId}`, {
+        method: 'DELETE'
       });
-
-      await Promise.all(orderPromises);
       
-      clearCart();
-      toast.success('تم إنشاء الطلب بنجاح');
-      router.push('/dashboard/orders');
+      if (response.ok) {
+        setCartItems(prev => prev.filter(item => item._id !== productId));
+        toast.success('تم إزالة المنتج من السلة');
+      }
     } catch (error) {
-      console.error('Error creating order:', error);
-      toast.error(error instanceof Error ? error.message : 'حدث خطأ أثناء إنشاء الطلب');
-    } finally {
-      setLoading(false);
+      console.error('خطأ في إزالة المنتج:', error);
+      toast.error('حدث خطأ في إزالة المنتج');
     }
   };
 
-  if (items.length === 0) {
+  const handleCheckout = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Validate form data
+      if (!customerName.trim()) {
+        toast.error('اسم العميل مطلوب');
+        return;
+      }
+      
+      if (!customerPhone.trim()) {
+        toast.error('رقم الهاتف مطلوب');
+        return;
+      }
+      
+      if (!customerAddress.trim()) {
+        toast.error('العنوان مطلوب');
+        return;
+      }
+      
+      if (customerAddress.trim().length < 10) {
+        toast.error('العنوان يجب أن يكون 10 أحرف على الأقل');
+        return;
+      }
+      
+      // Calculate order total with marketer prices
+      const subtotal = cartItems.reduce((total, item) => {
+        const marketerPrice = marketerPrices[item._id] || item.price;
+        return total + (marketerPrice * item.quantity);
+      }, 0);
+      
+      // Apply system settings validation
+      if (systemSettings) {
+        if (subtotal < systemSettings.minimumOrderValue) {
+          toast.error(`الحد الأدنى للطلب هو ${systemSettings.minimumOrderValue}₪`);
+          return;
+        }
+        
+        if (subtotal > systemSettings.maximumOrderValue) {
+          toast.error(`الحد الأقصى للطلب هو ${systemSettings.maximumOrderValue}₪`);
+          return;
+        }
+      }
+      
+      // Calculate shipping cost
+      let shippingCost = 0;
+      if (systemSettings) {
+        if (subtotal >= systemSettings.freeShippingThreshold) {
+          shippingCost = 0; // Free shipping
+        } else {
+          shippingCost = systemSettings.shippingCost;
+        }
+      }
+      
+      const orderTotal = subtotal + shippingCost;
+      
+      // Prepare order items with custom prices
+      const orderItems = cartItems.map(item => {
+        const marketerPrice = marketerPrices[item._id] || item.price;
+        const marketerProfit = (marketerPrice - item.costPrice) * item.quantity;
+        
+        return {
+          productId: item._id,
+          quantity: item.quantity,
+          customPrice: marketerPrice,
+          marketerProfit: marketerProfit
+        };
+      });
+      
+      // Create order
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          customerName,
+          customerPhone,
+          customerAddress,
+          items: orderItems,
+          notes: orderNotes,
+          shippingCost: shippingCost,
+          orderTotal: orderTotal
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        toast.success('تم إنشاء الطلب بنجاح');
+        setCartItems([]);
+        setCustomerName('');
+        setCustomerPhone('');
+        setCustomerAddress('');
+        setOrderNotes('');
+        setMarketerPrices({});
+        router.push('/dashboard/orders');
+      } else {
+        toast.error(data.message || 'حدث خطأ في إنشاء الطلب');
+      }
+    } catch (error) {
+      console.error('خطأ في إنشاء الطلب:', error);
+      toast.error('حدث خطأ في إنشاء الطلب');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const subtotal = cartItems.reduce((total, item) => {
+    const marketerPrice = marketerPrices[item._id] || item.price;
+    return total + (marketerPrice * item.quantity);
+  }, 0);
+
+  const shippingCost = systemSettings ? 
+    (subtotal >= systemSettings.freeShippingThreshold ? 0 : systemSettings.shippingCost) : 0;
+
+  const total = subtotal + shippingCost;
+
+  if (cartItems.length === 0) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
+      <div className="container mx-auto px-4 py-8">
         <div className="text-center">
-          <ShoppingCart className="w-24 h-24 text-gray-300 dark:text-slate-600 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mb-2">السلة فارغة</h2>
-          <p className="text-gray-600 dark:text-slate-400 mb-6">لم تقم بإضافة أي منتجات إلى السلة بعد</p>
-          <Link href="/dashboard/products" className="btn-primary">
-            <ShoppingBag className="w-5 h-5 ml-2" />
+          <h1 className="text-2xl font-bold mb-4">السلة فارغة</h1>
+          <p className="text-gray-600 mb-4">لا توجد منتجات في السلة</p>
+          <Button onClick={() => router.push('/dashboard/products')}>
             تصفح المنتجات
-          </Link>
+          </Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100">سلة التسوق</h1>
-          <p className="text-gray-600 dark:text-slate-400 mt-2">{items.length} منتج في السلة</p>
-        </div>
-        <button
-          onClick={clearCart}
-          className="text-danger-600 hover:text-danger-700 text-sm font-medium"
-        >
-          تفريغ السلة
-        </button>
-      </div>
-
-      {!showCheckout ? (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Cart Items */}
-          <div className="lg:col-span-2 space-y-4">
-            {items.map((item) => (
-              <div key={item.product._id} className="card">
-                <div className="flex gap-4">
-                  {/* Product Image */}
-                  <div className="w-24 h-24 bg-gray-200 dark:bg-slate-700 rounded-lg overflow-hidden flex-shrink-0">
-                    {item.product.images && item.product.images.length > 0 ? (
-                      <img
-                        src={item.product.images[0]}
-                        alt={item.product.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <ShoppingBag className="w-8 h-8 text-gray-400 dark:text-slate-500" />
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-8">سلة التسوق</h1>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Cart Items */}
+        <div className="lg:col-span-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>المنتجات في السلة</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {cartItems.map((item) => (
+                <div key={item._id} className="border-b py-4 last:border-b-0">
+                  <div className="flex items-center space-x-4">
+                    <img 
+                      src={item.image} 
+                      alt={item.name}
+                      className="w-16 h-16 object-cover rounded"
+                    />
+                    <div className="flex-1">
+                      <h3 className="font-semibold">{item.name}</h3>
+                      <p className="text-sm text-gray-600">الكمية: {item.quantity}</p>
+                      <div className="mt-2">
+                        <Label htmlFor={`price-${item._id}`}>سعر البيع:</Label>
+                        <Input
+                          id={`price-${item._id}`}
+                          type="number"
+                          value={marketerPrices[item._id] || item.price}
+                          onChange={(e) => updateMarketerPrice(item._id, parseFloat(e.target.value))}
+                          className="w-32"
+                        />
                       </div>
-                    )}
-                  </div>
-
-                  {/* Product Details */}
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900 dark:text-slate-100">{item.product.name}</h3>
-                    <p className="text-sm text-gray-600 dark:text-slate-400 mt-1">{item.product.description}</p>
-                    <div className="flex items-center justify-between mt-3">
-                      <div className="flex items-center space-x-2 space-x-reverse">
-                        <button
-                          onClick={() => updateQuantity(item.product._id, item.quantity - 1)}
-                          className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100"
-                        >
-                          <Minus className="w-4 h-4" />
-                        </button>
-                        <span className="px-3 py-1 bg-gray-100 dark:bg-slate-700 rounded-md text-sm font-medium text-gray-900 dark:text-slate-100">
-                          {item.quantity}
-                        </span>
-                        <button
-                          onClick={() => updateQuantity(item.product._id, item.quantity + 1)}
-                          className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100"
-                        >
-                          <Plus className="w-4 h-4" />
-                        </button>
-                      </div>
-                      <button
-                        onClick={() => removeFromCart(item.product._id)}
-                        className="text-danger-600 dark:text-danger-400 hover:text-danger-700 dark:hover:text-danger-300 p-1"
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold">
+                        {(marketerPrices[item._id] || item.price) * item.quantity}₪
+                      </p>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => removeFromCart(item._id)}
                       >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                        إزالة
+                      </Button>
                     </div>
                   </div>
-
-                  {/* Price */}
-                  <div className="text-left">
-                    <p className="text-lg font-bold text-gray-900 dark:text-slate-100">{formatPrice(item.price)} ₪</p>
-                    <p className="text-sm text-gray-600 dark:text-slate-400">المجموع: {formatPrice(item.price * item.quantity)} ₪</p>
-                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </CardContent>
+          </Card>
+        </div>
 
-          {/* Order Summary */}
-          <div className="lg:col-span-1">
-            <div className="card sticky top-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">ملخص الطلب</h3>
-              
-              <div className="space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 dark:text-slate-400">المجموع الفرعي</span>
-                  <span className="font-medium text-gray-900 dark:text-slate-100">{formatPrice(totalPrice)} ₪</span>
+        {/* Order Summary */}
+        <div>
+          <Card>
+            <CardHeader>
+              <CardTitle>ملخص الطلب</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="customerName">اسم العميل</Label>
+                  <Input
+                    id="customerName"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    placeholder="أدخل اسم العميل"
+                  />
                 </div>
                 
-                {/* Marketer Profit Section */}
-                {user?.role === 'marketer' && (
-                  <>
-                    <div className="border-t border-gray-200 dark:border-slate-700 pt-3">
-                      <h4 className="text-sm font-medium text-gray-900 dark:text-slate-100 mb-2">أرباح المسوق</h4>
-                      <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg mb-3">
-                        <p className="text-xs text-green-700 dark:text-green-300">
-                          💰 <strong>نظام الأرباح البسيط:</strong><br/>
-                          • <strong>الربح = السعر الحالي - سعر التكلفة</strong><br/>
-                          • <strong>المورد يحدد سعر المسوق</strong><br/>
-                          • <strong>يمكنك زيادة السعر لزيادة الأرباح</strong>
-                        </p>
-                      </div>
-                      <div className="space-y-2">
-                        {items.map((item) => {
-                          const currentPrice = marketerPrices[item.product._id] || item.product.marketerPrice;
-                          const costPrice = item.product.costPrice; // سعر التكلفة
-                          const profit = (currentPrice - costPrice) * item.quantity;
-                          
-                          return (
-                            <div key={item.product._id} className="text-xs border border-gray-200 dark:border-slate-700 rounded-lg p-3">
-                              <div className="flex justify-between items-center mb-2">
-                                <span className="text-gray-600 dark:text-slate-400 font-medium">{item.product.name}</span>
-                                <div className="flex items-center space-x-2 space-x-reverse">
-                                  <input
-                                    type="number"
-                                    value={currentPrice}
-                                    onChange={(e) => handlePriceChange(item.product._id, parseFloat(e.target.value) || 0)}
-                                    className="w-20 px-2 py-1 text-xs border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100"
-                                    min={costPrice}
-                                    step="0.01"
-                                  />
-                                  <span className="text-xs text-gray-500 dark:text-slate-500">₪</span>
-                                </div>
-                              </div>
-                              <div className="grid grid-cols-2 gap-2 text-xs">
-                                <div className="flex justify-between">
-                                  <span className="text-gray-500 dark:text-slate-500">سعر التكلفة:</span>
-                                  <span className="text-gray-600 dark:text-slate-400">{formatPrice(costPrice)} ₪</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-gray-500 dark:text-slate-500">سعر المسوق:</span>
-                                  <span className="text-gray-600 dark:text-slate-400">{formatPrice(item.product.marketerPrice)} ₪</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-gray-500 dark:text-slate-500">السعر الحالي:</span>
-                                  <span className="text-blue-600 dark:text-blue-400 font-medium">{formatPrice(currentPrice)} ₪</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-gray-500 dark:text-slate-500">الربح:</span>
-                                  <span className={`font-bold ${profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                    {formatPrice(profit)} ₪
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                    
-                    <div className="flex justify-between text-sm font-medium">
-                      <span className="text-gray-900 dark:text-slate-100">إجمالي الأرباح</span>
-                      <span className={`${marketerProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                        {formatPrice(marketerProfit)} ₪
-                      </span>
-                    </div>
-                  </>
-                )}
-                
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 dark:text-slate-400">الشحن</span>
-                  <span className="font-medium text-gray-900 dark:text-slate-100">
-                    {shippingCost === 0 ? 'مجاني' : `${formatPrice(shippingCost)} ₪`}
-                  </span>
+                <div>
+                  <Label htmlFor="customerPhone">رقم الهاتف</Label>
+                  <Input
+                    id="customerPhone"
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    placeholder="أدخل رقم الهاتف"
+                  />
                 </div>
-                {shippingCost > 0 && (
-                  <p className="text-xs text-gray-500 dark:text-slate-500">
-                    شحن مجاني للطلبات أكثر من 500 ₪
-                  </p>
-                )}
-                <div className="border-t border-gray-200 dark:border-slate-700 pt-3">
-                  <div className="flex justify-between">
-                    <span className="font-semibold text-gray-900 dark:text-slate-100">المجموع النهائي</span>
-                    <span className="font-bold text-xl text-primary-600 dark:text-primary-400">
-                      {user?.role === 'marketer' ? formatPrice(totalWithProfit) : formatPrice(finalTotal)} ₪
-                    </span>
+                
+                <div>
+                  <Label htmlFor="customerAddress">العنوان</Label>
+                  <Textarea
+                    id="customerAddress"
+                    value={customerAddress}
+                    onChange={(e) => setCustomerAddress(e.target.value)}
+                    placeholder="أدخل العنوان الكامل"
+                    rows={3}
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="orderNotes">ملاحظات</Label>
+                  <Textarea
+                    id="orderNotes"
+                    value={orderNotes}
+                    onChange={(e) => setOrderNotes(e.target.value)}
+                    placeholder="ملاحظات إضافية (اختياري)"
+                    rows={2}
+                  />
+                </div>
+                
+                <div className="border-t pt-4">
+                  <div className="flex justify-between mb-2">
+                    <span>المجموع الفرعي:</span>
+                    <span>{subtotal}₪</span>
+                  </div>
+                  <div className="flex justify-between mb-2">
+                    <span>الشحن:</span>
+                    <span>{shippingCost}₪</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-lg">
+                    <span>الإجمالي:</span>
+                    <span>{total}₪</span>
                   </div>
                 </div>
+                
+                <Button 
+                  onClick={handleCheckout}
+                  disabled={isLoading}
+                  className="w-full"
+                >
+                  {isLoading ? 'جاري إنشاء الطلب...' : 'إنشاء الطلب'}
+                </Button>
               </div>
-
-              <button
-                onClick={() => setShowCheckout(true)}
-                className="btn-primary w-full mt-6"
-              >
-                المتابعة للدفع
-                <ArrowRight className="w-5 h-5 mr-2" />
-              </button>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
-      ) : (
-        <div className="max-w-2xl mx-auto">
-          <div className="card">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100 mb-6">معلومات الشحن</h2>
-            
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                    الاسم الكامل *
-                  </label>
-                  <input
-                    type="text"
-                    value={shippingAddress.fullName}
-                    onChange={(e) => setShippingAddress({ ...shippingAddress, fullName: e.target.value })}
-                    className="input-field"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                    رقم الهاتف *
-                  </label>
-                  <input
-                    type="tel"
-                    value={shippingAddress.phone}
-                    onChange={(e) => setShippingAddress({ ...shippingAddress, phone: e.target.value })}
-                    className="input-field"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                  العنوان *
-                </label>
-                <input
-                  type="text"
-                  value={shippingAddress.address}
-                  onChange={(e) => setShippingAddress({ ...shippingAddress, address: e.target.value })}
-                  className="input-field"
-                  placeholder="الشارع، رقم المبنى، الشقة"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                    المدينة *
-                  </label>
-                  <input
-                    type="text"
-                    value={shippingAddress.city}
-                    onChange={(e) => setShippingAddress({ ...shippingAddress, city: e.target.value })}
-                    className="input-field"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                    المنطقة *
-                  </label>
-                  <input
-                    type="text"
-                    value={shippingAddress.region}
-                    onChange={(e) => setShippingAddress({ ...shippingAddress, region: e.target.value })}
-                    className="input-field"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                    الرمز البريدي
-                  </label>
-                  <input
-                    type="text"
-                    value={shippingAddress.postalCode}
-                    onChange={(e) => setShippingAddress({ ...shippingAddress, postalCode: e.target.value })}
-                    className="input-field"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                  ملاحظات إضافية
-                </label>
-                <textarea
-                  value={shippingAddress.notes}
-                  onChange={(e) => setShippingAddress({ ...shippingAddress, notes: e.target.value })}
-                  className="input-field"
-                  rows={3}
-                  placeholder="أي ملاحظات إضافية للتوصيل..."
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-between mt-6">
-              <button
-                onClick={() => setShowCheckout(false)}
-                className="btn-secondary"
-              >
-                العودة للسلة
-              </button>
-              <button
-                onClick={handleCheckout}
-                disabled={loading}
-                className="btn-primary"
-              >
-                {loading ? 'جاري إنشاء الطلب...' : 'تأكيد الطلب'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 }

@@ -1,48 +1,59 @@
 import { NextRequest, NextResponse } from 'next/server';
-import connectDB from '@/lib/database';
-import SystemSettings from '@/models/SystemSettings';
+import { settingsManager } from '@/lib/settings-manager';
 
-// GET /api/settings - Get public system settings (for all users)
-export async function GET(req: NextRequest) {
+// GET /api/settings - Get public system settings
+export const GET = async (req: NextRequest) => {
   try {
-    await connectDB();
+    console.log('🔧 جلب إعدادات النظام العامة');
     
-    let settings = await SystemSettings.findOne().sort({ updatedAt: -1 });
+    const settings = await settingsManager.getSettings();
     
-    // If no settings exist, create default settings
     if (!settings) {
-      settings = await SystemSettings.create({
-        updatedBy: null // System default
-      });
+      return NextResponse.json(
+        { 
+          success: false,
+          message: 'حدث خطأ في جلب إعدادات النظام'
+        },
+        { status: 500 }
+      );
     }
     
-    // Return only public settings (no sensitive information)
+    // Return public settings (excluding sensitive financial details)
+    const publicSettings = {
+      platformName: settings.platformName,
+      platformDescription: settings.platformDescription,
+      contactEmail: settings.contactEmail,
+      contactPhone: settings.contactPhone,
+      minimumOrderValue: settings.minimumOrderValue,
+      maximumOrderValue: settings.maximumOrderValue,
+      shippingCost: settings.shippingCost,
+      freeShippingThreshold: settings.freeShippingThreshold,
+      withdrawalSettings: settings.withdrawalSettings,
+      commissionRates: settings.commissionRates,
+      maxProductImages: settings.maxProductImages,
+      maxProductDescriptionLength: settings.maxProductDescriptionLength,
+      passwordMinLength: settings.passwordMinLength,
+      sessionTimeout: settings.sessionTimeout,
+      maxLoginAttempts: settings.maxLoginAttempts
+    };
+    
+    console.log('✅ تم جلب إعدادات النظام العامة بنجاح');
+    
     return NextResponse.json({
       success: true,
-      settings: {
-        platformName: settings.platformName,
-        platformDescription: settings.platformDescription,
-        contactEmail: settings.contactEmail,
-        contactPhone: settings.contactPhone,
-        supportWhatsApp: settings.supportWhatsApp,
-        currency: settings.currency,
-        maintenanceMode: settings.maintenanceMode,
-        maintenanceMessage: settings.maintenanceMessage,
-        facebookUrl: settings.facebookUrl,
-        instagramUrl: settings.instagramUrl,
-        twitterUrl: settings.twitterUrl,
-        linkedinUrl: settings.linkedinUrl,
-        termsOfService: settings.termsOfService,
-        privacyPolicy: settings.privacyPolicy,
-        refundPolicy: settings.refundPolicy,
-        updatedAt: settings.updatedAt
-      }
+      settings: publicSettings
     });
+    
   } catch (error) {
-    console.error('Error fetching public settings:', error);
+    console.error('❌ خطأ في جلب إعدادات النظام:', error);
+    
     return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء جلب الإعدادات' },
+      { 
+        success: false,
+        message: 'حدث خطأ في جلب إعدادات النظام',
+        details: error instanceof Error ? error.message : 'خطأ غير معروف' 
+      },
       { status: 500 }
     );
   }
-} 
+}; 

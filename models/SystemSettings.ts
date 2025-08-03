@@ -1,81 +1,66 @@
-import mongoose, { Schema, Document, Model } from 'mongoose';
+import mongoose, { Schema, Document } from 'mongoose';
 
-export interface SystemSettings extends Document {
-  // Commission settings
-  commissionRates: {
-    minPrice: number;
-    maxPrice: number;
-    rate: number;
-  }[];
+export interface CommissionRate {
+  minPrice: number;
+  maxPrice: number;
+  rate: number;
+}
+
+export interface WithdrawalSettings {
+  minimumWithdrawal: number;
+  maximumWithdrawal: number;
+  withdrawalFees: number;
+}
+
+export interface SystemSettings {
+  _id?: string;
+  // Financial Settings
+  withdrawalSettings: WithdrawalSettings;
+  commissionRates: CommissionRate[];
   
-  // Platform settings
+  // General Settings
   platformName: string;
   platformDescription: string;
   contactEmail: string;
   contactPhone: string;
-  supportWhatsApp: string;
   
-  // Financial settings
-  minimumWithdrawal: number;
-  maximumWithdrawal: number;
-  withdrawalFee: number;
-  currency: string;
+  // Order Settings
+  minimumOrderValue: number;
+  maximumOrderValue: number;
+  shippingCost: number;
+  freeShippingThreshold: number;
   
-  // Order settings
-  autoApproveOrders: boolean;
-  requireAdminApproval: boolean;
-  maxOrderValue: number;
-  minOrderValue: number;
-  
-  // Product settings
-  autoApproveProducts: boolean;
-  requireProductImages: boolean;
+  // Product Settings
   maxProductImages: number;
-  maxProductDescription: number;
+  maxProductDescriptionLength: number;
+  autoApproveProducts: boolean;
   
-  // Notification settings
+  // Notification Settings
   emailNotifications: boolean;
-  whatsappNotifications: boolean;
+  smsNotifications: boolean;
   pushNotifications: boolean;
   
-  // Shipping settings
-  defaultShippingCost: number;
-  freeShippingThreshold: number;
-  shippingCompanies: string[];
-  
-  // Security settings
-  maxLoginAttempts: number;
+  // Security Settings
+  passwordMinLength: number;
   sessionTimeout: number;
-  requireTwoFactor: boolean;
+  maxLoginAttempts: number;
   
-  // Maintenance settings
-  maintenanceMode: boolean;
-  maintenanceMessage: string;
-  
-  // Social media
-  facebookUrl: string;
-  instagramUrl: string;
-  twitterUrl: string;
-  linkedinUrl: string;
-  
-  // Legal
+  // Legal Settings
   termsOfService: string;
   privacyPolicy: string;
   refundPolicy: string;
   
-  // Analytics
+  // Analytics Settings
   googleAnalyticsId: string;
   facebookPixelId: string;
   
-  // Updated by
-  updatedBy: mongoose.Types.ObjectId;
+  createdAt: Date;
   updatedAt: Date;
-  
-  // Methods
-  getCommissionRate(price: number): number;
 }
 
-const commissionRateSchema = new Schema({
+export interface SystemSettingsDocument extends Omit<SystemSettings, '_id'>, Document {}
+
+const commissionRateSchema = new Schema<CommissionRate>({
   minPrice: {
     type: Number,
     required: true,
@@ -94,212 +79,173 @@ const commissionRateSchema = new Schema({
   }
 });
 
-const systemSettingsSchema = new Schema<SystemSettings>({
-  // Commission settings
-  commissionRates: [commissionRateSchema],
-  
-  // Platform settings
-  platformName: {
-    type: String,
-    default: 'ربح',
-    trim: true,
-    maxlength: [100, 'اسم المنصة لا يمكن أن يتجاوز 100 حرف']
-  },
-  platformDescription: {
-    type: String,
-    default: 'منصة التجارة الإلكترونية الذكية',
-    trim: true,
-    maxlength: [500, 'وصف المنصة لا يمكن أن يتجاوز 500 حرف']
-  },
-  contactEmail: {
-    type: String,
-    default: 'support@ribh.com',
-    trim: true,
-    lowercase: true
-  },
-  contactPhone: {
-    type: String,
-    default: '+20 123 456 789',
-    trim: true
-  },
-  supportWhatsApp: {
-    type: String,
-    default: '+20 123 456 789',
-    trim: true
-  },
-  
-  // Financial settings
+const withdrawalSettingsSchema = new Schema<WithdrawalSettings>({
   minimumWithdrawal: {
     type: Number,
-    default: 100,
-    min: 0
+    required: true,
+    min: 0,
+    default: 100
   },
   maximumWithdrawal: {
     type: Number,
-    default: 10000,
-    min: 0
-  },
-  withdrawalFee: {
-    type: Number,
-    default: 0,
+    required: true,
     min: 0,
-    max: 100
+    default: 50000
   },
-  currency: {
+  withdrawalFees: {
+    type: Number,
+    required: true,
+    min: 0,
+    max: 100,
+    default: 0
+  }
+});
+
+const systemSettingsSchema = new Schema<SystemSettingsDocument>({
+  // Financial Settings
+  withdrawalSettings: {
+    type: withdrawalSettingsSchema,
+    required: true,
+    default: () => ({
+      minimumWithdrawal: 100,
+      maximumWithdrawal: 50000,
+      withdrawalFees: 0
+    })
+  },
+  commissionRates: {
+    type: [commissionRateSchema],
+    default: [
+      { minPrice: 0, maxPrice: 1000, rate: 10 },
+      { minPrice: 1001, maxPrice: 5000, rate: 8 },
+      { minPrice: 5001, maxPrice: 10000, rate: 6 },
+      { minPrice: 10001, maxPrice: 999999, rate: 5 }
+    ]
+  },
+  
+  // General Settings
+  platformName: {
     type: String,
-    default: '₪',
-    trim: true
+    required: true,
+    default: 'ربح'
+  },
+  platformDescription: {
+    type: String,
+    default: 'منصة التجارة الإلكترونية العربية'
+  },
+  contactEmail: {
+    type: String,
+    default: 'support@ribh.com'
+  },
+  contactPhone: {
+    type: String,
+    default: '+966500000000'
   },
   
-  // Order settings
-  autoApproveOrders: {
-    type: Boolean,
-    default: false
-  },
-  requireAdminApproval: {
-    type: Boolean,
-    default: true
-  },
-  maxOrderValue: {
+  // Order Settings
+  minimumOrderValue: {
     type: Number,
-    default: 50000,
-    min: 0
+    required: true,
+    min: 0,
+    default: 50
   },
-  minOrderValue: {
+  maximumOrderValue: {
     type: Number,
-    default: 0,
-    min: 0
+    required: true,
+    min: 0,
+    default: 100000
+  },
+  shippingCost: {
+    type: Number,
+    required: true,
+    min: 0,
+    default: 20
+  },
+  freeShippingThreshold: {
+    type: Number,
+    required: true,
+    min: 0,
+    default: 500
   },
   
-  // Product settings
+  // Product Settings
+  maxProductImages: {
+    type: Number,
+    required: true,
+    min: 1,
+    max: 20,
+    default: 10
+  },
+  maxProductDescriptionLength: {
+    type: Number,
+    required: true,
+    min: 100,
+    max: 5000,
+    default: 1000
+  },
   autoApproveProducts: {
     type: Boolean,
     default: false
   },
-  requireProductImages: {
-    type: Boolean,
-    default: true
-  },
-  maxProductImages: {
-    type: Number,
-    default: 10,
-    min: 1,
-    max: 20
-  },
-  maxProductDescription: {
-    type: Number,
-    default: 1000,
-    min: 100,
-    max: 5000
-  },
   
-  // Notification settings
+  // Notification Settings
   emailNotifications: {
     type: Boolean,
     default: true
   },
-  whatsappNotifications: {
+  smsNotifications: {
     type: Boolean,
-    default: true
+    default: false
   },
   pushNotifications: {
     type: Boolean,
-    default: false
+    default: true
   },
   
-  // Shipping settings
-  defaultShippingCost: {
+  // Security Settings
+  passwordMinLength: {
     type: Number,
-    default: 30,
-    min: 0
-  },
-  freeShippingThreshold: {
-    type: Number,
-    default: 500,
-    min: 0
-  },
-  shippingCompanies: [{
-    type: String,
-    trim: true
-  }],
-  
-  // Security settings
-  maxLoginAttempts: {
-    type: Number,
-    default: 5,
-    min: 3,
-    max: 10
+    required: true,
+    min: 6,
+    max: 20,
+    default: 8
   },
   sessionTimeout: {
     type: Number,
-    default: 24, // hours
-    min: 1,
-    max: 168
+    required: true,
+    min: 15,
+    max: 1440,
+    default: 60
   },
-  requireTwoFactor: {
-    type: Boolean,
-    default: false
-  },
-  
-  // Maintenance settings
-  maintenanceMode: {
-    type: Boolean,
-    default: false
-  },
-  maintenanceMessage: {
-    type: String,
-    default: 'المنصة تحت الصيانة. يرجى المحاولة لاحقاً.',
-    trim: true,
-    maxlength: [500, 'رسالة الصيانة لا يمكن أن تتجاوز 500 حرف']
+  maxLoginAttempts: {
+    type: Number,
+    required: true,
+    min: 3,
+    max: 10,
+    default: 5
   },
   
-  // Social media
-  facebookUrl: {
-    type: String,
-    trim: true
-  },
-  instagramUrl: {
-    type: String,
-    trim: true
-  },
-  twitterUrl: {
-    type: String,
-    trim: true
-  },
-  linkedinUrl: {
-    type: String,
-    trim: true
-  },
-  
-  // Legal
+  // Legal Settings
   termsOfService: {
     type: String,
-    trim: true
+    default: 'شروط الخدمة'
   },
   privacyPolicy: {
     type: String,
-    trim: true
+    default: 'سياسة الخصوصية'
   },
   refundPolicy: {
     type: String,
-    trim: true
+    default: 'سياسة الاسترداد'
   },
   
-  // Analytics
+  // Analytics Settings
   googleAnalyticsId: {
     type: String,
-    trim: true
+    default: ''
   },
   facebookPixelId: {
     type: String,
-    trim: true
-  },
-  
-  // Updated by
-  updatedBy: {
-    type: Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+    default: ''
   }
 }, {
   timestamps: true,
@@ -308,38 +254,55 @@ const systemSettingsSchema = new Schema<SystemSettings>({
 });
 
 // Indexes
-systemSettingsSchema.index({ updatedAt: -1 });
+systemSettingsSchema.index({ createdAt: -1 });
 
-// Static method to get current settings
-systemSettingsSchema.statics.getCurrentSettings = async function() {
-  return this.findOne().sort({ updatedAt: -1 });
-};
-
-// Static method to create or update settings
-systemSettingsSchema.statics.updateSettings = async function(settingsData: any, userId: string) {
-  return this.findOneAndUpdate(
-    {},
-    { ...settingsData, updatedBy: userId },
-    { new: true, upsert: true }
-  );
-};
-
-// Virtual for commission calculation
-systemSettingsSchema.virtual('getCommissionRate').get(function(price: number) {
-  if (!this.commissionRates || this.commissionRates.length === 0) {
-    return 10; // Default 10%
-  }
-  
-  const rate = this.commissionRates.find(rate => 
-    price >= rate.minPrice && price <= rate.maxPrice
-  );
-  
-  return rate ? rate.rate : 10; // Default 10% if no matching rate
+// Virtual for formatted commission rates
+systemSettingsSchema.virtual('formattedCommissionRates').get(function() {
+  return this.commissionRates.map(rate => ({
+    ...rate,
+    formattedRange: `${rate.minPrice}₪ - ${rate.maxPrice}₪`,
+    formattedRate: `${rate.rate}%`
+  }));
 });
 
-interface SystemSettingsModel extends Model<SystemSettings> {
-  getCurrentSettings(): Promise<SystemSettings | null>;
-  updateSettings(settingsData: any, userId: string): Promise<SystemSettings>;
-}
+// Method to get commission rate for order total
+systemSettingsSchema.methods.getCommissionRate = function(orderTotal: number): number {
+  for (const rate of this.commissionRates) {
+    if (orderTotal >= rate.minPrice && orderTotal <= rate.maxPrice) {
+      return rate.rate;
+    }
+  }
+  return 5; // Default rate
+};
 
-export default mongoose.models.SystemSettings || mongoose.model<SystemSettings, SystemSettingsModel>('SystemSettings', systemSettingsSchema); 
+// Method to calculate commission
+systemSettingsSchema.methods.calculateCommission = function(orderTotal: number): number {
+  const rate = this.getCommissionRate(orderTotal);
+  return (orderTotal * rate) / 100;
+};
+
+// Method to validate withdrawal amount
+systemSettingsSchema.methods.validateWithdrawalAmount = function(amount: number): { valid: boolean; message?: string } {
+  if (amount < this.withdrawalSettings.minimumWithdrawal) {
+    return {
+      valid: false,
+      message: `المبلغ أقل من الحد الأدنى للسحب: ${this.withdrawalSettings.minimumWithdrawal}₪`
+    };
+  }
+  
+  if (amount > this.withdrawalSettings.maximumWithdrawal) {
+    return {
+      valid: false,
+      message: `المبلغ أكبر من الحد الأقصى للسحب: ${this.withdrawalSettings.maximumWithdrawal}₪`
+    };
+  }
+  
+  return { valid: true };
+};
+
+// Method to calculate withdrawal fees
+systemSettingsSchema.methods.calculateWithdrawalFees = function(amount: number): number {
+  return (amount * this.withdrawalSettings.withdrawalFees) / 100;
+};
+
+export default mongoose.models.SystemSettings || mongoose.model<SystemSettingsDocument>('SystemSettings', systemSettingsSchema); 

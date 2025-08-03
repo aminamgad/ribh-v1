@@ -2,45 +2,39 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
-import { Search, Filter, Eye, Package, Truck, CheckCircle, XCircle, Clock, DollarSign } from 'lucide-react';
+import { Search, Plus, Eye, CheckCircle, Truck, Package, Clock, DollarSign, Edit, X, RotateCcw } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import React from 'react'; // Added for React.createElement
+
+interface OrderItem {
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  priceType: 'marketer' | 'wholesale';
+}
 
 interface Order {
   _id: string;
   orderNumber: string;
+  customerId: string;
   customerName: string;
   customerRole: string;
+  supplierId: string;
   supplierName?: string;
-  items: Array<{
-    productName: string;
-    quantity: number;
-    price: number;
-  }>;
+  items: OrderItem[];
   subtotal: number;
   commission: number;
   total: number;
+  marketerProfit?: number;
   status: string;
   paymentMethod: string;
-  shippingAddress: {
-    name: string;
-    phone: string;
-    address: string;
-    city: string;
-  };
+  paymentStatus: string;
   createdAt: string;
   updatedAt: string;
 }
-
-const statusColors = {
-  pending: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200',
-  confirmed: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200',
-  processing: 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200',
-  shipped: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-200',
-  delivered: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200',
-  cancelled: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200',
-  returned: 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200'
-};
 
 const statusIcons = {
   pending: Clock,
@@ -48,16 +42,26 @@ const statusIcons = {
   processing: Package,
   shipped: Truck,
   delivered: CheckCircle,
-  cancelled: XCircle,
-  returned: XCircle
+  cancelled: X,
+  returned: RotateCcw
+};
+
+const statusColors = {
+  pending: 'bg-yellow-100 text-yellow-800',
+  confirmed: 'bg-blue-100 text-blue-800',
+  processing: 'bg-purple-100 text-purple-800',
+  shipped: 'bg-indigo-100 text-indigo-800',
+  delivered: 'bg-green-100 text-green-800',
+  cancelled: 'bg-red-100 text-red-800',
+  returned: 'bg-orange-100 text-orange-800'
 };
 
 const statusLabels = {
-  pending: 'قيد الانتظار',
+  pending: 'معلق',
   confirmed: 'مؤكد',
   processing: 'قيد المعالجة',
   shipped: 'تم الشحن',
-  delivered: 'تم التوصيل',
+  delivered: 'تم التسليم',
   cancelled: 'ملغي',
   returned: 'مرتجع'
 };
@@ -68,6 +72,7 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [updatingOrder, setUpdatingOrder] = useState<string | null>(null);
 
   useEffect(() => {
     fetchOrders();
@@ -75,27 +80,13 @@ export default function OrdersPage() {
 
   const fetchOrders = async () => {
     try {
-      console.log('Fetching orders for user:', user?.role, user?._id);
+      setLoading(true);
       const response = await fetch('/api/orders');
-      console.log('Orders response status:', response.status);
-      
       if (response.ok) {
         const data = await response.json();
-        console.log('Orders API response:', data);
-        console.log('User role:', user?.role, 'User ID:', user?._id);
-        console.log('Orders for user:', data.orders?.map((o: any) => ({
-          id: o._id,
-          supplierId: o.supplierId,
-          customerId: o.customerId,
-          status: o.status,
-          supplierIdType: typeof o.supplierId,
-          customerIdType: typeof o.customerId
-        })));
-        setOrders(data.orders || []);
+        setOrders(data.orders);
       } else {
-        const errorData = await response.json();
-        console.error('Orders API error:', errorData);
-        toast.error(errorData.message || 'حدث خطأ أثناء جلب الطلبات');
+        toast.error('حدث خطأ أثناء جلب الطلبات');
       }
     } catch (error) {
       console.error('Error fetching orders:', error);
@@ -105,65 +96,34 @@ export default function OrdersPage() {
     }
   };
 
-  const fulfillOrder = async (orderId: string) => {
+  const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
-      console.log('Fulfilling order:', orderId);
-      
-      const response = await fetch(`/api/orders/${orderId}/fulfill`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      console.log('Fulfill response status:', response.status);
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Fulfill success:', data);
-        toast.success(data.message || 'تم تنفيذ الطلب بنجاح');
-        fetchOrders(); // Refresh orders list
-      } else {
-        const error = await response.json();
-        console.error('Fulfill error:', error);
-        toast.error(error.message || 'حدث خطأ أثناء تنفيذ الطلب');
-      }
-    } catch (error) {
-      console.error('Error fulfilling order:', error);
-      toast.error('حدث خطأ أثناء تنفيذ الطلب');
-    }
-  };
-
-  const completeOrder = async (orderId: string, marketerProfit: number = 0) => {
-    try {
-      console.log('Completing order:', orderId, 'with profit:', marketerProfit);
+      setUpdatingOrder(orderId);
+      console.log('Updating order:', orderId, 'to:', newStatus);
       
       const response = await fetch(`/api/orders/${orderId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          status: 'completed',
-          marketerProfit
-        }),
+        body: JSON.stringify({ status: newStatus }),
       });
-
-      console.log('Complete response status:', response.status);
 
       if (response.ok) {
         const data = await response.json();
-        console.log('Complete success:', data);
-        toast.success('تم إكمال الطلب وإضافة الأرباح للمحفظة بنجاح');
+        console.log('Update success:', data);
+        toast.success(data.message || 'تم تحديث حالة الطلب بنجاح');
         fetchOrders(); // Refresh orders
       } else {
         const error = await response.json();
-        console.error('Complete error:', error);
-        toast.error(error.message || 'حدث خطأ أثناء إكمال الطلب');
+        console.error('Update error:', error);
+        toast.error(error.error || 'حدث خطأ أثناء تحديث الطلب');
       }
     } catch (error) {
-      console.error('Error completing order:', error);
-      toast.error('حدث خطأ أثناء إكمال الطلب');
+      console.error('Error updating order:', error);
+      toast.error('حدث خطأ أثناء تحديث الطلب');
+    } finally {
+      setUpdatingOrder(null);
     }
   };
 
@@ -195,36 +155,114 @@ export default function OrdersPage() {
     }
   };
 
+  const canUpdateOrder = (order: Order) => {
+    if (!user) return false;
+    
+    // Admin can update any order
+    if (user.role === 'admin') return true;
+    
+    // Supplier can only update their own orders
+    if (user.role === 'supplier') {
+      const actualSupplierId =
+        typeof order.supplierId === 'object' && order.supplierId !== null && '_id' in order.supplierId
+          ? (order.supplierId as { _id: string })._id
+          : order.supplierId;
+      return actualSupplierId.toString() === user._id.toString();
+    }
+    
+    return false;
+  };
+
+  const getAvailableStatuses = (currentStatus: string) => {
+    const validTransitions: Record<string, string[]> = {
+      'pending': ['confirmed', 'cancelled'],
+      'confirmed': ['processing', 'cancelled'],
+      'processing': ['shipped', 'cancelled'],
+      'shipped': ['delivered', 'returned'],
+      'delivered': ['returned'],
+      'cancelled': [],
+      'returned': []
+    };
+    
+    return validTransitions[currentStatus] || [];
+  };
+
+  const getStatusButton = (order: Order) => {
+    if (!canUpdateOrder(order)) return null;
+    
+    const availableStatuses = getAvailableStatuses(order.status);
+    if (availableStatuses.length === 0) return null;
+
+    const nextStatus = availableStatuses[0]; // Get the first available status
+    const isUpdating = updatingOrder === order._id;
+    
+    let buttonText = '';
+    let buttonClass = '';
+    let icon = CheckCircle;
+
+    switch (nextStatus) {
+      case 'confirmed':
+        buttonText = 'تأكيد الطلب';
+        buttonClass = 'text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300';
+        icon = CheckCircle;
+        break;
+      case 'processing':
+        buttonText = 'بدء المعالجة';
+        buttonClass = 'text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300';
+        icon = Package;
+        break;
+      case 'shipped':
+        buttonText = 'شحن الطلب';
+        buttonClass = 'text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300';
+        icon = Truck;
+        break;
+      case 'delivered':
+        buttonText = 'تسليم الطلب';
+        buttonClass = 'text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300';
+        icon = CheckCircle;
+        break;
+      case 'cancelled':
+        buttonText = 'إلغاء الطلب';
+        buttonClass = 'text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300';
+        icon = X;
+        break;
+      case 'returned':
+        buttonText = 'إرجاع الطلب';
+        buttonClass = 'text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300';
+        icon = RotateCcw;
+        break;
+    }
+
+    return (
+      <button
+        onClick={() => updateOrderStatus(order._id, nextStatus)}
+        disabled={isUpdating}
+        className={`text-sm font-medium flex items-center ${buttonClass}`}
+      >
+        {isUpdating ? (
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current ml-1"></div>
+        ) : (
+          React.createElement(icon, { className: "w-4 h-4 ml-1" })
+        )}
+        {isUpdating ? 'جاري التحديث...' : buttonText}
+      </button>
+    );
+  };
+
   const filteredOrders = orders.filter(order => {
     const matchesSearch = order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (order.customerName && order.customerName.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesFilter = filterStatus === 'all' || order.status === filterStatus;
-    
     return matchesSearch && matchesFilter;
   });
-
-  const getTotalStats = () => {
-    const total = orders.length;
-    const pending = orders.filter(o => o.status === 'pending').length;
-    const confirmed = orders.filter(o => o.status === 'confirmed').length;
-    const delivered = orders.filter(o => o.status === 'delivered').length;
-    const totalRevenue = orders.reduce((sum, order) => sum + (order.total || 0), 0);
-
-    return { total, pending, confirmed, delivered, totalRevenue };
-  };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="loading-spinner w-8 h-8 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">جاري تحميل الطلبات...</p>
-        </div>
+        <div className="loading-spinner w-8 h-8"></div>
       </div>
     );
   }
-
-  const stats = getTotalStats();
 
   return (
     <div className="space-y-6">
@@ -234,125 +272,55 @@ export default function OrdersPage() {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100">{getRoleTitle()}</h1>
           <p className="text-gray-600 dark:text-slate-400 mt-2">{getRoleDescription()}</p>
         </div>
-        
-        {(user?.role === 'marketer' || user?.role === 'wholesaler') && (
-          <Link href="/dashboard/orders/new" className="btn-primary">
-            <Package className="w-5 h-5 ml-2" />
+        {user?.role === 'marketer' || user?.role === 'wholesaler' ? (
+          <Link href="/dashboard/products" className="btn-primary flex items-center">
+            <Plus className="w-4 h-4 ml-2" />
             طلب جديد
           </Link>
-        )}
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="card">
-          <div className="flex items-center">
-            <div className="bg-primary-100 dark:bg-primary-900/30 p-2 rounded-lg">
-              <Package className="w-5 h-5 text-primary-600 dark:text-primary-400" />
-            </div>
-            <div className="mr-3">
-              <p className="text-sm text-gray-600 dark:text-slate-400">إجمالي الطلبات</p>
-              <p className="text-xl font-bold text-gray-900 dark:text-slate-100">{stats.total}</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="card">
-          <div className="flex items-center">
-            <div className="bg-warning-100 dark:bg-warning-900/30 p-2 rounded-lg">
-              <Clock className="w-5 h-5 text-warning-600 dark:text-warning-400" />
-            </div>
-            <div className="mr-3">
-              <p className="text-sm text-gray-600 dark:text-slate-400">قيد الانتظار</p>
-              <p className="text-xl font-bold text-gray-900 dark:text-slate-100">{stats.pending}</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="card">
-          <div className="flex items-center">
-            <div className="bg-success-100 dark:bg-success-900/30 p-2 rounded-lg">
-              <CheckCircle className="w-5 h-5 text-success-600 dark:text-success-400" />
-            </div>
-            <div className="mr-3">
-              <p className="text-sm text-gray-600 dark:text-slate-400">مؤكد</p>
-              <p className="text-xl font-bold text-gray-900 dark:text-slate-100">{stats.confirmed}</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="card">
-          <div className="flex items-center">
-            <div className="bg-secondary-100 dark:bg-secondary-900/30 p-2 rounded-lg">
-              <DollarSign className="w-5 h-5 text-secondary-600 dark:text-secondary-400" />
-            </div>
-            <div className="mr-3">
-              <p className="text-sm text-gray-600 dark:text-slate-400">إجمالي المبيعات</p>
-              <p className="text-xl font-bold text-gray-900 dark:text-slate-100">{stats.totalRevenue.toFixed(2)} ₪</p>
-            </div>
-          </div>
-        </div>
+        ) : null}
       </div>
 
       {/* Filters */}
-      <div className="card">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-slate-500 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="البحث في الطلبات..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="input-field pr-10"
-              />
-            </div>
-          </div>
-          
-          <div className="flex gap-2">
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="input-field"
-            >
-              <option value="all">جميع الطلبات</option>
-              <option value="pending">قيد الانتظار</option>
-              <option value="confirmed">مؤكد</option>
-              <option value="processing">قيد المعالجة</option>
-              <option value="shipped">تم الشحن</option>
-              <option value="delivered">تم التوصيل</option>
-              <option value="cancelled">ملغي</option>
-              <option value="returned">مرتجع</option>
-            </select>
-          </div>
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <input
+            type="text"
+            placeholder="البحث في الطلبات..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+          />
         </div>
+        <select
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+          className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+        >
+          <option value="all">جميع الحالات</option>
+          <option value="pending">معلق</option>
+          <option value="confirmed">مؤكد</option>
+          <option value="processing">قيد المعالجة</option>
+          <option value="shipped">تم الشحن</option>
+          <option value="delivered">تم التسليم</option>
+          <option value="cancelled">ملغي</option>
+          <option value="returned">مرتجع</option>
+        </select>
       </div>
 
       {/* Orders Table */}
       {filteredOrders.length === 0 ? (
-        <div className="card text-center py-12">
+        <div className="text-center py-12">
           <Package className="w-16 h-16 text-gray-400 dark:text-slate-500 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100 mb-2">لا توجد طلبات</h3>
-          <p className="text-gray-600 dark:text-slate-400">
-            {user?.role === 'marketer' || user?.role === 'wholesaler'
-              ? 'لم تقم بإنشاء أي طلبات بعد. ابدأ بإنشاء طلبك الأول!'
-              : 'لا توجد طلبات متاحة حالياً.'
-            }
-          </p>
-          {(user?.role === 'marketer' || user?.role === 'wholesaler') && (
-            <Link href="/dashboard/orders/new" className="btn-primary mt-4">
-              <Package className="w-5 h-5 ml-2" />
-              طلب جديد
-            </Link>
-          )}
+          <p className="text-gray-600 dark:text-slate-400">لم يتم العثور على طلبات تطابق معايير البحث</p>
         </div>
       ) : (
-        <div className="card overflow-hidden">
+        <div className="card">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-slate-800">
-                <tr>
+              <thead>
+                <tr className="border-b border-gray-200 dark:border-slate-700">
                   <th className="table-header">رقم الطلب</th>
                   <th className="table-header">العميل</th>
                   {user?.role === 'admin' && <th className="table-header">المورد</th>}
@@ -393,12 +361,12 @@ export default function OrdersPage() {
                         </div>
                       </td>
                       <td className="table-cell">
-                        <div>
-                          <p className="font-medium text-gray-900 dark:text-slate-100">{order.total} ₪</p>
-                          {order.commission > 0 && (
-                            <p className="text-xs text-gray-500 dark:text-slate-400">العمولة: {order.commission} ₪</p>
-                          )}
-                        </div>
+                        <span className="font-medium text-gray-900 dark:text-slate-100">
+                          {new Intl.NumberFormat('ar-IL', {
+                            style: 'currency',
+                            currency: 'ILS'
+                          }).format(order.total)}
+                        </span>
                       </td>
                       <td className="table-cell">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[order.status as keyof typeof statusColors]}`}>
@@ -420,46 +388,7 @@ export default function OrdersPage() {
                             <Eye className="w-4 h-4 ml-1" />
                             عرض التفاصيل
                           </Link>
-                          {(user?.role === 'admin' || user?.role === 'supplier') && 
-                           ['confirmed', 'processing'].includes(order.status) && (
-                            <button
-                              onClick={() => fulfillOrder(order._id)}
-                              className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 text-sm font-medium"
-                            >
-                              <CheckCircle className="w-4 h-4 ml-1" />
-                              تنفيذ الطلب
-                            </button>
-                          )}
-                          {user?.role === 'supplier' && 
-                           ['processing'].includes(order.status) && (
-                            <button
-                              onClick={() => completeOrder(order._id, 0)}
-                              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm font-medium"
-                            >
-                              <Truck className="w-4 h-4 ml-1" />
-                              شحن الطلب
-                            </button>
-                          )}
-                          {user?.role === 'supplier' && 
-                           ['shipped'].includes(order.status) && (
-                            <button
-                              onClick={() => completeOrder(order._id, 0)}
-                              className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 text-sm font-medium"
-                            >
-                              <CheckCircle className="w-4 h-4 ml-1" />
-                              تسليم الطلب
-                            </button>
-                          )}
-                          {user?.role === 'marketer' && 
-                           ['confirmed', 'processing', 'shipped'].includes(order.status) && (
-                            <button
-                              onClick={() => completeOrder(order._id, order.commission || 0)}
-                              className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 text-sm font-medium"
-                            >
-                              <DollarSign className="w-4 h-4 ml-1" />
-                              إكمال الطلب وإضافة الأرباح
-                            </button>
-                          )}
+                          {getStatusButton(order)}
                         </div>
                       </td>
                     </tr>

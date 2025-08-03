@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
-import { ArrowLeft, Package, Truck, CheckCircle, Clock, DollarSign, User, MapPin, Phone, Calendar, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Package, Truck, CheckCircle, Clock, DollarSign, User, MapPin, Phone, Calendar, CheckCircle2, Edit, X, RotateCcw } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 
@@ -57,6 +57,9 @@ interface Order {
   createdAt: string;
   updatedAt: string;
   actualDelivery?: string;
+  trackingNumber?: string;
+  shippingCompany?: string;
+  adminNotes?: string;
 }
 
 const statusConfig = {
@@ -93,13 +96,13 @@ const statusConfig = {
   cancelled: {
     label: 'ملغي',
     color: 'bg-red-100 text-red-800',
-    icon: Clock,
+    icon: X,
     description: 'تم إلغاء الطلب'
   },
   returned: {
     label: 'مرتجع',
     color: 'bg-orange-100 text-orange-800',
-    icon: Clock,
+    icon: RotateCcw,
     description: 'تم إرجاع الطلب'
   }
 };
@@ -110,7 +113,12 @@ export default function OrderDetailPage() {
   const router = useRouter();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
-  const [fulfilling, setFulfilling] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [newStatus, setNewStatus] = useState('');
+  const [trackingNumber, setTrackingNumber] = useState('');
+  const [shippingCompany, setShippingCompany] = useState('');
+  const [notes, setNotes] = useState('');
 
   useEffect(() => {
     if (params.id) {
@@ -126,18 +134,8 @@ export default function OrderDetailPage() {
       
       if (response.ok) {
         const data = await response.json();
-              console.log('Order data:', data);
-      console.log('Order supplier ID:', data.order?.supplierId);
-      console.log('Order supplier ID type:', typeof data.order?.supplierId);
-      console.log('Current user ID:', user?._id);
-      console.log('User role:', user?.role);
-      console.log('Permission check:', {
-        userRole: user?.role,
-        userId: user?._id,
-        orderSupplierId: data.order?.supplierId,
-        match: user?.role === 'supplier' ? data.order?.supplierId === user?._id : null
-      });
-      setOrder(data.order);
+        console.log('Order data:', data);
+        setOrder(data.order);
       } else {
         const errorData = await response.json();
         console.error('Order fetch error:', errorData);
@@ -152,37 +150,44 @@ export default function OrderDetailPage() {
     }
   };
 
-  const fulfillOrder = async () => {
-    if (!order) return;
+  const updateOrderStatus = async () => {
+    if (!order || !newStatus) return;
     
     try {
-      setFulfilling(true);
-      console.log('Fulfilling order:', order._id);
+      setUpdating(true);
+      console.log('Updating order status:', order._id, 'to:', newStatus);
       
-      const response = await fetch(`/api/orders/${order._id}/fulfill`, {
-        method: 'POST',
+      const response = await fetch(`/api/orders/${order._id}`, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          status: newStatus,
+          trackingNumber: trackingNumber || undefined,
+          shippingCompany: shippingCompany || undefined,
+          notes: notes || undefined
+        }),
       });
 
-      console.log('Fulfill response status:', response.status);
+      console.log('Update response status:', response.status);
 
       if (response.ok) {
         const data = await response.json();
-        console.log('Fulfill success:', data);
-        toast.success(data.message || 'تم تنفيذ الطلب بنجاح');
+        console.log('Update success:', data);
+        toast.success(data.message || 'تم تحديث حالة الطلب بنجاح');
+        setShowStatusModal(false);
         fetchOrder(order._id); // Refresh order data
       } else {
         const error = await response.json();
-        console.error('Fulfill error:', error);
-        toast.error(error.message || 'حدث خطأ أثناء تنفيذ الطلب');
+        console.error('Update error:', error);
+        toast.error(error.error || 'حدث خطأ أثناء تحديث الطلب');
       }
     } catch (error) {
-      console.error('Error fulfilling order:', error);
-      toast.error('حدث خطأ أثناء تنفيذ الطلب');
+      console.error('Error updating order:', error);
+      toast.error('حدث خطأ أثناء تحديث الطلب');
     } finally {
-      setFulfilling(false);
+      setUpdating(false);
     }
   };
 
@@ -203,28 +208,39 @@ export default function OrderDetailPage() {
     });
   };
 
-  const canFulfill = () => {
+  const canUpdateOrder = () => {
     if (!order || !user) return false;
     
-    // Admin can fulfill any order
+    // Admin can update any order
     if (user.role === 'admin') return true;
     
-    // Supplier can only fulfill their own orders
+    // Supplier can only update their own orders
     const actualSupplierId = order.supplierId._id || order.supplierId;
-    const canFulfillResult = user.role === 'supplier' && actualSupplierId.toString() === user._id.toString();
-    
-    console.log('Can fulfill check:', {
-      userRole: user.role,
-      userId: user._id,
-      orderSupplierId: actualSupplierId,
-      canFulfill: canFulfillResult
-    });
-    
-    return canFulfillResult;
+    return user.role === 'supplier' && actualSupplierId.toString() === user._id.toString();
   };
 
-  const shouldShowFulfillButton = () => {
-    return canFulfill() && ['confirmed', 'processing'].includes(order?.status || '');
+  const getAvailableStatuses = () => {
+    if (!order) return [];
+    
+    const validTransitions: Record<string, string[]> = {
+      'pending': ['confirmed', 'cancelled'],
+      'confirmed': ['processing', 'cancelled'],
+      'processing': ['shipped', 'cancelled'],
+      'shipped': ['delivered', 'returned'],
+      'delivered': ['returned'],
+      'cancelled': [],
+      'returned': []
+    };
+    
+    return validTransitions[order.status] || [];
+  };
+
+  const openStatusModal = (status: string) => {
+    setNewStatus(status);
+    setTrackingNumber(order?.trackingNumber || '');
+    setShippingCompany(order?.shippingCompany || '');
+    setNotes(order?.adminNotes || '');
+    setShowStatusModal(true);
   };
 
   if (loading) {
@@ -254,6 +270,7 @@ export default function OrderDetailPage() {
 
   const status = statusConfig[order.status as keyof typeof statusConfig] || statusConfig.pending;
   const StatusIcon = status.icon;
+  const availableStatuses = getAvailableStatuses();
 
   return (
     <div className="p-6 space-y-6">
@@ -274,18 +291,13 @@ export default function OrderDetailPage() {
           </div>
         </div>
         
-        {shouldShowFulfillButton() && (
+        {canUpdateOrder() && availableStatuses.length > 0 && (
           <button
-            onClick={fulfillOrder}
-            disabled={fulfilling}
+            onClick={() => openStatusModal('')}
             className="btn-primary flex items-center"
           >
-            {fulfilling ? (
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white ml-2"></div>
-            ) : (
-              <CheckCircle2 className="w-4 h-4 ml-2" />
-            )}
-            {fulfilling ? 'جاري التنفيذ...' : 'تنفيذ الطلب'}
+            <Edit className="w-4 h-4 ml-2" />
+            تحديث الحالة
           </button>
         )}
       </div>
@@ -353,6 +365,33 @@ export default function OrderDetailPage() {
             <div className="card">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">ملاحظات الطلب</h3>
               <p className="text-gray-700 dark:text-gray-300">{order.notes}</p>
+            </div>
+          )}
+
+          {/* Admin Notes */}
+          {order.adminNotes && (
+            <div className="card">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">ملاحظات الإدارة</h3>
+              <p className="text-gray-700 dark:text-gray-300">{order.adminNotes}</p>
+            </div>
+          )}
+
+          {/* Tracking Info */}
+          {order.trackingNumber && (
+            <div className="card">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">معلومات الشحن</h3>
+              <div className="space-y-2">
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">رقم التتبع</p>
+                  <p className="font-medium text-gray-900 dark:text-white">{order.trackingNumber}</p>
+                </div>
+                {order.shippingCompany && (
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">شركة الشحن</p>
+                    <p className="font-medium text-gray-900 dark:text-white">{order.shippingCompany}</p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -468,6 +507,96 @@ export default function OrderDetailPage() {
             </div>
           </div>
 
+          {/* Marketer Profit Details - Only show for marketers */}
+          {user?.role === 'marketer' && order.customerRole === 'marketer' && (
+            <div className="card">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                <DollarSign className="w-5 h-5 ml-2" />
+                تفاصيل أرباحك
+              </h3>
+              <div className="space-y-3">
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-medium text-blue-800 dark:text-blue-200">ربح المسوق</span>
+                    <span className="text-lg font-bold text-blue-800 dark:text-blue-200">
+                      {formatCurrency(order.marketerProfit || 0)}
+                    </span>
+                  </div>
+                  <p className="text-xs text-blue-600 dark:text-blue-300">
+                    سيتم إضافة هذا الربح إلى محفظتك عند اكتمال الطلب
+                  </p>
+                </div>
+                
+                {order.status === 'delivered' && (
+                  <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
+                    <div className="flex items-center">
+                      <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 ml-2" />
+                      <span className="text-sm font-medium text-green-800 dark:text-green-200">
+                        تم إضافة الربح إلى محفظتك
+                      </span>
+                    </div>
+                  </div>
+                )}
+                
+                {['pending', 'confirmed', 'processing', 'shipped'].includes(order.status) && (
+                  <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg">
+                    <div className="flex items-center">
+                      <Clock className="w-5 h-5 text-yellow-600 dark:text-yellow-400 ml-2" />
+                      <span className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                        في انتظار اكتمال الطلب لإضافة الربح
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Admin Profit Details - Only show for admins */}
+          {user?.role === 'admin' && (
+            <div className="card">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                <DollarSign className="w-5 h-5 ml-2" />
+                تفاصيل أرباح الإدارة
+              </h3>
+              <div className="space-y-3">
+                <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-medium text-green-800 dark:text-green-200">عمولة الإدارة</span>
+                    <span className="text-lg font-bold text-green-800 dark:text-green-200">
+                      {formatCurrency(order.commission || 0)}
+                    </span>
+                  </div>
+                  <p className="text-xs text-green-600 dark:text-green-300">
+                    سيتم إضافة هذه العمولة إلى محفظة الإدارة عند اكتمال الطلب
+                  </p>
+                </div>
+                
+                {order.status === 'delivered' && (
+                  <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
+                    <div className="flex items-center">
+                      <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 ml-2" />
+                      <span className="text-sm font-medium text-green-800 dark:text-green-200">
+                        تم إضافة العمولة إلى محفظة الإدارة
+                      </span>
+                    </div>
+                  </div>
+                )}
+                
+                {['pending', 'confirmed', 'processing', 'shipped'].includes(order.status) && (
+                  <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg">
+                    <div className="flex items-center">
+                      <Clock className="w-5 h-5 text-yellow-600 dark:text-yellow-400 ml-2" />
+                      <span className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                        في انتظار اكتمال الطلب لإضافة العمولة
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Order Info */}
           <div className="card">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
@@ -495,6 +624,100 @@ export default function OrderDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Status Update Modal */}
+      {showStatusModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              تحديث حالة الطلب
+            </h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  الحالة الجديدة
+                </label>
+                <select
+                  value={newStatus}
+                  onChange={(e) => setNewStatus(e.target.value)}
+                  className="w-full input-field"
+                >
+                  <option value="">اختر الحالة</option>
+                  {availableStatuses.map(status => (
+                    <option key={status} value={status}>
+                      {statusConfig[status as keyof typeof statusConfig]?.label || status}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {newStatus === 'shipped' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      رقم التتبع
+                    </label>
+                    <input
+                      type="text"
+                      value={trackingNumber}
+                      onChange={(e) => setTrackingNumber(e.target.value)}
+                      className="w-full input-field"
+                      placeholder="أدخل رقم التتبع"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      شركة الشحن
+                    </label>
+                    <input
+                      type="text"
+                      value={shippingCompany}
+                      onChange={(e) => setShippingCompany(e.target.value)}
+                      className="w-full input-field"
+                      placeholder="أدخل اسم شركة الشحن"
+                    />
+                  </div>
+                </>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  ملاحظات (اختياري)
+                </label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="w-full input-field"
+                  rows={3}
+                  placeholder="أدخل ملاحظات إضافية"
+                />
+              </div>
+            </div>
+
+            <div className="flex space-x-3 space-x-reverse mt-6">
+              <button
+                onClick={() => setShowStatusModal(false)}
+                className="btn-secondary flex-1"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={updateOrderStatus}
+                disabled={!newStatus || updating}
+                className="btn-primary flex-1 flex items-center justify-center"
+              >
+                {updating ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white ml-2"></div>
+                ) : (
+                  <CheckCircle className="w-4 h-4 ml-2" />
+                )}
+                {updating ? 'جاري التحديث...' : 'تحديث الحالة'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

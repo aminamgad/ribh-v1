@@ -3,22 +3,20 @@ import { withRole } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import Order from '@/models/Order';
 import Wallet from '@/models/Wallet';
-import User from '@/models/User';
+import SystemSettings from '@/models/SystemSettings';
 
-// GET /api/admin/earnings - Get system earnings and commission reports
-async function getEarningsReport(req: NextRequest, user: any) {
+// GET /api/admin/earnings - Get earnings statistics
+export const GET = withRole(['admin'])(async (req: NextRequest, user: any) => {
   try {
     await connectDB();
     
     const { searchParams } = new URL(req.url);
-    const period = searchParams.get('period') || 'month'; // day, week, month, year
+    const period = searchParams.get('period') || 'month'; // week, month, year
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
     
     // Calculate date range
     let dateFilter: any = {};
-    const now = new Date();
-    
     if (startDate && endDate) {
       dateFilter = {
         createdAt: {
@@ -27,141 +25,180 @@ async function getEarningsReport(req: NextRequest, user: any) {
         }
       };
     } else {
+      const now = new Date();
+      let start: Date;
+      
       switch (period) {
-        case 'day':
-          dateFilter = {
-            createdAt: {
-              $gte: new Date(now.getFullYear(), now.getMonth(), now.getDate())
-            }
-          };
-          break;
         case 'week':
-          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          dateFilter = { createdAt: { $gte: weekAgo } };
+          start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
           break;
         case 'month':
-          dateFilter = {
-            createdAt: {
-              $gte: new Date(now.getFullYear(), now.getMonth(), 1)
-            }
-          };
+          start = new Date(now.getFullYear(), now.getMonth(), 1);
           break;
         case 'year':
-          dateFilter = {
-            createdAt: {
-              $gte: new Date(now.getFullYear(), 0, 1)
-            }
-          };
+          start = new Date(now.getFullYear(), 0, 1);
           break;
+        default:
+          start = new Date(now.getFullYear(), now.getMonth(), 1);
       }
+      
+      dateFilter = {
+        createdAt: {
+          $gte: start,
+          $lte: now
+        }
+      };
     }
     
-    // Get total commission earned
-    const commissionStats = await Order.aggregate([
-      { $match: dateFilter },
+    // Get orders with earnings data
+    const orders = await Order.find({
+      ...dateFilter,
+      status: 'delivered'
+    }).populate('customerId', 'name role');
+    
+    // Calculate earnings
+    const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
+    const totalCommission = orders.reduce((sum, order) => sum + order.commission, 0);
+    const totalMarketerProfit = orders.reduce((sum, order) => sum + (order.marketerProfit || 0), 0);
+    const totalSupplierRevenue = totalRevenue - totalCommission;
+    
+    // Get wallet statistics
+    const wallets = await Wallet.find();
+    const totalWalletBalance = wallets.reduce((sum, wallet) => sum + wallet.balance, 0);
+    const totalEarnings = wallets.reduce((sum, wallet) => sum + wallet.totalEarnings, 0);
+    const totalWithdrawals = wallets.reduce((sum, wallet) => sum + wallet.totalWithdrawals, 0);
+    
+    // Get earnings by role
+    const earningsByRole = await Order.aggregate([
+      { $match: { ...dateFilter, status: 'delivered' } },
       {
         $group: {
-          _id: null,
-          totalCommission: { $sum: '$commission' },
-          totalOrders: { $sum: 1 },
+          _id: '$customerRole',
+          count: { $sum: 1 },
           totalRevenue: { $sum: '$total' },
-          averageCommission: { $avg: '$commission' }
+          totalProfit: { $sum: '$marketerProfit' }
         }
       }
     ]);
     
-    // Get commission by status
-    const commissionByStatus = await Order.aggregate([
-      { $match: dateFilter },
+    // Get top earners
+    const topEarners = await Wallet.aggregate([
       {
-        $group: {
-          _id: '$status',
-          commission: { $sum: '$commission' },
-          orders: { $sum: 1 },
-          revenue: { $sum: '$total' }
-        }
-      }
-    ]);
-    
-    // Get top suppliers by commission
-    const topSuppliers = await Order.aggregate([
-      { $match: dateFilter },
-      {
-        $group: {
-          _id: '$supplierId',
-          totalCommission: { $sum: '$commission' },
-          totalOrders: { $sum: 1 },
-          totalRevenue: { $sum: '$total' }
+        $lookup: {
+          from: 'users',
+          localField: 'userId',
+          foreignField: '_id',
+          as: 'user'
         }
       },
-      { $sort: { totalCommission: -1 } },
+      { $unwind: '$user' },
+      {
+        $project: {
+          name: '$user.name',
+          role: '$user.role',
+          balance: '$balance',
+          totalEarnings: '$totalEarnings'
+        }
+      },
+      { $sort: { totalEarnings: -1 } },
       { $limit: 10 }
     ]);
     
-    // Populate supplier names
-    const supplierIds = topSuppliers.map(s => s._id);
-    const suppliers = await User.find({ _id: { $in: supplierIds } }, 'name email companyName');
-    const supplierMap = suppliers.reduce((map, supplier) => {
-      map[supplier._id.toString()] = supplier;
-      return map;
-    }, {} as any);
-    
-    const topSuppliersWithNames = topSuppliers.map(supplier => ({
-      ...supplier,
-      supplier: supplierMap[supplier._id.toString()]
-    }));
-    
-    // Get system owner's wallet balance
-    const systemOwner = await User.findOne({ role: 'admin' }).sort({ createdAt: 1 });
-    let systemWalletBalance = 0;
-    
-    if (systemOwner) {
-      const systemWallet = await Wallet.findOne({ userId: systemOwner._id });
-      if (systemWallet) {
-        systemWalletBalance = systemWallet.balance;
-      }
-    }
-    
-    // Get recent commission transactions
-    const recentCommissions = await Order.find(dateFilter)
-      .populate('supplierId', 'name companyName')
-      .populate('customerId', 'name')
-      .select('orderNumber commission total status createdAt supplierId customerId')
-      .sort({ createdAt: -1 })
-      .limit(20);
-    
-    const stats = commissionStats[0] || {
-      totalCommission: 0,
-      totalOrders: 0,
-      totalRevenue: 0,
-      averageCommission: 0
-    };
-    
     return NextResponse.json({
       success: true,
-      report: {
-        period,
-        dateRange: dateFilter,
-        summary: {
-          totalCommission: stats.totalCommission,
-          totalOrders: stats.totalOrders,
-          totalRevenue: stats.totalRevenue,
-          averageCommission: stats.averageCommission,
-          systemWalletBalance
-        },
-        commissionByStatus,
-        topSuppliers: topSuppliersWithNames,
-        recentCommissions
+      statistics: {
+        totalOrders: orders.length,
+        totalRevenue,
+        totalCommission,
+        totalMarketerProfit,
+        totalSupplierRevenue,
+        totalWalletBalance,
+        totalEarnings,
+        totalWithdrawals
+      },
+      earningsByRole,
+      topEarners,
+      period,
+      dateRange: {
+        start: dateFilter.createdAt?.$gte || new Date(),
+        end: dateFilter.createdAt?.$lte || new Date()
       }
     });
-    
   } catch (error) {
-    console.error('Error generating earnings report:', error);
+    console.error('Error getting earnings:', error);
     return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء إنشاء تقرير الأرباح' },
+      { success: false, message: 'حدث خطأ أثناء جلب إحصائيات الأرباح' },
       { status: 500 }
     );
   }
-}
+});
 
-export const GET = withRole(['admin'])(getEarningsReport); 
+// POST /api/admin/earnings - Update commission settings
+export const POST = withRole(['admin'])(async (req: NextRequest, user: any) => {
+  try {
+    await connectDB();
+    
+    const body = await req.json();
+    const { commissionRates } = body;
+    
+    // Validate commission rates
+    if (!commissionRates || !Array.isArray(commissionRates)) {
+      return NextResponse.json(
+        { success: false, message: 'نسب العمولة مطلوبة' },
+        { status: 400 }
+      );
+    }
+    
+    // Validate each rate
+    for (const rate of commissionRates) {
+      if (!rate.minPrice || !rate.maxPrice || !rate.rate) {
+        return NextResponse.json(
+          { success: false, message: 'جميع حقول نسبة العمولة مطلوبة' },
+          { status: 400 }
+        );
+      }
+      
+      if (rate.rate < 0 || rate.rate > 100) {
+        return NextResponse.json(
+          { success: false, message: 'نسبة العمولة يجب أن تكون بين 0 و 100' },
+          { status: 400 }
+        );
+      }
+    }
+    
+    // Check for overlapping ranges
+    const sortedRates = [...commissionRates].sort((a, b) => a.minPrice - b.minPrice);
+    for (let i = 0; i < sortedRates.length - 1; i++) {
+      if (sortedRates[i].maxPrice >= sortedRates[i + 1].minPrice) {
+        return NextResponse.json(
+          { success: false, message: 'نطاقات العمولة متداخلة' },
+          { status: 400 }
+        );
+      }
+    }
+    
+    // Update system settings
+    const settings = await SystemSettings.findOneAndUpdate(
+      {},
+      { 
+        commissionRates,
+        updatedBy: user._id
+      },
+      { new: true, upsert: true }
+    );
+    
+    return NextResponse.json({
+      success: true,
+      message: 'تم تحديث نسب العمولة بنجاح',
+      settings: {
+        commissionRates: settings.commissionRates
+      }
+    });
+  } catch (error) {
+    console.error('Error updating commission settings:', error);
+    return NextResponse.json(
+      { success: false, message: 'حدث خطأ أثناء تحديث نسب العمولة' },
+      { status: 500 }
+    );
+  }
+}); 

@@ -2,237 +2,297 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withRole } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import SystemSettings from '@/models/SystemSettings';
+import { settingsManager } from '@/lib/settings-manager';
 import { z } from 'zod';
 
+// Validation schemas
 const commissionRateSchema = z.object({
-  minPrice: z.number().min(0, 'السعر الأدنى يجب أن يكون 0 أو أكثر'),
-  maxPrice: z.number().min(0, 'السعر الأقصى يجب أن يكون 0 أو أكثر'),
-  rate: z.number().min(0, 'نسبة العمولة يجب أن تكون 0 أو أكثر').max(100, 'نسبة العمولة لا يمكن أن تتجاوز 100%')
+  minPrice: z.number().min(0, 'الحد الأدنى يجب أن يكون 0 أو أكثر'),
+  maxPrice: z.number().min(0, 'الحد الأقصى يجب أن يكون 0 أو أكثر'),
+  rate: z.number().min(0, 'النسبة يجب أن تكون 0 أو أكثر').max(100, 'النسبة لا يمكن أن تتجاوز 100%')
 });
 
-const settingsSchema = z.object({
-  // Commission settings
-  commissionRates: z.array(commissionRateSchema).optional(),
-  
-  // Platform settings
-  platformName: z.string().min(1, 'اسم المنصة مطلوب').max(100, 'اسم المنصة لا يمكن أن يتجاوز 100 حرف').optional(),
-  platformDescription: z.string().max(500, 'وصف المنصة لا يمكن أن يتجاوز 500 حرف').optional(),
-  contactEmail: z.string().email('البريد الإلكتروني غير صحيح').optional(),
-  contactPhone: z.string().optional(),
-  supportWhatsApp: z.string().optional(),
-  
-  // Financial settings
-  minimumWithdrawal: z.number().min(0, 'الحد الأدنى للسحب يجب أن يكون 0 أو أكثر').optional(),
-  maximumWithdrawal: z.number().min(0, 'الحد الأقصى للسحب يجب أن يكون 0 أو أكثر').optional(),
-  withdrawalFee: z.number().min(0, 'رسوم السحب يجب أن تكون 0 أو أكثر').max(100, 'رسوم السحب لا يمكن أن تتجاوز 100%').optional(),
-  currency: z.string().optional(),
-  
-  // Order settings
-  autoApproveOrders: z.boolean().optional(),
-  requireAdminApproval: z.boolean().optional(),
-  maxOrderValue: z.number().min(0, 'الحد الأقصى لقيمة الطلب يجب أن يكون 0 أو أكثر').optional(),
-  minOrderValue: z.number().min(0, 'الحد الأدنى لقيمة الطلب يجب أن يكون 0 أو أكثر').optional(),
-  
-  // Product settings
-  autoApproveProducts: z.boolean().optional(),
-  requireProductImages: z.boolean().optional(),
-  maxProductImages: z.number().min(1, 'الحد الأقصى لعدد الصور يجب أن يكون 1 أو أكثر').max(20, 'الحد الأقصى لعدد الصور لا يمكن أن يتجاوز 20').optional(),
-  maxProductDescription: z.number().min(100, 'الحد الأقصى لوصف المنتج يجب أن يكون 100 أو أكثر').max(5000, 'الحد الأقصى لوصف المنتج لا يمكن أن يتجاوز 5000').optional(),
-  
-  // Notification settings
-  emailNotifications: z.boolean().optional(),
-  whatsappNotifications: z.boolean().optional(),
-  pushNotifications: z.boolean().optional(),
-  
-  // Shipping settings
-  defaultShippingCost: z.number().min(0, 'تكلفة الشحن الافتراضية يجب أن تكون 0 أو أكثر').optional(),
-  freeShippingThreshold: z.number().min(0, 'حد الشحن المجاني يجب أن يكون 0 أو أكثر').optional(),
-  shippingCompanies: z.array(z.string()).optional(),
-  
-  // Security settings
-  maxLoginAttempts: z.number().min(3, 'الحد الأقصى لمحاولات تسجيل الدخول يجب أن يكون 3 أو أكثر').max(10, 'الحد الأقصى لمحاولات تسجيل الدخول لا يمكن أن يتجاوز 10').optional(),
-  sessionTimeout: z.number().min(1, 'مهلة الجلسة يجب أن تكون ساعة واحدة على الأقل').max(168, 'مهلة الجلسة لا يمكن أن تتجاوز 168 ساعة').optional(),
-  requireTwoFactor: z.boolean().optional(),
-  
-  // Maintenance settings
-  maintenanceMode: z.boolean().optional(),
-  maintenanceMessage: z.string().max(500, 'رسالة الصيانة لا يمكن أن تتجاوز 500 حرف').optional(),
-  
-  // Social media
-  facebookUrl: z.string().url('رابط فيسبوك غير صحيح').optional(),
-  instagramUrl: z.string().url('رابط انستغرام غير صحيح').optional(),
-  twitterUrl: z.string().url('رابط تويتر غير صحيح').optional(),
-  linkedinUrl: z.string().url('رابط لينكد إن غير صحيح').optional(),
-  
-  // Legal
-  termsOfService: z.string().optional(),
-  privacyPolicy: z.string().optional(),
-  refundPolicy: z.string().optional(),
-  
-  // Analytics
-  googleAnalyticsId: z.string().optional(),
-  facebookPixelId: z.string().optional()
+const withdrawalSettingsSchema = z.object({
+  minimumWithdrawal: z.number().min(0, 'الحد الأدنى للسحب يجب أن يكون 0 أو أكثر'),
+  maximumWithdrawal: z.number().min(0, 'الحد الأقصى للسحب يجب أن يكون 0 أو أكثر'),
+  withdrawalFees: z.number().min(0, 'رسوم السحب يجب أن تكون 0 أو أكثر').max(100, 'رسوم السحب لا يمكن أن تتجاوز 100%')
 });
 
-// GET /api/admin/settings - Get current system settings
-async function getSettings(req: NextRequest, user: any) {
+const financialSettingsSchema = z.object({
+  withdrawalSettings: withdrawalSettingsSchema,
+  commissionRates: z.array(commissionRateSchema).min(1, 'يجب إضافة نسبة عمولة واحدة على الأقل')
+});
+
+const generalSettingsSchema = z.object({
+  platformName: z.string().min(1, 'اسم المنصة مطلوب').max(100, 'اسم المنصة لا يمكن أن يتجاوز 100 حرف'),
+  platformDescription: z.string().max(500, 'وصف المنصة لا يمكن أن يتجاوز 500 حرف'),
+  contactEmail: z.string().email('البريد الإلكتروني غير صحيح'),
+  contactPhone: z.string().min(1, 'رقم الهاتف مطلوب')
+});
+
+const orderSettingsSchema = z.object({
+  minimumOrderValue: z.number().min(0, 'الحد الأدنى للطلب يجب أن يكون 0 أو أكثر'),
+  maximumOrderValue: z.number().min(0, 'الحد الأقصى للطلب يجب أن يكون 0 أو أكثر'),
+  shippingCost: z.number().min(0, 'تكلفة الشحن يجب أن تكون 0 أو أكثر'),
+  freeShippingThreshold: z.number().min(0, 'حد الشحن المجاني يجب أن يكون 0 أو أكثر')
+});
+
+const productSettingsSchema = z.object({
+  maxProductImages: z.number().min(1, 'الحد الأقصى للصور يجب أن يكون 1 أو أكثر').max(20, 'الحد الأقصى للصور لا يمكن أن يتجاوز 20'),
+  maxProductDescriptionLength: z.number().min(100, 'الحد الأقصى لوصف المنتج يجب أن يكون 100 أو أكثر').max(5000, 'الحد الأقصى لوصف المنتج لا يمكن أن يتجاوز 5000'),
+  autoApproveProducts: z.boolean()
+});
+
+const notificationSettingsSchema = z.object({
+  emailNotifications: z.boolean(),
+  smsNotifications: z.boolean(),
+  pushNotifications: z.boolean()
+});
+
+const securitySettingsSchema = z.object({
+  passwordMinLength: z.number().min(6, 'الحد الأدنى لكلمة المرور يجب أن يكون 6 أو أكثر').max(20, 'الحد الأقصى لكلمة المرور لا يمكن أن يتجاوز 20'),
+  sessionTimeout: z.number().min(15, 'مهلة الجلسة يجب أن تكون 15 دقيقة أو أكثر').max(1440, 'مهلة الجلسة لا يمكن أن تتجاوز 1440 دقيقة'),
+  maxLoginAttempts: z.number().min(3, 'الحد الأقصى لمحاولات تسجيل الدخول يجب أن يكون 3 أو أكثر').max(10, 'الحد الأقصى لمحاولات تسجيل الدخول لا يمكن أن يتجاوز 10')
+});
+
+const legalSettingsSchema = z.object({
+  termsOfService: z.string(),
+  privacyPolicy: z.string(),
+  refundPolicy: z.string()
+});
+
+const analyticsSettingsSchema = z.object({
+  googleAnalyticsId: z.string(),
+  facebookPixelId: z.string()
+});
+
+// GET /api/admin/settings - Get system settings
+export const GET = withRole(['admin'])(async (req: NextRequest, user: any) => {
   try {
-    await connectDB();
+    console.log('🔧 جلب إعدادات النظام');
     
-    let settings = await SystemSettings.findOne().sort({ updatedAt: -1 });
+    const settings = await settingsManager.getSettings();
     
-    // If no settings exist, create default settings
     if (!settings) {
-      settings = await SystemSettings.create({
-        updatedBy: user._id
-      });
+      return NextResponse.json(
+        { 
+          success: false,
+          message: 'حدث خطأ في جلب إعدادات النظام'
+        },
+        { status: 500 }
+      );
     }
+    
+    console.log('✅ تم جلب إعدادات النظام بنجاح');
     
     return NextResponse.json({
       success: true,
-      settings: {
-        _id: settings._id,
-        commissionRates: settings.commissionRates,
-        platformName: settings.platformName,
-        platformDescription: settings.platformDescription,
-        contactEmail: settings.contactEmail,
-        contactPhone: settings.contactPhone,
-        supportWhatsApp: settings.supportWhatsApp,
-        minimumWithdrawal: settings.minimumWithdrawal,
-        maximumWithdrawal: settings.maximumWithdrawal,
-        withdrawalFee: settings.withdrawalFee,
-        currency: settings.currency,
-        autoApproveOrders: settings.autoApproveOrders,
-        requireAdminApproval: settings.requireAdminApproval,
-        maxOrderValue: settings.maxOrderValue,
-        minOrderValue: settings.minOrderValue,
-        autoApproveProducts: settings.autoApproveProducts,
-        requireProductImages: settings.requireProductImages,
-        maxProductImages: settings.maxProductImages,
-        maxProductDescription: settings.maxProductDescription,
-        emailNotifications: settings.emailNotifications,
-        whatsappNotifications: settings.whatsappNotifications,
-        pushNotifications: settings.pushNotifications,
-        defaultShippingCost: settings.defaultShippingCost,
-        freeShippingThreshold: settings.freeShippingThreshold,
-        shippingCompanies: settings.shippingCompanies,
-        maxLoginAttempts: settings.maxLoginAttempts,
-        sessionTimeout: settings.sessionTimeout,
-        requireTwoFactor: settings.requireTwoFactor,
-        maintenanceMode: settings.maintenanceMode,
-        maintenanceMessage: settings.maintenanceMessage,
-        facebookUrl: settings.facebookUrl,
-        instagramUrl: settings.instagramUrl,
-        twitterUrl: settings.twitterUrl,
-        linkedinUrl: settings.linkedinUrl,
-        termsOfService: settings.termsOfService,
-        privacyPolicy: settings.privacyPolicy,
-        refundPolicy: settings.refundPolicy,
-        googleAnalyticsId: settings.googleAnalyticsId,
-        facebookPixelId: settings.facebookPixelId,
-        updatedAt: settings.updatedAt
-      }
+      settings: settings
     });
+    
   } catch (error) {
-    console.error('Error fetching settings:', error);
+    console.error('❌ خطأ في جلب إعدادات النظام:', error);
     return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء جلب الإعدادات' },
+      { 
+        success: false,
+        message: 'حدث خطأ في جلب إعدادات النظام',
+        details: error instanceof Error ? error.message : 'خطأ غير معروف'
+      },
       { status: 500 }
     );
   }
-}
+});
 
 // PUT /api/admin/settings - Update system settings
-async function updateSettings(req: NextRequest, user: any) {
+export const PUT = withRole(['admin'])(async (req: NextRequest, user: any) => {
   try {
-    await connectDB();
+    console.log('🔧 تحديث إعدادات النظام');
     
-    const body = await req.json();
-    const validatedData = settingsSchema.parse(body);
+    const { section, data } = await req.json();
     
-    // Validate commission rates if provided
-    if (validatedData.commissionRates) {
-      // Check for overlapping ranges
-      const sortedRates = [...validatedData.commissionRates].sort((a, b) => a.minPrice - b.minPrice);
-      
-      for (let i = 0; i < sortedRates.length - 1; i++) {
-        if (sortedRates[i].maxPrice >= sortedRates[i + 1].minPrice) {
-          return NextResponse.json(
-            { success: false, message: 'نطاقات العمولة متداخلة' },
-            { status: 400 }
-          );
-        }
-      }
-    }
+    console.log('📝 القسم المطلوب:', section);
+    console.log('📝 البيانات المرسلة:', data);
     
-    // Update settings
-    const updatedSettings = await SystemSettings.findOneAndUpdate(
-      {},
-      { ...validatedData, updatedBy: user._id },
-      { new: true, upsert: true }
-    );
-    
-    return NextResponse.json({
-      success: true,
-      message: 'تم تحديث الإعدادات بنجاح',
-      settings: {
-        _id: updatedSettings._id,
-        commissionRates: updatedSettings.commissionRates,
-        platformName: updatedSettings.platformName,
-        platformDescription: updatedSettings.platformDescription,
-        contactEmail: updatedSettings.contactEmail,
-        contactPhone: updatedSettings.contactPhone,
-        supportWhatsApp: updatedSettings.supportWhatsApp,
-        minimumWithdrawal: updatedSettings.minimumWithdrawal,
-        maximumWithdrawal: updatedSettings.maximumWithdrawal,
-        withdrawalFee: updatedSettings.withdrawalFee,
-        currency: updatedSettings.currency,
-        autoApproveOrders: updatedSettings.autoApproveOrders,
-        requireAdminApproval: updatedSettings.requireAdminApproval,
-        maxOrderValue: updatedSettings.maxOrderValue,
-        minOrderValue: updatedSettings.minOrderValue,
-        autoApproveProducts: updatedSettings.autoApproveProducts,
-        requireProductImages: updatedSettings.requireProductImages,
-        maxProductImages: updatedSettings.maxProductImages,
-        maxProductDescription: updatedSettings.maxProductDescription,
-        emailNotifications: updatedSettings.emailNotifications,
-        whatsappNotifications: updatedSettings.whatsappNotifications,
-        pushNotifications: updatedSettings.pushNotifications,
-        defaultShippingCost: updatedSettings.defaultShippingCost,
-        freeShippingThreshold: updatedSettings.freeShippingThreshold,
-        shippingCompanies: updatedSettings.shippingCompanies,
-        maxLoginAttempts: updatedSettings.maxLoginAttempts,
-        sessionTimeout: updatedSettings.sessionTimeout,
-        requireTwoFactor: updatedSettings.requireTwoFactor,
-        maintenanceMode: updatedSettings.maintenanceMode,
-        maintenanceMessage: updatedSettings.maintenanceMessage,
-        facebookUrl: updatedSettings.facebookUrl,
-        instagramUrl: updatedSettings.instagramUrl,
-        twitterUrl: updatedSettings.twitterUrl,
-        linkedinUrl: updatedSettings.linkedinUrl,
-        termsOfService: updatedSettings.termsOfService,
-        privacyPolicy: updatedSettings.privacyPolicy,
-        refundPolicy: updatedSettings.refundPolicy,
-        googleAnalyticsId: updatedSettings.googleAnalyticsId,
-        facebookPixelId: updatedSettings.facebookPixelId,
-        updatedAt: updatedSettings.updatedAt
-      }
-    });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
+    if (!section || !data) {
       return NextResponse.json(
-        { success: false, message: error.errors[0].message },
+        { 
+          success: false,
+          message: 'القسم والبيانات مطلوبان' 
+        },
         { status: 400 }
       );
     }
     
-    console.error('Error updating settings:', error);
+    // Get current settings or create new ones
+    let settings = await SystemSettings.findOne().sort({ createdAt: -1 });
+    
+    if (!settings) {
+      console.log('📝 إنشاء إعدادات جديدة');
+      settings = new SystemSettings({
+        withdrawalSettings: {
+          minimumWithdrawal: 100,
+          maximumWithdrawal: 50000,
+          withdrawalFees: 0
+        },
+        commissionRates: [
+          { minPrice: 0, maxPrice: 1000, rate: 10 }
+        ],
+        platformName: 'ربح',
+        platformDescription: 'منصة التجارة الإلكترونية العربية',
+        contactEmail: 'support@ribh.com',
+        contactPhone: '+966500000000',
+        minimumOrderValue: 50,
+        maximumOrderValue: 100000,
+        shippingCost: 20,
+        freeShippingThreshold: 500,
+        maxProductImages: 5,
+        maxProductDescriptionLength: 1000,
+        autoApproveProducts: false,
+        emailNotifications: true,
+        smsNotifications: false,
+        pushNotifications: true,
+        passwordMinLength: 8,
+        sessionTimeout: 60,
+        maxLoginAttempts: 5,
+        termsOfService: 'شروط الخدمة',
+        privacyPolicy: 'سياسة الخصوصية',
+        refundPolicy: 'سياسة الاسترداد',
+        googleAnalyticsId: '',
+        facebookPixelId: ''
+      });
+    }
+    
+    // Validate and update based on section
+    switch (section) {
+      case 'financial':
+        console.log('💰 تحديث الإعدادات المالية');
+        const financialData = financialSettingsSchema.parse(data);
+        console.log('💰 البيانات المالية المصدقة:', financialData);
+        
+        // Update withdrawal settings
+        settings.withdrawalSettings = {
+          minimumWithdrawal: financialData.withdrawalSettings.minimumWithdrawal,
+          maximumWithdrawal: financialData.withdrawalSettings.maximumWithdrawal,
+          withdrawalFees: financialData.withdrawalSettings.withdrawalFees
+        };
+        
+        // Update commission rates
+        settings.commissionRates = financialData.commissionRates.map(rate => ({
+          minPrice: rate.minPrice,
+          maxPrice: rate.maxPrice,
+          rate: rate.rate
+        }));
+        
+        console.log('💰 الإعدادات المالية المحدثة:', {
+          withdrawalSettings: settings.withdrawalSettings,
+          commissionRates: settings.commissionRates
+        });
+        break;
+        
+      case 'general':
+        const generalData = generalSettingsSchema.parse(data);
+        settings.platformName = generalData.platformName;
+        settings.platformDescription = generalData.platformDescription;
+        settings.contactEmail = generalData.contactEmail;
+        settings.contactPhone = generalData.contactPhone;
+        console.log('📝 تم تحديث الإعدادات العامة:', generalData);
+        break;
+        
+      case 'orders':
+        const orderData = orderSettingsSchema.parse(data);
+        settings.minimumOrderValue = orderData.minimumOrderValue;
+        settings.maximumOrderValue = orderData.maximumOrderValue;
+        settings.shippingCost = orderData.shippingCost;
+        settings.freeShippingThreshold = orderData.freeShippingThreshold;
+        console.log('🛒 تم تحديث إعدادات الطلبات:', orderData);
+        break;
+        
+      case 'products':
+        const productData = productSettingsSchema.parse(data);
+        settings.maxProductImages = productData.maxProductImages;
+        settings.maxProductDescriptionLength = productData.maxProductDescriptionLength;
+        settings.autoApproveProducts = productData.autoApproveProducts;
+        console.log('📦 تم تحديث إعدادات المنتجات:', productData);
+        break;
+        
+      case 'notifications':
+        const notificationData = notificationSettingsSchema.parse(data);
+        settings.emailNotifications = notificationData.emailNotifications;
+        settings.smsNotifications = notificationData.smsNotifications;
+        settings.pushNotifications = notificationData.pushNotifications;
+        console.log('🔔 تم تحديث إعدادات الإشعارات:', notificationData);
+        break;
+        
+      case 'security':
+        const securityData = securitySettingsSchema.parse(data);
+        settings.passwordMinLength = securityData.passwordMinLength;
+        settings.sessionTimeout = securityData.sessionTimeout;
+        settings.maxLoginAttempts = securityData.maxLoginAttempts;
+        console.log('🔒 تم تحديث إعدادات الأمان:', securityData);
+        break;
+        
+      case 'legal':
+        const legalData = legalSettingsSchema.parse(data);
+        settings.termsOfService = legalData.termsOfService;
+        settings.privacyPolicy = legalData.privacyPolicy;
+        settings.refundPolicy = legalData.refundPolicy;
+        console.log('📄 تم تحديث الإعدادات القانونية:', legalData);
+        break;
+        
+      case 'analytics':
+        const analyticsData = analyticsSettingsSchema.parse(data);
+        settings.googleAnalyticsId = analyticsData.googleAnalyticsId;
+        settings.facebookPixelId = analyticsData.facebookPixelId;
+        console.log('📊 تم تحديث إعدادات التحليلات:', analyticsData);
+        break;
+        
+      default:
+        return NextResponse.json(
+          { 
+            success: false,
+            message: 'قسم غير معروف' 
+          },
+          { status: 400 }
+        );
+    }
+    
+    // Save the settings
+    await settings.save();
+    
+    // Clear cache to ensure fresh data
+    settingsManager.clearCache();
+    
+    console.log('✅ تم حفظ إعدادات النظام بنجاح');
+    
+    return NextResponse.json({
+      success: true,
+      message: 'تم حفظ الإعدادات بنجاح',
+      settings: await settingsManager.getSettings()
+    });
+    
+  } catch (error) {
+    console.error('❌ خطأ في تحديث إعدادات النظام:', error);
+    
+    if (error instanceof Error && error.name === 'ZodError') {
+      const zodError = error as any;
+      const messages = zodError.errors.map((err: any) => err.message);
+      return NextResponse.json(
+        { 
+          success: false,
+          message: 'بيانات غير صحيحة',
+          errors: messages 
+        },
+        { status: 400 }
+      );
+    }
+    
     return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء تحديث الإعدادات' },
+      { 
+        success: false,
+        message: 'حدث خطأ في تحديث إعدادات النظام',
+        details: error instanceof Error ? error.message : 'خطأ غير معروف'
+      },
       { status: 500 }
     );
   }
-}
-
-export const GET = withRole(['admin'])(getSettings);
-export const PUT = withRole(['admin'])(updateSettings); 
+}); 
