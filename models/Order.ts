@@ -72,11 +72,20 @@ const addressSchema = new Schema({
   }
 });
 
+const generateOrderNumber = () => {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+  return `ORD-${year}${month}${day}-${random}`;
+};
+
 const orderSchema = new Schema<OrderDocument>({
   orderNumber: {
     type: String,
-    required: true,
-    unique: true
+    unique: true,
+    default: generateOrderNumber
   },
   customerId: {
     type: Schema.Types.ObjectId,
@@ -186,15 +195,10 @@ orderSchema.virtual('supplierProfit').get(function() {
   return this.subtotal - this.commission;
 });
 
-// Pre-save middleware to generate order number
+// Keep pre-save as a safety net in case the document is constructed without defaults
 orderSchema.pre('save', function(next) {
   if (!this.orderNumber) {
-    const date = new Date();
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-    this.orderNumber = `ORD-${year}${month}${day}-${random}`;
+    this.orderNumber = generateOrderNumber();
   }
   next();
 });

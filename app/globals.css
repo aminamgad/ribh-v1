@@ -162,23 +162,59 @@
   .dark {
     --background: 224 71.4% 4.1%;
     --foreground: 210 20% 98%;
-    --card: 224 71.4% 7%; /* darker card for better contrast */
+    /* Slightly lighter cards for better separation from background */
+    --card: 224 71.4% 10%;
     --card-foreground: 210 20% 98%;
-    --popover: 224 71.4% 7%;
+    --popover: 224 71.4% 10%;
     --popover-foreground: 210 20% 98%;
+    /* Keep primary readable on dark */
     --primary: 210 20% 98%;
     --primary-foreground: 220.9 39.3% 11%;
-    --secondary: 215 27.9% 16.9%;
+    /* Secondary/muted surfaces a bit lighter for contrast */
+    --secondary: 215 27.9% 20%;
     --secondary-foreground: 210 20% 98%;
-    --muted: 215 27.9% 16.9%;
-    --muted-foreground: 217.9 10.6% 64.9%;
-    --accent: 215 27.9% 16.9%;
+    --muted: 215 27.9% 20%;
+    --muted-foreground: 217.9 10.6% 72%;
+    --accent: 215 27.9% 20%;
     --accent-foreground: 210 20% 98%;
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 62.8% 34%;
     --destructive-foreground: 210 20% 98%;
-    --border: 215 27.9% 16.9%;
-    --input: 215 27.9% 16.9%;
+    /* Make borders slightly more visible */
+    --border: 215 27.9% 24%;
+    --input: 215 27.9% 22%;
     --ring: 216 12.2% 83.9%;
+  }
+
+  /* Ensure shadcn card/input pick up higher contrast in dark */
+  .dark .bg-card {
+    background-color: hsl(var(--card));
+  }
+  .dark .text-card-foreground {
+    color: hsl(var(--card-foreground));
+  }
+  .dark .border-input {
+    border-color: hsl(var(--input));
+  }
+  .dark .placeholder\:text-muted-foreground::placeholder {
+    color: hsl(var(--muted-foreground));
+  }
+  .dark .text-muted-foreground {
+    color: hsl(var(--muted-foreground));
+  }
+
+  /* Slight lift for cards in dark for separation */
+  .dark .shadow-sm,
+  .dark .shadow,
+  .dark .shadow-lg {
+    --tw-shadow-color: rgba(0,0,0,0.6);
+  }
+
+  /* Improve inputs contrast in dark */
+  .dark input,
+  .dark textarea,
+  .dark select {
+    background-color: hsl(var(--background) / 0.6);
+    color: hsl(var(--foreground));
   }
 
   /* Card, Table, and Input Enhancements for Dark Mode */

@@ -35,8 +35,10 @@ export const POST = withRole(['marketer', 'supplier', 'admin'])(async (req: Next
     const orderData = orderSchema.parse(body);
     
     // Calculate order total
-    let orderTotal = 0;
-    const orderItems = [];
+    let subtotal = 0;
+    const orderItems: any[] = [];
+    let supplierId: any = null;
+    let marketerProfitTotal = 0;
     
     for (const item of orderData.items) {
       const product = await Product.findById(item.productId);
@@ -46,23 +48,33 @@ export const POST = withRole(['marketer', 'supplier', 'admin'])(async (req: Next
           { status: 404 }
         );
       }
+      if (!supplierId) supplierId = product.supplierId;
       
-      // Use custom price if provided, otherwise use product price
-      const price = item.customPrice || product.price;
-      const itemTotal = price * item.quantity;
-      orderTotal += itemTotal;
+      const fallbackPrice = (product as any).marketerPrice ?? (product as any).wholesalePrice ?? (product as any).costPrice ?? 0;
+      const unitPrice = item.customPrice !== undefined ? item.customPrice : fallbackPrice;
+      const totalPrice = unitPrice * item.quantity;
+      subtotal += totalPrice;
+
+      // marketer profit based on custom selling price minus product cost
+      const costPrice = (product as any).costPrice ?? 0;
+      const itemMarketerProfit = Math.max(unitPrice - costPrice, 0) * item.quantity;
+      marketerProfitTotal += itemMarketerProfit;
+
+      // decide price type
+      const priceType = unitPrice === (product as any).wholesalePrice ? 'wholesale' : 'marketer';
       
       orderItems.push({
         productId: item.productId,
+        productName: (product as any).name,
         quantity: item.quantity,
-        price: price,
-        customPrice: item.customPrice,
-        marketerProfit: item.marketerProfit || 0
+        unitPrice,
+        totalPrice,
+        priceType
       });
     }
     
     // Apply system settings validation
-    const orderValidation = await settingsManager.validateOrder(orderTotal);
+    const orderValidation = await settingsManager.validateOrder(subtotal);
     if (!orderValidation.valid) {
       return NextResponse.json(
         { success: false, message: orderValidation.message },
@@ -71,31 +83,37 @@ export const POST = withRole(['marketer', 'supplier', 'admin'])(async (req: Next
     }
     
     // Calculate shipping cost based on settings
-    const shippingCost = await settingsManager.calculateShipping(orderTotal);
-    orderTotal += shippingCost;
+    const shippingCost = await settingsManager.calculateShipping(subtotal);
+    const total = subtotal + shippingCost;
     
     // Calculate commission based on settings
-    const commission = await settingsManager.calculateCommission(orderTotal);
+    const commission = await settingsManager.calculateCommission(total);
     
     // Create order
     const order = await Order.create({
-      userId: user._id,
-      customerName: orderData.customerName,
-      customerPhone: orderData.customerPhone,
-      customerAddress: orderData.customerAddress,
+      customerId: user._id,
+      customerRole: user.role,
+      supplierId,
       items: orderItems,
-      orderTotal: orderTotal,
-      shippingCost: shippingCost,
-      commission: commission,
+      subtotal,
+      commission,
+      total,
+      marketerProfit: user.role === 'marketer' ? marketerProfitTotal : 0,
       status: 'pending',
-      marketerProfit: orderData.marketerProfit || 0,
-      notes: orderData.notes
+      shippingAddress: {
+        fullName: orderData.customerName,
+        phone: orderData.customerPhone,
+        street: orderData.customerAddress,
+        city: 'غير محدد',
+        governorate: 'غير محدد'
+      },
+      deliveryNotes: orderData.notes
     });
     
     console.log('✅ تم إنشاء الطلب بنجاح:', { 
       orderId: order._id, 
-      total: orderTotal,
-      shipping: shippingCost,
+      total: total,
+      shipping: shippingCost, 
       commission: commission 
     });
     
@@ -135,15 +153,22 @@ export const GET = withRole(['marketer', 'supplier', 'admin'])(async (req: NextR
     const limit = parseInt(searchParams.get('limit') || '10');
     const skip = (page - 1) * limit;
     
-    // Build query
-    const query: any = { userId: user._id };
+    // Build query based on role
+    const query: any = {};
+    if (user.role === 'admin') {
+      // admin sees all, optionally by status
+    } else if (user.role === 'supplier') {
+      query.supplierId = user._id;
+    } else {
+      // marketer or wholesaler
+      query.customerId = user._id;
+    }
     if (status && status !== 'all') {
       query.status = status;
     }
     
     // Get orders with pagination
     const orders = await Order.find(query)
-      .populate('items.productId', 'name price image')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);

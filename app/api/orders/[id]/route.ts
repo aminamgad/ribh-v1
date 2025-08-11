@@ -213,12 +213,24 @@ export const PUT = withAuth(async (req: NextRequest, user: any, { params }: { pa
         // Add marketer profit if applicable
         if (order.marketerProfit > 0 && order.customerRole === 'marketer') {
           console.log(`💸 إضافة ربح المسوق: ${order.marketerProfit}₪`);
-          await addProfitToWallet(
+          const marketerWallet = await addProfitToWallet(
             order.customerId._id || order.customerId,
             order.marketerProfit,
             order._id,
             order.orderNumber
           );
+          try {
+            // Create a transaction record as well
+            await marketerWallet.addTransaction(
+              'credit',
+              order.marketerProfit,
+              `ربح طلب رقم ${order.orderNumber}`,
+              String(order._id),
+              { orderNumber: order.orderNumber }
+            );
+          } catch (txErr) {
+            console.warn('⚠️ لم يتم إنشاء معاملة المحفظة (سيتم الاكتفاء بتحديث الرصيد):', txErr);
+          }
         } else {
           console.log(`ℹ️ لا يوجد ربح لإضافة للمسوق:`, {
             marketerProfit: order.marketerProfit,
