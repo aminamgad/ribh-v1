@@ -51,14 +51,6 @@ export default function DashboardSidebar() {
         bgGradient: 'from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20',
         borderColor: 'border-blue-200 dark:border-blue-700',
       },
-      {
-        href: '/dashboard/notifications',
-        label: 'الإشعارات',
-        icon: Bell,
-        gradient: 'from-amber-500 to-orange-600',
-        bgGradient: 'from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20',
-        borderColor: 'border-amber-200 dark:border-amber-700',
-      },
     ];
 
     switch (user?.role) {
@@ -122,7 +114,7 @@ export default function DashboardSidebar() {
             borderColor: 'border-teal-200 dark:border-teal-700',
           },
           {
-            href: '/dashboard/messages',
+            href: '/dashboard/admin/messages',
             label: 'إدارة الرسائل',
             icon: MessageSquare,
             gradient: 'from-pink-500 to-rose-600',

@@ -8,7 +8,7 @@ import {
 } from 'recharts';
 import {
   TrendingUp, DollarSign, ShoppingBag, Package, Users,
-  Calendar, Download, Filter, ArrowUp, ArrowDown
+  Calendar, Download, Filter, ArrowUp, ArrowDown, CalendarDays
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -47,14 +47,29 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState('month');
   const [selectedMetric, setSelectedMetric] = useState('revenue');
+  const [customDateRange, setCustomDateRange] = useState(false);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   useEffect(() => {
     fetchAnalytics();
-  }, [dateRange]);
+  }, [dateRange, customDateRange, startDate, endDate]);
 
   const fetchAnalytics = async () => {
     try {
-      const response = await fetch(`/api/analytics?range=${dateRange}`);
+      let url = `/api/analytics?range=${dateRange}`;
+      
+      if (customDateRange && startDate && endDate) {
+        // Validate date range
+        if (new Date(startDate) > new Date(endDate)) {
+          toast.error('تاريخ البداية يجب أن يكون قبل تاريخ النهاية');
+          return;
+        }
+        
+        url = `/api/analytics?startDate=${startDate}&endDate=${endDate}`;
+      }
+      
+      const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
         setAnalytics(data);
@@ -68,7 +83,13 @@ export default function AnalyticsPage() {
 
   const exportReport = async () => {
     try {
-      const response = await fetch(`/api/analytics/export?range=${dateRange}`, {
+      let url = `/api/analytics/export?range=${dateRange}`;
+      
+      if (customDateRange && startDate && endDate) {
+        url = `/api/analytics/export?startDate=${startDate}&endDate=${endDate}`;
+      }
+      
+      const response = await fetch(url, {
         method: 'GET',
       });
       
@@ -77,7 +98,10 @@ export default function AnalyticsPage() {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `analytics-${dateRange}-${new Date().toISOString().split('T')[0]}.csv`;
+        const fileName = customDateRange && startDate && endDate 
+          ? `analytics-${startDate}-to-${endDate}.csv`
+          : `analytics-${dateRange}-${new Date().toISOString().split('T')[0]}.csv`;
+        a.download = fileName;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
@@ -104,26 +128,105 @@ export default function AnalyticsPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">التحليلات المتقدمة</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-2">تحليل شامل لأداء المنصة</p>
+          {customDateRange && startDate && endDate && (
+            <p className="text-sm text-blue-600 dark:text-blue-400 mt-1">
+              الفترة المحددة: من {new Date(startDate).toLocaleDateString('ar-SA')} إلى {new Date(endDate).toLocaleDateString('ar-SA')}
+            </p>
+          )}
         </div>
         
         <div className="flex items-center space-x-4 space-x-reverse">
-          <select
-            value={dateRange}
-            onChange={(e) => setDateRange(e.target.value)}
-            className="input-field"
-          >
-            <option value="week">آخر أسبوع</option>
-            <option value="month">آخر شهر</option>
-            <option value="quarter">آخر 3 شهور</option>
-            <option value="year">آخر سنة</option>
-          </select>
+          {/* Date Range Selector */}
+          <div className="flex items-center space-x-2 space-x-reverse">
+            <select
+              value={customDateRange ? 'custom' : dateRange}
+              onChange={(e) => {
+                if (e.target.value === 'custom') {
+                  setCustomDateRange(true);
+                } else {
+                  setCustomDateRange(false);
+                  setDateRange(e.target.value);
+                }
+              }}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="week">آخر أسبوع</option>
+              <option value="month">آخر شهر</option>
+              <option value="quarter">آخر 3 شهور</option>
+              <option value="year">آخر سنة</option>
+              <option value="custom">فترة مخصصة</option>
+            </select>
+            
+            {customDateRange && (
+              <div className="flex items-center space-x-2 space-x-reverse">
+                <div className="flex items-center space-x-1 space-x-reverse">
+                  <CalendarDays className="w-4 h-4 text-gray-500" />
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    placeholder="من تاريخ"
+                  />
+                </div>
+                <span className="text-gray-500">إلى</span>
+                <div className="flex items-center space-x-1 space-x-reverse">
+                  <CalendarDays className="w-4 h-4 text-gray-500" />
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    placeholder="إلى تاريخ"
+                  />
+                </div>
+                
+                {/* Quick Date Presets */}
+                <div className="flex items-center space-x-1 space-x-reverse ml-4">
+                  <button
+                    onClick={() => {
+                      const today = new Date();
+                      const lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+                      setStartDate(lastWeek.toISOString().split('T')[0]);
+                      setEndDate(today.toISOString().split('T')[0]);
+                    }}
+                    className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-500"
+                  >
+                    آخر أسبوع
+                  </button>
+                  <button
+                    onClick={() => {
+                      const today = new Date();
+                      const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
+                      setStartDate(lastMonth.toISOString().split('T')[0]);
+                      setEndDate(today.toISOString().split('T')[0]);
+                    }}
+                    className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-500"
+                  >
+                    آخر شهر
+                  </button>
+                  <button
+                    onClick={() => {
+                      const today = new Date();
+                      const lastQuarter = new Date(today.getFullYear(), today.getMonth() - 3, today.getDate());
+                      setStartDate(lastQuarter.toISOString().split('T')[0]);
+                      setEndDate(today.toISOString().split('T')[0]);
+                    }}
+                    className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-500"
+                  >
+                    آخر 3 شهور
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
           
           <button
             onClick={exportReport}
-            className="btn-secondary"
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md flex items-center space-x-2 space-x-reverse transition-colors"
           >
-            <Download className="w-5 h-5 ml-2" />
-            تصدير التقرير
+            <Download className="w-4 h-4" />
+            <span>تصدير التقرير</span>
           </button>
         </div>
       </div>

@@ -15,12 +15,15 @@ import {
   CheckCircle, 
   XCircle,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  Save
 } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import SearchFilters from '@/components/search/SearchFilters';
 import { useSearchParams } from 'next/navigation';
+import MediaThumbnail from '@/components/ui/MediaThumbnail';
+import { useRouter } from 'next/navigation';
 
 interface Product {
   _id: string;
@@ -28,14 +31,15 @@ interface Product {
   description: string;
   images: string[];
   marketerPrice: number;
-  wholesalePrice: number;
+  wholesalerPrice: number;
   stockQuantity: number;
   isActive: boolean;
   isApproved: boolean;
   isFulfilled: boolean;
   categoryId: string;
   supplierId: string;
-  costPrice: number;
+  minimumSellingPrice?: number;
+  isMinimumPriceMandatory?: boolean;
   tags: string[];
   categoryName?: string;
   supplierName?: string;
@@ -63,9 +67,22 @@ export default function ProductsPage() {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showResubmitModal, setShowResubmitModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showQuickEditModal, setShowQuickEditModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [processing, setProcessing] = useState(false);
+  
+  // Quick edit states
+  const [quickEditData, setQuickEditData] = useState({
+    name: '',
+    marketerPrice: 0,
+    wholesalerPrice: 0,
+    stockQuantity: 0,
+    minimumSellingPrice: 0,
+    isMinimumPriceMandatory: false
+  });
+
+  const router = useRouter();
 
   useEffect(() => {
     fetchProducts();
@@ -138,6 +155,74 @@ export default function ProductsPage() {
       setProcessing(false);
       setShowDeleteModal(false);
       setSelectedProduct(null);
+    }
+  };
+
+  const handleQuickEdit = (product: Product) => {
+    setSelectedProduct(product);
+    setQuickEditData({
+      name: product.name,
+      marketerPrice: product.marketerPrice,
+      wholesalerPrice: product.wholesalerPrice || 0,
+      stockQuantity: product.stockQuantity,
+      minimumSellingPrice: product.minimumSellingPrice || 0,
+      isMinimumPriceMandatory: product.isMinimumPriceMandatory || false
+    });
+    setShowQuickEditModal(true);
+  };
+
+  const handleQuickEditSave = async () => {
+    if (!selectedProduct) return;
+    
+    // Validation
+    if (!quickEditData.name.trim()) {
+      toast.error('اسم المنتج مطلوب');
+      return;
+    }
+    
+    if (quickEditData.marketerPrice <= 0) {
+      toast.error('سعر المسوق يجب أن يكون أكبر من 0');
+      return;
+    }
+    
+    if (quickEditData.wholesalerPrice <= 0) {
+      toast.error('سعر الجملة يجب أن يكون أكبر من 0');
+      return;
+    }
+    
+    if (quickEditData.wholesalerPrice >= quickEditData.marketerPrice) {
+      toast.error('سعر الجملة يجب أن يكون أقل من سعر المسوق');
+      return;
+    }
+    
+    if (quickEditData.minimumSellingPrice > 0 && quickEditData.marketerPrice < quickEditData.minimumSellingPrice) {
+      toast.error('سعر المسوق يجب أن يكون أكبر من أو يساوي السعر الأدنى للبيع');
+      return;
+    }
+    
+    setProcessing(true);
+    try {
+      const response = await fetch(`/api/products/${selectedProduct._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(quickEditData),
+      });
+
+      if (response.ok) {
+        toast.success('تم تحديث المنتج بنجاح');
+        fetchProducts();
+        setShowQuickEditModal(false);
+        setSelectedProduct(null);
+      } else {
+        const error = await response.json();
+        toast.error(error.message || 'فشل في تحديث المنتج');
+      }
+    } catch (error) {
+      toast.error('حدث خطأ أثناء تحديث المنتج');
+    } finally {
+      setProcessing(false);
     }
   };
 
@@ -425,11 +510,18 @@ export default function ProductsPage() {
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {products.map((product) => (
-              <div key={product._id} className="card hover:shadow-medium transition-shadow relative">
+              <div 
+                key={product._id} 
+                className="card hover:shadow-medium transition-shadow relative cursor-pointer"
+                onClick={() => router.push(`/dashboard/products/${product._id}`)}
+              >
                 {/* Favorite button for marketers/wholesalers */}
                 {(user?.role === 'marketer' || user?.role === 'wholesaler') && (
                   <button
-                    onClick={() => handleToggleFavorite(product)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleToggleFavorite(product);
+                    }}
                     className="absolute top-2 left-2 p-2 bg-white dark:bg-slate-800 rounded-full shadow-sm hover:shadow-md transition-shadow z-10"
                   >
                     <Heart 
@@ -442,72 +534,106 @@ export default function ProductsPage() {
                   </button>
                 )}
 
-                {/* Product Image */}
-                <div className="aspect-square bg-gray-200 dark:bg-slate-700 rounded-lg mb-4 overflow-hidden">
-                  {product.images && product.images.length > 0 ? (
-                    <img
-                      src={product.images[0]}
-                      alt={product.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Package className="w-12 h-12 text-gray-400 dark:text-slate-500" />
-                    </div>
-                  )}
-                </div>
+                                 {/* Product Media */}
+                 <div className="relative mb-6">
+                   <MediaThumbnail
+                     media={product.images || []}
+                     alt={product.name}
+                     className="w-full"
+                     showTypeBadge={true}
+                     fallbackIcon={<Package className="w-12 h-12 text-gray-400 dark:text-slate-500" />}
+                   />
+                   
+                   {/* Quick Edit Overlay for Suppliers */}
+                   {user?.role === 'supplier' && (
+                     <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-50 transition-all duration-200 flex items-center justify-center opacity-0 hover:opacity-100">
+                       <button
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           handleQuickEdit(product);
+                         }}
+                         className="bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 px-3 py-2 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 flex items-center space-x-2 space-x-reverse"
+                       >
+                         <Edit className="w-4 h-4" />
+                         <span className="text-sm font-medium">تعديل سريع</span>
+                       </button>
+                     </div>
+                   )}
+                 </div>
 
                 {/* Product Info */}
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <h3 className="font-semibold text-gray-900 dark:text-slate-100 line-clamp-2">{product.name}</h3>
                   <p className="text-sm text-gray-600 dark:text-slate-300 line-clamp-2">{product.description}</p>
 
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-lg font-bold text-primary-600 dark:text-primary-400">
-                        {user?.role === 'wholesaler' ? product.wholesalePrice : product.marketerPrice} ₪
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-slate-300">
-                        المخزون: {product.stockQuantity}
-                      </p>
-                    </div>
+                                     <div className="flex items-center justify-between">
+                     <div>
+                       <p className="text-lg font-bold text-primary-600 dark:text-primary-400">
+                         {user?.role === 'wholesaler' ? product.wholesalerPrice : product.marketerPrice} ₪
+                       </p>
+                       <div className="flex items-center space-x-2 space-x-reverse mt-1">
+                         <span className={`text-xs px-2 py-1 rounded-full ${
+                           product.stockQuantity > 10 
+                             ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                             : product.stockQuantity > 0 
+                             ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                             : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                         }`}>
+                           المخزون: {product.stockQuantity}
+                         </span>
+                         
+                         {/* Quick Edit Indicator for Suppliers */}
+                         {user?.role === 'supplier' && (
+                           <button
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               handleQuickEdit(product);
+                             }}
+                             className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
+                             title="تعديل سريع"
+                           >
+                             ✏️ تعديل
+                           </button>
+                         )}
+                       </div>
+                     </div>
 
-                    <div className="flex items-center space-x-1 space-x-reverse">
-                      {(() => {
-                        console.log('🎯 Product status check:', {
-                          id: product._id,
-                          name: product.name,
-                          isApproved: product.isApproved,
-                          isRejected: product.isRejected,
-                          status: product.isApproved ? 'معتمد' : product.isRejected ? 'مرفوض' : 'قيد المراجعة'
-                        });
-                        
-                        if (product.isApproved) {
-                          return <span className="badge badge-success">معتمد</span>;
-                        } else if (product.isRejected) {
-                          return <span className="badge badge-danger">مرفوض</span>;
-                        } else {
-                          return <span className="badge badge-warning">قيد المراجعة</span>;
-                        }
-                      })()}
-                    </div>
-                  </div>
+                     <div className="flex items-center space-x-1 space-x-reverse">
+                       {(() => {
+                         console.log('🎯 Product status check:', {
+                           id: product._id,
+                           name: product.name,
+                           isApproved: product.isApproved,
+                           isRejected: product.isRejected,
+                           status: product.isApproved ? 'معتمد' : product.isRejected ? 'مرفوض' : 'قيد المراجعة'
+                         });
+                         
+                         if (product.isApproved) {
+                           return <span className="badge badge-success">معتمد</span>;
+                         } else if (product.isRejected) {
+                           return <span className="badge badge-danger">مرفوض</span>;
+                         } else {
+                           return <span className="badge badge-warning">قيد المراجعة</span>;
+                         }
+                       })()}
+                     </div>
+                   </div>
 
                   {/* Actions */}
                   <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-slate-700">
-                    <Link
-                      href={`/dashboard/products/${product._id}`}
-                      className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 text-sm font-medium"
-                    >
+                    <div className="text-primary-600 dark:text-primary-400 text-sm font-medium">
                       <Eye className="w-4 h-4 ml-1 inline" />
                       عرض
-                    </Link>
+                    </div>
 
                     {/* Actions for Marketer/Wholesaler */}
                     {(user?.role === 'marketer' || user?.role === 'wholesaler') && product.isApproved && (
                       <div className="flex items-center space-x-2 space-x-reverse">
                         <button
-                          onClick={() => handleAddToCart(product)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAddToCart(product);
+                          }}
                           className={`text-sm font-medium ${
                             product.stockQuantity > 0 
                               ? 'text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300' 
@@ -522,19 +648,24 @@ export default function ProductsPage() {
                       </div>
                     )}
 
-                    {/* Actions for Supplier/Admin */}
-                    {(user?.role === 'supplier' || user?.role === 'admin') && (
-                      <div className="flex items-center space-x-2 space-x-reverse">
-                        <Link
-                          href={`/dashboard/products/${product._id}/edit`}
-                          className="text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Link>
+                                         {/* Actions for Supplier/Admin */}
+                     {(user?.role === 'supplier' || user?.role === 'admin') && (
+                       <div className="flex items-center space-x-2 space-x-reverse">
+                         <Link
+                           href={`/dashboard/products/${product._id}/edit`}
+                           className="text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100"
+                           title="تعديل كامل"
+                           onClick={(e) => e.stopPropagation()}
+                         >
+                           <Edit className="w-4 h-4" />
+                         </Link>
                         
                         {user?.role === 'admin' && !product.isApproved && !product.isRejected && (
                           <button
-                            onClick={() => handleApproveProduct(product._id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleApproveProduct(product._id);
+                            }}
                             className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300"
                             title="اعتماد المنتج"
                           >
@@ -544,7 +675,10 @@ export default function ProductsPage() {
                         
                         {user?.role === 'admin' && !product.isApproved && !product.isRejected && (
                           <button
-                            onClick={() => handleRejectProduct(product._id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRejectProduct(product._id);
+                            }}
                             className="text-danger-600 dark:text-danger-400 hover:text-danger-700 dark:hover:text-danger-300"
                             title="رفض المنتج"
                           >
@@ -554,7 +688,10 @@ export default function ProductsPage() {
                         
                         {user?.role === 'admin' && product.isRejected && (
                           <button
-                            onClick={() => handleResubmitProduct(product._id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleResubmitProduct(product._id);
+                            }}
                             className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
                             title="إعادة تقديم"
                           >
@@ -563,7 +700,10 @@ export default function ProductsPage() {
                         )}
                         
                         <button
-                          onClick={() => handleDeleteProduct(product._id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteProduct(product._id);
+                          }}
                           className="text-danger-600 dark:text-danger-400 hover:text-danger-700 dark:hover:text-danger-300"
                           title="حذف المنتج"
                         >
@@ -636,115 +776,115 @@ export default function ProductsPage() {
         </>
       )}
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {/* إجمالي المنتجات المعتمدة */}
-        <div className="card">
-          <div className="flex items-center">
-            <div className="bg-primary-100 dark:bg-primary-900/30 p-2 rounded-lg">
-              <Package className="w-5 h-5 text-primary-600 dark:text-primary-400" />
-            </div>
-            <div className="mr-3">
-              <p className="text-sm text-gray-600 dark:text-slate-400">إجمالي المنتجات</p>
-              <p className="text-xl font-bold text-gray-900 dark:text-slate-100">{pagination.total || products.length}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* المنتجات المتوفرة */}
-        <div className="card">
-          <div className="flex items-center">
-            <div className="bg-success-100 dark:bg-success-900/30 p-2 rounded-lg">
-              <Package className="w-5 h-5 text-success-600 dark:text-success-400" />
-            </div>
-            <div className="mr-3">
-              <p className="text-sm text-gray-600 dark:text-slate-400">متوفر</p>
-              <p className="text-xl font-bold text-gray-900 dark:text-slate-100">
-                {products.filter(p => p.stockQuantity > 0).length}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* المنتجات غير المتوفرة */}
-        <div className="card">
-          <div className="flex items-center">
-            <div className="bg-warning-100 dark:bg-warning-900/30 p-2 rounded-lg">
-              <Package className="w-5 h-5 text-warning-600 dark:text-warning-400" />
-            </div>
-            <div className="mr-3">
-              <p className="text-sm text-gray-600 dark:text-slate-400">غير متوفر</p>
-              <p className="text-xl font-bold text-gray-900 dark:text-slate-100">
-                {products.filter(p => p.stockQuantity <= 0).length}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* إحصائيات إضافية للمسوق فقط */}
-        {(user?.role === 'marketer' || user?.role === 'wholesaler') && (
-          <div className="card">
+                           {/* Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          {/* إجمالي المنتجات المعتمدة */}
+          <div className="card p-6">
             <div className="flex items-center">
-              <div className="bg-info-100 dark:bg-info-900/30 p-2 rounded-lg">
-                <Package className="w-5 h-5 text-info-600 dark:text-info-400" />
+              <div className="bg-primary-100 dark:bg-primary-900/30 p-4 rounded-2xl mr-5">
+                <Package className="w-7 h-7 text-primary-600 dark:text-primary-400" />
               </div>
-              <div className="mr-3">
-                <p className="text-sm text-gray-600 dark:text-slate-400">المفضلة</p>
-                <p className="text-xl font-bold text-gray-900 dark:text-slate-100">
-                  {products.filter(p => isFavorite(p._id)).length}
+              <div className="flex-1">
+                <p className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-3">إجمالي المنتجات</p>
+                <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">{pagination.total || products.length}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* المنتجات المتوفرة */}
+          <div className="card p-6">
+            <div className="flex items-center">
+              <div className="bg-success-100 dark:bg-success-900/30 p-4 rounded-2xl mr-5">
+                <Package className="w-7 h-7 text-success-600 dark:text-success-400" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-3">متوفر</p>
+                <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">
+                  {products.filter(p => p.stockQuantity > 0).length}
                 </p>
               </div>
             </div>
           </div>
-        )}
 
-        {/* إحصائيات للمورد والإدارة فقط */}
-        {(user?.role === 'supplier' || user?.role === 'admin') && (
-          <>
-            <div className="card">
+          {/* المنتجات غير المتوفرة */}
+          <div className="card p-6">
+            <div className="flex items-center">
+              <div className="bg-warning-100 dark:bg-warning-900/30 p-4 rounded-2xl mr-5">
+                <Package className="w-7 h-7 text-warning-600 dark:text-warning-400" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-3">غير متوفر</p>
+                <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">
+                  {products.filter(p => p.stockQuantity <= 0).length}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* إحصائيات إضافية للمسوق فقط */}
+          {(user?.role === 'marketer' || user?.role === 'wholesaler') && (
+            <div className="card p-6">
               <div className="flex items-center">
-                <div className="bg-success-100 dark:bg-success-900/30 p-2 rounded-lg">
-                  <Package className="w-5 h-5 text-success-600 dark:text-success-400" />
+                <div className="bg-info-100 dark:bg-info-900/30 p-4 rounded-2xl mr-5">
+                  <Package className="w-7 h-7 text-info-600 dark:text-info-400" />
                 </div>
-                <div className="mr-3">
-                  <p className="text-sm text-gray-600 dark:text-slate-400">معتمد</p>
-                  <p className="text-xl font-bold text-gray-900 dark:text-slate-100">
-                    {products.filter(p => p.isApproved).length}
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-3">المفضلة</p>
+                  <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">
+                    {products.filter(p => isFavorite(p._id)).length}
                   </p>
                 </div>
               </div>
             </div>
+          )}
 
-            <div className="card">
-              <div className="flex items-center">
-                <div className="bg-warning-100 dark:bg-warning-900/30 p-2 rounded-lg">
-                  <Package className="w-5 h-5 text-warning-600 dark:text-warning-400" />
-                </div>
-                <div className="mr-3">
-                  <p className="text-sm text-gray-600 dark:text-slate-400">قيد المراجعة</p>
-                  <p className="text-xl font-bold text-gray-900 dark:text-slate-100">
-                    {products.filter(p => !p.isApproved && !p.isRejected).length}
-                  </p>
+          {/* إحصائيات للمورد والإدارة فقط */}
+          {(user?.role === 'supplier' || user?.role === 'admin') && (
+            <>
+              <div className="card p-6">
+                <div className="flex items-center">
+                  <div className="bg-success-100 dark:bg-success-900/30 p-4 rounded-2xl mr-5">
+                    <Package className="w-7 h-7 text-success-600 dark:text-success-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-3">معتمد</p>
+                    <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">
+                      {products.filter(p => p.isApproved).length}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="card">
-              <div className="flex items-center">
-                <div className="bg-danger-100 dark:bg-danger-900/30 p-2 rounded-lg">
-                  <Package className="w-5 h-5 text-danger-600 dark:text-danger-400" />
-                </div>
-                <div className="mr-3">
-                  <p className="text-sm text-gray-600 dark:text-slate-400">مرفوض</p>
-                  <p className="text-xl font-bold text-gray-900 dark:text-slate-100">
-                    {products.filter(p => p.isRejected).length}
-                  </p>
+              <div className="card p-6">
+                <div className="flex items-center">
+                  <div className="bg-warning-100 dark:bg-warning-900/30 p-4 rounded-2xl mr-5">
+                    <Package className="w-7 h-7 text-warning-600 dark:text-warning-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-3">قيد المراجعة</p>
+                    <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">
+                      {products.filter(p => !p.isApproved && !p.isRejected).length}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          </>
-        )}
-      </div>
+
+              <div className="card p-6">
+                <div className="flex items-center">
+                  <div className="bg-danger-100 dark:bg-danger-900/30 p-4 rounded-2xl mr-5">
+                    <Package className="w-7 h-7 text-danger-600 dark:text-danger-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-3">مرفوض</p>
+                    <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">
+                      {products.filter(p => p.isRejected).length}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
 
       {/* Resubmit Modal */}
       {showResubmitModal && selectedProduct && (
@@ -995,6 +1135,193 @@ export default function ProductsPage() {
                   <>
                     <Trash2 className="w-4 h-4 ml-2" />
                     حذف
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Edit Modal */}
+      {showQuickEditModal && selectedProduct && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-lg p-6 max-w-lg w-full shadow-xl">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center">
+                <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-full mr-3">
+                  <Edit className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">تعديل سريع</h3>
+                  <p className="text-sm text-gray-600 dark:text-slate-400">{selectedProduct.name}</p>
+                </div>
+              </div>
+              
+              {/* Product Image Preview */}
+              {selectedProduct.images && selectedProduct.images.length > 0 && (
+                <div className="w-16 h-16 rounded-lg overflow-hidden">
+                  <img
+                    src={selectedProduct.images[0]}
+                    alt={selectedProduct.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+            </div>
+            
+            <div className="space-y-4">
+              {/* Product Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                  اسم المنتج
+                </label>
+                <input
+                  type="text"
+                  value={quickEditData.name}
+                  onChange={(e) => setQuickEditData({...quickEditData, name: e.target.value})}
+                  className="input-field"
+                  placeholder="اسم المنتج"
+                />
+              </div>
+
+              {/* Prices */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                    سعر المسوق (الأساسي)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={quickEditData.marketerPrice}
+                    onChange={(e) => setQuickEditData({...quickEditData, marketerPrice: parseFloat(e.target.value) || 0})}
+                    className="input-field"
+                    placeholder="0.00"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                    سعر الجملة (للتجار)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={quickEditData.wholesalerPrice}
+                    onChange={(e) => setQuickEditData({...quickEditData, wholesalerPrice: parseFloat(e.target.value) || 0})}
+                    className="input-field"
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+
+                             {/* Stock Quantity */}
+               <div>
+                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                   الكمية المتوفرة
+                 </label>
+                 <div className="relative">
+                   <input
+                     type="number"
+                     min="0"
+                     value={quickEditData.stockQuantity}
+                     onChange={(e) => setQuickEditData({...quickEditData, stockQuantity: parseInt(e.target.value) || 0})}
+                     className="input-field pr-12"
+                     placeholder="0"
+                   />
+                   <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                     <span className={`text-xs px-2 py-1 rounded-full ${
+                       quickEditData.stockQuantity > 10 
+                         ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                         : quickEditData.stockQuantity > 0 
+                         ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                         : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                     }`}>
+                       {quickEditData.stockQuantity > 10 ? 'متوفر' : quickEditData.stockQuantity > 0 ? 'منخفض' : 'نفذ'}
+                     </span>
+                   </div>
+                 </div>
+               </div>
+
+              {/* Minimum Selling Price */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                    السعر الأدنى للبيع (اختياري)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={quickEditData.minimumSellingPrice}
+                    onChange={(e) => setQuickEditData({...quickEditData, minimumSellingPrice: parseFloat(e.target.value) || 0})}
+                    className="input-field"
+                    placeholder="0.00"
+                  />
+                </div>
+                
+                <div className="flex items-center mt-6">
+                  <input
+                    type="checkbox"
+                    id="isMinimumPriceMandatory"
+                    checked={quickEditData.isMinimumPriceMandatory}
+                    onChange={(e) => setQuickEditData({...quickEditData, isMinimumPriceMandatory: e.target.checked})}
+                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                  />
+                  <label htmlFor="isMinimumPriceMandatory" className="mr-2 text-sm font-medium text-gray-700 dark:text-slate-300">
+                    إلزامي للمسوقين
+                  </label>
+                </div>
+                             </div>
+             </div>
+             
+             {/* Profit Preview */}
+             <div className="bg-gray-50 dark:bg-slate-700 rounded-lg p-4 mt-4">
+               <h4 className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">معاينة الأرباح</h4>
+               <div className="grid grid-cols-2 gap-4 text-sm">
+                 <div>
+                   <span className="text-gray-600 dark:text-slate-400">الفرق بين الأسعار:</span>
+                   <span className="block font-medium text-green-600 dark:text-green-400">
+                     {(quickEditData.marketerPrice - quickEditData.wholesalerPrice).toFixed(2)} ₪
+                   </span>
+                 </div>
+                 <div>
+                   <span className="text-gray-600 dark:text-slate-400">نسبة الربح:</span>
+                   <span className="block font-medium text-blue-600 dark:text-blue-400">
+                     {((quickEditData.marketerPrice - quickEditData.wholesalerPrice) / quickEditData.marketerPrice * 100).toFixed(1)}%
+                   </span>
+                 </div>
+               </div>
+             </div>
+             
+             <div className="flex justify-end space-x-3 space-x-reverse mt-6">
+              <button
+                onClick={() => {
+                  setShowQuickEditModal(false);
+                  setSelectedProduct(null);
+                }}
+                disabled={processing}
+                className="btn-secondary"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={handleQuickEditSave}
+                disabled={processing || !quickEditData.name.trim()}
+                className="btn-primary flex items-center"
+              >
+                {processing ? (
+                  <>
+                    <div className="loading-spinner w-4 h-4 ml-2"></div>
+                    جاري الحفظ...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 ml-2" />
+                    حفظ التغييرات
                   </>
                 )}
               </button>

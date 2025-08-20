@@ -16,15 +16,16 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import MediaUpload from '@/components/ui/MediaUpload';
 
 const productSchema = z.object({
   name: z.string().min(3, 'اسم المنتج يجب أن يكون 3 أحرف على الأقل'),
-  nameEn: z.string().optional(),
-  description: z.string().min(10, 'وصف المنتج يجب أن يكون 10 أحرف على الأقل'),
-  categoryId: z.string().min(1, 'يجب اختيار فئة'),
+  description: z.string().optional(),
+  categoryId: z.string().optional().nullable(),
   marketerPrice: z.number().min(0.01, 'سعر المسوق يجب أن يكون أكبر من 0'),
-  wholesalePrice: z.number().min(0.01, 'سعر الجملة يجب أن يكون أكبر من 0'),
-  costPrice: z.number().min(0.01, 'سعر التكلفة يجب أن يكون أكبر من 0'),
+  wholesalerPrice: z.number().min(0.01, 'سعر الجملة يجب أن يكون أكبر من 0'),
+  minimumSellingPrice: z.number().min(0.01, 'السعر الأدنى للبيع يجب أن يكون أكبر من 0').optional(),
+  isMinimumPriceMandatory: z.boolean().default(false),
   stockQuantity: z.number().min(0, 'الكمية يجب أن تكون 0 أو أكثر'),
   sku: z.string().optional(),
   weight: z.number().min(0).optional().nullable(),
@@ -65,12 +66,12 @@ export default function EditProductPage() {
     resolver: zodResolver(productSchema),
     defaultValues: {
       name: '',
-      nameEn: '',
       description: '',
       categoryId: '',
       marketerPrice: 0,
-      wholesalePrice: 0,
-      costPrice: 0,
+      wholesalerPrice: 0,
+      minimumSellingPrice: 0,
+      isMinimumPriceMandatory: false,
       stockQuantity: 0,
       sku: '',
       weight: null,
@@ -99,12 +100,12 @@ export default function EditProductPage() {
         
         // Set form values
         setValue('name', data.product.name);
-        setValue('nameEn', data.product.nameEn || '');
-        setValue('description', data.product.description);
-        setValue('categoryId', data.product.categoryId);
+        setValue('description', data.product.description || '');
+        setValue('categoryId', data.product.categoryId || '');
         setValue('marketerPrice', data.product.marketerPrice);
-        setValue('wholesalePrice', data.product.wholesalePrice);
-        setValue('costPrice', data.product.costPrice);
+        setValue('wholesalerPrice', data.product.wholesalerPrice);
+        setValue('minimumSellingPrice', data.product.minimumSellingPrice || 0);
+        setValue('isMinimumPriceMandatory', data.product.isMinimumPriceMandatory || false);
         setValue('stockQuantity', data.product.stockQuantity);
         setValue('sku', data.product.sku || '');
         setValue('weight', data.product.weight);
@@ -208,13 +209,13 @@ export default function EditProductPage() {
     }
 
     // Validate pricing
-    if (data.marketerPrice <= data.costPrice) {
-      toast.error('سعر المسوق يجب أن يكون أكبر من سعر التكلفة');
+    if (data.wholesalerPrice >= data.marketerPrice) {
+      toast.error('سعر المسوق يجب أن يكون أكبر من سعر الجملة');
       return;
     }
 
-    if (data.wholesalePrice <= data.costPrice) {
-      toast.error('سعر الجملة يجب أن يكون أكبر من سعر التكلفة');
+    if (data.minimumSellingPrice && data.marketerPrice >= data.minimumSellingPrice) {
+      toast.error('السعر الأدنى للبيع يجب أن يكون أكبر من سعر المسوق');
       return;
     }
 
@@ -223,6 +224,7 @@ export default function EditProductPage() {
     try {
       const productData = {
         ...data,
+        categoryId: data.categoryId && data.categoryId !== '' ? data.categoryId : null,
         images,
         isActive: product.isActive,
         isApproved: user?.role === 'admin' ? product.isApproved : product.isApproved
@@ -277,7 +279,7 @@ export default function EditProductPage() {
     );
   }
 
-  const profitMargin = ((watchedValues.marketerPrice - watchedValues.costPrice) / watchedValues.costPrice * 100).toFixed(1);
+  const marketerProfit = watchedValues.marketerPrice - watchedValues.wholesalerPrice;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
@@ -317,21 +319,11 @@ export default function EditProductPage() {
                 )}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                  اسم المنتج بالإنجليزية
-                </label>
-                <input
-                  type="text"
-                  {...register('nameEn')}
-                  className="input-field"
-                  placeholder="Product Name"
-                />
-              </div>
+
 
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                  وصف المنتج *
+                  وصف المنتج (اختياري)
                 </label>
                 <textarea
                   {...register('description')}
@@ -346,7 +338,7 @@ export default function EditProductPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                  الفئة *
+                  الفئة (اختياري)
                 </label>
                 <select {...register('categoryId')} className="input-field">
                   <option value="">اختر الفئة</option>
@@ -379,27 +371,30 @@ export default function EditProductPage() {
           <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-gray-200 dark:border-slate-700">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-6">الأسعار</h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                  سعر التكلفة *
+                  سعر الجملة (للتجار) *
                 </label>
                 <input
                   type="number"
                   step="0.01"
                   min="0.01"
-                  {...register('costPrice', { valueAsNumber: true })}
+                  {...register('wholesalerPrice', { valueAsNumber: true })}
                   className="input-field"
                   placeholder="0.00"
                 />
-                {errors.costPrice && (
-                  <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.costPrice.message}</p>
+                {errors.wholesalerPrice && (
+                  <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.wholesalerPrice.message}</p>
                 )}
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  سعر ثابت للتجار - لا يتغير عند الطلب
+                </p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                  سعر المسوق *
+                  سعر المسوق (السعر الأساسي) *
                 </label>
                 <input
                   type="number"
@@ -412,32 +407,70 @@ export default function EditProductPage() {
                 {errors.marketerPrice && (
                   <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.marketerPrice.message}</p>
                 )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                  سعر الجملة *
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  {...register('wholesalePrice', { valueAsNumber: true })}
-                  className="input-field"
-                  placeholder="0.00"
-                />
-                {errors.wholesalePrice && (
-                  <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.wholesalePrice.message}</p>
+                {watchedValues.marketerPrice <= watchedValues.wholesalerPrice && watchedValues.marketerPrice > 0 && watchedValues.wholesalerPrice > 0 && (
+                  <p className="text-red-500 dark:text-red-400 text-sm mt-1">
+                    يجب أن يكون أكبر من سعر الجملة
+                  </p>
                 )}
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  السعر الأساسي للمسوق - يحدد ربحه عند الطلب
+                </p>
               </div>
             </div>
 
-            {/* Profit Margin Display */}
-            {watchedValues.costPrice > 0 && (
-              <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
-                <p className="text-sm text-blue-600 dark:text-blue-400">هامش الربح: {profitMargin}%</p>
+            {/* Minimum Selling Price */}
+            <div className="mt-6 p-4 bg-gray-50 dark:bg-slate-700 rounded-lg">
+              <h3 className="text-md font-semibold text-gray-900 dark:text-slate-100 mb-4">السعر الأدنى للبيع</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                    السعر الأدنى للبيع (اختياري)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    {...register('minimumSellingPrice', { valueAsNumber: true })}
+                    className="input-field"
+                    placeholder="0.00"
+                  />
+                  {errors.minimumSellingPrice && (
+                    <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.minimumSellingPrice.message}</p>
+                  )}
+                  {watchedValues.minimumSellingPrice && watchedValues.marketerPrice >= watchedValues.minimumSellingPrice && (
+                    <p className="text-red-500 dark:text-red-400 text-sm mt-1">
+                      يجب أن يكون أكبر من سعر المسوق
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    {...register('isMinimumPriceMandatory')}
+                    className="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                  />
+                  <label className="mr-2 text-sm font-medium text-gray-700 dark:text-slate-300">
+                    إلزامي للمسوقين
+                  </label>
+                </div>
               </div>
-            )}
+            </div>
+
+            {/* Preview Section */}
+            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+              <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-300 mb-2">معاينة الأسعار:</h4>
+              <div className="space-y-1">
+                <p className="text-sm text-blue-600 dark:text-blue-400">الجملة (للتجار): {watchedValues.wholesalerPrice} ₪</p>
+                <p className="text-sm text-blue-600 dark:text-blue-400">المسوق (الأساسي): {watchedValues.marketerPrice} ₪</p>
+                {watchedValues.minimumSellingPrice > 0 && (
+                  <p className="text-sm text-blue-600 dark:text-blue-400">
+                    السعر الأدنى للبيع: {watchedValues.minimumSellingPrice} ₪ {watchedValues.isMinimumPriceMandatory ? '(إلزامي)' : '(اختياري)'}
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Stock */}
@@ -461,52 +494,18 @@ export default function EditProductPage() {
             </div>
           </div>
 
-          {/* Images */}
-          <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-gray-200 dark:border-slate-700">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-6">الصور</h2>
-            
-            <div className="space-y-4">
-              <div className="border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-lg p-6 text-center">
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={(e) => e.target.files && handleImageUpload(e.target.files)}
-                  className="hidden"
-                  id="image-upload"
-                  disabled={uploading}
-                />
-                <label htmlFor="image-upload" className="cursor-pointer">
-                  <Upload className="w-8 h-8 text-gray-400 dark:text-slate-500 mx-auto mb-2" />
-                  <p className="text-gray-600 dark:text-slate-400">
-                    {uploading ? 'جاري رفع الصور...' : 'اضغط لرفع الصور'}
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-slate-500">الحد الأقصى 5 ميجابايت لكل صورة</p>
-                </label>
-              </div>
-
-              {images.length > 0 && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {images.map((image, index) => (
-                    <div key={index} className="relative">
-                      <img
-                        src={image}
-                        alt={`صورة ${index + 1}`}
-                        className="w-full h-32 object-cover rounded-lg"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeImage(index)}
-                        className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+          {/* Media Upload */}
+          <MediaUpload
+            onUpload={(urls) => setImages(prev => [...prev, ...urls])}
+            uploadedMedia={images}
+            onRemove={removeImage}
+            uploading={uploading}
+            setUploading={setUploading}
+            accept="both"
+            maxFiles={10}
+            maxSize={100}
+            title="وسائط المنتج"
+          />
 
           {/* Submit */}
           <div className="flex justify-end space-x-4 space-x-reverse">

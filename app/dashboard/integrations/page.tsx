@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
+import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import { 
   Store, 
   Link as LinkIcon, 
@@ -69,6 +70,8 @@ export default function IntegrationsPage() {
   const [editingIntegration, setEditingIntegration] = useState<StoreIntegration | null>(null);
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [showApiKey, setShowApiKey] = useState<{ [key: string]: boolean }>({});
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [integrationToDelete, setIntegrationToDelete] = useState<StoreIntegration | null>(null);
   const [formData, setFormData] = useState<IntegrationFormData>({
     type: 'easy_orders',
     storeName: '',
@@ -164,11 +167,16 @@ export default function IntegrationsPage() {
     }
   };
 
-  const handleDelete = async (integrationId: string) => {
-    if (!confirm('هل أنت متأكد من حذف هذا التكامل؟')) return;
+  const handleDelete = async (integration: StoreIntegration) => {
+    setIntegrationToDelete(integration);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!integrationToDelete) return;
 
     try {
-      const response = await fetch(`/api/integrations/${integrationId}`, {
+      const response = await fetch(`/api/integrations/${integrationToDelete.id}`, {
         method: 'DELETE'
       });
 
@@ -179,6 +187,9 @@ export default function IntegrationsPage() {
     } catch (error) {
       console.error('Error deleting integration:', error);
       toast.error('حدث خطأ في حذف التكامل');
+    } finally {
+      setShowDeleteConfirm(false);
+      setIntegrationToDelete(null);
     }
   };
 
@@ -430,7 +441,7 @@ export default function IntegrationsPage() {
                     <span>الإعدادات</span>
                   </button>
                   <button
-                    onClick={() => handleDelete(integration.id)}
+                    onClick={() => handleDelete(integration)}
                     className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 text-sm flex items-center gap-1"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -702,6 +713,21 @@ export default function IntegrationsPage() {
           </div>
         </div>
       )}
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteConfirm}
+        onClose={() => {
+          setShowDeleteConfirm(false);
+          setIntegrationToDelete(null);
+        }}
+        onConfirm={confirmDelete}
+        title="حذف التكامل"
+        message={`هل أنت متأكد من حذف التكامل "${integrationToDelete?.storeName}"؟`}
+        confirmText="حذف"
+        cancelText="إلغاء"
+        type="danger"
+      />
     </div>
   );
 } 

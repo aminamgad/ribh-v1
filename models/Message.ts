@@ -37,7 +37,8 @@ const messageSchema = new Schema<MessageDocument>({
   },
   isApproved: {
     type: Boolean,
-    default: false
+    default: null,
+    required: false
   },
   adminNotes: {
     type: String,
@@ -78,7 +79,8 @@ messageSchema.statics.findConversations = function(userId: string) {
         $or: [
           { senderId: new mongoose.Types.ObjectId(userId) },
           { receiverId: new mongoose.Types.ObjectId(userId) }
-        ]
+        ],
+        receiverId: { $ne: null } // Exclude messages with null receiverId
       }
     },
     {
@@ -86,8 +88,20 @@ messageSchema.statics.findConversations = function(userId: string) {
         conversationId: {
           $cond: {
             if: { $eq: ['$senderId', new mongoose.Types.ObjectId(userId)] },
-            then: { $concat: ['$senderId', '-', '$receiverId'] },
-            else: { $concat: ['$receiverId', '-', '$senderId'] }
+            then: { 
+              $concat: [
+                { $toString: '$senderId' }, 
+                '-', 
+                { $toString: { $ifNull: ['$receiverId', ''] } }
+              ] 
+            },
+            else: { 
+              $concat: [
+                { $toString: { $ifNull: ['$receiverId', ''] } }, 
+                '-', 
+                { $toString: '$senderId' }
+              ] 
+            }
           }
         }
       }
@@ -102,7 +116,8 @@ messageSchema.statics.findConversations = function(userId: string) {
               {
                 $and: [
                   { $eq: ['$receiverId', new mongoose.Types.ObjectId(userId)] },
-                  { $eq: ['$isRead', false] }
+                  { $eq: ['$isRead', false] },
+                  { $ne: ['$receiverId', null] }
                 ]
               },
               1,

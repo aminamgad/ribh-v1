@@ -109,7 +109,7 @@ async function approveProducts(req: NextRequest, user: any) {
               ? `تمت الموافقة على منتجك "${product.name}" من قبل الإدارة`
               : `تم رفض منتجك "${product.name}" من قبل الإدارة. السبب: ${validatedData.rejectionReason}`,
             type: validatedData.action === 'approve' ? 'success' : 'error',
-            actionUrl: '/dashboard/products',
+            actionUrl: `/dashboard/products/${product._id}`,
             metadata: { 
               productId: product._id,
               productName: product.name,

@@ -101,20 +101,31 @@ async function uploadFile(req: NextRequest, user: any) {
         );
       }
 
-      // التحقق من حجم الملف (حد أقصى 5 ميجابايت لـ Vercel)
-      const maxSize = 5 * 1024 * 1024; // 5MB for Vercel
+      // التحقق من حجم الملف (حد أقصى 100 ميجابايت للفيديوهات، 10 ميجابايت للصور)
+      const maxSize = isVideo ? 100 * 1024 * 1024 : 10 * 1024 * 1024; // 100MB for videos, 10MB for images
       if (file.size > maxSize) {
+        const maxSizeMB = isVideo ? 100 : 10;
         return NextResponse.json(
-          { success: false, message: 'حجم الملف كبير جداً. الحد الأقصى 5 ميجابايت' },
+          { success: false, message: `حجم الملف كبير جداً. الحد الأقصى ${maxSizeMB} ميجابايت` },
           { status: 400 }
         );
       }
 
       console.log(`Processing file: ${file.name} (${file.size} bytes, type: ${file.type}) for user: ${user.name}`);
 
-      // If Cloudinary is not configured, use fallback method
+      // If Cloudinary is not configured, return error for large files
       if (!isCloudinaryConfigured) {
-        // For development/testing, return a mock URL
+        if (file.size > 4 * 1024 * 1024) { // 4MB
+          return NextResponse.json(
+            { 
+              success: false, 
+              message: 'لا يمكن رفع الملفات الكبيرة بدون إعداد Cloudinary. يرجى إعداد Cloudinary أو استخدام ملف أصغر' 
+            },
+            { status: 400 }
+          );
+        }
+        
+        // For small files, use fallback method
         const mockUrl = isImage 
           ? `https://via.placeholder.com/800x600/4F46E5/FFFFFF?text=${encodeURIComponent(file.name)}`
           : `https://via.placeholder.com/400x200/6B7280/FFFFFF?text=${encodeURIComponent(file.name)}`;

@@ -20,20 +20,25 @@ import {
   Scale,
   Ruler,
   User,
-  Calendar
+  Calendar,
+  MessageSquare,
+  Send,
+  X
 } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import MediaDisplay from '@/components/ui/MediaDisplay';
+import ConfirmationModal from '@/components/ui/ConfirmationModal';
 
 interface Product {
   _id: string;
   name: string;
-  nameEn?: string;
   description: string;
   images: string[];
   marketerPrice: number;
-  wholesalePrice: number;
-  costPrice: number;
+  wholesalerPrice: number;
+  minimumSellingPrice?: number;
+  isMinimumPriceMandatory?: boolean;
   stockQuantity: number;
   isActive: boolean;
   isApproved: boolean;
@@ -59,7 +64,7 @@ interface Product {
   rejectedAt?: string; // Added for rejection date
   rejectedBy?: string; // Added for rejection user
   categoryId?: { name: string }; // Added for category ID
-  supplierId?: { name: string; companyName: string }; // Added for supplier ID
+  supplierId?: { _id: string; name: string; companyName: string } | string; // Added for supplier ID
 }
 
 export default function ProductDetailPage() {
@@ -71,7 +76,24 @@ export default function ProductDetailPage() {
   
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedImage, setSelectedImage] = useState(0);
+  
+  // Chat states
+  const [showChat, setShowChat] = useState(false);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [sendingMessage, setSendingMessage] = useState(false);
+  
+  // Approval states
+  const [approving, setApproving] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
+  
+  // Confirmation modal states
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showApproveConfirm, setShowApproveConfirm] = useState(false);
+  const [showReviewConfirm, setShowReviewConfirm] = useState(false);
+  const [reviewAction, setReviewAction] = useState<'approve' | 'reject' | null>(null);
 
   useEffect(() => {
     if (params.id) {
@@ -79,9 +101,31 @@ export default function ProductDetailPage() {
     }
   }, [params.id]);
 
+  // Poll for new messages when chat is open
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (showChat) {
+      interval = setInterval(fetchMessages, 5000); // Poll every 5 seconds
+    }
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [showChat]);
+
   const fetchProduct = async () => {
     try {
+      console.log('🔍 Fetching product with user:', {
+        userId: user?._id,
+        userRole: user?.role,
+        userName: user?.name,
+        productId: params.id
+      });
+      
       const response = await fetch(`/api/products/${params.id}`);
+      console.log('📥 Product API response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
         console.log('🔍 Product data received:', {
@@ -90,14 +134,18 @@ export default function ProductDetailPage() {
           isApproved: data.product.isApproved,
           isRejected: data.product.isRejected,
           rejectionReason: data.product.rejectionReason,
+          supplierId: data.product.supplierId,
           status: data.product.isApproved ? 'معتمد' : data.product.isRejected ? 'مرفوض' : 'قيد المراجعة'
         });
         setProduct(data.product);
       } else {
-        toast.error('المنتج غير موجود');
+        const errorData = await response.json();
+        console.log('❌ Product fetch failed:', errorData);
+        toast.error(errorData.message || 'المنتج غير موجود');
         router.push('/dashboard/products');
       }
     } catch (error) {
+      console.error('❌ Error fetching product:', error);
       toast.error('حدث خطأ أثناء جلب تفاصيل المنتج');
       router.push('/dashboard/products');
     } finally {
@@ -106,8 +154,10 @@ export default function ProductDetailPage() {
   };
 
   const handleDeleteProduct = async () => {
-    if (!confirm('هل أنت متأكد من حذف هذا المنتج؟')) return;
+    setShowDeleteConfirm(true);
+  };
 
+  const confirmDelete = async () => {
     try {
       const response = await fetch(`/api/products/${params.id}`, {
         method: 'DELETE',
@@ -121,6 +171,8 @@ export default function ProductDetailPage() {
       }
     } catch (error) {
       toast.error('حدث خطأ أثناء حذف المنتج');
+    } finally {
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -164,6 +216,224 @@ export default function ProductDetailPage() {
     }
   };
 
+  // Chat functions
+  const handleOpenChat = async () => {
+    setShowChat(true);
+    await fetchMessages();
+  };
+
+  const fetchMessages = async () => {
+    try {
+      // Get the supplier ID correctly
+      const supplierId = typeof product?.supplierId === 'object' ? product?.supplierId?._id : product?.supplierId;
+      if (!supplierId || !user?._id) {
+        console.log('❌ Cannot fetch messages:', { 
+          hasSupplierId: !!supplierId, 
+          hasUserId: !!user?._id,
+          supplierId: supplierId,
+          userId: user?._id 
+        });
+        return;
+      }
+      
+      // Create conversation ID by combining user IDs
+      const conversationId = [user._id, supplierId].sort().join('-');
+      console.log('🔍 Fetching messages for conversation:', conversationId);
+      
+      const response = await fetch(`/api/messages/conversations/${conversationId}`);
+      console.log('📥 Messages response status:', response.status);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Messages fetched successfully:', data);
+        setMessages(data.messages || []);
+      } else {
+        const errorData = await response.json();
+        console.log('❌ Failed to fetch messages:', errorData);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching messages:', error);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !product?.supplierId) {
+      console.log('❌ Cannot send message:', { 
+        hasMessage: !!newMessage.trim(), 
+        hasSupplierId: !!product?.supplierId,
+        supplierId: product?.supplierId 
+      });
+      return;
+    }
+    
+    // Get the supplier ID correctly
+    const supplierId = typeof product?.supplierId === 'object' ? product?.supplierId?._id : product?.supplierId;
+    if (!supplierId) {
+      console.log('❌ No supplier ID found:', { 
+        supplierIdFromProduct: product?.supplierId,
+        supplierIdExtracted: supplierId 
+      });
+      return;
+    }
+    
+    console.log('📤 Sending message:', {
+      receiverId: supplierId,
+      subject: `استفسار بخصوص ${product.name}`,
+      content: newMessage,
+      productId: product._id
+    });
+    
+    setSendingMessage(true);
+    try {
+      const response = await fetch('/api/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          receiverId: supplierId,
+          subject: `استفسار بخصوص ${product.name}`,
+          content: newMessage,
+          productId: product._id
+        }),
+      });
+      
+      console.log('📥 Response status:', response.status);
+      
+      if (response.ok) {
+        const responseData = await response.json();
+        console.log('✅ Message sent successfully:', responseData);
+        setNewMessage('');
+        await fetchMessages();
+        toast.success('تم إرسال الرسالة بنجاح');
+      } else {
+        const errorData = await response.json();
+        console.log('❌ Message send failed:', errorData);
+        toast.error(errorData.message || 'فشل في إرسال الرسالة');
+      }
+    } catch (error) {
+      console.error('❌ Error sending message:', error);
+      toast.error('حدث خطأ أثناء إرسال الرسالة');
+    } finally {
+      setSendingMessage(false);
+    }
+  };
+
+  // Approval functions
+  const handleApproveProduct = async () => {
+    setShowApproveConfirm(true);
+  };
+
+  const confirmApprove = async () => {
+    console.log('🔍 Starting product approval process for product:', params.id);
+    setApproving(true);
+    try {
+      const response = await fetch(`/api/products/${params.id}/approve`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('📥 Approval response status:', response.status);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Approval successful:', data);
+        toast.success('تم الموافقة على المنتج بنجاح');
+        await fetchProduct(); // Refresh product data
+      } else {
+        const error = await response.json();
+        console.log('❌ Approval failed:', error);
+        toast.error(error.message || 'فشل في الموافقة على المنتج');
+      }
+    } catch (error) {
+      console.error('❌ Error during approval:', error);
+      toast.error('حدث خطأ أثناء الموافقة على المنتج');
+    } finally {
+      setApproving(false);
+      setShowApproveConfirm(false);
+    }
+  };
+
+  const confirmReview = async () => {
+    if (!reviewAction) return;
+    
+    try {
+      const response = await fetch(`/api/products/${params.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          isApproved: false,
+          isRejected: false,
+          rejectionReason: null,
+          adminNotes: reviewAction === 'approve' 
+            ? `تم إلغاء الموافقة بواسطة ${user?.name} في ${new Date().toLocaleString('ar-SA')}`
+            : `تم إعادة النظر في المنتج بواسطة ${user?.name} في ${new Date().toLocaleString('ar-SA')}`
+        }),
+      });
+
+      if (response.ok) {
+        const message = reviewAction === 'approve' 
+          ? 'تم إلغاء الموافقة على المنتج بنجاح'
+          : 'تم إعادة النظر في المنتج بنجاح';
+        toast.success(message);
+        await fetchProduct(); // Refresh product data
+      } else {
+        const error = await response.json();
+        toast.error(error.message || 'فشل في العملية');
+      }
+    } catch (error) {
+      toast.error('حدث خطأ أثناء العملية');
+    } finally {
+      setShowReviewConfirm(false);
+      setReviewAction(null);
+    }
+  };
+
+  const handleRejectProduct = async () => {
+    if (!rejectionReason.trim()) {
+      toast.error('يرجى إدخال سبب الرفض');
+      return;
+    }
+    
+    console.log('🔍 Starting product rejection process for product:', params.id);
+    setRejecting(true);
+    try {
+      const response = await fetch(`/api/products/${params.id}/reject`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          rejectionReason: rejectionReason.trim()
+        }),
+      });
+
+      console.log('📥 Rejection response status:', response.status);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Rejection successful:', data);
+        toast.success('تم رفض المنتج بنجاح');
+        setShowRejectModal(false);
+        setRejectionReason('');
+        await fetchProduct(); // Refresh product data
+      } else {
+        const error = await response.json();
+        console.log('❌ Rejection failed:', error);
+        toast.error(error.message || 'فشل في رفض المنتج');
+      }
+    } catch (error) {
+      console.error('❌ Error during rejection:', error);
+      toast.error('حدث خطأ أثناء رفض المنتج');
+    } finally {
+      setRejecting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-slate-900 flex items-center justify-center">
@@ -195,12 +465,10 @@ export default function ProductDetailPage() {
   const transformedProduct = {
     _id: product._id,
     name: product.name,
-    nameEn: product.nameEn,
     description: product.description,
     images: product.images,
     marketerPrice: product.marketerPrice,
-    wholesalePrice: product.wholesalePrice,
-    costPrice: product.costPrice,
+    wholesalerPrice: product.wholesalerPrice,
     stockQuantity: product.stockQuantity,
     isActive: product.isActive,
     isApproved: product.isApproved,
@@ -213,7 +481,8 @@ export default function ProductDetailPage() {
     rejectedBy: product.rejectedBy,
     isFulfilled: product.isFulfilled,
     categoryName: product.categoryId?.name,
-    supplierName: product.supplierId?.name || product.supplierId?.companyName,
+    supplierId: product.supplierId,
+    supplierName: typeof product.supplierId === 'object' ? (product.supplierId?.name || product.supplierId?.companyName) : product.supplierId,
     sku: product.sku,
     weight: product.weight,
     dimensions: product.dimensions,
@@ -223,8 +492,18 @@ export default function ProductDetailPage() {
     updatedAt: product.updatedAt
   };
 
-  const currentPrice = user?.role === 'wholesaler' ? product.wholesalePrice : product.marketerPrice;
-  const profitMargin = ((currentPrice - product.costPrice) / product.costPrice * 100).toFixed(1);
+  const currentPrice = user?.role === 'wholesaler' ? product.wholesalerPrice : product.marketerPrice;
+
+  // Debug user role
+  console.log('🔍 User role check:', {
+    userId: user?._id,
+    userRole: user?.role,
+    userName: user?.name,
+    isAdmin: user?.role === 'admin',
+    isSupplier: user?.role === 'supplier',
+    isMarketer: user?.role === 'marketer',
+    isWholesaler: user?.role === 'wholesaler'
+  });
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
@@ -251,6 +530,17 @@ export default function ProductDetailPage() {
               >
                 <ShoppingCart className="w-4 h-4 ml-2" />
                 أضف للسلة
+              </button>
+            )}
+
+            {/* Chat with Supplier Button - Only for marketers and wholesalers */}
+            {(user?.role === 'marketer' || user?.role === 'wholesaler') && (
+              <button 
+                onClick={handleOpenChat}
+                className="btn-secondary"
+              >
+                <MessageSquare className="w-4 h-4 ml-2" />
+                تواصل مع المورد
               </button>
             )}
 
@@ -283,59 +573,83 @@ export default function ProductDetailPage() {
                 </button>
               </>
             )}
+
+            {/* Admin Approval Actions */}
+            {(() => {
+              console.log('🔍 Admin approval buttons visibility check:', {
+                userRole: user?.role,
+                isAdmin: user?.role === 'admin',
+                productIsApproved: product.isApproved,
+                productIsRejected: product.isRejected,
+                shouldShowButtons: user?.role === 'admin' && !product.isApproved && !product.isRejected
+              });
+              
+              return user?.role === 'admin' && !product.isApproved && !product.isRejected ? (
+                <>
+                  <button
+                    onClick={handleApproveProduct}
+                    disabled={approving}
+                    className="btn-success"
+                  >
+                    {approving ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white ml-2"></div>
+                    ) : (
+                      <CheckCircle className="w-4 h-4 ml-2" />
+                    )}
+                    {approving ? 'جاري الموافقة...' : 'موافقة'}
+                  </button>
+                  <button
+                    onClick={() => setShowRejectModal(true)}
+                    className="btn-danger"
+                  >
+                    <XCircle className="w-4 h-4 ml-2" />
+                    رفض
+                  </button>
+                </>
+              ) : null;
+            })()}
+
+                        {/* Admin can reverse decisions */}
+            {(() => {
+              console.log('🔍 Admin review button visibility check:', {
+                userRole: user?.role,
+                isAdmin: user?.role === 'admin',
+                productIsApproved: product.isApproved,
+                productIsRejected: product.isRejected,
+                shouldShowButton: user?.role === 'admin' && (product.isApproved || product.isRejected)
+              });
+              
+              return user?.role === 'admin' && (product.isApproved || product.isRejected) ? (
+                <button
+                  onClick={() => {
+                    setReviewAction(product.isApproved ? 'approve' : 'reject');
+                    setShowReviewConfirm(true);
+                  }}
+                  className="btn-secondary"
+                >
+                  <Clock className="w-4 h-4 ml-2" />
+                  إعادة النظر
+                </button>
+              ) : null;
+            })()}
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Product Images */}
-          <div className="space-y-4">
-            <div className="aspect-square bg-white dark:bg-slate-800 rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700">
-              {product.images && product.images.length > 0 ? (
-                <img
-                  src={product.images[selectedImage]}
-                  alt={product.name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <Package className="w-16 h-16 text-gray-400 dark:text-slate-500" />
-                </div>
-              )}
-            </div>
-
-            {/* Image Thumbnails */}
-            {product.images && product.images.length > 1 && (
-              <div className="flex space-x-2 space-x-reverse overflow-x-auto">
-                {product.images.map((image, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setSelectedImage(index)}
-                    className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 ${
-                      selectedImage === index ? 'border-primary-500' : 'border-gray-200 dark:border-slate-600'
-                    }`}
-                  >
-                    <img
-                      src={image}
-                      alt={`${product.name} ${index + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          {/* Product Media */}
+          <MediaDisplay
+            media={product.images || []}
+            title="وسائط المنتج"
+          />
 
           {/* Product Info */}
           <div className="space-y-6">
             {/* Basic Info */}
             <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-gray-200 dark:border-slate-700">
               <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mb-2">{product.name}</h2>
-                  {product.nameEn && (
-                    <p className="text-gray-600 dark:text-slate-400 text-lg">{product.nameEn}</p>
-                  )}
-                </div>
+                                 <div>
+                   <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mb-2">{product.name}</h2>
+                 </div>
                 <div className="flex items-center space-x-2 space-x-reverse">
                   {(() => {
                     console.log('🎯 Product status check:', {
@@ -381,23 +695,42 @@ export default function ProductDetailPage() {
 
               <p className="text-gray-700 dark:text-slate-300 leading-relaxed mb-4">{product.description}</p>
 
-              {/* Pricing */}
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div className="text-center p-3 bg-gray-50 dark:bg-slate-700 rounded-lg">
-                  <p className="text-sm text-gray-600 dark:text-slate-400">سعر المسوق</p>
-                  <p className="text-xl font-bold text-primary-600 dark:text-primary-400">{product.marketerPrice} ₪</p>
+              {/* Pricing - Role-based display */}
+              {user?.role === 'marketer' ? (
+                // Marketer sees only marketer price
+                <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+                  <p className="text-sm text-blue-600 dark:text-blue-400">سعر المسوق (الأساسي)</p>
+                  <p className="text-lg font-bold text-blue-700 dark:text-blue-300">{product.marketerPrice} ₪</p>
+                  <p className="text-xs text-blue-600 dark:text-blue-400">السعر الأساسي للمسوقين</p>
                 </div>
-                <div className="text-center p-3 bg-gray-50 dark:bg-slate-700 rounded-lg">
-                  <p className="text-sm text-gray-600 dark:text-slate-400">سعر الجملة</p>
-                  <p className="text-xl font-bold text-primary-600 dark:text-primary-400">{product.wholesalePrice} ₪</p>
+              ) : user?.role === 'wholesaler' ? (
+                // Wholesaler sees only wholesaler price
+                <div className="text-center p-3 bg-green-50 dark:bg-green-900/30 rounded-lg">
+                  <p className="text-sm text-green-600 dark:text-green-400">سعر الجملة (للتجار)</p>
+                  <p className="text-lg font-bold text-green-700 dark:text-green-300">{product.wholesalerPrice} ₪</p>
+                  <p className="text-xs text-green-600 dark:text-green-400">السعر الثابت للتجار</p>
                 </div>
-              </div>
-
-              <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
-                <p className="text-sm text-blue-600 dark:text-blue-400">سعر التكلفة</p>
-                <p className="text-lg font-bold text-blue-700 dark:text-blue-300">{product.costPrice} ₪</p>
-                <p className="text-xs text-blue-600 dark:text-blue-400">هامش الربح: {profitMargin}%</p>
-              </div>
+              ) : (
+                // Supplier/Admin sees both prices
+                <>
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="text-center p-3 bg-gray-50 dark:bg-slate-700 rounded-lg">
+                      <p className="text-sm text-gray-600 dark:text-slate-400">سعر المسوق (الأساسي)</p>
+                      <p className="text-xl font-bold text-primary-600 dark:text-primary-400">{product.marketerPrice} ₪</p>
+                    </div>
+                    <div className="text-center p-3 bg-gray-50 dark:bg-slate-700 rounded-lg">
+                      <p className="text-sm text-gray-600 dark:text-slate-400">سعر الجملة (للتجار)</p>
+                      <p className="text-xl font-bold text-primary-600 dark:text-primary-400">{product.wholesalerPrice} ₪</p>
+                    </div>
+                  </div>
+                  
+                  <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+                    <p className="text-sm text-blue-600 dark:text-blue-400">السعر الأساسي للمسوق</p>
+                    <p className="text-lg font-bold text-blue-700 dark:text-blue-300">{product.marketerPrice} ₪</p>
+                    <p className="text-xs text-blue-600 dark:text-blue-400">السعر الأساسي للمسوقين</p>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Stock & Status */}
@@ -515,6 +848,205 @@ export default function ProductDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Chat Modal */}
+      {showChat && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-2xl h-[600px] flex flex-col">
+            {/* Chat Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
+              <div className="flex items-center">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mr-3">
+                  <User className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
+                    محادثة مع {product.supplierName}
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-slate-400">
+                    بخصوص: {product.name}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowChat(false)}
+                className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500 dark:text-slate-400" />
+              </button>
+            </div>
+
+            {/* Messages Area */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {messages.length === 0 ? (
+                <div className="text-center py-8">
+                  <MessageSquare className="w-12 h-12 text-gray-400 dark:text-slate-500 mx-auto mb-4" />
+                  <p className="text-gray-600 dark:text-slate-400">
+                    لا توجد رسائل بعد. ابدأ المحادثة الآن!
+                  </p>
+                </div>
+              ) : (
+                messages.map((message, index) => (
+                  <div
+                    key={index}
+                    className={`flex ${message.senderId._id === user?._id ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                        message.senderId._id === user?._id
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-gray-100 dark:bg-slate-700 text-gray-900 dark:text-slate-100'
+                      }`}
+                    >
+                      <p className="text-sm">{message.content}</p>
+                      <p className={`text-xs mt-1 ${
+                        message.senderId._id === user?._id
+                          ? 'text-blue-100'
+                          : 'text-gray-500 dark:text-slate-400'
+                      }`}>
+                        {new Date(message.createdAt).toLocaleTimeString('ar-SA', {
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Message Input */}
+            <div className="p-4 border-t border-gray-200 dark:border-slate-700">
+              <div className="flex space-x-3 space-x-reverse">
+                <input
+                  type="text"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                  placeholder="اكتب رسالتك هنا..."
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-slate-100"
+                  disabled={sendingMessage}
+                />
+                <button
+                  onClick={handleSendMessage}
+                  disabled={!newMessage.trim() || sendingMessage}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {sendingMessage ? (
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  ) : (
+                    <Send className="w-5 h-5" />
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rejection Modal */}
+      {showRejectModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-md">
+            <div className="p-6">
+              <div className="flex items-center mb-4">
+                <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mr-3">
+                  <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">رفض المنتج</h3>
+                  <p className="text-sm text-gray-600 dark:text-slate-400">يرجى إدخال سبب الرفض</p>
+                </div>
+              </div>
+              
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                  سبب الرفض *
+                </label>
+                <textarea
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="اكتب سبب رفض المنتج هنا..."
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent dark:bg-slate-700 dark:text-slate-100 resize-none"
+                  rows={4}
+                  required
+                />
+              </div>
+              
+              <div className="flex justify-end space-x-3 space-x-reverse">
+                <button
+                  onClick={() => {
+                    setShowRejectModal(false);
+                    setRejectionReason('');
+                  }}
+                  disabled={rejecting}
+                  className="btn-secondary"
+                >
+                  إلغاء
+                </button>
+                <button
+                  onClick={handleRejectProduct}
+                  disabled={!rejectionReason.trim() || rejecting}
+                  className="btn-danger flex items-center"
+                >
+                  {rejecting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white ml-2"></div>
+                      جاري الرفض...
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="w-4 h-4 ml-2" />
+                      رفض المنتج
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modals */}
+      <ConfirmationModal
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={confirmDelete}
+        title="حذف المنتج"
+        message="هل أنت متأكد من حذف هذا المنتج؟ لا يمكن التراجع عن هذا الإجراء."
+        confirmText="حذف"
+        cancelText="إلغاء"
+        type="danger"
+      />
+
+      <ConfirmationModal
+        isOpen={showApproveConfirm}
+        onClose={() => setShowApproveConfirm(false)}
+        onConfirm={confirmApprove}
+        title="موافقة على المنتج"
+        message="هل أنت متأكد من الموافقة على هذا المنتج؟"
+        confirmText="موافقة"
+        cancelText="إلغاء"
+        type="success"
+        loading={approving}
+      />
+
+      <ConfirmationModal
+        isOpen={showReviewConfirm}
+        onClose={() => {
+          setShowReviewConfirm(false);
+          setReviewAction(null);
+        }}
+        onConfirm={confirmReview}
+        title={reviewAction === 'approve' ? 'إلغاء الموافقة' : 'إعادة النظر'}
+        message={reviewAction === 'approve' 
+          ? 'هل تريد إلغاء الموافقة على هذا المنتج؟'
+          : 'هل تريد إعادة النظر في هذا المنتج؟'
+        }
+        confirmText="تأكيد"
+        cancelText="إلغاء"
+        type="warning"
+      />
     </div>
   );
 } 

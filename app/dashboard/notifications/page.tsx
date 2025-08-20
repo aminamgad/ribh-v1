@@ -3,6 +3,7 @@
 import { useNotifications } from '@/components/providers/NotificationProvider';
 import { Bell, Check, CheckCheck, ExternalLink, Info, CheckCircle, AlertTriangle, XCircle, Eye } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { formatDistanceToNow } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { useState } from 'react';
@@ -10,6 +11,7 @@ import toast from 'react-hot-toast';
 
 export default function NotificationsPage() {
   const { notifications, markAsRead, markAllAsRead, isConnected, refreshNotifications } = useNotifications();
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState<any>(null);
 
@@ -70,7 +72,7 @@ export default function NotificationsPage() {
   const handleViewDetails = (notification: any, e: React.MouseEvent) => {
     e.stopPropagation();
     if (notification.actionUrl) {
-      window.location.href = notification.actionUrl;
+      router.push(notification.actionUrl);
     }
   };
 

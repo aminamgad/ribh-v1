@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { Plus, Edit, Trash2, FolderOpen, Upload, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ConfirmationModal from '@/components/ui/ConfirmationModal';
 
 interface Category {
   _id: string;
@@ -36,6 +37,8 @@ export default function AdminCategoriesPage() {
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
 
   useEffect(() => {
     if (user?.role !== 'admin') {
@@ -138,11 +141,16 @@ export default function AdminCategoriesPage() {
     setShowModal(true);
   };
 
-  const handleDelete = async (categoryId: string) => {
-    if (!confirm('هل أنت متأكد من حذف هذه الفئة؟')) return;
+  const handleDelete = async (category: Category) => {
+    setCategoryToDelete(category);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!categoryToDelete) return;
 
     try {
-      const response = await fetch(`/api/categories/${categoryId}`, {
+      const response = await fetch(`/api/categories/${categoryToDelete._id}`, {
         method: 'DELETE',
       });
 
@@ -154,6 +162,9 @@ export default function AdminCategoriesPage() {
       }
     } catch (error) {
       toast.error('حدث خطأ أثناء حذف الفئة');
+    } finally {
+      setShowDeleteConfirm(false);
+      setCategoryToDelete(null);
     }
   };
 
@@ -216,7 +227,7 @@ export default function AdminCategoriesPage() {
               <Edit className="w-4 h-4" />
             </button>
             <button
-              onClick={() => handleDelete(category._id)}
+              onClick={() => handleDelete(category)}
               className="p-2 text-danger-600 hover:text-danger-700"
             >
               <Trash2 className="w-4 h-4" />
@@ -411,6 +422,21 @@ export default function AdminCategoriesPage() {
           </div>
         </div>
       )}
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteConfirm}
+        onClose={() => {
+          setShowDeleteConfirm(false);
+          setCategoryToDelete(null);
+        }}
+        onConfirm={confirmDelete}
+        title="حذف الفئة"
+        message={`هل أنت متأكد من حذف الفئة "${categoryToDelete?.name}"؟`}
+        confirmText="حذف"
+        cancelText="إلغاء"
+        type="danger"
+      />
     </div>
   );
 } 

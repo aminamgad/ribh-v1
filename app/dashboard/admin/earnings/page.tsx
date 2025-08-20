@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
-import { DollarSign, TrendingUp, Users, Package, Calendar, Settings, BarChart3, PieChart } from 'lucide-react';
+import { DollarSign, TrendingUp, Users, Package, Calendar, Settings, BarChart3, PieChart, CalendarDays, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface EarningsStatistics {
@@ -30,11 +30,7 @@ interface TopEarner {
   totalEarnings: number;
 }
 
-interface CommissionRate {
-  minPrice: number;
-  maxPrice: number;
-  rate: number;
-}
+
 
 export default function AdminEarningsPage() {
   const { user } = useAuth();
@@ -43,13 +39,26 @@ export default function AdminEarningsPage() {
   const [earningsByRole, setEarningsByRole] = useState<EarningsByRole[]>([]);
   const [topEarners, setTopEarners] = useState<TopEarner[]>([]);
   const [period, setPeriod] = useState('month');
-  const [commissionRates, setCommissionRates] = useState<CommissionRate[]>([]);
-  const [savingRates, setSavingRates] = useState(false);
+  const [customDateRange, setCustomDateRange] = useState(false);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   const fetchEarnings = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/admin/earnings?period=${period}`);
+      let url = `/api/admin/earnings?period=${period}`;
+      
+      if (customDateRange && startDate && endDate) {
+        // Validate date range
+        if (new Date(startDate) > new Date(endDate)) {
+          toast.error('تاريخ البداية يجب أن يكون قبل تاريخ النهاية');
+          return;
+        }
+        
+        url = `/api/admin/earnings?startDate=${startDate}&endDate=${endDate}`;
+      }
+      
+      const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
         setStatistics(data.statistics);
@@ -64,7 +73,7 @@ export default function AdminEarningsPage() {
     } finally {
       setLoading(false);
     }
-  }, [period]);
+  }, [period, customDateRange, startDate, endDate]);
 
   useEffect(() => {
     if (user?.role !== 'admin') {
@@ -74,31 +83,7 @@ export default function AdminEarningsPage() {
     fetchEarnings();
   }, [user, fetchEarnings]);
 
-  const updateCommissionRates = async () => {
-    try {
-      setSavingRates(true);
-      const response = await fetch('/api/admin/earnings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ commissionRates }),
-      });
 
-      if (response.ok) {
-        const data = await response.json();
-        toast.success(data.message || 'تم تحديث نسب العمولة بنجاح');
-      } else {
-        const error = await response.json();
-        toast.error(error.message || 'حدث خطأ أثناء تحديث نسب العمولة');
-      }
-    } catch (error) {
-      console.error('Error updating commission rates:', error);
-      toast.error('حدث خطأ أثناء تحديث نسب العمولة');
-    } finally {
-      setSavingRates(false);
-    }
-  };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('ar-IL', {
@@ -109,6 +94,38 @@ export default function AdminEarningsPage() {
 
   const formatPercentage = (value: number) => {
     return `${value.toFixed(1)}%`;
+  };
+
+  const exportEarningsReport = async () => {
+    try {
+      let url = `/api/admin/earnings/export?period=${period}`;
+      
+      if (customDateRange && startDate && endDate) {
+        url = `/api/admin/earnings/export?startDate=${startDate}&endDate=${endDate}`;
+      }
+      
+      const response = await fetch(url, {
+        method: 'GET',
+      });
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const fileName = customDateRange && startDate && endDate 
+          ? `earnings-${startDate}-to-${endDate}.csv`
+          : `earnings-${period}-${new Date().toISOString().split('T')[0]}.csv`;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        toast.success('تم تصدير تقرير الأرباح بنجاح');
+      }
+    } catch (error) {
+      toast.error('حدث خطأ أثناء تصدير تقرير الأرباح');
+    }
   };
 
   if (user?.role !== 'admin') {
@@ -138,19 +155,106 @@ export default function AdminEarningsPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100">إدارة الأرباح</h1>
           <p className="text-gray-600 dark:text-slate-400 mt-2">إحصائيات الأرباح والعمولات</p>
+          {customDateRange && startDate && endDate && (
+            <p className="text-sm text-blue-600 dark:text-blue-400 mt-1">
+              الفترة المحددة: من {new Date(startDate).toLocaleDateString('ar-SA')} إلى {new Date(endDate).toLocaleDateString('ar-SA')}
+            </p>
+          )}
         </div>
         <div className="flex items-center space-x-4 space-x-reverse">
-          <select
-            value={period}
-            onChange={(e) => setPeriod(e.target.value)}
-            className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100"
-          >
-            <option value="week">الأسبوع</option>
-            <option value="month">الشهر</option>
-            <option value="year">السنة</option>
-          </select>
-        </div>
-      </div>
+          {/* Date Range Selector */}
+          <div className="flex items-center space-x-2 space-x-reverse">
+            <select
+              value={customDateRange ? 'custom' : period}
+              onChange={(e) => {
+                if (e.target.value === 'custom') {
+                  setCustomDateRange(true);
+                } else {
+                  setCustomDateRange(false);
+                  setPeriod(e.target.value);
+                }
+              }}
+              className="px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="week">آخر أسبوع</option>
+              <option value="month">آخر شهر</option>
+              <option value="year">آخر سنة</option>
+              <option value="custom">فترة مخصصة</option>
+            </select>
+            
+            {customDateRange && (
+              <div className="flex items-center space-x-2 space-x-reverse">
+                <div className="flex items-center space-x-1 space-x-reverse">
+                  <CalendarDays className="w-4 h-4 text-gray-500" />
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="px-2 py-1 text-sm border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100"
+                    placeholder="من تاريخ"
+                  />
+                </div>
+                <span className="text-gray-500">إلى</span>
+                <div className="flex items-center space-x-1 space-x-reverse">
+                  <CalendarDays className="w-4 h-4 text-gray-500" />
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="px-2 py-1 text-sm border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100"
+                    placeholder="إلى تاريخ"
+                  />
+                </div>
+                
+                {/* Quick Date Presets */}
+                <div className="flex items-center space-x-1 space-x-reverse ml-4">
+                  <button
+                    onClick={() => {
+                      const today = new Date();
+                      const lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+                      setStartDate(lastWeek.toISOString().split('T')[0]);
+                      setEndDate(today.toISOString().split('T')[0]);
+                    }}
+                    className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-500"
+                  >
+                    آخر أسبوع
+                  </button>
+                  <button
+                    onClick={() => {
+                      const today = new Date();
+                      const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
+                      setStartDate(lastMonth.toISOString().split('T')[0]);
+                      setEndDate(today.toISOString().split('T')[0]);
+                    }}
+                    className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-500"
+                  >
+                    آخر شهر
+                  </button>
+                  <button
+                    onClick={() => {
+                      const today = new Date();
+                      const lastQuarter = new Date(today.getFullYear(), today.getMonth() - 3, today.getDate());
+                      setStartDate(lastQuarter.toISOString().split('T')[0]);
+                      setEndDate(today.toISOString().split('T')[0]);
+                    }}
+                    className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-500"
+                  >
+                    آخر 3 شهور
+                  </button>
+                                 </div>
+               </div>
+             )}
+           </div>
+           
+           <button
+             onClick={exportEarningsReport}
+             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md flex items-center space-x-2 space-x-reverse transition-colors"
+           >
+             <Download className="w-4 h-4" />
+             <span>تصدير التقرير</span>
+           </button>
+         </div>
+       </div>
 
       {/* Statistics Cards */}
       {statistics && (
@@ -298,84 +402,7 @@ export default function AdminEarningsPage() {
         </div>
       )}
 
-      {/* Commission Settings */}
-      <div className="card">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 flex items-center">
-            <Settings className="w-5 h-5 ml-2" />
-            نسب العمولة
-          </h3>
-          <button
-            onClick={updateCommissionRates}
-            disabled={savingRates}
-            className="btn-primary flex items-center"
-          >
-            {savingRates ? (
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white ml-2"></div>
-            ) : (
-              <Settings className="w-4 h-4 ml-2" />
-            )}
-            {savingRates ? 'جاري الحفظ...' : 'حفظ الإعدادات'}
-          </button>
-        </div>
-
-        <div className="space-y-4">
-          {commissionRates.map((rate, index) => (
-            <div key={index} className="flex items-center space-x-4 space-x-reverse p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-              <input
-                type="number"
-                placeholder="السعر الأدنى"
-                value={rate.minPrice}
-                onChange={(e) => {
-                  const newRates = [...commissionRates];
-                  newRates[index].minPrice = parseFloat(e.target.value) || 0;
-                  setCommissionRates(newRates);
-                }}
-                className="input-field w-32"
-              />
-              <span className="text-gray-500">إلى</span>
-              <input
-                type="number"
-                placeholder="السعر الأقصى"
-                value={rate.maxPrice}
-                onChange={(e) => {
-                  const newRates = [...commissionRates];
-                  newRates[index].maxPrice = parseFloat(e.target.value) || 0;
-                  setCommissionRates(newRates);
-                }}
-                className="input-field w-32"
-              />
-              <input
-                type="number"
-                placeholder="النسبة %"
-                value={rate.rate}
-                onChange={(e) => {
-                  const newRates = [...commissionRates];
-                  newRates[index].rate = parseFloat(e.target.value) || 0;
-                  setCommissionRates(newRates);
-                }}
-                className="input-field w-24"
-              />
-              <button
-                onClick={() => {
-                  const newRates = commissionRates.filter((_, i) => i !== index);
-                  setCommissionRates(newRates);
-                }}
-                className="text-red-600 hover:text-red-700 text-sm font-medium"
-              >
-                حذف
-              </button>
-            </div>
-          ))}
-          
-          <button
-            onClick={() => setCommissionRates([...commissionRates, { minPrice: 0, maxPrice: 0, rate: 10 }])}
-            className="btn-secondary text-sm"
-          >
-            إضافة نسبة عمولة
-          </button>
-        </div>
-      </div>
+      
     </div>
   );
 } 

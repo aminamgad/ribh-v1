@@ -32,9 +32,21 @@ const generalSettingsSchema = z.object({
 
 const orderSettingsSchema = z.object({
   minimumOrderValue: z.number().min(0, 'الحد الأدنى للطلب يجب أن يكون 0 أو أكثر'),
-  maximumOrderValue: z.number().min(0, 'الحد الأقصى للطلب يجب أن يكون 0 أو أكثر'),
-  shippingCost: z.number().min(0, 'تكلفة الشحن يجب أن تكون 0 أو أكثر'),
-  freeShippingThreshold: z.number().min(0, 'حد الشحن المجاني يجب أن يكون 0 أو أكثر')
+  maximumOrderValue: z.number().min(0, 'الحد الأقصى للطلب يجب أن يكون 0 أو أكثر')
+});
+
+const governorateSchema = z.object({
+  name: z.string().min(1, 'اسم المحافظة مطلوب'),
+  cities: z.array(z.string()).min(0, 'قائمة المدن يجب أن تكون مصفوفة'),
+  shippingCost: z.number().min(0, 'تكلفة الشحن يجب أن تكون أكبر من أو تساوي صفر'),
+  isActive: z.boolean()
+});
+
+const shippingSettingsSchema = z.object({
+  shippingEnabled: z.boolean(),
+  defaultShippingCost: z.number().min(0, 'التكلفة الافتراضية يجب أن تكون أكبر من أو تساوي صفر'),
+  defaultFreeShippingThreshold: z.number().min(0, 'حد الشحن المجاني يجب أن يكون أكبر من أو تساوي صفر'),
+  governorates: z.array(governorateSchema).min(0, 'يمكن أن تكون قائمة المحافظات فارغة')
 });
 
 const productSettingsSchema = z.object({
@@ -143,8 +155,17 @@ export const PUT = withRole(['admin'])(async (req: NextRequest, user: any) => {
         contactPhone: '+966500000000',
         minimumOrderValue: 50,
         maximumOrderValue: 100000,
-        shippingCost: 20,
-        freeShippingThreshold: 500,
+        shippingEnabled: true,
+        defaultShippingCost: 50,
+        defaultFreeShippingThreshold: 500,
+        governorates: [
+          {
+            name: 'المملكة العربية السعودية',
+            cities: ['الرياض', 'جدة', 'مكة المكرمة', 'الدمام', 'الجبيل', 'الخبر', 'القطيف', 'الطائف', 'المدينة المنورة', 'الباحة', 'الحدود الشمالية', 'الحدود الجنوبية', 'المنطقة الشرقية', 'المنطقة الغربية'],
+            shippingCost: 50,
+            isActive: true
+          }
+        ],
         maxProductImages: 5,
         maxProductDescriptionLength: 1000,
         autoApproveProducts: false,
@@ -202,9 +223,28 @@ export const PUT = withRole(['admin'])(async (req: NextRequest, user: any) => {
         const orderData = orderSettingsSchema.parse(data);
         settings.minimumOrderValue = orderData.minimumOrderValue;
         settings.maximumOrderValue = orderData.maximumOrderValue;
-        settings.shippingCost = orderData.shippingCost;
-        settings.freeShippingThreshold = orderData.freeShippingThreshold;
         console.log('🛒 تم تحديث إعدادات الطلبات:', orderData);
+        break;
+        
+      case 'shipping':
+        console.log('🚚 تحديث إعدادات الشحن');
+        console.log('🚚 البيانات المرسلة:', data);
+        
+        const shippingData = shippingSettingsSchema.parse(data);
+        console.log('🚚 البيانات المصدقة:', shippingData);
+        
+        settings.shippingEnabled = shippingData.shippingEnabled;
+        settings.defaultShippingCost = shippingData.defaultShippingCost;
+        settings.defaultFreeShippingThreshold = shippingData.defaultFreeShippingThreshold;
+        settings.governorates = shippingData.governorates;
+        
+        console.log('🚚 الإعدادات المحدثة:', {
+          shippingEnabled: settings.shippingEnabled,
+          defaultShippingCost: settings.defaultShippingCost,
+          defaultFreeShippingThreshold: settings.defaultFreeShippingThreshold,
+          governoratesCount: settings.governorates.length,
+          governorates: settings.governorates
+        });
         break;
         
       case 'products':
@@ -257,10 +297,14 @@ export const PUT = withRole(['admin'])(async (req: NextRequest, user: any) => {
     }
     
     // Save the settings
+    console.log('💾 حفظ الإعدادات في قاعدة البيانات...');
     await settings.save();
+    console.log('✅ تم حفظ الإعدادات بنجاح');
     
     // Clear cache to ensure fresh data
+    console.log('🗑️ مسح الكاش...');
     settingsManager.clearCache();
+    console.log('✅ تم مسح الكاش');
     
     console.log('✅ تم حفظ إعدادات النظام بنجاح');
     

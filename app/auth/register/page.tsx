@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { Eye, EyeOff, ArrowLeft, ShoppingBag, TrendingUp, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
+import CountrySelect from '@/components/ui/CountrySelect';
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -14,9 +15,17 @@ export default function RegisterPage() {
     phone: '',
     password: '',
     confirmPassword: '',
-    role: 'marketer' as 'supplier' | 'marketer' | 'wholesaler',
+    role: 'marketer' as 'supplier' | 'marketer',
+    // Marketing account fields
+    country: '',
+    dateOfBirth: '',
+    gender: '' as 'male' | 'female' | '',
+    websiteLink: '',
+    // Supplier account fields
     companyName: '',
+    commercialRegisterNumber: '',
     address: '',
+    // Legacy field
     taxId: '',
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -53,6 +62,13 @@ export default function RegisterPage() {
     });
   };
 
+  const handleCountryChange = (value: string) => {
+    setFormData({
+      ...formData,
+      country: value,
+    });
+  };
+
   const roleOptions = [
     {
       value: 'supplier',
@@ -67,13 +83,6 @@ export default function RegisterPage() {
       description: 'تسويق المنتجات للعملاء',
       icon: TrendingUp,
       color: 'success',
-    },
-    {
-      value: 'wholesaler',
-      label: 'تاجر جملة',
-      description: 'شراء بأسعار الجملة وإعادة البيع',
-      icon: Users,
-      color: 'warning',
     },
   ];
 
@@ -144,7 +153,7 @@ export default function RegisterPage() {
                   value={formData.phone}
                   onChange={handleChange}
                   className="input-field"
-                  placeholder="01xxxxxxxxx"
+                                      placeholder="أدخل رقم الهاتف"
                   dir="ltr"
                 />
               </div>
@@ -188,17 +197,83 @@ export default function RegisterPage() {
               </p>
             </div>
 
-            {/* Company Information (for suppliers) */}
+            {/* Marketing Account Fields */}
+            {formData.role === 'marketer' && (
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <label htmlFor="country" className="form-label">
+                    دولة الجنسية *
+                  </label>
+                  <CountrySelect
+                    value={formData.country}
+                    onChange={handleCountryChange}
+                    placeholder="اختر دولة الجنسية"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="dateOfBirth" className="form-label">
+                    تاريخ الميلاد *
+                  </label>
+                  <input
+                    id="dateOfBirth"
+                    name="dateOfBirth"
+                    type="date"
+                    required
+                    value={formData.dateOfBirth}
+                    onChange={handleChange}
+                    className="input-field"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="gender" className="form-label">
+                    الجنس *
+                  </label>
+                  <select
+                    id="gender"
+                    name="gender"
+                    required
+                    value={formData.gender}
+                    onChange={handleChange}
+                    className="input-field"
+                  >
+                    <option value="">اختر الجنس</option>
+                    <option value="male">ذكر</option>
+                    <option value="female">أنثى</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="websiteLink" className="form-label">
+                    رابط الموقع/الصفحة (اختياري)
+                  </label>
+                  <input
+                    id="websiteLink"
+                    name="websiteLink"
+                    type="url"
+                    value={formData.websiteLink}
+                    onChange={handleChange}
+                    className="input-field"
+                    placeholder="https://example.com"
+                    dir="ltr"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Supplier Account Fields */}
             {formData.role === 'supplier' && (
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
                   <label htmlFor="companyName" className="form-label">
-                    اسم الشركة
+                    اسم الشركة *
                   </label>
                   <input
                     id="companyName"
                     name="companyName"
                     type="text"
+                    required
                     value={formData.companyName}
                     onChange={handleChange}
                     className="input-field"
@@ -207,28 +282,30 @@ export default function RegisterPage() {
                 </div>
 
                 <div>
-                  <label htmlFor="taxId" className="form-label">
-                    الرقم الضريبي
+                  <label htmlFor="commercialRegisterNumber" className="form-label">
+                    رقم السجل التجاري *
                   </label>
                   <input
-                    id="taxId"
-                    name="taxId"
+                    id="commercialRegisterNumber"
+                    name="commercialRegisterNumber"
                     type="text"
-                    value={formData.taxId}
+                    required
+                    value={formData.commercialRegisterNumber}
                     onChange={handleChange}
                     className="input-field"
-                    placeholder="أدخل الرقم الضريبي"
+                    placeholder="أدخل رقم السجل التجاري"
                   />
                 </div>
 
                 <div className="md:col-span-2">
                   <label htmlFor="address" className="form-label">
-                    العنوان
+                    العنوان *
                   </label>
                   <input
                     id="address"
                     name="address"
                     type="text"
+                    required
                     value={formData.address}
                     onChange={handleChange}
                     className="input-field"

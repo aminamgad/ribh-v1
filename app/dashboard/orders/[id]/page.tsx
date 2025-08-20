@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { ArrowLeft, Package, Truck, CheckCircle, Clock, DollarSign, User, MapPin, Phone, Calendar, CheckCircle2, Edit, X, RotateCcw } from 'lucide-react';
+import MediaThumbnail from '@/components/ui/MediaThumbnail';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 
@@ -596,6 +597,45 @@ export default function OrderDetailPage() {
               </div>
             </div>
           )}
+
+          {/* Order Items */}
+          <div className="card">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+              <Package className="w-5 h-5 ml-2" />
+              منتجات الطلب
+            </h3>
+            <div className="space-y-4">
+              {order.items.map((item, index) => (
+                <div key={index} className="flex items-center space-x-4 space-x-reverse p-4 bg-gray-50 dark:bg-slate-800 rounded-lg">
+                  {/* Product Image */}
+                  <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
+                    <MediaThumbnail
+                      media={item.productId?.images || []}
+                      alt={item.productName}
+                      className="w-full h-full"
+                      showTypeBadge={false}
+                      fallbackIcon={<Package className="w-8 h-8 text-gray-400" />}
+                    />
+                  </div>
+                  
+                  {/* Product Info */}
+                  <div className="flex-1">
+                    <h4 className="font-medium text-gray-900 dark:text-white">{item.productName}</h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      الكمية: {item.quantity} × {formatCurrency(item.unitPrice)} = {formatCurrency(item.totalPrice)}
+                    </p>
+                  </div>
+                  
+                  {/* Total Price */}
+                  <div className="text-left">
+                    <p className="font-semibold text-gray-900 dark:text-white">
+                      {formatCurrency(item.totalPrice)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
 
           {/* Order Info */}
           <div className="card">

@@ -299,7 +299,7 @@ export const GET = withAuth(async (req: NextRequest, user: any, { params }: { pa
     await connectDB();
     
     const order = await Order.findById(params.id)
-      .populate('items.productId', 'name images marketerPrice wholesalePrice costPrice')
+      .populate('items.productId', 'name images marketerPrice wholesalerPrice')
       .populate('supplierId', 'name companyName')
       .populate('customerId', 'name email phone');
     

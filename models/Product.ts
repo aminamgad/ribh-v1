@@ -10,14 +10,8 @@ const productSchema = new Schema<ProductDocument>({
     trim: true,
     maxlength: [200, 'اسم المنتج لا يمكن أن يتجاوز 200 حرف']
   },
-  nameEn: {
-    type: String,
-    trim: true,
-    maxlength: [200, 'اسم المنتج بالإنجليزية لا يمكن أن يتجاوز 200 حرف']
-  },
   description: {
     type: String,
-    required: [true, 'وصف المنتج مطلوب'],
     trim: true,
     maxlength: [2000, 'وصف المنتج لا يمكن أن يتجاوز 2000 حرف']
   },
@@ -27,8 +21,7 @@ const productSchema = new Schema<ProductDocument>({
   }],
   categoryId: {
     type: Schema.Types.ObjectId,
-    ref: 'Category',
-    required: [true, 'فئة المنتج مطلوبة']
+    ref: 'Category'
   },
   supplierId: {
     type: Schema.Types.ObjectId,
@@ -40,15 +33,18 @@ const productSchema = new Schema<ProductDocument>({
     required: [true, 'سعر المسوق مطلوب'],
     min: [0, 'سعر المسوق يجب أن يكون أكبر من صفر']
   },
-  wholesalePrice: {
+  wholesalerPrice: {
     type: Number,
     required: [true, 'سعر الجملة مطلوب'],
     min: [0, 'سعر الجملة يجب أن يكون أكبر من صفر']
   },
-  costPrice: {
+  minimumSellingPrice: {
     type: Number,
-    required: [true, 'سعر التكلفة مطلوب'],
-    min: [0, 'سعر التكلفة يجب أن يكون أكبر من صفر']
+    min: [0, 'السعر الأدنى للبيع يجب أن يكون أكبر من صفر']
+  },
+  isMinimumPriceMandatory: {
+    type: Boolean,
+    default: false
   },
   stockQuantity: {
     type: Number,
@@ -163,22 +159,13 @@ productSchema.index({ supplierId: 1 });
 productSchema.index({ categoryId: 1 });
 productSchema.index({ isActive: 1, isApproved: 1 });
 productSchema.index({ marketerPrice: 1 });
-productSchema.index({ wholesalePrice: 1 });
+productSchema.index({ wholesalerPrice: 1 });
 productSchema.index({ stockQuantity: 1 });
 productSchema.index({ sales: -1 });
 productSchema.index({ createdAt: -1 });
 productSchema.index({ featured: 1 });
 
-// Virtual for profit margin
-productSchema.virtual('marketerProfitMargin').get(function() {
-  if (this.costPrice === 0) return 0;
-  return ((this.marketerPrice - this.costPrice) / this.costPrice) * 100;
-});
 
-productSchema.virtual('wholesaleProfitMargin').get(function() {
-  if (this.costPrice === 0) return 0;
-  return ((this.wholesalePrice - this.costPrice) / this.costPrice) * 100;
-});
 
 // Virtual for in stock status
 productSchema.virtual('inStock').get(function() {

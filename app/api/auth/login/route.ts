@@ -36,8 +36,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check if user is verified (for suppliers)
-    if (user.role === 'supplier' && !user.isVerified) {
+    // Check if user is verified (for suppliers and wholesalers)
+    if ((user.role === 'supplier' || user.role === 'wholesaler') && !user.isVerified) {
       return NextResponse.json(
         { success: false, error: 'الحساب قيد المراجعة من قبل الإدارة' },
         { status: 403 }
@@ -82,6 +82,8 @@ export async function POST(req: NextRequest) {
         isVerified: user.isVerified,
         companyName: user.companyName,
         address: user.address,
+        wholesaleLicense: user.wholesaleLicense,
+        businessType: user.businessType,
         taxId: user.taxId,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,

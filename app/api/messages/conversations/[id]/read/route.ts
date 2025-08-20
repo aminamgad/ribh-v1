@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import Message from '@/models/Message';
+import User from '@/models/User'; // Import User model for population
 
-// POST /api/messages/conversations/[id]/read - Mark all messages in conversation as read
-async function markConversationAsRead(req: NextRequest, user: any, { params }: { params: { id: string } }) {
+// POST /api/messages/conversations/[id]/read - Mark messages as read
+async function markMessagesAsRead(req: NextRequest, user: any, { params }: { params: { id: string } }) {
   try {
     await connectDB();
     
@@ -36,12 +37,13 @@ async function markConversationAsRead(req: NextRequest, user: any, { params }: {
           { senderId: userId2, receiverId: userId1 }
         ],
         receiverId: user._id,
-        isRead: false,
-        isApproved: true
+        isRead: false
       },
       {
-        isRead: true,
-        readAt: new Date()
+        $set: {
+          isRead: true,
+          readAt: new Date()
+        }
       }
     );
     
@@ -49,15 +51,16 @@ async function markConversationAsRead(req: NextRequest, user: any, { params }: {
     
     return NextResponse.json({
       success: true,
-      message: `تم تمييز ${result.modifiedCount} رسالة كمقروءة`
+      message: `تم تحديث ${result.modifiedCount} رسالة كمقروءة`,
+      modifiedCount: result.modifiedCount
     });
   } catch (error) {
-    console.error('Error marking conversation as read:', error);
+    console.error('Error marking messages as read:', error);
     return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء تمييز الرسائل كمقروءة' },
+      { success: false, message: 'حدث خطأ أثناء تحديث حالة الرسائل' },
       { status: 500 }
     );
   }
 }
 
-export const POST = withAuth(markConversationAsRead); 
+export const POST = withAuth(markMessagesAsRead); 

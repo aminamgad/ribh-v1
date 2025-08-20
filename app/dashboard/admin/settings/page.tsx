@@ -22,7 +22,9 @@ import {
   BarChart3,
   Plus,
   Trash2,
-  AlertCircle
+  AlertCircle,
+  Truck,
+  MapPin
 } from 'lucide-react';
 
 interface CommissionRate {
@@ -77,6 +79,17 @@ interface SystemSettings {
   analytics: {
     googleAnalyticsId: string;
     facebookPixelId: string;
+  };
+  shipping: {
+    shippingEnabled: boolean;
+    defaultShippingCost: number;
+    defaultFreeShippingThreshold: number;
+    governorates: {
+      name: string;
+      cities: string[];
+      shippingCost: number;
+      isActive: boolean;
+    }[];
   };
 }
 
@@ -145,6 +158,14 @@ export default function SettingsPage() {
     facebookPixelId: ''
   });
 
+  // Shipping settings state
+  const [shippingData, setShippingData] = useState({
+    shippingEnabled: true,
+    defaultShippingCost: 50,
+    defaultFreeShippingThreshold: 500,
+    governorates: []
+  });
+
   // Fetch settings
   const fetchSettings = async () => {
     try {
@@ -156,76 +177,75 @@ export default function SettingsPage() {
         setSettings(data.settings);
         
         // Update form data with fetched settings
-        if (data.settings.financial) {
+        if (data.settings) {
+          // Financial settings
           setFinancialData({
             withdrawalSettings: {
-              minimumWithdrawal: data.settings.financial.withdrawalSettings?.minimumWithdrawal || 100,
-              maximumWithdrawal: data.settings.financial.withdrawalSettings?.maximumWithdrawal || 50000,
-              withdrawalFees: data.settings.financial.withdrawalSettings?.withdrawalFees || 0
+              minimumWithdrawal: data.settings.withdrawalSettings?.minimumWithdrawal || 100,
+              maximumWithdrawal: data.settings.withdrawalSettings?.maximumWithdrawal || 50000,
+              withdrawalFees: data.settings.withdrawalSettings?.withdrawalFees || 0
             },
-            commissionRates: data.settings.financial.commissionRates || [
-              { minPrice: 0, maxPrice: 1000, rate: 10 },
-              { minPrice: 1001, maxPrice: 5000, rate: 8 },
-              { minPrice: 5001, maxPrice: 10000, rate: 6 },
-              { minPrice: 10001, maxPrice: 999999, rate: 5 }
+            commissionRates: data.settings.commissionRates || [
+              { minPrice: 0, maxPrice: 1000, rate: 10 }
             ]
           });
-        }
-        
-        if (data.settings.general) {
+          
+          // General settings
           setGeneralData({
-            platformName: data.settings.general.platformName || 'ربح',
-            platformDescription: data.settings.general.platformDescription || 'منصة التجارة الإلكترونية العربية',
-            contactEmail: data.settings.general.contactEmail || 'support@ribh.com',
-            contactPhone: data.settings.general.contactPhone || '+966500000000'
+            platformName: data.settings.platformName || 'ربح',
+            platformDescription: data.settings.platformDescription || 'منصة التجارة الإلكترونية العربية',
+            contactEmail: data.settings.contactEmail || 'support@ribh.com',
+            contactPhone: data.settings.contactPhone || '+966500000000'
           });
-        }
-        
-        if (data.settings.orders) {
+          
+          // Order settings
           setOrderData({
-            minimumOrderValue: data.settings.orders.minimumOrderValue || 50,
-            maximumOrderValue: data.settings.orders.maximumOrderValue || 100000,
-            shippingCost: data.settings.orders.shippingCost || 20,
-            freeShippingThreshold: data.settings.orders.freeShippingThreshold || 500
+            minimumOrderValue: data.settings.minimumOrderValue || 50,
+            maximumOrderValue: data.settings.maximumOrderValue || 100000,
+            shippingCost: data.settings.defaultShippingCost || 50,
+            freeShippingThreshold: data.settings.defaultFreeShippingThreshold || 500
           });
-        }
-        
-        if (data.settings.products) {
+          
+          // Product settings
           setProductData({
-            maxProductImages: data.settings.products.maxProductImages || 10,
-            maxProductDescriptionLength: data.settings.products.maxProductDescriptionLength || 1000,
-            autoApproveProducts: data.settings.products.autoApproveProducts || false
+            maxProductImages: data.settings.maxProductImages || 10,
+            maxProductDescriptionLength: data.settings.maxProductDescriptionLength || 1000,
+            autoApproveProducts: data.settings.autoApproveProducts || false
           });
-        }
-        
-        if (data.settings.notifications) {
+          
+          // Notification settings
           setNotificationData({
-            emailNotifications: data.settings.notifications.emailNotifications !== undefined ? data.settings.notifications.emailNotifications : true,
-            smsNotifications: data.settings.notifications.smsNotifications !== undefined ? data.settings.notifications.smsNotifications : false,
-            pushNotifications: data.settings.notifications.pushNotifications !== undefined ? data.settings.notifications.pushNotifications : true
+            emailNotifications: data.settings.emailNotifications !== undefined ? data.settings.emailNotifications : true,
+            smsNotifications: data.settings.smsNotifications !== undefined ? data.settings.smsNotifications : false,
+            pushNotifications: data.settings.pushNotifications !== undefined ? data.settings.pushNotifications : true
           });
-        }
-        
-        if (data.settings.security) {
+          
+          // Security settings
           setSecurityData({
-            passwordMinLength: data.settings.security.passwordMinLength || 8,
-            sessionTimeout: data.settings.security.sessionTimeout || 60,
-            maxLoginAttempts: data.settings.security.maxLoginAttempts || 5
+            passwordMinLength: data.settings.passwordMinLength || 8,
+            sessionTimeout: data.settings.sessionTimeout || 60,
+            maxLoginAttempts: data.settings.maxLoginAttempts || 5
           });
-        }
-        
-        if (data.settings.legal) {
+          
+          // Legal settings
           setLegalData({
-            termsOfService: data.settings.legal.termsOfService || 'شروط الخدمة',
-            privacyPolicy: data.settings.legal.privacyPolicy || 'سياسة الخصوصية',
-            refundPolicy: data.settings.legal.refundPolicy || 'سياسة الاسترداد'
+            termsOfService: data.settings.termsOfService || 'شروط الخدمة',
+            privacyPolicy: data.settings.privacyPolicy || 'سياسة الخصوصية',
+            refundPolicy: data.settings.refundPolicy || 'سياسة الاسترداد'
           });
-        }
-        
-        if (data.settings.analytics) {
+          
+          // Analytics settings
           setAnalyticsData({
-            googleAnalyticsId: data.settings.analytics.googleAnalyticsId || '',
-            facebookPixelId: data.settings.analytics.facebookPixelId || ''
+            googleAnalyticsId: data.settings.googleAnalyticsId || '',
+            facebookPixelId: data.settings.facebookPixelId || ''
+          });
+
+          // Shipping settings
+          setShippingData({
+            shippingEnabled: data.settings.shippingEnabled !== undefined ? data.settings.shippingEnabled : true,
+            defaultShippingCost: data.settings.defaultShippingCost || 50,
+            defaultFreeShippingThreshold: data.settings.defaultFreeShippingThreshold || 500,
+            governorates: data.settings.governorates || []
           });
         }
       } else {
@@ -317,7 +337,8 @@ export default function SettingsPage() {
     { id: 'notifications', label: 'الإشعارات', icon: Bell },
     { id: 'security', label: 'الأمان', icon: Shield },
     { id: 'legal', label: 'قانوني', icon: FileText },
-    { id: 'analytics', label: 'التحليلات', icon: BarChart3 }
+    { id: 'analytics', label: 'التحليلات', icon: BarChart3 },
+    { id: 'shipping', label: 'الشحن', icon: Truck }
   ];
 
   if (loading) {
@@ -638,26 +659,6 @@ export default function SettingsPage() {
                     className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
                 </div>
-                <div>
-                  <Label htmlFor="shippingCost" className="text-gray-700 dark:text-gray-200">تكلفة الشحن</Label>
-                  <Input
-                    id="shippingCost"
-                    type="number"
-                    value={orderData.shippingCost}
-                    onChange={(e) => setOrderData({ ...orderData, shippingCost: parseFloat(e.target.value) || 0 })}
-                    className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="freeShippingThreshold" className="text-gray-700 dark:text-gray-200">حد الشحن المجاني</Label>
-                  <Input
-                    id="freeShippingThreshold"
-                    type="number"
-                    value={orderData.freeShippingThreshold}
-                    onChange={(e) => setOrderData({ ...orderData, freeShippingThreshold: parseFloat(e.target.value) || 0 })}
-                    className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  />
-                </div>
               </div>
               
               <Button 
@@ -672,8 +673,500 @@ export default function SettingsPage() {
           </Card>
         )}
 
+        {/* Shipping Settings */}
+        {activeTab === 'shipping' && (
+          <div className="space-y-6">
+            {/* General Shipping Settings */}
+            <Card className="border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+              <CardHeader>
+                <CardTitle className="flex items-center text-gray-900 dark:text-white">
+                  <Truck className="w-5 h-5 ml-2 text-green-600 dark:text-green-400" />
+                  إعدادات الشحن العامة
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex items-center space-x-2 space-x-reverse">
+                    <input
+                      type="checkbox"
+                      id="shippingEnabled"
+                      checked={shippingData.shippingEnabled}
+                      onChange={(e) => setShippingData({ ...shippingData, shippingEnabled: e.target.checked })}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <Label htmlFor="shippingEnabled" className="text-gray-700 dark:text-gray-200">تفعيل الشحن</Label>
+                  </div>
+                  <div>
+                    <Label htmlFor="defaultShippingCost" className="text-gray-700 dark:text-gray-200">تكلفة الشحن الافتراضية</Label>
+                    <Input
+                      id="defaultShippingCost"
+                      type="number"
+                      value={shippingData.defaultShippingCost}
+                      onChange={(e) => setShippingData({ ...shippingData, defaultShippingCost: parseFloat(e.target.value) || 0 })}
+                      className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="defaultFreeShippingThreshold" className="text-gray-700 dark:text-gray-200">حد الشحن المجاني الافتراضي</Label>
+                    <Input
+                      id="defaultFreeShippingThreshold"
+                      type="number"
+                      value={shippingData.defaultFreeShippingThreshold}
+                      onChange={(e) => setShippingData({ ...shippingData, defaultFreeShippingThreshold: parseFloat(e.target.value) || 0 })}
+                      className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Shipping Zones */}
+            <Card className="border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+              <CardHeader>
+                <CardTitle className="flex items-center text-gray-900 dark:text-white">
+                  <MapPin className="w-5 h-5 ml-2 text-blue-600 dark:text-blue-400" />
+                  المحافظات ومناطق الشحن
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {shippingData.governorates.map((zone, zoneIndex) => (
+                  <div key={zoneIndex} className="border border-gray-200 dark:border-gray-600 rounded-lg p-6 bg-gray-50 dark:bg-gray-700/50">
+                    {/* Governorate Header */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                      <div>
+                        <Label htmlFor={`zoneName-${zoneIndex}`} className="text-gray-700 dark:text-gray-200 font-medium">اسم المحافظة</Label>
+                        <Input
+                          id={`zoneName-${zoneIndex}`}
+                          value={(zone as any).name}
+                          onChange={(e) => {
+                            const newZones = [...shippingData.governorates];
+                            (newZones[zoneIndex] as any).name = e.target.value;
+                            setShippingData({ ...shippingData, governorates: newZones });
+                          }}
+                          className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor={`zoneShippingCost-${zoneIndex}`} className="text-gray-700 dark:text-gray-200 font-medium">تكلفة الشحن (₪)</Label>
+                        <Input
+                          id={`zoneShippingCost-${zoneIndex}`}
+                          type="number"
+                          value={(zone as any).shippingCost}
+                          onChange={(e) => {
+                            const newZones = [...shippingData.governorates];
+                            (newZones[zoneIndex] as any).shippingCost = parseFloat(e.target.value) || 0;
+                            setShippingData({ ...shippingData, governorates: newZones });
+                          }}
+                          className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        />
+                      </div>
+                      <div className="flex items-center space-x-2 space-x-reverse pt-6">
+                        <input
+                          type="checkbox"
+                          id={`zoneActive-${zoneIndex}`}
+                          checked={(zone as any).isActive}
+                          onChange={(e) => {
+                            const newZones = [...shippingData.governorates];
+                            (newZones[zoneIndex] as any).isActive = e.target.checked;
+                            setShippingData({ ...shippingData, governorates: newZones });
+                          }}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <Label htmlFor={`zoneActive-${zoneIndex}`} className="text-gray-700 dark:text-gray-200 font-medium">نشط</Label>
+                      </div>
+                    </div>
+
+                    {/* Cities Management */}
+                    <div className="mt-4">
+                      <div className="flex justify-between items-center mb-3">
+                        <Label className="text-gray-700 dark:text-gray-200 font-medium">المدن والمناطق</Label>
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => {
+                              const newZones = [...shippingData.governorates];
+                              (newZones[zoneIndex] as any).cities = [...(newZones[zoneIndex] as any).cities, 'مدينة جديدة'];
+                              setShippingData({ ...shippingData, governorates: newZones });
+                            }}
+                            className="bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 text-sm"
+                          >
+                            <Plus className="w-3 h-3 ml-1" />
+                            إضافة مدينة
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              const bulkCities = prompt('أدخل أسماء المدن مفصولة بفواصل:\nمثال: الرياض، جدة، الدمام، مكة المكرمة');
+                              if (bulkCities) {
+                                const cities = bulkCities.split(/[،,]/).map(city => city.trim()).filter(city => city.length > 0);
+                                if (cities.length > 0) {
+                                  const newZones = [...shippingData.governorates];
+                                  (newZones[zoneIndex] as any).cities = [...(newZones[zoneIndex] as any).cities, ...cities];
+                                  setShippingData({ ...shippingData, governorates: newZones });
+                                }
+                              }
+                            }}
+                            className="text-blue-600 border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-sm"
+                          >
+                            <Plus className="w-3 h-3 ml-1" />
+                            إضافة متعددة
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {(zone as any).cities.map((city: any, cityIndex: number) => (
+                          <div key={cityIndex} className="flex items-center gap-2 bg-white dark:bg-gray-800 p-2 rounded-md border border-gray-200 dark:border-gray-600">
+                            <Input
+                              value={city}
+                              onChange={(e) => {
+                                const newZones = [...shippingData.governorates];
+                                (newZones[zoneIndex] as any).cities[cityIndex] = e.target.value;
+                                setShippingData({ ...shippingData, governorates: newZones });
+                              }}
+                              className="flex-1 text-sm border-none focus:ring-1 focus:ring-blue-500 bg-transparent"
+                              placeholder="اسم المدينة"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                const newZones = [...shippingData.governorates];
+                                (newZones[zoneIndex] as any).cities = (newZones[zoneIndex] as any).cities.filter((_: any, i: number) => i !== cityIndex);
+                                setShippingData({ ...shippingData, governorates: newZones });
+                              }}
+                              className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      {(zone as any).cities.length === 0 && (
+                        <div className="text-center py-4 text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 rounded-md border border-dashed border-gray-300 dark:border-gray-600">
+                          لا توجد مدن مضافة. انقر على "إضافة مدينة" لبدء إضافة المدن.
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Delete Governorate Button */}
+                    <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => {
+                          const newZones = shippingData.governorates.filter((_, i) => i !== zoneIndex);
+                          setShippingData({ ...shippingData, governorates: newZones });
+                        }}
+                        className="bg-red-600 hover:bg-red-700"
+                      >
+                        <Trash2 className="w-4 h-4 ml-2" />
+                        حذف المحافظة بالكامل
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                
+                <Button
+                  onClick={() => {
+                    const newZone = {
+                      name: 'محافظة جديدة',
+                      cities: ['مدينة جديدة'],
+                      shippingCost: 50,
+                      isActive: true
+                    };
+                    setShippingData({
+                      ...shippingData,
+                      governorates: [...shippingData.governorates, newZone] as any
+                    });
+                  }}
+                  className="bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600"
+                >
+                  <Plus className="w-4 h-4 ml-2" />
+                  إضافة محافظة جديدة
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Button 
+              onClick={() => saveSettings('shipping', shippingData)}
+              disabled={saving}
+              className="w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+            >
+              <Save className="w-4 h-4 ml-2" />
+              {saving ? 'جاري الحفظ...' : 'حفظ إعدادات الشحن'}
+            </Button>
+          </div>
+        )}
+
+        {/* Products Settings */}
+        {activeTab === 'products' && (
+          <Card className="border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+            <CardHeader>
+              <CardTitle className="flex items-center text-gray-900 dark:text-white">
+                <Package className="w-5 h-5 ml-2 text-blue-600 dark:text-blue-400" />
+                إعدادات المنتجات
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="maxProductImages" className="text-gray-700 dark:text-gray-200">الصور الأقصى للمنتج</Label>
+                  <Input
+                    id="maxProductImages"
+                    type="number"
+                    value={productData.maxProductImages}
+                    onChange={(e) => setProductData({ ...productData, maxProductImages: parseInt(e.target.value) || 0 })}
+                    className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="maxProductDescriptionLength" className="text-gray-700 dark:text-gray-200">طول الوصف الأقصى للمنتج</Label>
+                  <Input
+                    id="maxProductDescriptionLength"
+                    type="number"
+                    value={productData.maxProductDescriptionLength}
+                    onChange={(e) => setProductData({ ...productData, maxProductDescriptionLength: parseInt(e.target.value) || 0 })}
+                    className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div className="flex items-center space-x-2 space-x-reverse">
+                  <input
+                    type="checkbox"
+                    id="autoApproveProducts"
+                    checked={productData.autoApproveProducts}
+                    onChange={(e) => setProductData({ ...productData, autoApproveProducts: e.target.checked })}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <Label htmlFor="autoApproveProducts" className="text-gray-700 dark:text-gray-200">تفعيل الموافقة التلقائية على المنتجات</Label>
+                </div>
+              </div>
+              
+              <Button 
+                onClick={() => saveSettings('products', productData)}
+                disabled={saving}
+                className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+              >
+                <Save className="w-4 h-4 ml-2" />
+                {saving ? 'جاري الحفظ...' : 'حفظ الإعدادات'}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Notifications Settings */}
+        {activeTab === 'notifications' && (
+          <Card className="border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+            <CardHeader>
+              <CardTitle className="flex items-center text-gray-900 dark:text-white">
+                <Bell className="w-5 h-5 ml-2 text-blue-600 dark:text-blue-400" />
+                إعدادات الإشعارات
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-center space-x-2 space-x-reverse">
+                  <input
+                    type="checkbox"
+                    id="emailNotifications"
+                    checked={notificationData.emailNotifications}
+                    onChange={(e) => setNotificationData({ ...notificationData, emailNotifications: e.target.checked })}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <Label htmlFor="emailNotifications" className="text-gray-700 dark:text-gray-200">الإشعارات البريدية</Label>
+                </div>
+                <div className="flex items-center space-x-2 space-x-reverse">
+                  <input
+                    type="checkbox"
+                    id="smsNotifications"
+                    checked={notificationData.smsNotifications}
+                    onChange={(e) => setNotificationData({ ...notificationData, smsNotifications: e.target.checked })}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <Label htmlFor="smsNotifications" className="text-gray-700 dark:text-gray-200">الإشعارات النصية</Label>
+                </div>
+                <div className="flex items-center space-x-2 space-x-reverse">
+                  <input
+                    type="checkbox"
+                    id="pushNotifications"
+                    checked={notificationData.pushNotifications}
+                    onChange={(e) => setNotificationData({ ...notificationData, pushNotifications: e.target.checked })}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <Label htmlFor="pushNotifications" className="text-gray-700 dark:text-gray-200">الإشعارات الصوتية</Label>
+                </div>
+              </div>
+              
+              <Button 
+                onClick={() => saveSettings('notifications', notificationData)}
+                disabled={saving}
+                className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+              >
+                <Save className="w-4 h-4 ml-2" />
+                {saving ? 'جاري الحفظ...' : 'حفظ الإعدادات'}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Security Settings */}
+        {activeTab === 'security' && (
+          <Card className="border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+            <CardHeader>
+              <CardTitle className="flex items-center text-gray-900 dark:text-white">
+                <Shield className="w-5 h-5 ml-2 text-purple-600 dark:text-purple-400" />
+                إعدادات الأمان
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="passwordMinLength" className="text-gray-700 dark:text-gray-200">طول الرقم السري الأدنى</Label>
+                  <Input
+                    id="passwordMinLength"
+                    type="number"
+                    value={securityData.passwordMinLength}
+                    onChange={(e) => setSecurityData({ ...securityData, passwordMinLength: parseInt(e.target.value) || 0 })}
+                    className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="sessionTimeout" className="text-gray-700 dark:text-gray-200">وقت انتهاء الجلسة (دقائق)</Label>
+                  <Input
+                    id="sessionTimeout"
+                    type="number"
+                    value={securityData.sessionTimeout}
+                    onChange={(e) => setSecurityData({ ...securityData, sessionTimeout: parseInt(e.target.value) || 0 })}
+                    className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="maxLoginAttempts" className="text-gray-700 dark:text-gray-200">حد أقصى لمحاولات الدخول</Label>
+                  <Input
+                    id="maxLoginAttempts"
+                    type="number"
+                    value={securityData.maxLoginAttempts}
+                    onChange={(e) => setSecurityData({ ...securityData, maxLoginAttempts: parseInt(e.target.value) || 0 })}
+                    className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+              </div>
+              
+              <Button 
+                onClick={() => saveSettings('security', securityData)}
+                disabled={saving}
+                className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+              >
+                <Save className="w-4 h-4 ml-2" />
+                {saving ? 'جاري الحفظ...' : 'حفظ الإعدادات'}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Legal Settings */}
+        {activeTab === 'legal' && (
+          <Card className="border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+            <CardHeader>
+              <CardTitle className="flex items-center text-gray-900 dark:text-white">
+                <FileText className="w-5 h-5 ml-2 text-red-600 dark:text-red-400" />
+                إعدادات قانونية
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="termsOfService" className="text-gray-700 dark:text-gray-200">شروط الخدمة</Label>
+                <Textarea
+                  id="termsOfService"
+                  value={legalData.termsOfService}
+                  onChange={(e) => setLegalData({ ...legalData, termsOfService: e.target.value })}
+                  rows={5}
+                  className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+              </div>
+              <div>
+                <Label htmlFor="privacyPolicy" className="text-gray-700 dark:text-gray-200">سياسة الخصوصية</Label>
+                <Textarea
+                  id="privacyPolicy"
+                  value={legalData.privacyPolicy}
+                  onChange={(e) => setLegalData({ ...legalData, privacyPolicy: e.target.value })}
+                  rows={5}
+                  className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+              </div>
+              <div>
+                <Label htmlFor="refundPolicy" className="text-gray-700 dark:text-gray-200">سياسة الاسترداد</Label>
+                <Textarea
+                  id="refundPolicy"
+                  value={legalData.refundPolicy}
+                  onChange={(e) => setLegalData({ ...legalData, refundPolicy: e.target.value })}
+                  rows={5}
+                  className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+              </div>
+              
+              <Button 
+                onClick={() => saveSettings('legal', legalData)}
+                disabled={saving}
+                className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+              >
+                <Save className="w-4 h-4 ml-2" />
+                {saving ? 'جاري الحفظ...' : 'حفظ الإعدادات'}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Analytics Settings */}
+        {activeTab === 'analytics' && (
+          <Card className="border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+            <CardHeader>
+              <CardTitle className="flex items-center text-gray-900 dark:text-white">
+                <BarChart3 className="w-5 h-5 ml-2 text-green-600 dark:text-green-400" />
+                إعدادات التحليلات
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="googleAnalyticsId" className="text-gray-700 dark:text-gray-200">معرف Google Analytics</Label>
+                  <Input
+                    id="googleAnalyticsId"
+                    value={analyticsData.googleAnalyticsId}
+                    onChange={(e) => setAnalyticsData({ ...analyticsData, googleAnalyticsId: e.target.value })}
+                    className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="facebookPixelId" className="text-gray-700 dark:text-gray-200">معرف Facebook Pixel</Label>
+                  <Input
+                    id="facebookPixelId"
+                    value={analyticsData.facebookPixelId}
+                    onChange={(e) => setAnalyticsData({ ...analyticsData, facebookPixelId: e.target.value })}
+                    className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+              </div>
+              
+              <Button 
+                onClick={() => saveSettings('analytics', analyticsData)}
+                disabled={saving}
+                className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+              >
+                <Save className="w-4 h-4 ml-2" />
+                {saving ? 'جاري الحفظ...' : 'حفظ الإعدادات'}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Other tabs can be implemented similarly */}
-        {activeTab !== 'general' && activeTab !== 'financial' && activeTab !== 'orders' && (
+        {activeTab !== 'general' && activeTab !== 'financial' && activeTab !== 'orders' && activeTab !== 'products' && activeTab !== 'notifications' && activeTab !== 'security' && activeTab !== 'legal' && activeTab !== 'analytics' && activeTab !== 'shipping' && (
           <Card className="border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
             <CardHeader>
               <CardTitle className="flex items-center text-gray-900 dark:text-white">

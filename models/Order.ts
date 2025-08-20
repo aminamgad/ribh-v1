@@ -108,6 +108,20 @@ const orderSchema = new Schema<OrderDocument>({
     required: true,
     min: [0, 'المجموع الفرعي يجب أن يكون أكبر من أو يساوي صفر']
   },
+  shippingCost: {
+    type: Number,
+    required: true,
+    min: [0, 'تكلفة الشحن يجب أن تكون أكبر من أو تساوي صفر'],
+    default: 0
+  },
+  shippingMethod: {
+    type: String,
+    default: 'الشحن الأساسي'
+  },
+  shippingZone: {
+    type: String,
+    default: 'المملكة العربية السعودية'
+  },
   commission: {
     type: Number,
     required: true,

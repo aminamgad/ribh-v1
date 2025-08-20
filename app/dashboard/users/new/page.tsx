@@ -17,22 +17,68 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import CountrySelect from '@/components/ui/CountrySelect';
 
 const userSchema = z.object({
   name: z.string().min(2, 'الاسم يجب أن يكون حرفين على الأقل'),
   email: z.string().email('البريد الإلكتروني غير صحيح'),
-  phone: z.string().min(10, 'رقم الهاتف غير صحيح'),
+  phone: z.string().regex(/^[\+]?[0-9\s\-\(\)]{7,20}$/, 'رقم الهاتف غير صحيح'),
   password: z.string().min(6, 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'),
   confirmPassword: z.string(),
   role: z.enum(['admin', 'supplier', 'marketer', 'wholesaler']),
+  // Marketing account fields
+  country: z.string().optional(),
+  dateOfBirth: z.string().optional(),
+  gender: z.enum(['male', 'female']).optional().or(z.literal('')),
+  websiteLink: z.string().url('رابط الموقع غير صحيح').optional().or(z.literal('')),
+     // Supplier account fields
   companyName: z.string().optional(),
+   commercialRegisterNumber: z.string().optional(),
   address: z.string().optional(),
+   // Wholesaler account fields
+   wholesaleLicense: z.string().optional(),
+   businessType: z.string().optional(),
+   // Legacy field
   taxId: z.string().optional(),
   isActive: z.boolean(),
   isVerified: z.boolean()
 }).refine((data) => data.password === data.confirmPassword, {
   message: "كلمات المرور غير متطابقة",
   path: ["confirmPassword"],
+}).refine((data) => {
+  // Marketing account validation
+  if (data.role === 'marketer') {
+    if (!data.country) return false;
+    if (!data.dateOfBirth) return false;
+    if (!data.gender) return false;
+  }
+  return true;
+}, {
+  message: 'جميع الحقول مطلوبة لحساب المسوق',
+  path: ['role'],
+}).refine((data) => {
+  // Supplier account validation
+  if (data.role === 'supplier') {
+    if (!data.companyName) return false;
+    if (!data.commercialRegisterNumber) return false;
+    if (!data.address) return false;
+  }
+  return true;
+ }, {
+   message: 'جميع الحقول مطلوبة لحساب المورد',
+   path: ['role'],
+ }).refine((data) => {
+   // Wholesaler account validation
+   if (data.role === 'wholesaler') {
+     if (!data.companyName) return false;
+     if (!data.wholesaleLicense) return false;
+     if (!data.businessType) return false;
+     if (!data.address) return false;
+   }
+   return true;
+ }, {
+   message: 'جميع الحقول مطلوبة لحساب تاجر الجملة',
+   path: ['role'],
 });
 
 export default function CreateUserPage() {
@@ -45,6 +91,7 @@ export default function CreateUserPage() {
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors }
   } = useForm({
     resolver: zodResolver(userSchema),
@@ -54,9 +101,16 @@ export default function CreateUserPage() {
       phone: '',
       password: '',
       confirmPassword: '',
-      role: 'marketer' as const,
+      role: 'marketer' as 'marketer' | 'supplier' | 'wholesaler' | 'admin',
+      country: '',
+      dateOfBirth: '',
+      gender: '',
+      websiteLink: '',
       companyName: '',
+       commercialRegisterNumber: '',
       address: '',
+       wholesaleLicense: '',
+       businessType: '',
       taxId: '',
       isActive: true,
       isVerified: false
@@ -177,7 +231,7 @@ export default function CreateUserPage() {
                   type="tel"
                   {...register('phone')}
                   className="input-field"
-                  placeholder="05xxxxxxxx"
+                                      placeholder="أدخل رقم الهاتف"
                 />
                 {errors.phone && (
                   <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.phone.message}</p>
@@ -190,8 +244,8 @@ export default function CreateUserPage() {
                 </label>
                 <select {...register('role')} className="input-field">
                   <option value="marketer">المسوق</option>
+                   <option value="supplier">المورد</option>
                   <option value="wholesaler">تاجر الجملة</option>
-                  <option value="supplier">المورد</option>
                   <option value="admin">الإدارة</option>
                 </select>
                 {errors.role && (
@@ -231,14 +285,133 @@ export default function CreateUserPage() {
             </div>
           </div>
 
-          {/* Company Information */}
+          {/* Marketing Account Fields */}
+          {watchedValues.role === 'marketer' && (
+            <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-gray-200 dark:border-slate-700">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-6">معلومات المسوق</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                    دولة الجنسية *
+                  </label>
+                  <CountrySelect
+                    value={watch('country')}
+                    onChange={(value) => setValue('country', value)}
+                    placeholder="اختر دولة الجنسية"
+                    error={errors.country?.message}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                    تاريخ الميلاد *
+                  </label>
+                  <input
+                    type="date"
+                    {...register('dateOfBirth')}
+                    className="input-field"
+                  />
+                  {errors.dateOfBirth && (
+                    <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.dateOfBirth.message}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                    الجنس *
+                  </label>
+                  <select {...register('gender')} className="input-field">
+                    <option value="">اختر الجنس</option>
+                    <option value="male">ذكر</option>
+                    <option value="female">أنثى</option>
+                  </select>
+                  {errors.gender && (
+                    <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.gender.message}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                    رابط الموقع/الصفحة (اختياري)
+                  </label>
+                  <input
+                    type="url"
+                    {...register('websiteLink')}
+                    className="input-field"
+                    placeholder="https://example.com"
+                  />
+                  {errors.websiteLink && (
+                    <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.websiteLink.message}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Supplier Account Fields */}
+          {watchedValues.role === 'supplier' && (
+            <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-gray-200 dark:border-slate-700">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-6">معلومات المورد</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                    اسم الشركة *
+                  </label>
+                  <input
+                    type="text"
+                    {...register('companyName')}
+                    className="input-field"
+                    placeholder="اسم الشركة"
+                  />
+                  {errors.companyName && (
+                    <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.companyName.message}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                    رقم السجل التجاري *
+                  </label>
+                  <input
+                    type="text"
+                    {...register('commercialRegisterNumber')}
+                    className="input-field"
+                    placeholder="رقم السجل التجاري"
+                  />
+                  {errors.commercialRegisterNumber && (
+                    <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.commercialRegisterNumber.message}</p>
+                  )}
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                    العنوان *
+                  </label>
+                  <textarea
+                    {...register('address')}
+                    rows={3}
+                    className="input-field"
+                    placeholder="عنوان الشركة"
+                  />
+                  {errors.address && (
+                    <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.address.message}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+                     )}
+
+           {/* Wholesaler Account Fields */}
+           {watchedValues.role === 'wholesaler' && (
           <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-gray-200 dark:border-slate-700">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-6">معلومات الشركة</h2>
+               <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-6">معلومات تاجر الجملة</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                  اسم الشركة
+                     اسم الشركة *
                 </label>
                 <input
                   type="text"
@@ -246,23 +419,49 @@ export default function CreateUserPage() {
                   className="input-field"
                   placeholder="اسم الشركة"
                 />
+                   {errors.companyName && (
+                     <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.companyName.message}</p>
+                   )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                  الرقم الضريبي
+                     رخصة الجملة *
                 </label>
                 <input
                   type="text"
-                  {...register('taxId')}
+                     {...register('wholesaleLicense')}
                   className="input-field"
-                  placeholder="الرقم الضريبي"
-                />
+                     placeholder="رقم رخصة الجملة"
+                   />
+                   {errors.wholesaleLicense && (
+                     <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.wholesaleLicense.message}</p>
+                   )}
+                 </div>
+
+                 <div>
+                   <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                     نوع النشاط التجاري *
+                   </label>
+                   <select {...register('businessType')} className="input-field">
+                     <option value="">اختر نوع النشاط</option>
+                     <option value="electronics">الإلكترونيات</option>
+                     <option value="clothing">الملابس</option>
+                     <option value="food">الأغذية</option>
+                     <option value="furniture">الأثاث</option>
+                     <option value="automotive">السيارات</option>
+                     <option value="construction">البناء</option>
+                     <option value="healthcare">الرعاية الصحية</option>
+                     <option value="other">أخرى</option>
+                   </select>
+                   {errors.businessType && (
+                     <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.businessType.message}</p>
+                   )}
               </div>
 
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                  العنوان
+                     العنوان *
                 </label>
                 <textarea
                   {...register('address')}
@@ -270,9 +469,13 @@ export default function CreateUserPage() {
                   className="input-field"
                   placeholder="عنوان الشركة"
                 />
+                   {errors.address && (
+                     <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.address.message}</p>
+                   )}
               </div>
             </div>
           </div>
+           )}
 
           {/* Account Status */}
           <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-gray-200 dark:border-slate-700">
@@ -331,13 +534,13 @@ export default function CreateUserPage() {
                 <span className={`badge ${
                   (watchedValues.role as string) === 'admin' ? 'badge-danger' :
                   (watchedValues.role as string) === 'supplier' ? 'badge-blue' :
-                  (watchedValues.role as string) === 'marketer' ? 'badge-success' :
-                  'badge-purple'
+                   (watchedValues.role as string) === 'wholesaler' ? 'badge-purple' :
+                   'badge-success'
                 }`}>
                   {(watchedValues.role as string) === 'admin' ? 'الإدارة' :
                    (watchedValues.role as string) === 'supplier' ? 'المورد' :
-                   (watchedValues.role as string) === 'marketer' ? 'المسوق' :
-                   'تاجر الجملة'}
+                    (watchedValues.role as string) === 'wholesaler' ? 'تاجر الجملة' :
+                    'المسوق'}
                 </span>
               </div>
             </div>

@@ -26,7 +26,16 @@ async function getProduct(req: NextRequest, user: any, { params }: RouteParams) 
       );
     }
 
-    // Role-based access control
+    // Role-based access control - Only suppliers are restricted to their own products
+    console.log('🔍 Access control check:', {
+      userRole: user.role,
+      userId: user._id.toString(),
+      productSupplierId: product.supplierId._id.toString(),
+      isSupplier: user.role === 'supplier',
+      isOwnProduct: product.supplierId._id.toString() === user._id.toString(),
+      shouldBlock: user.role === 'supplier' && product.supplierId._id.toString() !== user._id.toString()
+    });
+    
     if (user.role === 'supplier' && product.supplierId._id.toString() !== user._id.toString()) {
       return NextResponse.json(
         { success: false, message: 'غير مصرح لك بالوصول لهذا المنتج' },
@@ -46,12 +55,12 @@ async function getProduct(req: NextRequest, user: any, { params }: RouteParams) 
     const transformedProduct = {
       _id: product._id,
       name: product.name,
-      nameEn: product.nameEn,
       description: product.description,
       images: product.images,
       marketerPrice: product.marketerPrice,
-      wholesalePrice: product.wholesalePrice,
-      costPrice: product.costPrice,
+      wholesalerPrice: product.wholesalerPrice,
+      minimumSellingPrice: product.minimumSellingPrice,
+      isMinimumPriceMandatory: product.isMinimumPriceMandatory,
       stockQuantity: product.stockQuantity,
       isActive: product.isActive,
       isApproved: product.isApproved,
@@ -64,6 +73,7 @@ async function getProduct(req: NextRequest, user: any, { params }: RouteParams) 
       rejectedBy: product.rejectedBy,
       isFulfilled: product.isFulfilled,
       categoryName: product.categoryId?.name,
+      supplierId: product.supplierId,
       supplierName: product.supplierId?.name || product.supplierId?.companyName,
       sku: product.sku,
       weight: product.weight,
@@ -122,8 +132,8 @@ async function updateProduct(req: NextRequest, user: any, { params }: RouteParam
 
     // Update allowed fields
     const allowedUpdates = [
-      'name', 'nameEn', 'description', 'images', 'categoryId',
-      'marketerPrice', 'wholesalePrice', 'costPrice', 'stockQuantity',
+      'name', 'description', 'images', 'categoryId',
+      'marketerPrice', 'wholesalerPrice', 'minimumSellingPrice', 'isMinimumPriceMandatory', 'stockQuantity',
       'isActive', 'tags', 'specifications', 'sku', 'weight', 'dimensions'
     ];
     
@@ -142,7 +152,12 @@ async function updateProduct(req: NextRequest, user: any, { params }: RouteParam
     // Only update allowed fields
     for (const field of allowedUpdates) {
       if (body[field] !== undefined) {
-        updateData[field] = body[field];
+        // Handle categoryId specially - convert empty string to null
+        if (field === 'categoryId') {
+          updateData[field] = body[field] === '' ? null : body[field];
+        } else {
+          updateData[field] = body[field];
+        }
       }
     }
 

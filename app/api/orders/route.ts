@@ -14,13 +14,26 @@ const orderItemSchema = z.object({
   marketerProfit: z.number().optional()
 });
 
+const shippingAddressSchema = z.object({
+  fullName: z.string().min(1, 'الاسم الكامل مطلوب'),
+  phone: z.string().min(1, 'رقم الهاتف مطلوب'),
+  street: z.string().min(1, 'عنوان الشارع مطلوب'),
+  city: z.string().min(1, 'المدينة مطلوبة'),
+  governorate: z.string().min(1, 'المحافظة مطلوبة'),
+  postalCode: z.string().optional(),
+  notes: z.string().optional()
+});
+
 const orderSchema = z.object({
   customerName: z.string().min(1, 'اسم العميل مطلوب'),
   customerPhone: z.string().min(1, 'رقم الهاتف مطلوب'),
-  customerAddress: z.string().min(10, 'العنوان يجب أن يكون 10 أحرف على الأقل'),
+  shippingAddress: shippingAddressSchema,
   items: z.array(orderItemSchema).min(1, 'يجب إضافة منتج واحد على الأقل'),
   notes: z.string().optional(),
-  marketerProfit: z.number().optional()
+  shippingCost: z.number().min(0, 'تكلفة الشحن يجب أن تكون أكبر من أو تساوي صفر'),
+  shippingMethod: z.string().optional(),
+  shippingZone: z.string().optional(),
+  orderTotal: z.number().min(0, 'المجموع الكلي يجب أن يكون أكبر من أو يساوي صفر')
 });
 
 // POST /api/orders - Create new order
@@ -33,6 +46,9 @@ export const POST = withRole(['marketer', 'supplier', 'admin'])(async (req: Next
     
     // Validate order data
     const orderData = orderSchema.parse(body);
+    
+    // Get system settings for shipping calculation
+    const systemSettings = await settingsManager.getSettings();
     
     // Calculate order total
     let subtotal = 0;
@@ -50,14 +66,14 @@ export const POST = withRole(['marketer', 'supplier', 'admin'])(async (req: Next
       }
       if (!supplierId) supplierId = product.supplierId;
       
-      const fallbackPrice = (product as any).marketerPrice ?? (product as any).wholesalePrice ?? (product as any).costPrice ?? 0;
+      const fallbackPrice = (product as any).marketerPrice ?? (product as any).wholesalerPrice ?? 0;
       const unitPrice = item.customPrice !== undefined ? item.customPrice : fallbackPrice;
       const totalPrice = unitPrice * item.quantity;
       subtotal += totalPrice;
 
-      // marketer profit based on custom selling price minus product cost
-      const costPrice = (product as any).costPrice ?? 0;
-      const itemMarketerProfit = Math.max(unitPrice - costPrice, 0) * item.quantity;
+      // marketer profit based on custom selling price minus base price (marketerPrice)
+      const basePrice = (product as any).marketerPrice ?? 0;
+      const itemMarketerProfit = Math.max(unitPrice - basePrice, 0) * item.quantity;
       marketerProfitTotal += itemMarketerProfit;
 
       // decide price type
@@ -82,9 +98,21 @@ export const POST = withRole(['marketer', 'supplier', 'admin'])(async (req: Next
       );
     }
     
-    // Calculate shipping cost based on settings
-    const shippingCost = await settingsManager.calculateShipping(subtotal);
-    const total = subtotal + shippingCost;
+    // Calculate shipping cost using the simplified governorate-based system
+    const getShippingCost = (governorateName: string) => {
+      if (!systemSettings?.governorates || systemSettings.governorates.length === 0) {
+        return systemSettings?.defaultShippingCost || 0;
+      }
+      const governorate = systemSettings.governorates.find((g: any) => g.name === governorateName && g.isActive);
+      return governorate ? governorate.shippingCost : (systemSettings.defaultShippingCost || 0);
+    };
+
+    const shippingCost = getShippingCost(orderData.shippingAddress.governorate);
+    const finalShippingCost = subtotal >= (systemSettings?.defaultFreeShippingThreshold || 0) ? 0 : shippingCost;
+    const finalShippingMethod = 'الشحن الأساسي';
+    const finalShippingZone = orderData.shippingAddress.governorate;
+    
+    const total = subtotal + finalShippingCost;
     
     // Calculate commission based on settings
     const commission = await settingsManager.calculateCommission(total);
@@ -96,45 +124,45 @@ export const POST = withRole(['marketer', 'supplier', 'admin'])(async (req: Next
       supplierId,
       items: orderItems,
       subtotal,
+      shippingCost: finalShippingCost,
+      shippingMethod: finalShippingMethod,
+      shippingZone: finalShippingZone,
       commission,
       total,
-      marketerProfit: user.role === 'marketer' ? marketerProfitTotal : 0,
-      status: 'pending',
-      shippingAddress: {
-        fullName: orderData.customerName,
-        phone: orderData.customerPhone,
-        street: orderData.customerAddress,
-        city: 'غير محدد',
-        governorate: 'غير محدد'
-      },
+      marketerProfit: marketerProfitTotal,
+      shippingAddress: orderData.shippingAddress,
       deliveryNotes: orderData.notes
     });
     
-    console.log('✅ تم إنشاء الطلب بنجاح:', { 
-      orderId: order._id, 
-      total: total,
-      shipping: shippingCost, 
-      commission: commission 
-    });
+    // Update product stock quantities
+    for (const item of orderItems) {
+      await Product.findByIdAndUpdate(item.productId, {
+        $inc: { stockQuantity: -item.quantity }
+      });
+    }
+    
+    console.log('✅ تم إنشاء الطلب بنجاح:', { orderId: order._id, total });
     
     return NextResponse.json({
       success: true,
       message: 'تم إنشاء الطلب بنجاح',
-      order: order
-    });
+      order: {
+        _id: order._id,
+        orderNumber: order.orderNumber,
+        total: order.total,
+        status: order.status
+      }
+    }, { status: 201 });
     
   } catch (error) {
-    console.error('❌ خطأ في إنشاء الطلب:', error);
-    
-    if (error instanceof Error && error.name === 'ZodError') {
-      const zodError = error as any;
-      const messages = zodError.errors.map((err: any) => err.message);
+    if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { success: false, message: 'بيانات الطلب غير صحيحة', errors: messages },
+        { success: false, message: error.errors[0].message },
         { status: 400 }
       );
     }
     
+    console.error('❌ خطأ في إنشاء الطلب:', error);
     return NextResponse.json(
       { success: false, message: 'حدث خطأ في إنشاء الطلب' },
       { status: 500 }

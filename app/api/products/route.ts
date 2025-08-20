@@ -30,14 +30,15 @@ async function getProductSchema() {
   
   return z.object({
     name: z.string().min(3, 'اسم المنتج يجب أن يكون 3 أحرف على الأقل'),
-    nameEn: z.string().optional(),
     description: z.string()
-      .min(10, 'وصف المنتج يجب أن يكون 10 أحرف على الأقل')
-      .max(maxProductDescription, `وصف المنتج لا يمكن أن يتجاوز ${maxProductDescription} حرف`),
-    categoryId: z.string().min(1, 'يجب اختيار فئة'),
+      .optional()
+      .refine((val) => !val || val.length >= 10, 'وصف المنتج يجب أن يكون 10 أحرف على الأقل')
+      .refine((val) => !val || val.length <= maxProductDescription, `وصف المنتج لا يمكن أن يتجاوز ${maxProductDescription} حرف`),
+    categoryId: z.string().optional().nullable(),
     marketerPrice: z.number().min(0.01, 'سعر المسوق يجب أن يكون أكبر من 0'),
-    wholesalePrice: z.number().min(0.01, 'سعر الجملة يجب أن يكون أكبر من 0'),
-    costPrice: z.number().min(0.01, 'سعر التكلفة يجب أن يكون أكبر من 0'),
+    wholesalerPrice: z.number().min(0.01, 'سعر الجملة يجب أن يكون أكبر من 0'),
+    minimumSellingPrice: z.number().min(0.01, 'السعر الأدنى للبيع يجب أن يكون أكبر من 0').optional(),
+    isMinimumPriceMandatory: z.boolean().default(false),
     stockQuantity: z.number().min(0, 'الكمية يجب أن تكون 0 أو أكثر'),
     images: requireProductImages 
       ? z.array(z.string()).min(1, 'يجب إضافة صورة واحدة على الأقل').max(maxProductImages, `لا يمكن إضافة أكثر من ${maxProductImages} صور`)
@@ -59,6 +60,10 @@ async function getProducts(req: NextRequest, user: any) {
   try {
     await connectDB();
     
+    // Test database connection and get product count
+    const totalProductCount = await Product.countDocuments({});
+    console.log('📊 Total products in database:', totalProductCount);
+    
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
@@ -78,11 +83,13 @@ async function getProducts(req: NextRequest, user: any) {
       query.categoryId = category;
     }
     
+    // Build search conditions
+    let searchConditions = [];
     if (search) {
-      query.$or = [
+      searchConditions.push(
         { name: { $regex: search, $options: 'i' } },
         { description: { $regex: search, $options: 'i' } }
-      ];
+      );
     }
     
     if (status === 'approved') {
@@ -99,14 +106,29 @@ async function getProducts(req: NextRequest, user: any) {
     if (user.role === 'marketer' || user.role === 'wholesaler') {
       query.isApproved = true;
       // نسمح بالمنتجات التي لم يتم رفضها أو isRejected = false أو undefined
-      query.$or = [
+      searchConditions.push(
         { isRejected: false },
         { isRejected: { $exists: false } }
-      ];
+      );
       // لا نضيف فلتر isActive هنا - نترك المسوق يرى جميع المنتجات المعتمدة
       // query.isActive = true;
       // لا نضيف فلتر المخزون هنا - نترك المسوق يرى جميع المنتجات المعتمدة
       // query.stockQuantity = { $gt: 0 };
+    }
+    
+    // Combine search conditions with main query
+    if (searchConditions.length > 0) {
+      query.$or = searchConditions;
+    }
+    
+    console.log('🔍 Final query:', JSON.stringify(query, null, 2));
+    console.log('👤 User role:', user.role);
+    console.log('👤 User ID:', user._id);
+    
+    // Test: Check if user's products exist
+    if (user.role === 'supplier') {
+      const userProductCount = await Product.countDocuments({ supplierId: user._id });
+      console.log('📊 User products count:', userProductCount);
     }
     
     const skip = (page - 1) * limit;
@@ -125,12 +147,10 @@ async function getProducts(req: NextRequest, user: any) {
     const transformedProducts = products.map(product => ({
       _id: product._id,
       name: product.name,
-      nameEn: product.nameEn,
       description: product.description,
       images: product.images,
       marketerPrice: product.marketerPrice,
-      wholesalePrice: product.wholesalePrice,
-      costPrice: product.costPrice,
+      wholesalerPrice: product.wholesalerPrice,
       stockQuantity: product.stockQuantity,
       isActive: product.isActive,
       isApproved: product.isApproved,
@@ -200,12 +220,12 @@ async function createProduct(req: NextRequest, user: any) {
     // Clean and prepare data
     const cleanData = {
       name: body.name?.trim(),
-      nameEn: body.nameEn?.trim() || '',
-      description: body.description?.trim(),
-      categoryId: body.categoryId,
+      description: body.description?.trim() || '',
+      categoryId: body.categoryId && body.categoryId !== '' ? body.categoryId : null,
       marketerPrice: parseFloat(body.marketerPrice) || 0,
-      wholesalePrice: parseFloat(body.wholesalePrice) || 0,
-      costPrice: parseFloat(body.costPrice) || 0,
+      wholesalerPrice: parseFloat(body.wholesalerPrice) || 0,
+      minimumSellingPrice: body.minimumSellingPrice && body.minimumSellingPrice > 0 ? parseFloat(body.minimumSellingPrice) : null,
+      isMinimumPriceMandatory: body.isMinimumPriceMandatory || false,
       stockQuantity: parseInt(body.stockQuantity) || 0,
       images: Array.isArray(body.images) ? body.images : [],
       sku: body.sku?.trim() || '',
@@ -223,26 +243,28 @@ async function createProduct(req: NextRequest, user: any) {
     const productSchema = await getProductSchema();
     const validatedData = productSchema.parse(cleanData);
     
-    // Check if category exists
-    const category = await Category.findById(validatedData.categoryId);
-    if (!category) {
-      return NextResponse.json(
-        { success: false, message: 'الفئة غير موجودة' },
-        { status: 400 }
-      );
+    // Check if category exists (only if categoryId is provided)
+    if (validatedData.categoryId) {
+      const category = await Category.findById(validatedData.categoryId);
+      if (!category) {
+        return NextResponse.json(
+          { success: false, message: 'الفئة غير موجودة' },
+          { status: 400 }
+        );
+      }
     }
     
     // Validate pricing logic
-    if (validatedData.marketerPrice <= validatedData.costPrice) {
+    if (validatedData.wholesalerPrice >= validatedData.marketerPrice) {
       return NextResponse.json(
-        { success: false, message: 'سعر المسوق يجب أن يكون أكبر من سعر التكلفة' },
+        { success: false, message: 'سعر المسوق يجب أن يكون أكبر من سعر الجملة' },
         { status: 400 }
       );
     }
     
-    if (validatedData.wholesalePrice <= validatedData.costPrice) {
+    if (validatedData.minimumSellingPrice && validatedData.marketerPrice >= validatedData.minimumSellingPrice) {
       return NextResponse.json(
-        { success: false, message: 'سعر الجملة يجب أن يكون أكبر من سعر التكلفة' },
+        { success: false, message: 'السعر الأدنى للبيع يجب أن يكون أكبر من سعر المسوق' },
         { status: 400 }
       );
     }
@@ -250,13 +272,13 @@ async function createProduct(req: NextRequest, user: any) {
     // Create product data
     const productData = {
       name: validatedData.name,
-      nameEn: validatedData.nameEn || '',
       description: validatedData.description,
       categoryId: validatedData.categoryId,
       supplierId: user.role === 'supplier' ? user._id : (body.supplierId || user._id), // Admin can create for themselves or specify supplier
       marketerPrice: validatedData.marketerPrice,
-      wholesalePrice: validatedData.wholesalePrice,
-      costPrice: validatedData.costPrice,
+      wholesalerPrice: validatedData.wholesalerPrice,
+      minimumSellingPrice: validatedData.minimumSellingPrice,
+      isMinimumPriceMandatory: validatedData.isMinimumPriceMandatory,
       stockQuantity: validatedData.stockQuantity,
       images: validatedData.images,
       sku: validatedData.sku || '',
@@ -278,6 +300,14 @@ async function createProduct(req: NextRequest, user: any) {
     
     const product = await Product.create(productData);
     
+    console.log('✅ Product created successfully:', {
+      id: product._id,
+      name: product.name,
+      supplierId: product.supplierId,
+      isApproved: product.isApproved,
+      isActive: product.isActive
+    });
+    
     // Populate category and supplier info
     await product.populate('categoryId', 'name');
     await product.populate('supplierId', 'name companyName');
@@ -297,7 +327,7 @@ async function createProduct(req: NextRequest, user: any) {
             title: 'منتج جديد للمراجعة',
             message: `تم إضافة منتج جديد "${product.name}" من قبل ${user.name}`,
             type: 'info',
-            actionUrl: '/dashboard/products',
+            actionUrl: `/dashboard/products/${product._id}`,
             metadata: { 
               productId: product._id,
               supplierId: user._id,
@@ -320,12 +350,10 @@ async function createProduct(req: NextRequest, user: any) {
       product: {
         _id: product._id,
         name: product.name,
-        nameEn: product.nameEn,
         description: product.description,
         images: product.images,
         marketerPrice: product.marketerPrice,
-        wholesalePrice: product.wholesalePrice,
-        costPrice: product.costPrice,
+        wholesalerPrice: product.wholesalerPrice,
         stockQuantity: product.stockQuantity,
         isActive: product.isActive,
         isApproved: product.isApproved,

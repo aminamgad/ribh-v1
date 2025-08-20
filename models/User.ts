@@ -25,7 +25,7 @@ const userSchema = new Schema<UserDocument>({
     type: String,
     required: [true, 'رقم الهاتف مطلوب'],
     trim: true,
-    match: [/^(\+20|0)?1[0125][0-9]{8}$/, 'رقم الهاتف غير صحيح']
+    match: [/^[\+]?[0-9\s\-\(\)]{7,20}$/, 'رقم الهاتف غير صحيح']
   },
   password: {
     type: String,
@@ -50,16 +50,53 @@ const userSchema = new Schema<UserDocument>({
     type: String,
     default: null
   },
+  // Marketing account fields
+  country: {
+    type: String,
+    trim: true,
+    maxlength: [100, 'اسم الدولة لا يمكن أن يتجاوز 100 حرف']
+  },
+  dateOfBirth: {
+    type: Date
+  },
+  gender: {
+    type: String,
+    enum: ['male', 'female'],
+    trim: true
+  },
+  websiteLink: {
+    type: String,
+    trim: true,
+    maxlength: [500, 'رابط الموقع لا يمكن أن يتجاوز 500 حرف']
+  },
+  // Supplier account fields
   companyName: {
     type: String,
     trim: true,
     maxlength: [200, 'اسم الشركة لا يمكن أن يتجاوز 200 حرف']
+  },
+  commercialRegisterNumber: {
+    type: String,
+    trim: true,
+    maxlength: [50, 'رقم السجل التجاري لا يمكن أن يتجاوز 50 حرف']
   },
   address: {
     type: String,
     trim: true,
     maxlength: [500, 'العنوان لا يمكن أن يتجاوز 500 حرف']
   },
+  // Wholesaler account fields
+  wholesaleLicense: {
+    type: String,
+    trim: true,
+    maxlength: [50, 'رقم رخصة الجملة لا يمكن أن يتجاوز 50 حرف']
+  },
+  businessType: {
+    type: String,
+    enum: ['electronics', 'clothing', 'food', 'furniture', 'automotive', 'construction', 'healthcare', 'other'],
+    trim: true
+  },
+  // Legacy field (keeping for backward compatibility)
   taxId: {
     type: String,
     trim: true,

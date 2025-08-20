@@ -3,8 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { Package, Clock, CheckCircle, XCircle, Calendar, MapPin, User, AlertCircle } from 'lucide-react';
+import MediaThumbnail from '@/components/ui/MediaThumbnail';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
+import ConfirmationModal from '@/components/ui/ConfirmationModal';
 
 interface FulfillmentRequest {
   _id: string;
@@ -58,6 +60,8 @@ export default function FulfillmentDetailPage({ params }: { params: { id: string
   const [request, setRequest] = useState<FulfillmentRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const [showApproveConfirm, setShowApproveConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     fetchFulfillmentRequest();
@@ -65,24 +69,48 @@ export default function FulfillmentDetailPage({ params }: { params: { id: string
 
   const fetchFulfillmentRequest = async () => {
     try {
+      console.log('Fetching fulfillment request with ID:', params.id);
       const response = await fetch(`/api/fulfillment/${params.id}`);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('Fulfillment request data:', data);
         setRequest(data.request);
       } else {
-        toast.error('طلب التخزين غير موجود');
-        router.push('/dashboard/fulfillment');
+        const errorData = await response.json();
+        console.error('API Error:', errorData);
+        
+        if (response.status === 404) {
+          toast.error(errorData.message || 'طلب التخزين غير موجود');
+        } else if (response.status === 403) {
+          toast.error(errorData.message || 'غير مصرح لك بالوصول لهذا الطلب');
+        } else {
+          toast.error(errorData.message || 'حدث خطأ أثناء جلب تفاصيل طلب التخزين');
+        }
+        
+        // Navigate back to the list page
+        setTimeout(() => {
+          router.push('/dashboard/fulfillment');
+        }, 2000);
       }
     } catch (error) {
+      console.error('Fetch error:', error);
       toast.error('حدث خطأ أثناء جلب تفاصيل طلب التخزين');
+      
+      // Navigate back to the list page
+      setTimeout(() => {
+        router.push('/dashboard/fulfillment');
+      }, 2000);
     } finally {
       setLoading(false);
     }
   };
 
   const handleApprove = async () => {
-    if (!confirm('هل أنت متأكد من الموافقة على هذا الطلب؟')) return;
+    setShowApproveConfirm(true);
+  };
 
+  const confirmApprove = async () => {
     setUpdating(true);
     try {
       const response = await fetch(`/api/fulfillment/${params.id}`, {
@@ -97,7 +125,8 @@ export default function FulfillmentDetailPage({ params }: { params: { id: string
       });
 
       if (response.ok) {
-        toast.success('تم الموافقة على الطلب بنجاح');
+        const data = await response.json();
+        toast.success(data.message || 'تم الموافقة على الطلب بنجاح وتم تحديث المخزون تلقائياً');
         fetchFulfillmentRequest();
       } else {
         const error = await response.json();
@@ -107,6 +136,7 @@ export default function FulfillmentDetailPage({ params }: { params: { id: string
       toast.error('حدث خطأ أثناء الموافقة على الطلب');
     } finally {
       setUpdating(false);
+      setShowApproveConfirm(false);
     }
   };
 
@@ -128,7 +158,8 @@ export default function FulfillmentDetailPage({ params }: { params: { id: string
       });
 
       if (response.ok) {
-        toast.success('تم رفض الطلب بنجاح');
+        const data = await response.json();
+        toast.success(data.message || 'تم رفض الطلب بنجاح');
         fetchFulfillmentRequest();
       } else {
         const error = await response.json();
@@ -142,8 +173,10 @@ export default function FulfillmentDetailPage({ params }: { params: { id: string
   };
 
   const handleDelete = async () => {
-    if (!confirm('هل أنت متأكد من حذف هذا الطلب؟')) return;
+    setShowDeleteConfirm(true);
+  };
 
+  const confirmDelete = async () => {
     setUpdating(true);
     try {
       const response = await fetch(`/api/fulfillment/${params.id}`, {
@@ -161,6 +194,7 @@ export default function FulfillmentDetailPage({ params }: { params: { id: string
       toast.error('حدث خطأ أثناء حذف الطلب');
     } finally {
       setUpdating(false);
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -224,13 +258,15 @@ export default function FulfillmentDetailPage({ params }: { params: { id: string
                 {request.products.map((product, index) => (
                   <div key={index} className="border rounded-lg p-4">
                     <div className="flex items-start space-x-4">
-                      {product.productImages && product.productImages.length > 0 && (
-                        <img
-                          src={product.productImages[0]}
+                      <div className="w-20 h-20 rounded-md overflow-hidden flex-shrink-0">
+                        <MediaThumbnail
+                          media={product.productImages || []}
                           alt={product.productName}
-                          className="w-20 h-20 object-cover rounded-md"
+                          className="w-full h-full"
+                          showTypeBadge={false}
+                          fallbackIcon={<Package className="w-10 h-10 text-gray-400" />}
                         />
-                      )}
+                      </div>
                       <div className="flex-1">
                         <h4 className="font-medium text-gray-900 dark:text-slate-100 mb-2">
                           {product.productName}
@@ -467,6 +503,31 @@ export default function FulfillmentDetailPage({ params }: { params: { id: string
           )}
         </div>
       </div>
+
+      {/* Confirmation Modals */}
+      <ConfirmationModal
+        isOpen={showApproveConfirm}
+        onClose={() => setShowApproveConfirm(false)}
+        onConfirm={confirmApprove}
+        title="موافقة على الطلب"
+        message="هل أنت متأكد من الموافقة على هذا الطلب؟"
+        confirmText="موافقة"
+        cancelText="إلغاء"
+        type="success"
+        loading={updating}
+      />
+
+      <ConfirmationModal
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={confirmDelete}
+        title="حذف الطلب"
+        message="هل أنت متأكد من حذف هذا الطلب؟"
+        confirmText="حذف"
+        cancelText="إلغاء"
+        type="danger"
+        loading={updating}
+      />
     </div>
   );
 } 

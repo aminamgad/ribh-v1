@@ -121,22 +121,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         }
         
         // Get the appropriate price based on user role
-        // Default to marketer price, fallback to wholesale price, then cost price
         let price = product.marketerPrice;
         console.log('Product prices:', {
           name: product.name,
           marketerPrice: product.marketerPrice,
-          wholesalePrice: product.wholesalePrice,
-          costPrice: product.costPrice
+          wholesalerPrice: product.wholesalerPrice
         });
         
         if (price === undefined || price === null || isNaN(price) || price <= 0) {
-          price = product.wholesalePrice;
-          console.log('Using wholesale price:', price);
-        }
-        if (price === undefined || price === null || isNaN(price) || price <= 0) {
-          price = product.costPrice;
-          console.log('Using cost price:', price);
+          price = product.wholesalerPrice;
+          console.log('Using wholesaler price:', price);
         }
         if (price === undefined || price === null || isNaN(price) || price <= 0) {
           price = 0;
@@ -145,15 +139,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         
         console.log('Final price for product:', product.name, 'Price:', price);
         
-        // Ensure we have all required product data with fallbacks
-        const cartProduct = {
-          _id: product._id,
-          name: product.name || 'منتج بدون اسم',
-          description: product.description || '',
-          images: product.images || [],
-          marketerPrice: product.marketerPrice || 0,
-          wholesalePrice: product.wholesalePrice || 0,
-          costPrice: product.costPrice || 0,
+                 // Ensure we have all required product data with fallbacks
+         const cartProduct = {
+           _id: product._id,
+           name: product.name || 'منتج بدون اسم',
+           description: product.description || '',
+           images: product.images || [],
+           marketerPrice: product.marketerPrice || 0,
+           wholesalerPrice: product.wholesalerPrice || 0,
+           minimumSellingPrice: product.minimumSellingPrice || null,
+           isMinimumPriceMandatory: product.isMinimumPriceMandatory || false,
           stockQuantity: product.stockQuantity || 0,
           supplierId: product.supplierId || '',
           categoryId: product.categoryId || '',

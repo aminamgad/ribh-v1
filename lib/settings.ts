@@ -38,8 +38,18 @@ export async function getSystemSettings() {
         contactPhone: '+966500000000',
         minimumOrderValue: 50,
         maximumOrderValue: 100000,
-        shippingCost: 20,
-        freeShippingThreshold: 500,
+        // Updated shipping structure
+        shippingEnabled: true,
+        defaultShippingCost: 50,
+        defaultFreeShippingThreshold: 500,
+        governorates: [
+          {
+            name: 'المملكة العربية السعودية',
+            cities: ['الرياض', 'جدة', 'مكة المكرمة', 'الدمام', 'الجبيل', 'الخبر', 'القطيف', 'الطائف', 'المدينة المنورة', 'الباحة', 'الحدود الشمالية', 'الحدود الجنوبية', 'المنطقة الشرقية', 'المنطقة الغربية'],
+            shippingCost: 50,
+            isActive: true
+          }
+        ],
         maxProductImages: 10,
         maxProductDescriptionLength: 1000,
         autoApproveProducts: false,
@@ -96,15 +106,25 @@ export async function validateOrderValue(orderTotal: number) {
   return { valid: true };
 }
 
-export async function calculateShippingCost(orderTotal: number) {
+export async function calculateShippingCost(orderTotal: number, governorateName?: string) {
   const settings = await getSystemSettings();
   if (!settings) return 0;
   
-  if (orderTotal >= settings.freeShippingThreshold) {
+  // Check for free shipping threshold
+  if (orderTotal >= settings.defaultFreeShippingThreshold) {
     return 0; // Free shipping
   }
   
-  return settings.shippingCost;
+  // If governorate is specified, get shipping cost for that governorate
+  if (governorateName && settings.governorates) {
+    const governorate = settings.governorates.find((g: any) => g.name === governorateName && g.isActive);
+    if (governorate) {
+      return governorate.shippingCost;
+    }
+  }
+  
+  // Fallback to default shipping cost
+  return settings.defaultShippingCost;
 }
 
 export async function calculateCommission(orderTotal: number) {

@@ -12,24 +12,35 @@ async function getAnalytics(req: NextRequest, user: any) {
     
     const { searchParams } = new URL(req.url);
     const range = searchParams.get('range') || 'month';
+    const customStartDate = searchParams.get('startDate');
+    const customEndDate = searchParams.get('endDate');
     
     // Calculate date range
-    const endDate = new Date();
-    const startDate = new Date();
+    let endDate = new Date();
+    let startDate = new Date();
     
-    switch (range) {
-      case 'week':
-        startDate.setDate(endDate.getDate() - 7);
-        break;
-      case 'month':
-        startDate.setMonth(endDate.getMonth() - 1);
-        break;
-      case 'quarter':
-        startDate.setMonth(endDate.getMonth() - 3);
-        break;
-      case 'year':
-        startDate.setFullYear(endDate.getFullYear() - 1);
-        break;
+    if (customStartDate && customEndDate) {
+      // Use custom date range
+      startDate = new Date(customStartDate);
+      endDate = new Date(customEndDate);
+      // Set end date to end of day
+      endDate.setHours(23, 59, 59, 999);
+    } else {
+      // Use predefined ranges
+      switch (range) {
+        case 'week':
+          startDate.setDate(endDate.getDate() - 7);
+          break;
+        case 'month':
+          startDate.setMonth(endDate.getMonth() - 1);
+          break;
+        case 'quarter':
+          startDate.setMonth(endDate.getMonth() - 3);
+          break;
+        case 'year':
+          startDate.setFullYear(endDate.getFullYear() - 1);
+          break;
+      }
     }
     
     // Role-based data filtering

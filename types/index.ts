@@ -9,8 +9,19 @@ export interface User {
   isActive: boolean;
   isVerified: boolean;
   avatar?: string;
+  // Marketing account fields
+  country?: string;
+  dateOfBirth?: Date;
+  gender?: 'male' | 'female';
+  websiteLink?: string;
+  // Supplier account fields
   companyName?: string;
+  commercialRegisterNumber?: string;
   address?: string;
+  // Wholesaler account fields
+  wholesaleLicense?: string;
+  businessType?: 'electronics' | 'clothing' | 'food' | 'furniture' | 'automotive' | 'construction' | 'healthcare' | 'other';
+  // Legacy field
   taxId?: string;
   settings?: {
     // Notification settings
@@ -76,14 +87,14 @@ export interface Category {
 export interface Product {
   _id: string;
   name: string;
-  nameEn?: string;
-  description: string;
+  description?: string;
   images: string[];
-  categoryId: string;
+  categoryId?: string;
   supplierId: string;
   marketerPrice: number;
-  wholesalePrice: number;
-  costPrice: number;
+  wholesalerPrice: number;
+  minimumSellingPrice?: number;
+  isMinimumPriceMandatory?: boolean;
   stockQuantity: number;
   isActive: boolean;
   isApproved: boolean;
@@ -124,6 +135,9 @@ export interface Order {
   supplierId: string;
   items: OrderItem[];
   subtotal: number;
+  shippingCost: number;
+  shippingMethod: string;
+  shippingZone: string;
   commission: number;
   total: number;
   status: OrderStatus;
@@ -274,19 +288,30 @@ export interface RegisterForm {
   password: string;
   confirmPassword: string;
   role: UserRole;
+  // Marketing account fields
+  country?: string;
+  dateOfBirth?: string;
+  gender?: 'male' | 'female';
+  websiteLink?: string;
+  // Supplier account fields
   companyName?: string;
+  commercialRegisterNumber?: string;
   address?: string;
+  // Wholesaler account fields
+  wholesaleLicense?: string;
+  businessType?: 'electronics' | 'clothing' | 'food' | 'furniture' | 'automotive' | 'construction' | 'healthcare' | 'other';
+  // Legacy field
   taxId?: string;
 }
 
 export interface ProductForm {
   name: string;
-  nameEn?: string;
-  description: string;
-  categoryId: string;
+  description?: string;
+  categoryId?: string;
   marketerPrice: number;
-  wholesalePrice: number;
-  costPrice: number;
+  wholesalerPrice: number;
+  minimumSellingPrice?: number;
+  isMinimumPriceMandatory?: boolean;
   stockQuantity: number;
   images: File[];
   tags: string[];

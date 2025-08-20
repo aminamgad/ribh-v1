@@ -4,8 +4,8 @@ import connectDB from '@/lib/database';
 import Order from '@/models/Order';
 import Product from '@/models/Product';
 import User from '@/models/User';
-import Category from '@/models/Category';
 import Favorite from '@/models/Favorite';
+import Message from '@/models/Message';
 
 async function handler(req: NextRequest, user: any) {
   try {
@@ -36,6 +36,8 @@ async function handler(req: NextRequest, user: any) {
           totalUsers,
           currentMonthUsers,
           previousMonthUsers,
+          totalMessages,
+          pendingMessages,
           recentOrders,
           topProducts
         ] = await Promise.all([
@@ -77,6 +79,8 @@ async function handler(req: NextRequest, user: any) {
             isActive: true,
             createdAt: { $gte: previousMonthStart, $lte: previousMonthEnd }
           }),
+          Message.countDocuments(),
+          Message.countDocuments({ isApproved: { $ne: true } }),
           Order.find()
             .populate('customerId', 'name')
             .populate('supplierId', 'name')
@@ -104,6 +108,8 @@ async function handler(req: NextRequest, user: any) {
           totalRevenue: totalRevenue[0]?.total || 0,
           totalProducts,
           totalUsers,
+          totalMessages,
+          pendingMessages,
           ordersPercentage,
           revenuePercentage,
           productsPercentage,
@@ -125,7 +131,8 @@ async function handler(req: NextRequest, user: any) {
             sales: product.sales || 0,
             rating: product.rating?.average || 0,
             marketerPrice: product.marketerPrice,
-            wholesalePrice: product.wholesalePrice
+            wholesalerPrice: product.wholesalerPrice,
+            images: product.images || []
           }))
         };
         break;
@@ -222,9 +229,10 @@ async function handler(req: NextRequest, user: any) {
             categoryName: 'غير محدد',
             stockQuantity: product.stockQuantity,
             marketerPrice: product.marketerPrice,
-            wholesalePrice: product.wholesalePrice,
+            wholesalerPrice: product.wholesalerPrice,
             isApproved: product.isApproved,
-            sales: product.sales || 0
+            sales: product.sales || 0,
+            images: product.images || []
           }))
         };
         break;
@@ -268,7 +276,6 @@ async function handler(req: NextRequest, user: any) {
           ]),
           Product.find({ isActive: true, isApproved: true })
             .populate('supplierId', 'name')
-            .populate('categoryId', 'name')
             .sort({ sales: -1 })
             .limit(5)
             .lean(),
@@ -321,12 +328,13 @@ async function handler(req: NextRequest, user: any) {
           topProducts: availableProducts.map(product => ({
             _id: product._id,
             name: product.name,
-            categoryName: product.categoryId?.name || 'غير محدد',
+            categoryName: 'غير محدد',
             marketerPrice: product.marketerPrice,
-            wholesalePrice: product.wholesalePrice,
+            wholesalerPrice: product.wholesalerPrice,
             inStock: product.stockQuantity > 0,
             stockQuantity: product.stockQuantity,
-            supplierName: product.supplierId?.name || 'غير محدد'
+            supplierName: product.supplierId?.name || 'غير محدد',
+            images: product.images || []
           })),
           // إضافة إحصائيات خاصة بالمسوق
           favoritesCount: user.role === 'marketer' ? favoritesCount : 0,

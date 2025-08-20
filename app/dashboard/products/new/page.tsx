@@ -6,17 +6,18 @@ import { useAuth } from '@/components/providers/AuthProvider';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Upload, X, Plus, Save } from 'lucide-react';
+import { Save } from 'lucide-react';
 import toast from 'react-hot-toast';
+import MediaUpload from '@/components/ui/MediaUpload';
 
 const productSchema = z.object({
   name: z.string().min(3, 'اسم المنتج يجب أن يكون 3 أحرف على الأقل'),
-  nameEn: z.string().optional(),
-  description: z.string().min(10, 'وصف المنتج يجب أن يكون 10 أحرف على الأقل'),
-  categoryId: z.string().min(1, 'يجب اختيار فئة'),
+  description: z.string().optional(),
+  categoryId: z.string().optional(),
   marketerPrice: z.number().min(0.01, 'سعر المسوق يجب أن يكون أكبر من 0'),
-  wholesalePrice: z.number().min(0.01, 'سعر الجملة يجب أن يكون أكبر من 0'),
-  costPrice: z.number().min(0.01, 'سعر التكلفة يجب أن يكون أكبر من 0'),
+  wholesalerPrice: z.number().min(0.01, 'سعر الجملة يجب أن يكون أكبر من 0'),
+  minimumSellingPrice: z.number().min(0.01, 'السعر الأدنى للبيع يجب أن يكون أكبر من 0').optional(),
+  isMinimumPriceMandatory: z.boolean().default(false),
   stockQuantity: z.number().min(0, 'الكمية يجب أن تكون 0 أو أكثر'),
   sku: z.string().optional(),
   weight: z.number().min(0, 'الوزن يجب أن يكون 0 أو أكثر').optional(),
@@ -53,13 +54,13 @@ export default function NewProductPage() {
     resolver: zodResolver(productSchema),
     defaultValues: {
       name: '',
-      nameEn: '',
       description: '',
       categoryId: '',
       stockQuantity: 0,
       marketerPrice: 0,
-      wholesalePrice: 0,
-      costPrice: 0,
+      wholesalerPrice: 0,
+      minimumSellingPrice: 0,
+      isMinimumPriceMandatory: false,
       weight: 0,
       sku: '',
       dimensions: {
@@ -96,105 +97,7 @@ export default function NewProductPage() {
     }
   };
 
-  const handleImageUpload = async (files: FileList) => {
-    if (files.length === 0) return;
-    
-    // Check if user is authenticated
-    if (!user || !isAuthenticated) {
-      toast.error('يجب تسجيل الدخول أولاً');
-      router.push('/auth/login');
-      return;
-    }
 
-    console.log(`Starting upload for ${files.length} files. User:`, user.email);
-    
-    setUploading(true);
-    const uploadedImages: string[] = [];
-
-    try {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        
-        console.log(`Processing file ${i + 1}/${files.length}: ${file.name} (${file.size} bytes)`);
-        
-        // Validate file size (max 5MB)
-        if (file.size > 5 * 1024 * 1024) {
-          toast.error(`حجم الملف ${file.name} كبير جداً. الحد الأقصى 5 ميجابايت`);
-          continue;
-        }
-        
-        // Validate file type
-        if (!file.type.startsWith('image/')) {
-          toast.error(`الملف ${file.name} ليس صورة صالحة`);
-          continue;
-        }
-        
-        const formData = new FormData();
-        formData.append('image', file);
-
-        console.log('Sending upload request...');
-        
-        const response = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData,
-          credentials: 'include', // Include cookies for authentication
-          // Don't set Content-Type header, let browser set it with boundary for FormData
-        });
-
-        console.log(`Upload response status: ${response.status}`);
-
-        if (response.ok) {
-          const data = await response.json();
-          console.log('Upload response data:', data);
-          
-          if (data.success && data.url) {
-            uploadedImages.push(data.url);
-            console.log(`Successfully uploaded: ${file.name} -> ${data.url}`);
-          } else {
-            const errorMsg = data.message || 'خطأ غير معروف';
-            console.error(`Upload failed for ${file.name}:`, errorMsg);
-            toast.error(`فشل رفع ${file.name}: ${errorMsg}`);
-          }
-        } else {
-          let errorMessage = `فشل رفع ${file.name}`;
-          try {
-            const error = await response.json();
-            errorMessage = error.message || errorMessage;
-            console.error(`Upload error response:`, error);
-            
-            // Handle specific error cases
-            if (response.status === 401) {
-              console.warn('Got 401 error, but user appears to be authenticated locally. This might be a token sync issue.');
-              errorMessage = 'حدث خطأ في المصادقة. يرجى تحديث الصفحة والمحاولة مرة أخرى';
-              toast.error(errorMessage);
-              
-              // Instead of redirecting immediately, suggest refresh
-              toast.error('إذا استمرت المشكلة، يرجى تسجيل الدخول مرة أخرى', { 
-                duration: 5000 
-              });
-              break; // Stop processing more files
-            } else if (response.status === 503) {
-              errorMessage = 'خدمة رفع الصور غير متاحة. يرجى إعداد Cloudinary';
-            }
-          } catch (parseError) {
-            console.error('Error parsing error response:', parseError);
-          }
-          toast.error(errorMessage);
-        }
-      }
-
-      if (uploadedImages.length > 0) {
-        setImages(prev => [...prev, ...uploadedImages]);
-        toast.success(`تم رفع ${uploadedImages.length} صورة بنجاح`);
-        console.log(`Successfully uploaded ${uploadedImages.length} images`);
-      }
-    } catch (error) {
-      console.error('Error uploading images:', error);
-      toast.error('حدث خطأ أثناء رفع الصور');
-    } finally {
-      setUploading(false);
-    }
-  };
 
   const removeImage = (index: number) => {
     setImages(prev => prev.filter((_, i) => i !== index));
@@ -207,13 +110,13 @@ export default function NewProductPage() {
     }
 
     // Validate pricing logic
-    if (data.marketerPrice <= data.costPrice) {
-      toast.error('سعر المسوق يجب أن يكون أكبر من سعر التكلفة');
+    if (data.wholesalerPrice >= data.marketerPrice) {
+      toast.error('سعر المسوق يجب أن يكون أكبر من سعر الجملة');
       return;
     }
 
-    if (data.wholesalePrice <= data.costPrice) {
-      toast.error('سعر الجملة يجب أن يكون أكبر من سعر التكلفة');
+    if (data.minimumSellingPrice && data.marketerPrice >= data.minimumSellingPrice) {
+      toast.error('السعر الأدنى للبيع يجب أن يكون أكبر من سعر المسوق');
       return;
     }
 
@@ -222,12 +125,12 @@ export default function NewProductPage() {
       // Prepare clean data
       const productData = {
         name: data.name.trim(),
-        nameEn: data.nameEn?.trim() || '',
-        description: data.description.trim(),
-        categoryId: data.categoryId,
+        description: data.description?.trim() || '',
+        categoryId: data.categoryId && data.categoryId !== '' ? data.categoryId : null,
         marketerPrice: Number(data.marketerPrice),
-        wholesalePrice: Number(data.wholesalePrice),
-        costPrice: Number(data.costPrice),
+        wholesalerPrice: Number(data.wholesalerPrice),
+        minimumSellingPrice: data.minimumSellingPrice && data.minimumSellingPrice > 0 ? Number(data.minimumSellingPrice) : null,
+        isMinimumPriceMandatory: data.isMinimumPriceMandatory,
         stockQuantity: Number(data.stockQuantity),
         images: images,
         sku: data.sku?.trim() || '',
@@ -276,12 +179,9 @@ export default function NewProductPage() {
   };
 
   const marketerPrice = watch('marketerPrice') || 0;
-  const wholesalePrice = watch('wholesalePrice') || 0;
-  const costPrice = watch('costPrice') || 0;
-
-  // Calculate profit margins
-  const marketerProfit = costPrice > 0 ? ((marketerPrice - costPrice) / costPrice * 100) : 0;
-  const wholesaleProfit = costPrice > 0 ? ((wholesalePrice - costPrice) / costPrice * 100) : 0;
+  const wholesalerPrice = watch('wholesalerPrice') || 0;
+  const minimumSellingPrice = watch('minimumSellingPrice') || 0;
+  const isMinimumPriceMandatory = watch('isMinimumPriceMandatory') || false;
 
   if (!user) {
     return (
@@ -327,7 +227,7 @@ export default function NewProductPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    الفئة *
+                    الفئة (اختياري)
                   </label>
                   <select {...register('categoryId')} className="input-field">
                     <option value="">اختر الفئة</option>
@@ -345,20 +245,7 @@ export default function NewProductPage() {
 
               <div className="mt-4">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  اسم المنتج (إنجليزي)
-                </label>
-                <input
-                  type="text"
-                  {...register('nameEn')}
-                  className="input-field"
-                  placeholder="Product name in English"
-                  dir="ltr"
-                />
-              </div>
-
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  وصف المنتج *
+                  وصف المنتج (اختياري)
                 </label>
                 <textarea
                   {...register('description')}
@@ -376,30 +263,33 @@ export default function NewProductPage() {
             <div className="card">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">الأسعار</h2>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    سعر التكلفة *
+                    سعر الجملة (للتجار) *
                   </label>
                   <div className="relative">
                     <input
                       type="number"
                       step="0.01"
                       min="0.01"
-                      {...register('costPrice', { valueAsNumber: true })}
+                      {...register('wholesalerPrice', { valueAsNumber: true })}
                       className="input-field pr-8"
                       placeholder="0.00"
                     />
                     <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400">₪</span>
                   </div>
-                  {errors.costPrice && (
-                    <p className="text-danger-600 dark:text-danger-400 text-sm mt-1">{errors.costPrice.message}</p>
+                  {errors.wholesalerPrice && (
+                    <p className="text-danger-600 dark:text-danger-400 text-sm mt-1">{errors.wholesalerPrice.message}</p>
                   )}
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    سعر ثابت للتجار - لا يتغير عند الطلب
+                  </p>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    سعر المسوق *
+                    سعر المسوق (السعر الأساسي) *
                   </label>
                   <div className="relative">
                     <input
@@ -415,46 +305,56 @@ export default function NewProductPage() {
                   {errors.marketerPrice && (
                     <p className="text-danger-600 dark:text-danger-400 text-sm mt-1">{errors.marketerPrice.message}</p>
                   )}
-                  {marketerPrice > costPrice && costPrice > 0 && (
-                    <p className="text-success-600 dark:text-success-400 text-sm mt-1">
-                      الربح: {marketerProfit.toFixed(1)}%
-                    </p>
-                  )}
-                  {marketerPrice <= costPrice && marketerPrice > 0 && costPrice > 0 && (
+                  {marketerPrice <= wholesalerPrice && marketerPrice > 0 && wholesalerPrice > 0 && (
                     <p className="text-danger-600 dark:text-danger-400 text-sm mt-1">
-                      يجب أن يكون أكبر من سعر التكلفة
+                      يجب أن يكون أكبر من سعر الجملة
                     </p>
                   )}
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    السعر الأساسي للمسوق - يحدد ربحه عند الطلب
+                  </p>
                 </div>
+              </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    سعر الجملة *
-                  </label>
-                  <div className="relative">
+              {/* Minimum Selling Price Section */}
+              <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">السعر الأدنى للبيع</h3>
+                
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-3 space-x-reverse">
                     <input
-                      type="number"
-                      step="0.01"
-                      min="0.01"
-                      {...register('wholesalePrice', { valueAsNumber: true })}
-                      className="input-field pr-8"
-                      placeholder="0.00"
+                      type="checkbox"
+                      id="isMinimumPriceMandatory"
+                      {...register('isMinimumPriceMandatory')}
+                      className="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
                     />
-                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400">₪</span>
+                    <label htmlFor="isMinimumPriceMandatory" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      إلزامي - المسوق يجب أن يبيع بسعر لا يقل عن السعر المحدد
+                    </label>
                   </div>
-                  {errors.wholesalePrice && (
-                    <p className="text-danger-600 dark:text-danger-400 text-sm mt-1">{errors.wholesalePrice.message}</p>
-                  )}
-                  {wholesalePrice > costPrice && costPrice > 0 && (
-                    <p className="text-success-600 dark:text-success-400 text-sm mt-1">
-                      الربح: {wholesaleProfit.toFixed(1)}%
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      السعر الأدنى للبيع
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        {...register('minimumSellingPrice', { valueAsNumber: true })}
+                        className="input-field pr-8"
+                        placeholder="0.00"
+                      />
+                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400">₪</span>
+                    </div>
+                    {errors.minimumSellingPrice && (
+                      <p className="text-danger-600 dark:text-danger-400 text-sm mt-1">{errors.minimumSellingPrice.message}</p>
+                    )}
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      إذا كان إلزامي، المسوق لا يمكنه بيع المنتج بأقل من هذا السعر. المسوق يحدد ربحه عند الطلب
                     </p>
-                  )}
-                  {wholesalePrice <= costPrice && wholesalePrice > 0 && costPrice > 0 && (
-                    <p className="text-danger-600 dark:text-danger-400 text-sm mt-1">
-                      يجب أن يكون أكبر من سعر التكلفة
-                    </p>
-                  )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -544,63 +444,20 @@ export default function NewProductPage() {
             </div>
           </div>
 
-          {/* Images Upload */}
+          {/* Sidebar */}
           <div className="space-y-6">
-            <div className="card">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">صور المنتج</h2>
-              
-              {/* Upload Area */}
-              <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center">
-                <Upload className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
-                <p className="text-gray-600 dark:text-gray-400 mb-2">اسحب وأفلت الصور هنا</p>
-                <p className="text-sm text-gray-500 dark:text-gray-500 mb-4">أو</p>
-                <label className="btn-primary cursor-pointer">
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={(e) => e.target.files && handleImageUpload(e.target.files)}
-                    className="hidden"
-                  />
-                  اختيار الصور
-                </label>
-                <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
-                  الحد الأقصى: 5 ميجابايت لكل صورة
-                </p>
-              </div>
-
-              {/* Uploaded Images */}
-              {images.length > 0 && (
-                <div className="mt-4">
-                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">الصور المرفوعة ({images.length}):</h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    {images.map((image, index) => (
-                      <div key={index} className="relative">
-                        <img
-                          src={image}
-                          alt={`صورة ${index + 1}`}
-                          className="w-full h-24 object-cover rounded-lg"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeImage(index)}
-                          className="absolute top-1 left-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {uploading && (
-                <div className="mt-4 text-center">
-                  <div className="loading-spinner w-6 h-6 mx-auto"></div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">جاري رفع الصور...</p>
-                </div>
-              )}
-            </div>
+            {/* Media Upload */}
+            <MediaUpload
+              onUpload={(urls) => setImages(prev => [...prev, ...urls])}
+              uploadedMedia={images}
+              onRemove={removeImage}
+              uploading={uploading}
+              setUploading={setUploading}
+              accept="both"
+              maxFiles={10}
+              maxSize={100}
+              title="وسائط المنتج"
+            />
 
             {/* Preview */}
             <div className="card">
@@ -613,29 +470,21 @@ export default function NewProductPage() {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">الفئة:</label>
-                  <p className="text-gray-900 dark:text-gray-100">
-                    {categories.find(c => c._id === watch('categoryId'))?.name || 'غير محدد'}
-                  </p>
-                </div>
-                
-                <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">الأسعار:</label>
                   <div className="space-y-1">
-                    <p className="text-sm text-gray-600 dark:text-gray-400">المسوق: {marketerPrice} ₪</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">الجملة: {wholesalePrice} ₪</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">التكلفة: {costPrice} ₪</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">الجملة (للتجار): {wholesalerPrice} ₪</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">المسوق (الأساسي): {marketerPrice} ₪</p>
+                    {minimumSellingPrice > 0 && (
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        السعر الأدنى: {minimumSellingPrice} ₪ {isMinimumPriceMandatory ? '(إلزامي)' : '(اختياري)'}
+                      </p>
+                    )}
                   </div>
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">المخزون:</label>
                   <p className="text-gray-900 dark:text-gray-100">{watch('stockQuantity') || 0} قطعة</p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">الصور:</label>
-                  <p className="text-gray-900 dark:text-gray-100">{images.length} صورة</p>
                 </div>
               </div>
             </div>

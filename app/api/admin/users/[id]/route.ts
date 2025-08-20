@@ -109,20 +109,35 @@ async function updateUser(req: NextRequest, user: any, { params }: RouteParams) 
       delete body.isActive;
     }
 
+    // Prepare update data based on role
+    const updateData: any = {
+      name: body.name,
+      email: body.email,
+      phone: body.phone,
+      role: body.role,
+      isActive: body.isActive,
+      isVerified: body.isVerified
+    };
+
+    // Add marketing-specific fields
+    if (body.role === 'marketer') {
+      updateData.country = body.country;
+      updateData.dateOfBirth = body.dateOfBirth ? new Date(body.dateOfBirth) : undefined;
+      updateData.gender = body.gender;
+      updateData.websiteLink = body.websiteLink || undefined;
+    }
+
+    // Add supplier-specific fields
+    if (body.role === 'supplier') {
+      updateData.companyName = body.companyName;
+      updateData.commercialRegisterNumber = body.commercialRegisterNumber;
+      updateData.address = body.address;
+    }
+
     // Update user
     const updatedUser = await User.findByIdAndUpdate(
       params.id,
-      {
-        name: body.name,
-        email: body.email,
-        phone: body.phone,
-        role: body.role,
-        companyName: body.companyName,
-        address: body.address,
-        taxId: body.taxId,
-        isActive: body.isActive,
-        isVerified: body.isVerified
-      },
+      updateData,
       { new: true }
     ).select('-password');
 

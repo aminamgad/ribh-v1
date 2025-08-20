@@ -1,44 +1,22 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
-import { MessageSquare, Send, Clock, CheckCircle, XCircle, User, Package, Bell } from 'lucide-react';
-import Link from 'next/link';
+import { 
+  MessageSquare, 
+  Send, 
+  User, 
+  Package, 
+  Calendar,
+  Search,
+  Filter,
+  X,
+  Bell
+} from 'lucide-react';
 import toast from 'react-hot-toast';
-
-interface Conversation {
-  _id: string;
-  lastMessage: {
-    _id: string;
-    subject: string;
-    content: string;
-    senderId: {
-      _id: string;
-      name: string;
-      role: string;
-    };
-    receiverId: {
-      _id: string;
-      name: string;
-      role: string;
-    };
-    isRead: boolean;
-    isApproved: boolean;
-    createdAt: string;
-  };
-  unreadCount: number;
-  otherUser: {
-    _id: string;
-    name: string;
-    role: string;
-  };
-  productName?: string;
-}
 
 interface Message {
   _id: string;
-  subject: string;
-  content: string;
   senderId: {
     _id: string;
     name: string;
@@ -54,68 +32,69 @@ interface Message {
     name: string;
     images: string[];
   };
+  subject: string;
+  content: string;
   isRead: boolean;
   isApproved: boolean;
-  adminNotes?: string;
   createdAt: string;
+}
+
+interface Conversation {
+  _id: string;
+  lastMessage: Message;
+  unreadCount: number;
+  otherUser: {
+    _id: string;
+    name: string;
+    role: string;
+  };
 }
 
 export default function MessagesPage() {
   const { user } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
+  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [sendingMessage, setSendingMessage] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
-  const [newMessage, setNewMessage] = useState({ subject: '', content: '' });
-  const [showNewMessageForm, setShowNewMessageForm] = useState(false);
-  const [users, setUsers] = useState<Array<{_id: string, name: string, email: string, role: string}>>([]);
-  const [selectedUser, setSelectedUser] = useState('');
-  const [newMessageData, setNewMessageData] = useState({ subject: '', content: '' });
+  const [searchTerm, setSearchTerm] = useState('');
   const [newMessageNotification, setNewMessageNotification] = useState<string | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const lastMessageCountRef = useRef<number>(0);
-  const lastConversationCountRef = useRef<number>(0);
-  const lastMessageIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     fetchConversations();
-    if (user?.role === 'admin') {
-      fetchUsers();
-    }
-  }, [user]);
+    
+    // Poll for new conversations every 10 seconds
+    const interval = setInterval(() => {
+      fetchConversations();
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (selectedConversation) {
-      fetchMessages(selectedConversation);
+      fetchMessages();
+      
+      // Poll for new messages every 5 seconds when conversation is selected
+      const interval = setInterval(() => {
+        fetchMessages();
+      }, 5000);
+
+      return () => clearInterval(interval);
     }
   }, [selectedConversation]);
-
-  // Poll for new conversations and messages every 3 seconds (very fast updates)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchConversations();
-      if (selectedConversation) {
-        fetchMessages(selectedConversation);
-      }
-    }, 3000); // Poll every 3 seconds for real-time updates
-
-    return () => clearInterval(interval);
-  }, [selectedConversation]);
-
-  // Auto-scroll to bottom when new messages arrive
-  useEffect(() => {
-    if (messages.length > lastMessageCountRef.current && messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-      lastMessageCountRef.current = messages.length;
-    }
-  }, [messages]);
 
   const fetchConversations = async () => {
     try {
+      console.log('🔍 Frontend: Fetching conversations for user:', user?._id);
       const response = await fetch('/api/messages/conversations');
+      console.log('🔍 Frontend: Response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('🔍 Frontend: Received data:', data);
+        
         const previousUnreadCount = conversations.reduce((sum, conv) => sum + conv.unreadCount, 0);
         const newUnreadCount = data.conversations.reduce((sum: number, conv: any) => sum + conv.unreadCount, 0);
         
@@ -125,82 +104,56 @@ export default function MessagesPage() {
           setNewMessageNotification(`رسائل جديدة: ${newMessagesCount}`);
           setTimeout(() => setNewMessageNotification(null), 3000);
           
-          // Show toast notification
           toast.success(`رسائل جديدة: ${newMessagesCount}`, {
-            icon: <Bell className="w-4 h-4" />,
             duration: 3000
           });
         }
         
-        // Show notification if new conversations arrived
-        if (data.conversations.length > lastConversationCountRef.current && lastConversationCountRef.current > 0) {
-          const newConversationsCount = data.conversations.length - lastConversationCountRef.current;
-          toast.success(`محادثات جديدة: ${newConversationsCount}`, {
-            icon: <MessageSquare className="w-4 h-4" />,
-            duration: 3000
-          });
-        }
-        
-        setConversations(data.conversations);
-        lastConversationCountRef.current = data.conversations.length;
-        setLoading(false);
+        setConversations(data.conversations || []);
+        console.log('🔍 Frontend: Set conversations:', data.conversations?.length || 0);
       } else {
-        console.error('Failed to fetch conversations:', response.status);
-        setLoading(false);
+        const errorData = await response.json();
+        console.error('🔍 Frontend: Error response:', errorData);
+        toast.error('فشل في جلب المحادثات');
       }
     } catch (error) {
       console.error('Error fetching conversations:', error);
       toast.error('حدث خطأ أثناء جلب المحادثات');
+    } finally {
       setLoading(false);
     }
   };
 
-  const fetchUsers = async () => {
-    try {
-      const response = await fetch('/api/admin/users');
-      if (response.ok) {
-        const data = await response.json();
-        setUsers(data.users.filter((u: any) => u._id !== user?._id)); // Exclude current admin
-      }
-    } catch (error) {
-      toast.error('حدث خطأ أثناء جلب المستخدمين');
-    }
-  };
+  const fetchMessages = async () => {
+    if (!selectedConversation) return;
 
-  const fetchMessages = async (conversationId: string) => {
     try {
+      const otherUserId = selectedConversation.otherUser._id;
+      const conversationId = [user?._id, otherUserId].sort().join('-');
+      
+      console.log('🔍 Frontend: Fetching messages for conversation:', conversationId);
+      console.log('🔍 Frontend: User ID:', user?._id);
+      console.log('🔍 Frontend: Other user ID:', otherUserId);
+      
       const response = await fetch(`/api/messages/conversations/${conversationId}`);
+      console.log('🔍 Frontend: Messages response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
-        const previousMessageCount = messages.length;
-        const currentMessageIds = new Set(data.messages.map((msg: Message) => msg._id));
-        
-        // Check for new messages
-        const newMessages = data.messages.filter((msg: Message) => !lastMessageIdsRef.current.has(msg._id));
-        
-        setMessages(data.messages);
-        
-        // Update last message IDs
-        lastMessageIdsRef.current = currentMessageIds as Set<string>;
-        
-        // Show notification if new messages arrived in current conversation
-        if (newMessages.length > 0) {
-          toast.success(`رسائل جديدة في المحادثة: ${newMessages.length}`, {
-            icon: <Bell className="w-4 h-4" />,
-            duration: 3000
-          });
-        }
+        console.log('🔍 Frontend: Messages data:', data);
+        setMessages(data.messages || []);
         
         // Mark messages as read
-        if (data.messages.length > 0) {
-          await fetch(`/api/messages/conversations/${conversationId}/read`, {
-            method: 'POST'
-          });
-          // Refresh conversations to update unread count
-          fetchConversations();
-        }
+        await fetch(`/api/messages/conversations/${conversationId}/read`, {
+          method: 'POST'
+        });
+        
+        // Refresh conversations to update unread count
+        fetchConversations();
       } else {
-        console.error('Failed to fetch messages:', response.status);
+        const errorData = await response.json();
+        console.error('🔍 Frontend: Messages error:', errorData);
+        toast.error('فشل في جلب الرسائل');
       }
     } catch (error) {
       console.error('Error fetching messages:', error);
@@ -208,492 +161,259 @@ export default function MessagesPage() {
     }
   };
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!selectedConversation || !newMessage.subject.trim() || !newMessage.content.trim()) {
-      toast.error('يرجى ملء جميع الحقول');
-      return;
-    }
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !selectedConversation) return;
 
-    setSending(true);
+    setSendingMessage(true);
     try {
-      const conversation = conversations.find(c => c._id === selectedConversation);
-      if (!conversation) return;
-
       const response = await fetch('/api/messages', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          receiverId: conversation.otherUser._id,
-          subject: newMessage.subject,
-          content: newMessage.content,
-          productId: (conversation.lastMessage as any).productId?._id
+          receiverId: selectedConversation.otherUser._id,
+          subject: `رد على: ${selectedConversation.lastMessage.subject}`,
+          content: newMessage,
+          productId: selectedConversation.lastMessage.productId?._id
         }),
       });
 
       if (response.ok) {
+        setNewMessage('');
+        await fetchMessages();
+        await fetchConversations(); // Refresh conversations to update last message
         toast.success('تم إرسال الرسالة بنجاح');
-        setNewMessage({ subject: '', content: '' });
-        
-        // Refresh messages and conversations immediately
-        await fetchMessages(selectedConversation);
-        await fetchConversations();
       } else {
-        const error = await response.json();
-        toast.error(error.message || 'حدث خطأ أثناء إرسال الرسالة');
+        const errorData = await response.json();
+        toast.error(errorData.message || 'فشل في إرسال الرسالة');
       }
     } catch (error) {
       console.error('Error sending message:', error);
       toast.error('حدث خطأ أثناء إرسال الرسالة');
     } finally {
-      setSending(false);
+      setSendingMessage(false);
     }
   };
 
-  const handleSendNewMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!selectedUser || !newMessageData.subject.trim() || !newMessageData.content.trim()) {
-      toast.error('يرجى ملء جميع الحقول');
-      return;
-    }
-
-    setSending(true);
-    try {
-      const response = await fetch('/api/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          receiverId: selectedUser,
-          subject: newMessageData.subject,
-          content: newMessageData.content,
-        }),
-      });
-
-      if (response.ok) {
-        toast.success('تم إرسال الرسالة بنجاح');
-        setNewMessageData({ subject: '', content: '' });
-        setSelectedUser('');
-        setShowNewMessageForm(false);
-        
-        // Refresh conversations
-        await fetchConversations();
-      } else {
-        const error = await response.json();
-        toast.error(error.message || 'حدث خطأ أثناء إرسال الرسالة');
-      }
-    } catch (error) {
-      console.error('Error sending new message:', error);
-      toast.error('حدث خطأ أثناء إرسال الرسالة');
-    } finally {
-      setSending(false);
-    }
-  };
-
-  const getRoleLabel = (role: string) => {
-    switch (role) {
-      case 'supplier': return 'المورد';
-      case 'marketer': return 'المسوق';
-      case 'wholesaler': return 'تاجر الجملة';
-      case 'admin': return 'الإدارة';
-      default: return role;
-    }
-  };
-
-  const getStatusIcon = (isApproved: boolean) => {
-    if (isApproved) {
-      return <CheckCircle className="w-4 h-4 text-green-600" />;
-    } else {
-      return <Clock className="w-4 h-4 text-yellow-600" />;
-    }
-  };
-
-  const formatMessageTime = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
-    
-    if (diffInHours < 24) {
-      return date.toLocaleTimeString('ar-EG', { 
-        hour: '2-digit', 
-        minute: '2-digit',
-        hour12: true 
-      });
-    } else {
-      return date.toLocaleDateString('ar-EG', { 
-        day: '2-digit', 
-        month: '2-digit', 
-        year: 'numeric' 
-      });
-    }
-  };
+  const filteredConversations = conversations.filter(conv =>
+    conv.otherUser.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    conv.lastMessage.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    conv.lastMessage.content.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="loading-spinner w-8 h-8"></div>
+      <div className="min-h-screen bg-gray-50 dark:bg-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600 dark:text-slate-400">جاري تحميل الرسائل...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100">إدارة المحادثات والرسائل</h1>
-          <p className="text-gray-600 dark:text-slate-400 mt-2">إدارة الرسائل والمحادثات مع المستخدمين</p>
-        </div>
-        
-        {user?.role === 'admin' && (
-          <button
-            onClick={() => setShowNewMessageForm(true)}
-            className="btn-primary"
-          >
-            <Send className="w-5 h-5 ml-2" />
-            رسالة جديدة
-          </button>
-        )}
-      </div>
-
-      {/* New Message Notification */}
-      {newMessageNotification && (
-        <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg p-3 flex items-center">
-          <Bell className="w-5 h-5 text-blue-600 dark:text-blue-400 ml-2" />
-          <span className="text-blue-800 dark:text-blue-200">{newMessageNotification}</span>
-        </div>
-      )}
-
-      {/* Messages Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Conversations */}
-        <div className="lg:col-span-1">
-          <div className="card h-[600px] flex flex-col">
-            <div className="border-b border-gray-200 dark:border-slate-700 pb-4 mb-4">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">المحادثات</h2>
-            </div>
-
-            {conversations.length === 0 ? (
-              <div className="flex-1 flex items-center justify-center">
-                <div className="text-center">
-                  <MessageSquare className="w-16 h-16 text-gray-400 dark:text-slate-500 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100 mb-2">لا توجد محادثات</h3>
-                  <p className="text-gray-600 dark:text-slate-400">لم يتم إنشاء أي محادثات بعد</p>
-                </div>
-              </div>
-            ) : (
-              <div className="flex-1 overflow-y-auto space-y-2">
-                {conversations.map((conversation) => (
-                  <div
-                    key={conversation._id}
-                    onClick={() => setSelectedConversation(conversation._id)}
-                    className={`p-3 rounded-lg cursor-pointer transition-colors ${
-                      selectedConversation === conversation._id
-                        ? 'bg-primary-50 dark:bg-primary-900/30 border border-primary-200 dark:border-primary-700'
-                        : 'hover:bg-gray-50 dark:hover:bg-slate-800'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 space-x-reverse">
-                          <h3 className="font-medium text-gray-900 dark:text-slate-100">
-                            {conversation.otherUser.name}
-                          </h3>
-                          <span className="text-xs text-gray-500 dark:text-slate-400">
-                            {getRoleLabel(conversation.otherUser.role)}
-                          </span>
-                        </div>
-                        
-                        <p className="text-sm text-gray-600 dark:text-slate-400 mt-1 line-clamp-2">
-                          {conversation.lastMessage.subject}
-                        </p>
-                        
-                        {conversation.productName && (
-                          <div className="flex items-center mt-1">
-                            <Package className="w-3 h-3 text-gray-400 dark:text-slate-500 ml-1" />
-                            <span className="text-xs text-gray-500 dark:text-slate-400">{conversation.productName}</span>
-                          </div>
-                        )}
-                        
-                        <div className="flex items-center justify-between mt-2">
-                          <span className="text-xs text-gray-500 dark:text-slate-400">
-                            {formatMessageTime(conversation.lastMessage.createdAt)}
-                          </span>
-                          
-                          <div className="flex items-center space-x-1 space-x-reverse">
-                            {getStatusIcon(conversation.lastMessage.isApproved)}
-                            {conversation.unreadCount > 0 && (
-                              <span className="bg-red-500 text-white text-xs rounded-full px-2 py-1">
-                                {conversation.unreadCount}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center space-x-4 space-x-reverse">
+            <MessageSquare className="w-8 h-8 text-primary-600" />
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">الرسائل</h1>
           </div>
         </div>
 
-        {/* Messages */}
-        <div className="lg:col-span-2">
-          <div className="card h-[600px] flex flex-col">
+        {/* New Message Notification */}
+        {newMessageNotification && (
+          <div className="mb-6 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg p-3 flex items-center">
+            <Bell className="w-5 h-5 text-blue-600 dark:text-blue-400 ml-2" />
+            <span className="text-blue-800 dark:text-blue-200">{newMessageNotification}</span>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-200px)]">
+          {/* Conversations List */}
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-gray-200 dark:border-slate-700 flex flex-col">
+            {/* Search */}
+            <div className="p-4 border-b border-gray-200 dark:border-slate-700">
+              <div className="relative">
+                <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="البحث في الرسائل..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pr-10 pl-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-slate-700 dark:text-slate-100"
+                />
+              </div>
+            </div>
+
+            {/* Conversations */}
+            <div className="flex-1 overflow-y-auto">
+              {filteredConversations.length === 0 ? (
+                <div className="p-8 text-center">
+                  <MessageSquare className="w-12 h-12 text-gray-400 dark:text-slate-500 mx-auto mb-4" />
+                  <p className="text-gray-600 dark:text-slate-400">
+                    {searchTerm ? 'لا توجد نتائج للبحث' : 'لا توجد محادثات بعد'}
+                  </p>
+                </div>
+              ) : (
+                filteredConversations.map((conversation) => (
+                  <div
+                    key={conversation._id}
+                    onClick={() => setSelectedConversation(conversation)}
+                    className={`p-4 border-b border-gray-100 dark:border-slate-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors ${
+                      selectedConversation?._id === conversation._id
+                        ? 'bg-primary-50 dark:bg-primary-900/30 border-r-4 border-r-primary-500'
+                        : ''
+                    }`}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center space-x-3 space-x-reverse">
+                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
+                          <User className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-gray-900 dark:text-slate-100">
+                            {conversation.otherUser.name}
+                          </h3>
+                          <p className="text-sm text-gray-500 dark:text-slate-400">
+                            {conversation.otherUser.role === 'marketer' ? 'مسوق' : 'تاجر'}
+                          </p>
+                        </div>
+                      </div>
+                      {conversation.unreadCount > 0 && (
+                        <span className="bg-red-500 text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
+                          {conversation.unreadCount}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-slate-300 mb-1 line-clamp-1">
+                      {conversation.lastMessage.subject}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400 line-clamp-2">
+                      {conversation.lastMessage.content}
+                    </p>
+                    <p className="text-xs text-gray-400 dark:text-slate-500 mt-2">
+                      {new Date(conversation.lastMessage.createdAt).toLocaleDateString('ar-SA')}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Messages Area */}
+          <div className="lg:col-span-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-gray-200 dark:border-slate-700 flex flex-col">
             {selectedConversation ? (
               <>
-                {/* Messages Header */}
-                <div className="border-b border-gray-200 dark:border-slate-700 pb-4 mb-4">
+                {/* Chat Header */}
+                <div className="p-4 border-b border-gray-200 dark:border-slate-700">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
-                        {conversations.find(c => c._id === selectedConversation)?.otherUser.name}
-                      </h3>
-                      <p className="text-sm text-gray-500 dark:text-slate-400">
-                        {getRoleLabel(conversations.find(c => c._id === selectedConversation)?.otherUser.role || '')}
-                      </p>
+                    <div className="flex items-center space-x-3 space-x-reverse">
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
+                        <User className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900 dark:text-slate-100">
+                          {selectedConversation.otherUser.name}
+                        </h3>
+                        <p className="text-sm text-gray-500 dark:text-slate-400">
+                          {selectedConversation.otherUser.role === 'marketer' ? 'مسوق' : 'تاجر'}
+                        </p>
+                      </div>
                     </div>
+                    {selectedConversation.lastMessage.productId && (
+                      <div className="flex items-center space-x-2 space-x-reverse text-sm text-gray-600 dark:text-slate-400">
+                        <Package className="w-4 h-4" />
+                        <span>{selectedConversation.lastMessage.productId.name}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Messages List */}
-                <div className="flex-1 overflow-y-auto space-y-4 mb-4 px-4">
+                {/* Messages */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
                   {messages.length === 0 ? (
                     <div className="text-center py-8">
                       <MessageSquare className="w-12 h-12 text-gray-400 dark:text-slate-500 mx-auto mb-4" />
-                      <p className="text-gray-600 dark:text-slate-400">لا توجد رسائل</p>
+                      <p className="text-gray-600 dark:text-slate-400">
+                        لا توجد رسائل بعد. ابدأ المحادثة الآن!
+                      </p>
                     </div>
                   ) : (
-                    <>
-                      {messages.map((message) => {
-                        // تحويل كل من user._id و message.senderId._id إلى string للمقارنة الصحيحة
-                        const currentUserId = user?._id?.toString();
-                        const messageSenderId = message.senderId._id?.toString();
-                        const isCurrentUserMessage = currentUserId === messageSenderId;
-                        
-                        // Debug: طباعة معلومات المقارنة
-                        console.log('Message Debug:', {
-                          messageId: message._id,
-                          currentUserId,
-                          messageSenderId,
-                          isCurrentUserMessage,
-                          messageSenderName: message.senderId.name,
-                          currentUserName: user?.name
-                        });
-                        
-                        return (
-                          <div
-                            key={message._id}
-                            className={`flex ${isCurrentUserMessage ? 'justify-end' : 'justify-start'}`}
-                          >
-                            <div
-                              className={`max-w-xs lg:max-w-md p-3 rounded-lg ${
-                                isCurrentUserMessage
-                                  ? 'bg-primary-600 text-white'
-                                  : 'bg-gray-100 dark:bg-slate-700 text-gray-900 dark:text-slate-100'
-                              }`}
-                            >
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm font-medium">
-                                  {message.senderId.name} ({getRoleLabel(message.senderId.role)})
-                                </span>
-                                <div className="flex items-center space-x-1 space-x-reverse">
-                                  {getStatusIcon(message.isApproved)}
-                                </div>
-                              </div>
-                              
-                              <h4 className="font-medium mb-1">{message.subject}</h4>
-                              <p className="text-sm">{message.content}</p>
-                              
-                              {message.productId && (
-                                <div className="mt-2 p-2 bg-white bg-opacity-20 rounded">
-                                  <div className="flex items-center">
-                                    {message.productId.images[0] && (
-                                      <img
-                                        src={message.productId.images[0]}
-                                        alt={message.productId.name}
-                                        className="w-8 h-8 object-cover rounded ml-2"
-                                      />
-                                    )}
-                                    <span className="text-sm">{message.productId.name}</span>
-                                  </div>
-                                </div>
-                              )}
-                              
-                              <div className="text-xs mt-2 opacity-75">
-                                {formatMessageTime(message.createdAt)}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                      <div ref={messagesEndRef} />
-                    </>
+                    messages.map((message, index) => (
+                      <div
+                        key={index}
+                        className={`flex ${message.senderId._id === user?._id ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <div
+                          className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                            message.senderId._id === user?._id
+                              ? 'bg-primary-500 text-white'
+                              : 'bg-gray-100 dark:bg-slate-700 text-gray-900 dark:text-slate-100'
+                          }`}
+                        >
+                          <p className="text-sm">{message.content}</p>
+                          <p className={`text-xs mt-1 ${
+                            message.senderId._id === user?._id
+                              ? 'text-primary-100'
+                              : 'text-gray-500 dark:text-slate-400'
+                          }`}>
+                            {new Date(message.createdAt).toLocaleTimeString('ar-SA', {
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    ))
                   )}
                 </div>
 
-                {/* Send Message Form */}
-                <div className="border-t border-gray-200 dark:border-slate-700 pt-4">
-                  <form onSubmit={handleSendMessage} className="space-y-3">
+                {/* Message Input */}
+                <div className="p-4 border-t border-gray-200 dark:border-slate-700">
+                  <div className="flex space-x-3 space-x-reverse">
                     <input
                       type="text"
-                      placeholder="موضوع الرسالة"
-                      value={newMessage.subject}
-                      onChange={(e) => setNewMessage(prev => ({ ...prev, subject: e.target.value }))}
-                      className="input-field"
-                      required
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                      placeholder="اكتب ردك هنا..."
+                      className="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-slate-700 dark:text-slate-100"
+                      disabled={sendingMessage}
                     />
-                    
-                    <textarea
-                      placeholder="محتوى الرسالة"
-                      value={newMessage.content}
-                      onChange={(e) => setNewMessage(prev => ({ ...prev, content: e.target.value }))}
-                      rows={3}
-                      className="input-field"
-                      required
-                    />
-                    
-                    <div className="flex justify-end">
-                      <button
-                        type="submit"
-                        disabled={sending}
-                        className="btn-primary"
-                      >
-                        {sending ? (
-                          <>
-                            <div className="loading-spinner w-4 h-4 ml-2"></div>
-                            جاري الإرسال...
-                          </>
-                        ) : (
-                          <>
-                            <Send className="w-4 h-4 ml-2" />
-                            إرسال
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </form>
+                    <button
+                      onClick={handleSendMessage}
+                      disabled={!newMessage.trim() || sendingMessage}
+                      className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {sendingMessage ? (
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      ) : (
+                        <Send className="w-5 h-5" />
+                      )}
+                    </button>
+                  </div>
                 </div>
               </>
             ) : (
               <div className="flex-1 flex items-center justify-center">
                 <div className="text-center">
                   <MessageSquare className="w-16 h-16 text-gray-400 dark:text-slate-500 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100 mb-2">اختر محادثة</h3>
-                  <p className="text-gray-600 dark:text-slate-400">اختر محادثة من القائمة لعرض الرسائل</p>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-2">
+                    اختر محادثة
+                  </h3>
+                  <p className="text-gray-600 dark:text-slate-400">
+                    اختر محادثة من القائمة لعرض الرسائل والرد عليها
+                  </p>
                 </div>
               </div>
             )}
           </div>
         </div>
       </div>
-
-      {/* New Message Modal for Admin */}
-      {showNewMessageForm && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-800 rounded-lg p-6 max-w-md w-full">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">رسالة جديدة</h2>
-              <button
-                onClick={() => {
-                  setShowNewMessageForm(false);
-                  setNewMessageData({ subject: '', content: '' });
-                  setSelectedUser('');
-                }}
-                className="text-gray-400 dark:text-slate-500 hover:text-gray-500 dark:hover:text-slate-400"
-              >
-                <XCircle className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSendNewMessage} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                  المستخدم المستلم *
-                </label>
-                <select
-                  value={selectedUser}
-                  onChange={(e) => setSelectedUser(e.target.value)}
-                  className="input-field"
-                  required
-                >
-                  <option value="">اختر المستخدم</option>
-                  {users.map((userItem) => (
-                    <option key={userItem._id} value={userItem._id}>
-                      {userItem.name} ({getRoleLabel(userItem.role)}) - {userItem.email}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                  موضوع الرسالة *
-                </label>
-                <input
-                  type="text"
-                  value={newMessageData.subject}
-                  onChange={(e) => setNewMessageData(prev => ({ ...prev, subject: e.target.value }))}
-                  className="input-field"
-                  placeholder="موضوع الرسالة"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                  محتوى الرسالة *
-                </label>
-                <textarea
-                  value={newMessageData.content}
-                  onChange={(e) => setNewMessageData(prev => ({ ...prev, content: e.target.value }))}
-                  className="input-field"
-                  rows={4}
-                  placeholder="محتوى الرسالة"
-                  required
-                />
-              </div>
-
-              <div className="flex justify-end space-x-3 space-x-reverse">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowNewMessageForm(false);
-                    setNewMessageData({ subject: '', content: '' });
-                    setSelectedUser('');
-                  }}
-                  className="btn-secondary"
-                >
-                  إلغاء
-                </button>
-                <button
-                  type="submit"
-                  disabled={sending}
-                  className="btn-primary"
-                >
-                  {sending ? (
-                    <>
-                      <div className="loading-spinner w-4 h-4 ml-2"></div>
-                      جاري الإرسال...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="w-4 h-4 ml-2" />
-                      إرسال
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 } 

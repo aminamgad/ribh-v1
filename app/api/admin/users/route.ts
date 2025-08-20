@@ -114,24 +114,47 @@ async function createUser(req: NextRequest, user: any) {
       );
     }
 
-    // Hash password
-    const bcrypt = (await import('bcryptjs')).default;
-    const hashedPassword = await bcrypt.hash(body.password, 12);
-
-    // Create user
-    const newUser = new User({
+    // Prepare user data based on role
+    const userData: any = {
       name: body.name,
       email: body.email,
       phone: body.phone,
-      password: hashedPassword,
+      password: body.password, // Don't hash here - let the model handle it
       role: body.role,
-      companyName: body.companyName,
-      address: body.address,
-      taxId: body.taxId,
       isActive: body.isActive,
       isVerified: body.isVerified
-    });
+    };
 
+    // Auto-verify wholesaler accounts created by admin
+    if (body.role === 'wholesaler') {
+      userData.isVerified = true;
+    }
+
+    // Add marketing-specific fields
+    if (body.role === 'marketer') {
+      userData.country = body.country;
+      userData.dateOfBirth = body.dateOfBirth ? new Date(body.dateOfBirth) : undefined;
+      userData.gender = body.gender;
+      userData.websiteLink = body.websiteLink || undefined;
+    }
+
+    // Add supplier-specific fields
+    if (body.role === 'supplier') {
+      userData.companyName = body.companyName;
+      userData.commercialRegisterNumber = body.commercialRegisterNumber;
+      userData.address = body.address;
+    }
+
+    // Add wholesaler-specific fields
+    if (body.role === 'wholesaler') {
+      userData.companyName = body.companyName;
+      userData.wholesaleLicense = body.wholesaleLicense;
+      userData.businessType = body.businessType;
+      userData.address = body.address;
+    }
+
+    // Create user
+    const newUser = new User(userData);
     await newUser.save();
 
     // Send notification to all admins about new user

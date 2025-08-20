@@ -12,6 +12,13 @@ export interface WithdrawalSettings {
   withdrawalFees: number;
 }
 
+export interface Governorate {
+  name: string;
+  cities: string[];
+  shippingCost: number;
+  isActive: boolean;
+}
+
 export interface SystemSettings {
   _id?: string;
   // Financial Settings
@@ -27,8 +34,12 @@ export interface SystemSettings {
   // Order Settings
   minimumOrderValue: number;
   maximumOrderValue: number;
-  shippingCost: number;
-  freeShippingThreshold: number;
+  
+  // Shipping Settings
+  shippingEnabled: boolean;
+  defaultShippingCost: number;
+  defaultFreeShippingThreshold: number;
+  governorates: Governorate[];
   
   // Product Settings
   maxProductImages: number;
@@ -154,17 +165,41 @@ const systemSettingsSchema = new Schema<SystemSettingsDocument>({
     min: 0,
     default: 100000
   },
-  shippingCost: {
+  
+  // Shipping Settings
+  shippingEnabled: {
+    type: Boolean,
+    default: true
+  },
+  defaultShippingCost: {
     type: Number,
     required: true,
     min: 0,
     default: 20
   },
-  freeShippingThreshold: {
+  defaultFreeShippingThreshold: {
     type: Number,
     required: true,
     min: 0,
     default: 500
+  },
+  governorates: {
+    type: [
+      {
+        name: { type: String, required: true },
+        cities: [{ type: String, required: true }],
+        shippingCost: { type: Number, required: true, min: 0 },
+        isActive: { type: Boolean, default: true }
+      }
+    ],
+    default: [
+      {
+        name: 'المملكة العربية السعودية',
+        cities: ['الرياض', 'جدة', 'مكة المكرمة', 'الدمام', 'الجبيل', 'الخبر', 'القطيف', 'الطائف', 'المدينة المنورة', 'الباحة', 'الحدود الشمالية', 'الحدود الجنوبية', 'المنطقة الشرقية', 'المنطقة الغربية'],
+        shippingCost: 50,
+        isActive: true
+      }
+    ]
   },
   
   // Product Settings

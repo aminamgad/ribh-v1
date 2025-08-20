@@ -53,6 +53,9 @@ async function getFulfillmentRequests(req: NextRequest, user: any) {
     
     const total = await FulfillmentRequest.countDocuments(query);
     
+    console.log('Fulfillment requests found:', requests.length);
+    console.log('Request IDs:', requests.map(r => r._id));
+    
     // Transform requests for frontend
     const transformedRequests = requests.map(request => ({
       _id: request._id,
@@ -72,6 +75,8 @@ async function getFulfillmentRequests(req: NextRequest, user: any) {
       expectedDeliveryDate: request.expectedDeliveryDate,
       isOverdue: request.isOverdue
     }));
+    
+    console.log('Transformed requests:', transformedRequests.map(r => ({ id: r._id, status: r.status })));
     
     return NextResponse.json({
       success: true,
@@ -127,6 +132,43 @@ async function createFulfillmentRequest(req: NextRequest, user: any) {
     
     await fulfillmentRequest.populate('products.productId', 'name costPrice');
     await fulfillmentRequest.populate('supplierId', 'name companyName');
+    
+    // Send notification to admins about new fulfillment request
+    try {
+      // Get all admin users
+      const User = (await import('@/models/User')).default;
+      const adminUsers = await User.find({ role: 'admin' }).select('_id name').lean();
+      
+      // Get product names for the notification
+      const productNames = products.map(product => product.name).join(', ');
+      
+      // Create notification for each admin
+      const Notification = (await import('@/models/Notification')).default;
+      const notificationPromises = adminUsers.map(admin => 
+        Notification.create({
+          userId: admin._id,
+          title: 'طلب تخزين جديد',
+          message: `طلب تخزين جديد من ${user.name || user.companyName} للمنتجات: ${productNames}`,
+          type: 'info',
+          actionUrl: `/dashboard/fulfillment/${fulfillmentRequest._id}`,
+          metadata: { 
+            supplierId: user._id,
+            supplierName: user.name || user.companyName,
+            fulfillmentRequestId: fulfillmentRequest._id,
+            productCount: products.length,
+            totalValue: fulfillmentRequest.totalValue,
+            totalItems: fulfillmentRequest.totalItems,
+            notes: validatedData.notes
+          }
+        })
+      );
+      
+      await Promise.all(notificationPromises);
+      console.log(`✅ Notifications sent to ${adminUsers.length} admin users for new fulfillment request from ${user.name || user.companyName}`);
+      
+    } catch (error) {
+      console.error('❌ Error sending notifications to admins:', error);
+    }
     
     return NextResponse.json({
       success: true,

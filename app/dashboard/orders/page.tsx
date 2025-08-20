@@ -6,6 +6,7 @@ import { Search, Plus, Eye, CheckCircle, Truck, Package, Clock, DollarSign, Edit
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import React from 'react'; // Added for React.createElement
+import { useRouter } from 'next/navigation';
 
 interface OrderItem {
   productId: string;
@@ -73,6 +74,7 @@ export default function OrdersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [updatingOrder, setUpdatingOrder] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     fetchOrders();
@@ -335,7 +337,11 @@ export default function OrdersPage() {
                 {filteredOrders.map((order) => {
                   const StatusIcon = statusIcons[order.status as keyof typeof statusIcons] || Clock;
                   return (
-                    <tr key={order._id} className="hover:bg-gray-50 dark:hover:bg-slate-800">
+                    <tr 
+                      key={order._id} 
+                      className="hover:bg-gray-50 dark:hover:bg-slate-800 cursor-pointer"
+                      onClick={() => router.push(`/dashboard/orders/${order._id}`)}
+                    >
                       <td className="table-cell">
                         <span className="font-medium text-primary-600 dark:text-primary-400">#{order.orderNumber}</span>
                       </td>
@@ -381,14 +387,13 @@ export default function OrdersPage() {
                       </td>
                       <td className="table-cell">
                         <div className="flex items-center space-x-2 space-x-reverse">
-                          <Link
-                            href={`/dashboard/orders/${order._id}`}
-                            className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 text-sm font-medium"
-                          >
+                          <div className="text-primary-600 dark:text-primary-400 text-sm font-medium">
                             <Eye className="w-4 h-4 ml-1" />
                             عرض التفاصيل
-                          </Link>
-                          {getStatusButton(order)}
+                          </div>
+                          <div onClick={(e) => e.stopPropagation()}>
+                            {getStatusButton(order)}
+                          </div>
                         </div>
                       </td>
                     </tr>

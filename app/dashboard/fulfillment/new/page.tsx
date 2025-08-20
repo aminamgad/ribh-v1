@@ -2,18 +2,21 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
-import { Package, Plus, X, Upload, AlertCircle, CheckCircle } from 'lucide-react';
+import { Package, Plus, X, Upload, AlertCircle, CheckCircle, Search, Filter, Info, TrendingUp, Calendar, FileText } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
+import ConfirmationModal from '@/components/ui/ConfirmationModal';
 
 interface Product {
   _id: string;
   name: string;
   costPrice: number;
-  stockQuantity: number; // تغيير من currentStock إلى stockQuantity
+  stockQuantity: number;
   images: string[];
   isApproved: boolean;
   isRejected: boolean;
+  categoryId?: string;
+  categoryName?: string;
 }
 
 interface FulfillmentProduct {
@@ -26,11 +29,16 @@ export default function NewFulfillmentPage() {
   const { user } = useAuth();
   const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<FulfillmentProduct[]>([]);
   const [notes, setNotes] = useState('');
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState('');
   const [loading, setLoading] = useState(false);
   const [productsLoading, setProductsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [categories, setCategories] = useState<Array<{ _id: string; name: string }>>([]);
 
   useEffect(() => {
     if (user?.role !== 'supplier') {
@@ -38,23 +46,56 @@ export default function NewFulfillmentPage() {
       return;
     }
     fetchProducts();
+    fetchCategories();
   }, [user]);
+
+  useEffect(() => {
+    // Filter products based on search and category
+    let filtered = products;
+    
+    if (searchTerm) {
+      filtered = filtered.filter(product => 
+        product.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    if (selectedCategory !== 'all') {
+      filtered = filtered.filter(product => 
+        product.categoryId === selectedCategory
+      );
+    }
+    
+    setFilteredProducts(filtered);
+  }, [products, searchTerm, selectedCategory]);
 
   const fetchProducts = async () => {
     try {
       const response = await fetch('/api/products?supplier=true');
       if (response.ok) {
         const data = await response.json();
-        // تصفية المنتجات - لا تسمح بالمنتجات المرفوضة أو قيد المراجعة
+        // Filter approved products only
         const approvedProducts = data.products.filter((product: Product) => 
           product.isApproved && !product.isRejected
         );
         setProducts(approvedProducts);
+        setFilteredProducts(approvedProducts);
       }
     } catch (error) {
       toast.error('حدث خطأ أثناء جلب المنتجات');
     } finally {
       setProductsLoading(false);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch('/api/categories');
+      if (response.ok) {
+        const data = await response.json();
+        setCategories(data.categories || []);
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
     }
   };
 
@@ -70,22 +111,38 @@ export default function NewFulfillmentPage() {
       {
         productId: product._id,
         quantity: 1,
-        currentStock: product.stockQuantity // استخدام stockQuantity بدلاً من currentStock
+        currentStock: product.stockQuantity
       }
     ]);
+    
+    toast.success(`تم إضافة ${product.name} إلى الطلب`);
   };
 
   const removeProduct = (productId: string) => {
+    const product = getProductById(productId);
     setSelectedProducts(selectedProducts.filter(p => p.productId !== productId));
+    if (product) {
+      toast.success(`تم إزالة ${product.name} من الطلب`);
+    }
   };
 
   const updateProductQuantity = (productId: string, quantity: number) => {
+    if (quantity < 1) {
+      toast.error('الكمية يجب أن تكون 1 على الأقل');
+      return;
+    }
+    
     setSelectedProducts(selectedProducts.map(p => 
       p.productId === productId ? { ...p, quantity } : p
     ));
   };
 
   const updateProductStock = (productId: string, currentStock: number) => {
+    if (currentStock < 0) {
+      toast.error('المخزون لا يمكن أن يكون سالب');
+      return;
+    }
+    
     setSelectedProducts(selectedProducts.map(p => 
       p.productId === productId ? { ...p, currentStock } : p
     ));
@@ -110,15 +167,40 @@ export default function NewFulfillmentPage() {
     return selectedProducts.reduce((total, item) => total + item.quantity, 0);
   };
 
+  const validateForm = () => {
+    if (selectedProducts.length === 0) {
+      toast.error('يجب إضافة منتج واحد على الأقل');
+      return false;
+    }
+
+    for (const item of selectedProducts) {
+      if (item.quantity < 1) {
+        toast.error('جميع الكميات يجب أن تكون 1 على الأقل');
+        return false;
+      }
+      if (item.currentStock < 0) {
+        toast.error('جميع قيم المخزون يجب أن تكون 0 أو أكثر');
+        return false;
+      }
+    }
+
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (selectedProducts.length === 0) {
-      toast.error('يجب إضافة منتج واحد على الأقل');
+    if (!validateForm()) {
       return;
     }
 
+    setShowConfirmModal(true);
+  };
+
+  const confirmSubmit = async () => {
     setLoading(true);
+    setShowConfirmModal(false);
+    
     try {
       const response = await fetch('/api/fulfillment', {
         method: 'POST',
@@ -147,6 +229,13 @@ export default function NewFulfillmentPage() {
     }
   };
 
+  const clearAll = () => {
+    setSelectedProducts([]);
+    setNotes('');
+    setExpectedDeliveryDate('');
+    toast.success('تم مسح جميع البيانات');
+  };
+
   if (user?.role !== 'supplier') {
     return null;
   }
@@ -154,11 +243,23 @@ export default function NewFulfillmentPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100">طلب تخزين جديد</h1>
-        <p className="text-gray-600 dark:text-slate-400 mt-2">
-          أضف المنتجات المعتمدة التي تريد تخزينها في المستودع
-        </p>
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100">طلب تخزين جديد</h1>
+          <p className="text-gray-600 dark:text-slate-400 mt-2">
+            أضف المنتجات المعتمدة التي تريد تخزينها في المستودع
+          </p>
+        </div>
+        
+        {selectedProducts.length > 0 && (
+          <button
+            onClick={clearAll}
+            className="btn-secondary text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
+          >
+            <X className="w-4 h-4 ml-2" />
+            مسح الكل
+          </button>
+        )}
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -169,7 +270,52 @@ export default function NewFulfillmentPage() {
               <Package className="w-5 h-5 ml-2 text-primary-600 dark:text-primary-400" />
               اختيار المنتجات المعتمدة
             </h3>
+            <p className="text-sm text-gray-600 dark:text-slate-400 mt-1">
+              اختر المنتجات المعتمدة من الإدارة لإضافتها إلى طلب التخزين
+            </p>
           </div>
+          
+          {/* Search and Filter */}
+          <div className="p-6 border-b border-gray-200 dark:border-slate-700">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="البحث في المنتجات..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-3 pr-10 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  />
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-2 space-x-reverse">
+                <Filter className="w-4 h-4 text-gray-500" />
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                >
+                  <option value="all">جميع الفئات</option>
+                  {categories.map(category => (
+                    <option key={category._id} value={category._id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            
+            {/* Results Summary */}
+            <div className="mt-3 text-sm text-gray-600 dark:text-slate-400">
+              عرض {filteredProducts.length} من أصل {products.length} منتج
+              {searchTerm && ` - نتائج البحث عن "${searchTerm}"`}
+              {selectedCategory !== 'all' && ` - فئة محددة`}
+            </div>
+          </div>
+          
           <div className="p-6">
             {productsLoading ? (
               <div className="text-center py-8">
@@ -184,17 +330,32 @@ export default function NewFulfillmentPage() {
                   يجب أن تكون المنتجات معتمدة من الإدارة قبل إمكانية طلب تخزينها
                 </p>
               </div>
+            ) : filteredProducts.length === 0 ? (
+              <div className="text-center py-8">
+                <Search className="w-12 h-12 text-gray-400 dark:text-slate-500 mx-auto mb-4" />
+                <p className="text-gray-600 dark:text-slate-400">لا توجد نتائج للبحث</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setSelectedCategory('all');
+                  }}
+                  className="btn-secondary mt-2"
+                >
+                  مسح الفلاتر
+                </button>
+              </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {products.map((product) => {
+                {filteredProducts.map((product) => {
                   const isSelected = selectedProducts.some(p => p.productId === product._id);
                   return (
                     <div
                       key={product._id}
-                      className={`border-2 rounded-lg p-4 cursor-pointer transition-all duration-200 ${
+                      className={`border-2 rounded-lg p-4 cursor-pointer transition-all duration-200 hover:shadow-md ${
                         isSelected
                           ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 shadow-md'
-                          : 'border-gray-200 dark:border-slate-600 hover:border-primary-300 dark:hover:border-primary-400 hover:shadow-sm'
+                          : 'border-gray-200 dark:border-slate-600 hover:border-primary-300 dark:hover:border-primary-400'
                       }`}
                       onClick={() => !isSelected && addProduct(product)}
                     >
@@ -219,11 +380,17 @@ export default function NewFulfillmentPage() {
                         <p className="text-gray-700 dark:text-slate-300">
                           <span className="font-medium">المخزون الحالي:</span> {product.stockQuantity} قطعة
                         </p>
+                        {product.categoryName && (
+                          <p className="text-gray-600 dark:text-slate-400">
+                            <span className="font-medium">الفئة:</span> {product.categoryName}
+                          </p>
+                        )}
                       </div>
                       {isSelected && (
                         <div className="mt-3 p-2 bg-primary-100 dark:bg-primary-900/30 rounded-md border border-primary-200 dark:border-primary-700">
-                          <p className="text-sm text-primary-800 dark:text-primary-200 font-medium text-center">
-                            ✓ تم اختيار هذا المنتج
+                          <p className="text-sm text-primary-800 dark:text-primary-200 font-medium text-center flex items-center justify-center">
+                            <CheckCircle className="w-4 h-4 ml-1" />
+                            تم اختيار هذا المنتج
                           </p>
                         </div>
                       )}
@@ -241,7 +408,7 @@ export default function NewFulfillmentPage() {
             <div className="p-6 border-b border-gray-200 dark:border-slate-700">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 flex items-center">
                 <Package className="w-5 h-5 ml-2 text-primary-600 dark:text-primary-400" />
-                المنتجات المختارة
+                المنتجات المختارة ({selectedProducts.length})
               </h3>
             </div>
             <div className="p-6">
@@ -272,12 +439,18 @@ export default function NewFulfillmentPage() {
                             <p className="text-sm text-gray-600 dark:text-slate-400">
                               سعر التكلفة: {product.costPrice} ₪
                             </p>
+                            {product.categoryName && (
+                              <p className="text-xs text-gray-500 dark:text-slate-500">
+                                {product.categoryName}
+                              </p>
+                            )}
                           </div>
                         </div>
                         <button
                           type="button"
                           onClick={() => removeProduct(item.productId)}
-                          className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20"
+                          className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                          title="إزالة المنتج"
                         >
                           <X className="w-5 h-5" />
                         </button>
@@ -323,9 +496,10 @@ export default function NewFulfillmentPage() {
                 })}
               </div>
 
-              {/* Summary */}
+              {/* Enhanced Summary */}
               <div className="mt-6 p-4 bg-primary-50 dark:bg-primary-900/20 rounded-lg border border-primary-200 dark:border-primary-700">
-                <h4 className="font-semibold text-primary-900 dark:text-primary-100 mb-3">
+                <h4 className="font-semibold text-primary-900 dark:text-primary-100 mb-3 flex items-center">
+                  <TrendingUp className="w-4 h-4 ml-2" />
                   ملخص الطلب
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
@@ -357,13 +531,14 @@ export default function NewFulfillmentPage() {
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-gray-200 dark:border-slate-700">
           <div className="p-6 border-b border-gray-200 dark:border-slate-700">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 flex items-center">
-              <AlertCircle className="w-5 h-5 ml-2 text-warning-600 dark:text-warning-400" />
+              <Info className="w-5 h-5 ml-2 text-warning-600 dark:text-warning-400" />
               معلومات إضافية
             </h3>
           </div>
           <div className="p-6 space-y-4">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2 flex items-center">
+                <FileText className="w-4 h-4 ml-2" />
                 ملاحظات (اختياري)
               </label>
               <textarea
@@ -371,18 +546,20 @@ export default function NewFulfillmentPage() {
                 onChange={(e) => setNotes(e.target.value)}
                 rows={3}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                placeholder="أضف أي ملاحظات أو تفاصيل إضافية..."
+                placeholder="أضف أي ملاحظات أو تفاصيل إضافية حول طلب التخزين..."
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2 flex items-center">
+                <Calendar className="w-4 h-4 ml-2" />
                 تاريخ التسليم المتوقع (اختياري)
               </label>
               <input
                 type="date"
                 value={expectedDeliveryDate}
                 onChange={(e) => setExpectedDeliveryDate(e.target.value)}
+                min={new Date().toISOString().split('T')[0]}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               />
             </div>
@@ -394,14 +571,14 @@ export default function NewFulfillmentPage() {
           <button
             type="button"
             onClick={() => router.push('/dashboard/fulfillment')}
-            className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 focus:ring-2 focus:ring-gray-500 focus:border-gray-500"
+            className="btn-secondary"
           >
             إلغاء
           </button>
           <button
             type="submit"
             disabled={loading || selectedProducts.length === 0}
-            className="px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 dark:disabled:bg-slate-600 text-white rounded-md focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:cursor-not-allowed flex items-center"
+            className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
           >
             {loading ? (
               <>
@@ -417,6 +594,24 @@ export default function NewFulfillmentPage() {
           </button>
         </div>
       </form>
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={confirmSubmit}
+        title="تأكيد إنشاء طلب التخزين"
+        message={`هل أنت متأكد من إنشاء طلب التخزين؟ سيتم إرسال الطلب إلى الإدارة للمراجعة والموافقة.
+
+تفاصيل الطلب:
+• عدد المنتجات: ${selectedProducts.length}
+• إجمالي القطع: ${calculateTotalItems()}
+• القيمة الإجمالية: ${calculateTotalValue().toFixed(2)} ₪`}
+        confirmText="إنشاء الطلب"
+        cancelText="إلغاء"
+        type="success"
+        loading={loading}
+      />
     </div>
   );
 } 

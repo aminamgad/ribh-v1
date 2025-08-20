@@ -22,17 +22,47 @@ async function searchProducts(req: NextRequest, user: any) {
     
     // Build search query
     let searchQuery: any = {
-      isActive: true,
-      isApproved: true
+      isActive: true
     };
     
-    // Text search
-    if (query) {
+    // Role-based filtering
+    if (user.role === 'supplier') {
+      searchQuery.supplierId = user._id;
+      // Suppliers can see their own products regardless of approval status
+    } else if (user.role === 'marketer' || user.role === 'wholesaler') {
+      // Marketers and wholesalers only see approved products
+      searchQuery.isApproved = true;
       searchQuery.$or = [
+        { isRejected: false },
+        { isRejected: { $exists: false } }
+      ];
+    } else if (user.role === 'admin') {
+      // Admins can see all products
+      // No additional filters needed
+    }
+    
+    // Text search
+    let textSearchConditions = [];
+    if (query) {
+      textSearchConditions.push(
         { name: { $regex: query, $options: 'i' } },
         { description: { $regex: query, $options: 'i' } },
         { sku: { $regex: query, $options: 'i' } }
-      ];
+      );
+    }
+    
+    // Combine text search with existing $or conditions
+    if (textSearchConditions.length > 0) {
+      if (searchQuery.$or) {
+        // If there's already an $or condition (from role-based filtering), we need to use $and
+        searchQuery.$and = [
+          { $or: searchQuery.$or },
+          { $or: textSearchConditions }
+        ];
+        delete searchQuery.$or;
+      } else {
+        searchQuery.$or = textSearchConditions;
+      }
     }
     
     // Category filter
@@ -83,6 +113,10 @@ async function searchProducts(req: NextRequest, user: any) {
     }
     
     const skip = (page - 1) * limit;
+    
+    console.log('🔍 Search API - Final query:', JSON.stringify(searchQuery, null, 2));
+    console.log('👤 Search API - User role:', user.role);
+    console.log('👤 Search API - User ID:', user._id);
     
     // Execute search
     const [products, total] = await Promise.all([

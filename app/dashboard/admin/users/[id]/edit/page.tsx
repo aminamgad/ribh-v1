@@ -17,17 +17,51 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import CountrySelect from '@/components/ui/CountrySelect';
 
 const userSchema = z.object({
   name: z.string().min(2, 'الاسم يجب أن يكون حرفين على الأقل'),
   email: z.string().email('البريد الإلكتروني غير صحيح'),
-  phone: z.string().min(10, 'رقم الهاتف غير صحيح'),
+  phone: z.string().regex(/^[\+]?[0-9\s\-\(\)]{7,20}$/, 'رقم الهاتف غير صحيح'),
   role: z.enum(['admin', 'supplier', 'marketer', 'wholesaler']),
+  // Marketing account fields
+  country: z.string().optional(),
+  dateOfBirth: z.string().optional(),
+  gender: z.enum(['male', 'female']).optional().or(z.literal('')),
+  websiteLink: z.string().url('رابط الموقع غير صحيح').optional().or(z.literal('')),
+  // Supplier account fields
   companyName: z.string().optional(),
+  commercialRegisterNumber: z.string().optional(),
   address: z.string().optional(),
+  // Wholesaler account fields
+  wholesaleLicense: z.string().optional(),
+  businessType: z.string().optional(),
+  // Legacy field
   taxId: z.string().optional(),
   isActive: z.boolean(),
   isVerified: z.boolean()
+}).refine((data) => {
+  // Marketing account validation
+  if (data.role === 'marketer') {
+    if (!data.country) return false;
+    if (!data.dateOfBirth) return false;
+    if (!data.gender) return false;
+  }
+  return true;
+}, {
+  message: 'جميع الحقول مطلوبة لحساب المسوق',
+  path: ['role'],
+}).refine((data) => {
+  // Supplier account validation
+  if (data.role === 'supplier') {
+    if (!data.companyName) return false;
+    if (!data.commercialRegisterNumber) return false;
+    if (!data.address) return false;
+  }
+  return true;
+}, {
+  message: 'جميع الحقول مطلوبة لحساب المورد',
+  path: ['role'],
 });
 
 interface UserData {
@@ -36,8 +70,19 @@ interface UserData {
   email: string;
   phone: string;
   role: string;
+  // Marketing account fields
+  country?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  websiteLink?: string;
+  // Supplier account fields
   companyName?: string;
+  commercialRegisterNumber?: string;
   address?: string;
+  // Wholesaler account fields
+  wholesaleLicense?: string;
+  businessType?: string;
+  // Legacy field
   taxId?: string;
   isActive: boolean;
   isVerified: boolean;
@@ -65,8 +110,15 @@ export default function EditUserPage() {
       email: '',
       phone: '',
       role: 'marketer' as const,
+      country: '',
+      dateOfBirth: '',
+      gender: '',
+      websiteLink: '',
       companyName: '',
+      commercialRegisterNumber: '',
       address: '',
+      wholesaleLicense: '',
+      businessType: '',
       taxId: '',
       isActive: true,
       isVerified: false
@@ -99,8 +151,16 @@ export default function EditUserPage() {
         setValue('email', data.user.email);
         setValue('phone', data.user.phone);
         setValue('role', data.user.role);
+        // Marketing account fields
+        setValue('country', data.user.country || '');
+        setValue('dateOfBirth', data.user.dateOfBirth ? new Date(data.user.dateOfBirth).toISOString().split('T')[0] : '');
+        setValue('gender', data.user.gender || '');
+        setValue('websiteLink', data.user.websiteLink || '');
+        // Supplier account fields
         setValue('companyName', data.user.companyName || '');
+        setValue('commercialRegisterNumber', data.user.commercialRegisterNumber || '');
         setValue('address', data.user.address || '');
+        // Legacy field
         setValue('taxId', data.user.taxId || '');
         setValue('isActive', data.user.isActive);
         setValue('isVerified', data.user.isVerified);
@@ -145,10 +205,10 @@ export default function EditUserPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-slate-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">جاري تحميل بيانات المستخدم...</p>
+          <p className="mt-4 text-gray-600 dark:text-slate-400">جاري تحميل بيانات المستخدم...</p>
         </div>
       </div>
     );
@@ -156,11 +216,11 @@ export default function EditUserPage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-slate-900 flex items-center justify-center">
         <div className="text-center">
-          <UserX className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">المستخدم غير موجود</h2>
-          <p className="text-gray-600 mb-4">المستخدم الذي تبحث عنه غير موجود أو تم حذفه</p>
+          <UserX className="w-16 h-16 text-gray-400 dark:text-slate-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100 mb-2">المستخدم غير موجود</h2>
+          <p className="text-gray-600 dark:text-slate-400 mb-4">المستخدم الذي تبحث عنه غير موجود أو تم حذفه</p>
           <Link href="/dashboard/admin/users" className="btn-primary">
             <ArrowLeft className="w-4 h-4 ml-2" />
             العودة للمستخدمين
@@ -173,7 +233,7 @@ export default function EditUserPage() {
   const isOwnAccount = params.id === currentUser?._id;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
       <div className="max-w-4xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -185,18 +245,18 @@ export default function EditUserPage() {
               <ArrowLeft className="w-4 h-4 ml-2" />
               العودة للمستخدم
             </Link>
-            <h1 className="text-2xl font-bold text-gray-900">تعديل المستخدم</h1>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">تعديل المستخدم</h1>
           </div>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
           {/* Basic Information */}
-          <div className="bg-white rounded-lg p-6 border">
-            <h2 className="text-lg font-semibold text-gray-900 mb-6">المعلومات الأساسية</h2>
+          <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-gray-200 dark:border-slate-700">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-6">المعلومات الأساسية</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                   الاسم الكامل *
                 </label>
                 <input
@@ -206,12 +266,12 @@ export default function EditUserPage() {
                   placeholder="الاسم الكامل"
                 />
                 {errors.name && (
-                  <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>
+                  <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.name.message}</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                   البريد الإلكتروني *
                 </label>
                 <input
@@ -221,27 +281,27 @@ export default function EditUserPage() {
                   placeholder="example@email.com"
                 />
                 {errors.email && (
-                  <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
+                  <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.email.message}</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                   رقم الهاتف *
                 </label>
                 <input
                   type="tel"
                   {...register('phone')}
                   className="input-field"
-                  placeholder="05xxxxxxxx"
+                                      placeholder="أدخل رقم الهاتف"
                 />
                 {errors.phone && (
-                  <p className="text-red-500 text-sm mt-1">{errors.phone.message}</p>
+                  <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.phone.message}</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                   الدور *
                 </label>
                 <select 
@@ -250,66 +310,215 @@ export default function EditUserPage() {
                   disabled={isOwnAccount}
                 >
                   <option value="marketer">المسوق</option>
-                  <option value="wholesaler">تاجر الجملة</option>
                   <option value="supplier">المورد</option>
+                  <option value="wholesaler">تاجر الجملة</option>
                   <option value="admin">الإدارة</option>
                 </select>
                 {isOwnAccount && (
-                  <p className="text-yellow-600 text-sm mt-1">لا يمكنك تغيير دورك</p>
+                  <p className="text-yellow-600 dark:text-yellow-400 text-sm mt-1">لا يمكنك تغيير دورك</p>
                 )}
                 {errors.role && (
-                  <p className="text-red-500 text-sm mt-1">{errors.role.message}</p>
+                  <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.role.message}</p>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Company Information */}
-          <div className="bg-white rounded-lg p-6 border">
-            <h2 className="text-lg font-semibold text-gray-900 mb-6">معلومات الشركة</h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  اسم الشركة
-                </label>
-                <input
-                  type="text"
-                  {...register('companyName')}
-                  className="input-field"
-                  placeholder="اسم الشركة"
-                />
-              </div>
+          {/* Marketing Account Fields */}
+          {(watchedValues.role as string) === 'marketer' && (
+            <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-gray-200 dark:border-slate-700">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-6">معلومات المسوق</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                    دولة الجنسية *
+                  </label>
+                  <CountrySelect
+                    value={watch('country')}
+                    onChange={(value) => setValue('country', value)}
+                    placeholder="اختر دولة الجنسية"
+                    error={errors.country?.message}
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  الرقم الضريبي
-                </label>
-                <input
-                  type="text"
-                  {...register('taxId')}
-                  className="input-field"
-                  placeholder="الرقم الضريبي"
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                    تاريخ الميلاد *
+                  </label>
+                  <input
+                    type="date"
+                    {...register('dateOfBirth')}
+                    className="input-field"
+                  />
+                  {errors.dateOfBirth && (
+                    <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.dateOfBirth.message}</p>
+                  )}
+                </div>
 
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  العنوان
-                </label>
-                <textarea
-                  {...register('address')}
-                  rows={3}
-                  className="input-field"
-                  placeholder="عنوان الشركة"
-                />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                    الجنس *
+                  </label>
+                  <select {...register('gender')} className="input-field">
+                    <option value="">اختر الجنس</option>
+                    <option value="male">ذكر</option>
+                    <option value="female">أنثى</option>
+                  </select>
+                  {errors.gender && (
+                    <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.gender.message}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                    رابط الموقع/الصفحة (اختياري)
+                  </label>
+                  <input
+                    type="url"
+                    {...register('websiteLink')}
+                    className="input-field"
+                    placeholder="https://example.com"
+                  />
+                  {errors.websiteLink && (
+                    <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.websiteLink.message}</p>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          )}
+
+          {/* Supplier Account Fields */}
+          {(watchedValues.role as string) === 'supplier' && (
+            <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-gray-200 dark:border-slate-700">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-6">معلومات المورد</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                    اسم الشركة *
+                  </label>
+                  <input
+                    type="text"
+                    {...register('companyName')}
+                    className="input-field"
+                    placeholder="اسم الشركة"
+                  />
+                  {errors.companyName && (
+                    <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.companyName.message}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                    رقم السجل التجاري *
+                  </label>
+                  <input
+                    type="text"
+                    {...register('commercialRegisterNumber')}
+                    className="input-field"
+                    placeholder="رقم السجل التجاري"
+                  />
+                  {errors.commercialRegisterNumber && (
+                    <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.commercialRegisterNumber.message}</p>
+                  )}
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                    العنوان *
+                  </label>
+                  <textarea
+                    {...register('address')}
+                    rows={3}
+                    className="input-field"
+                    placeholder="عنوان الشركة"
+                  />
+                  {errors.address && (
+                    <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.address.message}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Wholesaler Account Fields */}
+          {(watchedValues.role as string) === 'wholesaler' && (
+            <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-gray-200 dark:border-slate-700">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-6">معلومات تاجر الجملة</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                    اسم الشركة *
+                  </label>
+                  <input
+                    type="text"
+                    {...register('companyName')}
+                    className="input-field"
+                    placeholder="اسم الشركة"
+                  />
+                  {errors.companyName && (
+                    <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.companyName.message}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                    رخصة الجملة *
+                  </label>
+                  <input
+                    type="text"
+                    {...register('wholesaleLicense')}
+                    className="input-field"
+                    placeholder="رقم رخصة الجملة"
+                  />
+                  {errors.wholesaleLicense && (
+                    <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.wholesaleLicense.message}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                    نوع النشاط التجاري *
+                  </label>
+                  <select {...register('businessType')} className="input-field">
+                    <option value="">اختر نوع النشاط</option>
+                    <option value="electronics">الإلكترونيات</option>
+                    <option value="clothing">الملابس</option>
+                    <option value="food">الأغذية</option>
+                    <option value="furniture">الأثاث</option>
+                    <option value="automotive">السيارات</option>
+                    <option value="construction">البناء</option>
+                    <option value="healthcare">الرعاية الصحية</option>
+                    <option value="other">أخرى</option>
+                  </select>
+                  {errors.businessType && (
+                    <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.businessType.message}</p>
+                  )}
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                    العنوان *
+                  </label>
+                  <textarea
+                    {...register('address')}
+                    rows={3}
+                    className="input-field"
+                    placeholder="عنوان الشركة"
+                  />
+                  {errors.address && (
+                    <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.address.message}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Account Status */}
-          <div className="bg-white rounded-lg p-6 border">
-            <h2 className="text-lg font-semibold text-gray-900 mb-6">حالة الحساب</h2>
+          <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-gray-200 dark:border-slate-700">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-6">حالة الحساب</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex items-center space-x-3 space-x-reverse">
@@ -319,11 +528,11 @@ export default function EditUserPage() {
                   className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
                   disabled={isOwnAccount}
                 />
-                <label className="text-sm font-medium text-gray-700">
+                <label className="text-sm font-medium text-gray-700 dark:text-slate-300">
                   الحساب نشط
                 </label>
                 {isOwnAccount && (
-                  <p className="text-yellow-600 text-sm">لا يمكنك إيقاف حسابك</p>
+                  <p className="text-yellow-600 dark:text-yellow-400 text-sm">لا يمكنك إيقاف حسابك</p>
                 )}
               </div>
 
@@ -333,15 +542,15 @@ export default function EditUserPage() {
                   {...register('isVerified')}
                   className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
                 />
-                <label className="text-sm font-medium text-gray-700">
+                <label className="text-sm font-medium text-gray-700 dark:text-slate-300">
                   الحساب محقق
                 </label>
               </div>
             </div>
 
             {/* Status Preview */}
-            <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-              <h4 className="text-sm font-medium text-gray-700 mb-2">معاينة الحالة:</h4>
+            <div className="mt-4 p-4 bg-gray-50 dark:bg-slate-700 rounded-lg">
+              <h4 className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">معاينة الحالة:</h4>
               <div className="flex items-center space-x-2 space-x-reverse">
                 {watchedValues.isActive ? (
                   <span className="badge badge-success">
@@ -368,13 +577,13 @@ export default function EditUserPage() {
                 <span className={`badge ${
                   (watchedValues.role as string) === 'admin' ? 'badge-danger' :
                   (watchedValues.role as string) === 'supplier' ? 'badge-blue' :
-                  (watchedValues.role as string) === 'marketer' ? 'badge-success' :
-                  'badge-purple'
+                  (watchedValues.role as string) === 'wholesaler' ? 'badge-purple' :
+                  'badge-success'
                 }`}>
                   {(watchedValues.role as string) === 'admin' ? 'الإدارة' :
                    (watchedValues.role as string) === 'supplier' ? 'المورد' :
-                   (watchedValues.role as string) === 'marketer' ? 'المسوق' :
-                   'تاجر الجملة'}
+                   (watchedValues.role as string) === 'wholesaler' ? 'تاجر الجملة' :
+                   'المسوق'}
                 </span>
               </div>
             </div>

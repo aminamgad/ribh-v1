@@ -20,21 +20,69 @@ export const GET = async (req: NextRequest) => {
     
     // Return public settings (excluding sensitive financial details)
     const publicSettings = {
+      // General settings
       platformName: settings.platformName,
       platformDescription: settings.platformDescription,
       contactEmail: settings.contactEmail,
       contactPhone: settings.contactPhone,
+      
+      // Order settings
       minimumOrderValue: settings.minimumOrderValue,
       maximumOrderValue: settings.maximumOrderValue,
-      shippingCost: settings.shippingCost,
-      freeShippingThreshold: settings.freeShippingThreshold,
-      withdrawalSettings: settings.withdrawalSettings,
-      commissionRates: settings.commissionRates,
+      
+      // Shipping settings
+      shippingEnabled: settings.shippingEnabled,
+      defaultShippingCost: settings.defaultShippingCost,
+      defaultFreeShippingThreshold: settings.defaultFreeShippingThreshold,
+      governorates: settings.governorates,
+      
+      // Product settings
       maxProductImages: settings.maxProductImages,
       maxProductDescriptionLength: settings.maxProductDescriptionLength,
+      autoApproveProducts: settings.autoApproveProducts,
+      
+      // Notification settings
+      emailNotifications: settings.emailNotifications,
+      smsNotifications: settings.smsNotifications,
+      pushNotifications: settings.pushNotifications,
+      
+      // Security settings
       passwordMinLength: settings.passwordMinLength,
       sessionTimeout: settings.sessionTimeout,
-      maxLoginAttempts: settings.maxLoginAttempts
+      maxLoginAttempts: settings.maxLoginAttempts,
+      
+      // Legal settings
+      termsOfService: settings.termsOfService,
+      privacyPolicy: settings.privacyPolicy,
+      refundPolicy: settings.refundPolicy,
+      
+      // Analytics settings
+      googleAnalyticsId: settings.googleAnalyticsId,
+      facebookPixelId: settings.facebookPixelId,
+      
+      // Legacy fields for backward compatibility
+      freeShippingThreshold: settings.defaultFreeShippingThreshold,
+      shippingCost: settings.defaultShippingCost,
+      maxProductDescription: settings.maxProductDescriptionLength,
+      whatsappNotifications: settings.smsNotifications,
+      requireProductImages: true,
+      requireAdminApproval: !settings.autoApproveProducts,
+      autoApproveOrders: false,
+      maintenanceMode: false,
+      maintenanceMessage: '',
+      facebookUrl: '',
+      instagramUrl: '',
+      twitterUrl: '',
+      linkedinUrl: '',
+      minimumWithdrawal: 100,
+      maximumWithdrawal: 10000,
+      withdrawalFee: 2.5,
+      currency: '₪',
+      shippingCompanies: ['شركة الشحن السريع', 'شركة الشحن الموثوقة'],
+      requireTwoFactor: false,
+      commissionRates: settings.commissionRates,
+      withdrawalSettings: settings.withdrawalSettings,
+      supportWhatsApp: settings.contactPhone
     };
     
     console.log('✅ تم جلب إعدادات النظام العامة بنجاح');

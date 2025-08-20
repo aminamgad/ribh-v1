@@ -43,14 +43,34 @@ async function sendMessage(req: NextRequest, user: any) {
       }
     }
     
-    // Create message
+    console.log('📝 Creating message with data:', {
+      senderId: user._id,
+      receiverId: validatedData.receiverId,
+      productId: validatedData.productId,
+      subject: validatedData.subject,
+      content: validatedData.content,
+      isApproved: null
+    });
+    
+    // Create message - Set to pending for admin review
     const message = await Message.create({
       senderId: user._id,
       receiverId: validatedData.receiverId,
       productId: validatedData.productId,
       subject: validatedData.subject,
       content: validatedData.content,
-      isApproved: user.role === 'admin' // Only admin messages are auto-approved
+      isApproved: null // Set to null for admin review
+    });
+    
+    console.log('✅ Message created successfully:', message._id);
+    console.log('✅ Message details:', {
+      id: message._id,
+      senderId: message.senderId,
+      receiverId: message.receiverId,
+      subject: message.subject,
+      content: message.content,
+      isApproved: message.isApproved,
+      createdAt: message.createdAt
     });
     
     await message.populate('senderId', 'name role');
@@ -88,4 +108,4 @@ async function sendMessage(req: NextRequest, user: any) {
   }
 }
 
-export const POST = withRole(['marketer', 'wholesaler', 'admin'])(sendMessage); 
+export const POST = withRole(['marketer', 'wholesaler', 'admin', 'supplier'])(sendMessage); 

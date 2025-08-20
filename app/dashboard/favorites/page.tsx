@@ -4,8 +4,10 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useCart } from '@/components/providers/CartProvider';
 import { Heart, ShoppingCart, Trash2, Package, Store } from 'lucide-react';
+import MediaThumbnail from '@/components/ui/MediaThumbnail';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import { useRouter } from 'next/navigation';
 
 interface Product {
   _id: string;
@@ -25,6 +27,7 @@ export default function FavoritesPage() {
   const { addToCart } = useCart();
   const [favorites, setFavorites] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     fetchFavorites();
@@ -106,10 +109,17 @@ export default function FavoritesPage() {
       {/* Favorites Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {favorites.map((product) => (
-          <div key={product._id} className="card hover:shadow-medium transition-shadow relative">
+          <div 
+            key={product._id} 
+            className="card hover:shadow-medium transition-shadow relative cursor-pointer"
+            onClick={() => router.push(`/dashboard/products/${product._id}`)}
+          >
             {/* Remove from favorites button */}
             <button
-              onClick={() => removeFromFavorites(product._id)}
+              onClick={(e) => {
+                e.stopPropagation();
+                removeFromFavorites(product._id);
+              }}
               className="absolute top-2 left-2 p-2 bg-white rounded-full shadow-sm hover:shadow-md transition-shadow z-10"
             >
               <Heart className="w-5 h-5 text-danger-600 fill-current" />
@@ -117,17 +127,13 @@ export default function FavoritesPage() {
 
             {/* Product Image */}
             <div className="aspect-square bg-gray-200 rounded-lg mb-4 overflow-hidden">
-              {product.images && product.images.length > 0 ? (
-                <img
-                  src={product.images[0]}
-                  alt={product.name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <Package className="w-12 h-12 text-gray-400" />
-                </div>
-              )}
+              <MediaThumbnail
+                media={product.images || []}
+                alt={product.name}
+                className="w-full h-full"
+                showTypeBadge={false}
+                fallbackIcon={<Package className="w-12 h-12 text-gray-400" />}
+              />
             </div>
 
             {/* Product Info */}
@@ -148,16 +154,16 @@ export default function FavoritesPage() {
 
               {/* Actions */}
               <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
-                <Link
-                  href={`/dashboard/products/${product._id}`}
-                  className="btn-secondary flex-1 text-sm py-2"
-                >
+                <div className="btn-secondary flex-1 text-sm py-2 text-center">
                   عرض التفاصيل
-                </Link>
+                </div>
                 
                 {product.stockQuantity > 0 && (
                   <button
-                    onClick={() => handleAddToCart(product)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAddToCart(product);
+                    }}
                     className="btn-primary flex-1 text-sm py-2"
                   >
                     <ShoppingCart className="w-4 h-4 ml-1" />

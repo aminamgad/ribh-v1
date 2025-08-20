@@ -5,6 +5,7 @@ import { useAuth } from '@/components/providers/AuthProvider';
 import { Search, Filter, Eye, Edit, Shield, UserCheck, UserX, Mail, Phone, User } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import { useRouter } from 'next/navigation';
 
 interface User {
   _id: string;
@@ -42,6 +43,7 @@ export default function AdminUsersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const router = useRouter();
 
   useEffect(() => {
     if (user?.role !== 'admin') {
@@ -305,7 +307,11 @@ export default function AdminUsersPage() {
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
                 {filteredUsers.map((userItem) => (
-                  <tr key={userItem._id} className="hover:bg-gray-50 dark:hover:bg-slate-800">
+                  <tr 
+                    key={userItem._id} 
+                    className="hover:bg-gray-50 dark:hover:bg-slate-800 cursor-pointer"
+                    onClick={() => router.push(`/dashboard/users/${userItem._id}`)}
+                  >
                     <td className="table-cell">
                       <div>
                         <p className="font-medium text-gray-900 dark:text-slate-100">{userItem.name}</p>
@@ -350,24 +356,24 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="table-cell">
                       <div className="flex items-center space-x-2 space-x-reverse">
-                        <Link
-                          href={`/dashboard/users/${userItem._id}`}
-                          className="text-primary-600 hover:text-primary-700"
-                          title="عرض التفاصيل"
-                        >
+                        <div className="text-primary-600 hover:text-primary-700" title="عرض التفاصيل">
                           <Eye className="w-4 h-4" />
-                        </Link>
+                        </div>
                         
                         <Link
                           href={`/dashboard/users/${userItem._id}/edit`}
                           className="text-gray-600 hover:text-gray-900"
                           title="تعديل المستخدم"
+                          onClick={(e) => e.stopPropagation()}
                         >
                           <Edit className="w-4 h-4" />
                         </Link>
                         
                         <button
-                          onClick={() => handleToggleStatus(userItem._id, userItem.isActive)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleStatus(userItem._id, userItem.isActive);
+                          }}
                           className={`${userItem.isActive ? 'text-red-600 hover:text-red-700' : 'text-green-600 hover:text-green-700'}`}
                           title={userItem.isActive ? 'إيقاف المستخدم' : 'تفعيل المستخدم'}
                         >
@@ -376,7 +382,10 @@ export default function AdminUsersPage() {
                         
                         {!userItem.isVerified && (
                           <button
-                            onClick={() => handleVerifyUser(userItem._id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleVerifyUser(userItem._id);
+                            }}
                             className="text-blue-600 hover:text-blue-700"
                             title="التحقق من المستخدم"
                           >
