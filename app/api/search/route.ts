@@ -36,6 +36,8 @@ async function searchProducts(req: NextRequest, user: any) {
         { isRejected: false },
         { isRejected: { $exists: false } }
       ];
+      // Exclude locked products for marketers and wholesalers
+      searchQuery.isLocked = { $ne: true };
     } else if (user.role === 'admin') {
       // Admins can see all products
       // No additional filters needed

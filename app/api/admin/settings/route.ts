@@ -33,6 +33,9 @@ const generalSettingsSchema = z.object({
 const orderSettingsSchema = z.object({
   minimumOrderValue: z.number().min(0, 'الحد الأدنى للطلب يجب أن يكون 0 أو أكثر'),
   maximumOrderValue: z.number().min(0, 'الحد الأقصى للطلب يجب أن يكون 0 أو أكثر')
+}).refine((data) => data.minimumOrderValue <= data.maximumOrderValue, {
+  message: 'الحد الأدنى للطلب يجب أن يكون أقل من أو يساوي الحد الأقصى للطلب',
+  path: ['maximumOrderValue']
 });
 
 const governorateSchema = z.object({
@@ -299,19 +302,17 @@ export const PUT = withRole(['admin'])(async (req: NextRequest, user: any) => {
     // Save the settings
     console.log('💾 حفظ الإعدادات في قاعدة البيانات...');
     await settings.save();
-    console.log('✅ تم حفظ الإعدادات بنجاح');
     
-    // Clear cache to ensure fresh data
-    console.log('🗑️ مسح الكاش...');
+    // Clear settings cache to ensure fresh data is loaded
+    console.log('🗑️ مسح ذاكرة التخزين المؤقت للإعدادات...');
     settingsManager.clearCache();
-    console.log('✅ تم مسح الكاش');
     
-    console.log('✅ تم حفظ إعدادات النظام بنجاح');
+    console.log('✅ تم حفظ الإعدادات بنجاح');
     
     return NextResponse.json({
       success: true,
       message: 'تم حفظ الإعدادات بنجاح',
-      settings: await settingsManager.getSettings()
+      settings: settings.toObject()
     });
     
   } catch (error) {

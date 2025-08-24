@@ -23,12 +23,17 @@ import {
   Calendar,
   MessageSquare,
   Send,
-  X
+  X,
+  BarChart3,
+  Lock,
+  Unlock
 } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import MediaDisplay from '@/components/ui/MediaDisplay';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
+import ProductVariantSelector from '@/components/ui/ProductVariantSelector';
+import { ProductVariant, ProductVariantOption } from '@/types';
 
 interface Product {
   _id: string;
@@ -65,6 +70,15 @@ interface Product {
   rejectedBy?: string; // Added for rejection user
   categoryId?: { name: string }; // Added for category ID
   supplierId?: { _id: string; name: string; companyName: string } | string; // Added for supplier ID
+  // Product variants
+  hasVariants?: boolean;
+  variants?: ProductVariant[];
+  variantOptions?: ProductVariantOption[];
+  // Locking fields
+  isLocked?: boolean;
+  lockedAt?: string;
+  lockedBy?: string;
+  lockReason?: string;
 }
 
 export default function ProductDetailPage() {
@@ -94,6 +108,15 @@ export default function ProductDetailPage() {
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
   const [showReviewConfirm, setShowReviewConfirm] = useState(false);
   const [reviewAction, setReviewAction] = useState<'approve' | 'reject' | null>(null);
+  
+  // Locking states
+  const [locking, setLocking] = useState(false);
+  const [showLockModal, setShowLockModal] = useState(false);
+  const [lockReason, setLockReason] = useState('');
+  const [lockAction, setLockAction] = useState<'lock' | 'unlock' | null>(null);
+  
+  // Product variants state
+  const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (params.id) {
@@ -135,7 +158,13 @@ export default function ProductDetailPage() {
           isRejected: data.product.isRejected,
           rejectionReason: data.product.rejectionReason,
           supplierId: data.product.supplierId,
-          status: data.product.isApproved ? 'معتمد' : data.product.isRejected ? 'مرفوض' : 'قيد المراجعة'
+          status: data.product.isApproved ? 'معتمد' : data.product.isRejected ? 'مرفوض' : 'قيد المراجعة',
+          // Add variant debugging
+          hasVariants: data.product.hasVariants,
+          variantsCount: data.product.variants?.length || 0,
+          variantOptionsCount: data.product.variantOptions?.length || 0,
+          variants: data.product.variants,
+          variantOptions: data.product.variantOptions
         });
         setProduct(data.product);
       } else {
@@ -176,6 +205,55 @@ export default function ProductDetailPage() {
     }
   };
 
+  const handleLockProduct = (action: 'lock' | 'unlock') => {
+    setLockAction(action);
+    setLockReason('');
+    setShowLockModal(true);
+  };
+
+  const confirmLock = async () => {
+    if (!product) return;
+    
+    try {
+      setLocking(true);
+      
+      const response = await fetch(`/api/products/${product._id}/lock`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          isLocked: lockAction === 'lock',
+          lockReason: lockAction === 'lock' ? lockReason : undefined
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        toast.success(data.message);
+        await fetchProduct(); // Refresh product data
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.message || 'فشل في قفل/إلغاء قفل المنتج');
+      }
+    } catch (error) {
+      console.error('Error locking/unlocking product:', error);
+      toast.error('حدث خطأ أثناء قفل/إلغاء قفل المنتج');
+    } finally {
+      setLocking(false);
+      setShowLockModal(false);
+      setLockReason('');
+      setLockAction(null);
+    }
+  };
+
+  const canLockProduct = () => {
+    if (!product || !user) return false;
+    return user.role === 'admin' || 
+           (user.role === 'supplier' && 
+            (typeof product.supplierId === 'string' ? product.supplierId === user._id : product.supplierId?._id === user._id));
+  };
+
   const handleToggleFavorite = async () => {
     if (!product) return;
     
@@ -199,20 +277,56 @@ export default function ProductDetailPage() {
       return;
     }
 
-    if (product.stockQuantity <= 0) {
-      toast.error('المنتج غير متوفر في المخزون حالياً');
-      return;
-    }
-
-    try {
-      // استخدام المنتج الأصلي بدلاً من إنشاء كائن جديد
-      addToCart(product as any);
+    // Check if product has variants and if variants are selected
+    if (product.hasVariants && product.variants && product.variants.length > 0) {
+      const requiredVariants = product.variants.filter(v => v.isRequired);
+      const selectedRequiredVariants = requiredVariants.filter(v => selectedVariants[v.name]);
       
-      // إشعار واحد فقط
-      toast.success(`تم إضافة ${product.name} إلى السلة بنجاح`);
-    } catch (error) {
-      console.error('Error adding to cart:', error);
-      toast.error('حدث خطأ أثناء إضافة المنتج إلى السلة');
+      if (selectedRequiredVariants.length !== requiredVariants.length) {
+        toast.error('يرجى تحديد جميع المتغيرات المطلوبة');
+        return;
+      }
+      
+      // Find the selected variant option
+      const selectedOption = product.variantOptions?.find(option => {
+        const optionVariants = option.variantName.split(' - ');
+        return optionVariants.every(opt => {
+          const [name, val] = opt.split(': ');
+          return selectedVariants[name] === val;
+        });
+      });
+      
+      if (!selectedOption) {
+        toast.error('الخيار المحدد غير متوفر');
+        return;
+      }
+      
+      if (selectedOption.stockQuantity <= 0) {
+        toast.error('الخيار المحدد غير متوفر في المخزون');
+        return;
+      }
+      
+      try {
+        addToCart(product as any, 1, selectedVariants, selectedOption);
+        toast.success(`تم إضافة ${product.name} (${selectedOption.variantName}) إلى السلة بنجاح`);
+      } catch (error) {
+        console.error('Error adding to cart:', error);
+        toast.error('حدث خطأ أثناء إضافة المنتج إلى السلة');
+      }
+    } else {
+      // Regular product without variants
+      if (product.stockQuantity <= 0) {
+        toast.error('المنتج غير متوفر في المخزون حالياً');
+        return;
+      }
+
+      try {
+        addToCart(product as any);
+        toast.success(`تم إضافة ${product.name} إلى السلة بنجاح`);
+      } catch (error) {
+        console.error('Error adding to cart:', error);
+        toast.error('حدث خطأ أثناء إضافة المنتج إلى السلة');
+      }
     }
   };
 
@@ -434,6 +548,15 @@ export default function ProductDetailPage() {
     }
   };
 
+  const handleReviewAction = (action: 'approve' | 'reject') => {
+    setReviewAction(action);
+    setShowReviewConfirm(true);
+  };
+
+  const handleVariantChange = (newSelectedVariants: Record<string, string>) => {
+    setSelectedVariants(newSelectedVariants);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-slate-900 flex items-center justify-center">
@@ -564,6 +687,27 @@ export default function ProductDetailPage() {
                   <Edit className="w-4 h-4 ml-2" />
                   تعديل
                 </Link>
+                
+                {/* Lock/Unlock Product Button */}
+                {canLockProduct() && (
+                  <button
+                    onClick={() => handleLockProduct(product.isLocked ? 'unlock' : 'lock')}
+                    className={`btn ${product.isLocked ? 'btn-success' : 'btn-warning'}`}
+                  >
+                    {product.isLocked ? (
+                      <>
+                        <Unlock className="w-4 h-4 ml-2" />
+                        إلغاء القفل
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="w-4 h-4 ml-2" />
+                        قفل المنتج
+                      </>
+                    )}
+                  </button>
+                )}
+                
                 <button
                   onClick={handleDeleteProduct}
                   className="btn-danger"
@@ -632,6 +776,17 @@ export default function ProductDetailPage() {
                 </button>
               ) : null;
             })()}
+
+            {/* View Statistics Button - Only for admins */}
+            {user?.role === 'admin' && (
+              <Link
+                href={`/dashboard/products/${product._id}/statistics`}
+                className="btn-info"
+              >
+                <BarChart3 className="w-4 h-4 ml-2" />
+                عرض الإحصائيات
+              </Link>
+            )}
           </div>
         </div>
 
@@ -690,6 +845,12 @@ export default function ProductDetailPage() {
                       مخزن
                     </span>
                   )}
+                  {product.isLocked && (
+                    <span className="badge badge-danger">
+                      <Lock className="w-4 h-4 ml-1" />
+                      مقفل
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -701,7 +862,6 @@ export default function ProductDetailPage() {
                 <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
                   <p className="text-sm text-blue-600 dark:text-blue-400">سعر المسوق (الأساسي)</p>
                   <p className="text-lg font-bold text-blue-700 dark:text-blue-300">{product.marketerPrice} ₪</p>
-                  <p className="text-xs text-blue-600 dark:text-blue-400">السعر الأساسي للمسوقين</p>
                 </div>
               ) : user?.role === 'wholesaler' ? (
                 // Wholesaler sees only wholesaler price
@@ -727,11 +887,120 @@ export default function ProductDetailPage() {
                   <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
                     <p className="text-sm text-blue-600 dark:text-blue-400">السعر الأساسي للمسوق</p>
                     <p className="text-lg font-bold text-blue-700 dark:text-blue-300">{product.marketerPrice} ₪</p>
-                    <p className="text-xs text-blue-600 dark:text-blue-400">السعر الأساسي للمسوقين</p>
                   </div>
                 </>
               )}
             </div>
+
+            {/* Product Variants */}
+            {product.hasVariants && product.variants && product.variants.length > 0 && (
+              <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-gray-200 dark:border-slate-700">
+                <ProductVariantSelector
+                  variants={product.variants}
+                  variantOptions={product.variantOptions || []}
+                  onVariantChange={handleVariantChange}
+                  selectedVariants={selectedVariants}
+                  disabled={!product.isApproved || product.stockQuantity <= 0}
+                />
+              </div>
+            )}
+
+            {/* Variants Debug Info - Show when variants are not enabled */}
+            {(!product.hasVariants || !product.variants || product.variants.length === 0) && (
+              <div className="bg-gray-50 dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-700">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-2">متغيرات المنتج</h3>
+                <div className="text-sm text-gray-600 dark:text-slate-400 space-y-1">
+                  <p>حالة المتغيرات: {product.hasVariants ? 'مفعلة' : 'غير مفعلة'}</p>
+                  <p>عدد المتغيرات: {product.variants?.length || 0}</p>
+                  <p>عدد خيارات المتغيرات: {product.variantOptions?.length || 0}</p>
+                  {product.hasVariants && (!product.variants || product.variants.length === 0) && (
+                    <p className="text-yellow-600 dark:text-yellow-400">⚠️ المتغيرات مفعلة ولكن لا توجد متغيرات محددة</p>
+                  )}
+                  
+                  {/* Test button for admins to enable variants */}
+                  {user?.role === 'admin' && !product.hasVariants && (
+                    <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">اختبار: إضافة متغيرات تجريبية</p>
+                      <button
+                        onClick={async () => {
+                          try {
+                            const testVariants = [
+                              {
+                                _id: `variant_${Date.now()}`,
+                                name: 'اللون',
+                                values: ['أحمر', 'أزرق', 'أخضر'],
+                                isRequired: true,
+                                order: 0
+                              },
+                              {
+                                _id: `variant_${Date.now() + 1}`,
+                                name: 'المقاس',
+                                values: ['S', 'M', 'L'],
+                                isRequired: true,
+                                order: 1
+                              }
+                            ];
+                            
+                            const testVariantOptions = [
+                              {
+                                variantId: `option_${Date.now()}`,
+                                variantName: 'اللون: أحمر - المقاس: S',
+                                value: 'أحمر - S',
+                                price: 0,
+                                stockQuantity: 5,
+                                sku: 'TEST-RED-S',
+                                images: []
+                              },
+                              {
+                                variantId: `option_${Date.now() + 1}`,
+                                variantName: 'اللون: أحمر - المقاس: M',
+                                value: 'أحمر - M',
+                                price: 0,
+                                stockQuantity: 3,
+                                sku: 'TEST-RED-M',
+                                images: []
+                              },
+                              {
+                                variantId: `option_${Date.now() + 2}`,
+                                variantName: 'اللون: أزرق - المقاس: S',
+                                value: 'أزرق - S',
+                                price: 2,
+                                stockQuantity: 4,
+                                sku: 'TEST-BLUE-S',
+                                images: []
+                              }
+                            ];
+                            
+                            const response = await fetch(`/api/products/${product._id}`, {
+                              method: 'PUT',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                hasVariants: true,
+                                variants: testVariants,
+                                variantOptions: testVariantOptions
+                              })
+                            });
+                            
+                            if (response.ok) {
+                              toast.success('تم إضافة متغيرات تجريبية بنجاح');
+                              await fetchProduct(); // Refresh product data
+                            } else {
+                              toast.error('فشل في إضافة المتغيرات');
+                            }
+                          } catch (error) {
+                            console.error('Error adding test variants:', error);
+                            toast.error('حدث خطأ أثناء إضافة المتغيرات');
+                          }
+                        }}
+                        className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+                      >
+                        إضافة متغيرات تجريبية
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Stock & Status */}
             <div className="bg-gray-50 dark:bg-slate-800 rounded-lg p-6 border border-gray-200 dark:border-slate-700">
@@ -1047,6 +1316,97 @@ export default function ProductDetailPage() {
         cancelText="إلغاء"
         type="warning"
       />
+
+      {/* Lock/Unlock Modal */}
+      {showLockModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-md">
+            <div className="p-6">
+              <div className="flex items-center mb-4">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center mr-3 ${
+                  lockAction === 'lock' 
+                    ? 'bg-red-100 dark:bg-red-900/30' 
+                    : 'bg-green-100 dark:bg-green-900/30'
+                }`}>
+                  {lockAction === 'lock' ? (
+                    <Lock className="w-5 h-5 text-red-600 dark:text-red-400" />
+                  ) : (
+                    <Unlock className="w-5 h-5 text-green-600 dark:text-green-400" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
+                    {lockAction === 'lock' ? 'قفل المنتج' : 'إلغاء قفل المنتج'}
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-slate-400">
+                    {lockAction === 'lock' 
+                      ? 'سيتم إخفاء هذا المنتج عن المسوقين والتجار' 
+                      : 'سيتم إظهار هذا المنتج للمسوقين والتجار مرة أخرى'
+                    }
+                  </p>
+                </div>
+              </div>
+              
+              {lockAction === 'lock' && (
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                    سبب القفل (اختياري)
+                  </label>
+                  <textarea
+                    value={lockReason}
+                    onChange={(e) => setLockReason(e.target.value)}
+                    placeholder="اكتب سبب قفل المنتج هنا..."
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent dark:bg-slate-700 dark:text-slate-100 resize-none"
+                    rows={3}
+                  />
+                </div>
+              )}
+              
+              <div className="flex justify-end space-x-3 space-x-reverse">
+                <button
+                  onClick={() => {
+                    setShowLockModal(false);
+                    setLockReason('');
+                    setLockAction(null);
+                  }}
+                  disabled={locking}
+                  className="btn-secondary"
+                >
+                  إلغاء
+                </button>
+                <button
+                  onClick={confirmLock}
+                  disabled={locking}
+                  className={`btn flex items-center ${
+                    lockAction === 'lock' ? 'btn-danger' : 'btn-success'
+                  }`}
+                >
+                  {locking ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white ml-2"></div>
+                      جاري {lockAction === 'lock' ? 'القفل' : 'إلغاء القفل'}...
+                    </>
+                  ) : (
+                    <>
+                      {lockAction === 'lock' ? (
+                        <>
+                          <Lock className="w-4 h-4 ml-2" />
+                          قفل المنتج
+                        </>
+                      ) : (
+                        <>
+                          <Unlock className="w-4 h-4 ml-2" />
+                          إلغاء القفل
+                        </>
+                      )}
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

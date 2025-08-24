@@ -2,20 +2,16 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
-import { Search, Plus, Eye, CheckCircle, Truck, Package, Clock, DollarSign, Edit, X, RotateCcw } from 'lucide-react';
+import { Search, Plus, Eye, CheckCircle, Truck, Package, Clock, DollarSign, Edit, X, RotateCcw, Download, Upload, Phone, Mail, MessageCircle, Printer } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import React from 'react'; // Added for React.createElement
 import { useRouter } from 'next/navigation';
+import OrderExportModal from '@/components/ui/OrderExportModal';
+import OrderImportModal from '@/components/ui/OrderImportModal';
+import { OrderItem } from '@/types';
 
-interface OrderItem {
-  productId: string;
-  productName: string;
-  quantity: number;
-  unitPrice: number;
-  totalPrice: number;
-  priceType: 'marketer' | 'wholesale';
-}
+// Using the global OrderItem interface from types/index.ts
 
 interface Order {
   _id: string;
@@ -35,6 +31,11 @@ interface Order {
   paymentStatus: string;
   createdAt: string;
   updatedAt: string;
+  shippingAddress?: {
+    fullName: string;
+    phone: string;
+    email?: string;
+  };
 }
 
 const statusIcons = {
@@ -75,6 +76,58 @@ export default function OrdersPage() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [updatingOrder, setUpdatingOrder] = useState<string | null>(null);
   const router = useRouter();
+
+  // Export/Import modal states
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+
+  // WhatsApp communication functions
+  const openWhatsApp = (phone: string, message: string) => {
+    const formattedPhone = phone.replace(/\s+/g, '').replace(/^0/, '970'); // Convert to international format
+    const encodedMessage = encodeURIComponent(message);
+    const whatsappUrl = `https://wa.me/${formattedPhone}?text=${encodedMessage}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
+  const generateOrderMessage = (order: any) => {
+    const customerName = order.shippingAddress?.fullName || 'العميل';
+    const orderNumber = order.orderNumber;
+    const totalAmount = order.total;
+    const productNames = order.items.map((item: any) => item.productName).join('، ');
+    const statusLabel = getStatusLabel(order.status);
+    
+    return `مرحباً ${customerName} 👋
+
+معلومات طلبك 📦
+
+📋 رقم الطلب: ${orderNumber}
+🛍️ المنتجات: ${productNames}
+💰 المبلغ الإجمالي: ${totalAmount} ₪
+🔄 الحالة الحالية: ${statusLabel}
+
+هل لديك أي استفسارات حول طلبك؟
+
+شكراً لثقتك بنا 🙏`;
+  };
+
+  const getStatusLabel = (status: string) => {
+    return statusLabels[status as keyof typeof statusLabels] || status;
+  };
+
+  const handleWhatsAppContact = (order: any) => {
+    const message = generateOrderMessage(order);
+    const phone = order.shippingAddress?.phone || '';
+    if (phone) {
+      openWhatsApp(phone, message);
+    } else {
+      toast.error('رقم الهاتف غير متوفر');
+    }
+  };
+
+  const handlePrintInvoice = (order: any) => {
+    // Navigate to order details page with print parameter
+    router.push(`/dashboard/orders/${order._id}?print=true`);
+  };
 
   useEffect(() => {
     fetchOrders();
@@ -274,12 +327,39 @@ export default function OrdersPage() {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100">{getRoleTitle()}</h1>
           <p className="text-gray-600 dark:text-slate-400 mt-2">{getRoleDescription()}</p>
         </div>
-        {user?.role === 'marketer' || user?.role === 'wholesaler' ? (
-          <Link href="/dashboard/products" className="btn-primary flex items-center">
-            <Plus className="w-4 h-4 ml-2" />
-            طلب جديد
-          </Link>
-        ) : null}
+        <div className="flex items-center space-x-3 space-x-reverse">
+          {/* Export/Import buttons for admin and supplier */}
+          {(user?.role === 'admin' || user?.role === 'supplier') && (
+            <>
+              <button
+                onClick={() => setShowExportModal(true)}
+                className="btn-secondary flex items-center"
+              >
+                <Download className="w-4 h-4 ml-2" />
+                تصدير الطلبات
+              </button>
+            </>
+          )}
+          
+          {/* Import button for marketers */}
+          {user?.role === 'marketer' && (
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="btn-secondary flex items-center"
+            >
+              <Upload className="w-4 h-4 ml-2" />
+              استيراد الطلبات
+            </button>
+          )}
+          
+          {/* New order button for marketers and wholesalers */}
+          {user?.role === 'marketer' || user?.role === 'wholesaler' ? (
+            <Link href="/dashboard/products" className="btn-primary flex items-center">
+              <Plus className="w-4 h-4 ml-2" />
+              طلب جديد
+            </Link>
+          ) : null}
+        </div>
       </div>
 
       {/* Filters */}
@@ -359,8 +439,25 @@ export default function OrdersPage() {
                       <td className="table-cell">
                         <div className="text-sm">
                           {order.items.map((item, index) => (
-                            <div key={index} className="flex justify-between">
-                              <span className="text-gray-900 dark:text-slate-100">{item.productName}</span>
+                            <div key={index} className="flex items-center justify-between mb-2 last:mb-0">
+                              <div className="flex items-center space-x-2 space-x-reverse">
+                                <div className="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded border flex items-center justify-center overflow-hidden">
+                                  {typeof item.productId === 'object' && item.productId?.images && item.productId.images.length > 0 ? (
+                                    <img 
+                                      src={item.productId.images[0]} 
+                                      alt={item.productId.name || item.productName}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        // Fallback to placeholder if image fails to load
+                                        e.currentTarget.style.display = 'none';
+                                        e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                                      }}
+                                    />
+                                  ) : null}
+                                  <div className={`w-4 h-4 bg-gray-300 dark:bg-gray-600 rounded ${typeof item.productId === 'object' && item.productId?.images && item.productId.images.length > 0 ? 'hidden' : ''}`}></div>
+                                </div>
+                                <span className="text-gray-900 dark:text-slate-100">{item.productName}</span>
+                              </div>
                               <span className="text-gray-500 dark:text-slate-400">×{item.quantity}</span>
                             </div>
                           ))}
@@ -391,6 +488,45 @@ export default function OrdersPage() {
                             <Eye className="w-4 h-4 ml-1" />
                             عرض التفاصيل
                           </div>
+                          
+                          {/* Print Invoice */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handlePrintInvoice(order);
+                            }}
+                            className="text-purple-600 hover:text-purple-900 dark:text-purple-400 dark:hover:text-purple-300 p-1"
+                            title="طباعة الفاتورة"
+                          >
+                            <Printer className="w-4 h-4" />
+                          </button>
+                          
+                          {/* WhatsApp Contact */}
+                          {order.shippingAddress?.phone && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleWhatsAppContact(order);
+                              }}
+                              className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 p-1"
+                              title="تواصل عبر واتساب"
+                            >
+                              <MessageCircle className="w-4 h-4" />
+                            </button>
+                          )}
+                          
+                          {/* Phone Contact */}
+                          {order.shippingAddress?.phone && (
+                            <a
+                              href={`tel:${order.shippingAddress.phone}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 p-1"
+                              title="اتصال مباشر"
+                            >
+                              <Phone className="w-4 h-4" />
+                            </a>
+                          )}
+                          
                           <div onClick={(e) => e.stopPropagation()}>
                             {getStatusButton(order)}
                           </div>
@@ -404,6 +540,20 @@ export default function OrdersPage() {
           </div>
         </div>
       )}
+
+      {/* Export Modal */}
+      <OrderExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        userRole={user?.role || ''}
+      />
+
+      {/* Import Modal */}
+      <OrderImportModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onImportSuccess={fetchOrders}
+      />
     </div>
   );
 } 

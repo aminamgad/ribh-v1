@@ -17,6 +17,8 @@ import {
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import MediaUpload from '@/components/ui/MediaUpload';
+import ProductVariants from '@/components/ui/ProductVariants';
+import { ProductVariant, ProductVariantOption } from '@/types';
 
 const productSchema = z.object({
   name: z.string().min(3, 'اسم المنتج يجب أن يكون 3 أحرف على الأقل'),
@@ -55,6 +57,10 @@ export default function EditProductPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  // Product variants state
+  const [hasVariants, setHasVariants] = useState(false);
+  const [variants, setVariants] = useState<ProductVariant[]>([]);
+  const [variantOptions, setVariantOptions] = useState<ProductVariantOption[]>([]);
 
   const {
     register,
@@ -112,6 +118,11 @@ export default function EditProductPage() {
         setValue('dimensions', data.product.dimensions);
         setValue('tags', data.product.tags || []);
         setValue('specifications', data.product.specifications || {});
+        
+        // Load variant data
+        setHasVariants(data.product.hasVariants || false);
+        setVariants(data.product.variants || []);
+        setVariantOptions(data.product.variantOptions || []);
       } else {
         toast.error('المنتج غير موجود');
         router.push('/dashboard/products');
@@ -134,6 +145,12 @@ export default function EditProductPage() {
     } catch (error) {
       console.error('Error fetching categories:', error);
     }
+  };
+
+  const handleVariantsChange = (newHasVariants: boolean, newVariants: ProductVariant[], newVariantOptions: ProductVariantOption[]) => {
+    setHasVariants(newHasVariants);
+    setVariants(newVariants);
+    setVariantOptions(newVariantOptions);
   };
 
   const handleImageUpload = async (files: FileList) => {
@@ -227,7 +244,11 @@ export default function EditProductPage() {
         categoryId: data.categoryId && data.categoryId !== '' ? data.categoryId : null,
         images,
         isActive: product.isActive,
-        isApproved: user?.role === 'admin' ? product.isApproved : product.isApproved
+        isApproved: user?.role === 'admin' ? product.isApproved : product.isApproved,
+        // Product variants
+        hasVariants,
+        variants: hasVariants ? variants : [],
+        variantOptions: hasVariants ? variantOptions : []
       };
 
       const response = await fetch(`/api/products/${params.id}`, {
@@ -492,6 +513,17 @@ export default function EditProductPage() {
                 <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.stockQuantity.message}</p>
               )}
             </div>
+          </div>
+
+          {/* Product Variants */}
+          <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-gray-200 dark:border-slate-700">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-6">متغيرات المنتج</h2>
+            <ProductVariants
+              hasVariants={hasVariants}
+              variants={variants}
+              variantOptions={variantOptions}
+              onVariantsChange={handleVariantsChange}
+            />
           </div>
 
           {/* Media Upload */}

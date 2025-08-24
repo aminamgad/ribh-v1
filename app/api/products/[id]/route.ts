@@ -81,7 +81,16 @@ async function getProduct(req: NextRequest, user: any, { params }: RouteParams) 
       tags: product.tags,
       specifications: product.specifications,
       createdAt: product.createdAt,
-      updatedAt: product.updatedAt
+      updatedAt: product.updatedAt,
+      // Product variants
+      hasVariants: product.hasVariants || false,
+      variants: product.variants || [],
+      variantOptions: product.variantOptions || [],
+      // Locking fields
+      isLocked: product.isLocked || false,
+      lockedAt: product.lockedAt,
+      lockedBy: product.lockedBy,
+      lockReason: product.lockReason
     };
 
     console.log('📤 Sending product data:', {
@@ -90,7 +99,11 @@ async function getProduct(req: NextRequest, user: any, { params }: RouteParams) 
       isApproved: transformedProduct.isApproved,
       isRejected: transformedProduct.isRejected,
       rejectionReason: transformedProduct.rejectionReason,
-      status: transformedProduct.isApproved ? 'معتمد' : transformedProduct.isRejected ? 'مرفوض' : 'قيد المراجعة'
+      status: transformedProduct.isApproved ? 'معتمد' : transformedProduct.isRejected ? 'مرفوض' : 'قيد المراجعة',
+      // Add variant debugging
+      hasVariants: transformedProduct.hasVariants,
+      variantsCount: transformedProduct.variants?.length || 0,
+      variantOptionsCount: transformedProduct.variantOptions?.length || 0
     });
 
     return NextResponse.json({
@@ -134,7 +147,9 @@ async function updateProduct(req: NextRequest, user: any, { params }: RouteParam
     const allowedUpdates = [
       'name', 'description', 'images', 'categoryId',
       'marketerPrice', 'wholesalerPrice', 'minimumSellingPrice', 'isMinimumPriceMandatory', 'stockQuantity',
-      'isActive', 'tags', 'specifications', 'sku', 'weight', 'dimensions'
+      'isActive', 'tags', 'specifications', 'sku', 'weight', 'dimensions',
+      // Product variants
+      'hasVariants', 'variants', 'variantOptions'
     ];
     
     // For suppliers, allow resubmitting rejected products

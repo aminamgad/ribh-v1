@@ -25,9 +25,14 @@ interface CartItem {
     minimumSellingPrice?: number;
     isMinimumPriceMandatory?: boolean;
     stockQuantity: number;
+    hasVariants?: boolean;
+    variants?: any[];
+    variantOptions?: any[];
   };
   quantity: number;
   price: number;
+  selectedVariants?: Record<string, string>;
+  variantOption?: any;
 }
 
 interface ShippingAddress {
@@ -236,7 +241,9 @@ export default function CartPage() {
           productId: item.product._id,
           quantity: item.quantity,
           customPrice: marketerPrice,
-          marketerProfit
+          marketerProfit,
+          selectedVariants: item.selectedVariants,
+          variantOption: item.variantOption
         };
       });
 
@@ -314,8 +321,15 @@ export default function CartPage() {
                     <h3 className="text-sm font-medium text-gray-900 dark:text-slate-100 truncate">
                       {item.product.name}
                     </h3>
+                    {item.selectedVariants && Object.keys(item.selectedVariants).length > 0 && (
+                      <div className="mt-1">
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                          {Object.entries(item.selectedVariants).map(([name, value]) => `${name}: ${value}`).join(' - ')}
+                        </p>
+                      </div>
+                    )}
                     <p className="text-sm text-gray-500 dark:text-slate-400">
-                      المخزون: {item.product.stockQuantity} قطعة
+                      المخزون: {item.variantOption ? item.variantOption.stockQuantity : item.product.stockQuantity} قطعة
                     </p>
                   </div>
                   

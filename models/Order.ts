@@ -32,6 +32,21 @@ const orderItemSchema = new Schema({
     type: String,
     enum: ['marketer', 'wholesale'],
     required: true
+  },
+  // Product variants
+  selectedVariants: {
+    type: Map,
+    of: String,
+    default: {}
+  },
+  variantOption: {
+    variantId: String,
+    variantName: String,
+    value: String,
+    price: Number,
+    stockQuantity: Number,
+    sku: String,
+    images: [String]
   }
 });
 
@@ -73,12 +88,8 @@ const addressSchema = new Schema({
 });
 
 const generateOrderNumber = () => {
-  const date = new Date();
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-  return `ORD-${year}${month}${day}-${random}`;
+  // This will be handled in the pre-save middleware
+  return 'PENDING';
 };
 
 const orderSchema = new Schema<OrderDocument>({
@@ -139,7 +150,7 @@ const orderSchema = new Schema<OrderDocument>({
   },
   status: {
     type: String,
-    enum: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'returned'],
+    enum: ['pending', 'confirmed', 'processing', 'ready_for_shipping', 'shipped', 'out_for_delivery', 'delivered', 'cancelled', 'returned', 'refunded'],
     default: 'pending'
   },
   paymentMethod: {
@@ -182,6 +193,52 @@ const orderSchema = new Schema<OrderDocument>({
     type: String,
     trim: true,
     maxlength: [1000, 'ملاحظات الإدارة لا يمكن أن تتجاوز 1000 حرف']
+  },
+  // Processing timestamps
+  confirmedAt: Date,
+  confirmedBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  processingAt: Date,
+  processedBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  readyForShippingAt: Date,
+  readyForShippingBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  shippedAt: Date,
+  shippedBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  outForDeliveryAt: Date,
+  outForDeliveryBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  deliveredAt: Date,
+  deliveredBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  cancelledAt: Date,
+  cancelledBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  returnedAt: Date,
+  returnedBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  refundedAt: Date,
+  refundedBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User'
   }
 } as any, {
   timestamps: true,
@@ -190,7 +247,6 @@ const orderSchema = new Schema<OrderDocument>({
 });
 
 // Indexes
-orderSchema.index({ orderNumber: 1 });
 orderSchema.index({ customerId: 1 });
 orderSchema.index({ supplierId: 1 });
 orderSchema.index({ status: 1 });
@@ -209,10 +265,34 @@ orderSchema.virtual('supplierProfit').get(function() {
   return this.subtotal - this.commission;
 });
 
-// Keep pre-save as a safety net in case the document is constructed without defaults
-orderSchema.pre('save', function(next) {
-  if (!this.orderNumber) {
-    this.orderNumber = generateOrderNumber();
+// Pre-save middleware to generate sequential order numbers
+orderSchema.pre('save', async function(next) {
+  if (!this.orderNumber || this.orderNumber === 'PENDING') {
+    try {
+      // Try to get the Counter model, create it if it doesn't exist
+      let CounterModel: any;
+      try {
+        CounterModel = mongoose.model('Counter');
+      } catch {
+        // If Counter model doesn't exist, create it
+        const counterSchema = new mongoose.Schema({
+          _id: String,
+          sequence_value: { type: Number, default: 100000 }
+        });
+        CounterModel = mongoose.model('Counter', counterSchema);
+      }
+      
+      const counter = await CounterModel.findByIdAndUpdate(
+        'orderNumber',
+        { $inc: { sequence_value: 1 } },
+        { new: true, upsert: true }
+      );
+      this.orderNumber = counter.sequence_value.toString();
+    } catch (error) {
+      console.error('Error generating order number:', error);
+      // Fallback to timestamp-based number if counter fails
+      this.orderNumber = Date.now().toString();
+    }
   }
   next();
 });

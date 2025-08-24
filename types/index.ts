@@ -84,6 +84,24 @@ export interface Category {
   updatedAt: Date;
 }
 
+export interface ProductVariant {
+  _id: string;
+  name: string; // e.g., "Color", "Size", "Material"
+  values: string[]; // e.g., ["Red", "Blue", "Green"] or ["S", "M", "L", "XL"]
+  isRequired: boolean;
+  order: number;
+}
+
+export interface ProductVariantOption {
+  variantId: string;
+  variantName: string;
+  value: string;
+  price?: number; // Optional price adjustment for this variant
+  stockQuantity: number;
+  sku?: string;
+  images?: string[]; // Specific images for this variant
+}
+
 export interface Product {
   _id: string;
   name: string;
@@ -97,6 +115,10 @@ export interface Product {
   isMinimumPriceMandatory?: boolean;
   stockQuantity: number;
   isActive: boolean;
+  isLocked: boolean;
+  lockedAt?: Date;
+  lockedBy?: string;
+  lockReason?: string;
   isApproved: boolean;
   isRejected: boolean;
   rejectionReason?: string;
@@ -123,6 +145,10 @@ export interface Product {
   };
   featured?: boolean;
   featuredUntil?: Date;
+  // New variant fields
+  hasVariants: boolean;
+  variants?: ProductVariant[];
+  variantOptions?: ProductVariantOption[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -140,6 +166,7 @@ export interface Order {
   shippingZone: string;
   commission: number;
   total: number;
+  marketerProfit?: number;
   status: OrderStatus;
   paymentMethod: 'cod';
   paymentStatus: 'pending' | 'paid' | 'failed';
@@ -147,6 +174,30 @@ export interface Order {
   deliveryNotes?: string;
   estimatedDelivery?: Date;
   actualDelivery?: Date;
+  trackingNumber?: string;
+  shippingCompany?: string;
+  cancellationReason?: string;
+  returnReason?: string;
+  adminNotes?: string;
+  // Processing timestamps
+  confirmedAt?: Date;
+  confirmedBy?: string;
+  processingAt?: Date;
+  processedBy?: string;
+  readyForShippingAt?: Date;
+  readyForShippingBy?: string;
+  shippedAt?: Date;
+  shippedBy?: string;
+  outForDeliveryAt?: Date;
+  outForDeliveryBy?: string;
+  deliveredAt?: Date;
+  deliveredBy?: string;
+  cancelledAt?: Date;
+  cancelledBy?: string;
+  returnedAt?: Date;
+  returnedBy?: string;
+  refundedAt?: Date;
+  refundedBy?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -155,18 +206,31 @@ export type OrderStatus =
   | 'pending'
   | 'confirmed'
   | 'processing'
+  | 'ready_for_shipping'
   | 'shipped'
+  | 'out_for_delivery'
   | 'delivered'
   | 'cancelled'
-  | 'returned';
+  | 'returned'
+  | 'refunded';
 
 export interface OrderItem {
-  productId: string;
+  productId: string | Product;
   productName: string;
   quantity: number;
   unitPrice: number;
   totalPrice: number;
   priceType: 'marketer' | 'wholesale';
+  selectedVariants?: Record<string, string>;
+  variantOption?: {
+    variantId: string;
+    variantName: string;
+    value: string;
+    price: number;
+    stockQuantity: number;
+    sku: string;
+    images: string[];
+  };
 }
 
 export interface Address {
@@ -181,22 +245,26 @@ export interface Address {
 
 export interface FulfillmentRequest {
   _id: string;
-  supplierId: string;
+  supplierId: string | User;
+  supplierName?: string;
+  supplierPhone?: string;
   products: FulfillmentProduct[];
   status: 'pending' | 'approved' | 'rejected';
+  totalValue: number;
+  totalItems: number;
   notes?: string;
   adminNotes?: string;
   approvedAt?: Date;
-  approvedBy?: string;
+  approvedBy?: string | User;
   rejectedAt?: Date;
-  rejectedBy?: string;
+  rejectedBy?: string | User;
   rejectionReason?: string;
-  totalValue: number;
   warehouseLocation?: string;
   expectedDeliveryDate?: Date;
   actualDeliveryDate?: Date;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
+  isOverdue?: boolean;
 }
 
 export interface FulfillmentProduct {

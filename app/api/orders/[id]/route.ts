@@ -146,23 +146,45 @@ export const PUT = withAuth(async (req: NextRequest, user: any, { params }: { pa
       );
     }
 
-    // Validate status transition
-    const validTransitions: Record<string, string[]> = {
-      'pending': ['confirmed', 'cancelled'],
-      'confirmed': ['processing', 'cancelled'],
-      'processing': ['shipped', 'cancelled'],
-      'shipped': ['delivered', 'returned'],
-      'delivered': ['returned'],
-      'cancelled': [],
-      'returned': []
-    };
+    // Validate status transition (only for non-admin users)
+    if (user.role !== 'admin') {
+      const validTransitions: Record<string, string[]> = {
+        'pending': ['confirmed', 'cancelled'],
+        'confirmed': ['processing', 'cancelled'],
+        'processing': ['shipped', 'cancelled'],
+        'shipped': ['delivered', 'returned'],
+        'delivered': ['returned'],
+        'cancelled': [],
+        'returned': []
+      };
 
-    const currentStatus = order.status;
-    if (!validTransitions[currentStatus]?.includes(status)) {
-      return NextResponse.json(
-        { error: `لا يمكن تغيير حالة الطلب من ${currentStatus} إلى ${status}` },
-        { status: 400 }
-      );
+      const currentStatus = order.status;
+      if (!validTransitions[currentStatus]?.includes(status)) {
+        return NextResponse.json(
+          { error: `لا يمكن تغيير حالة الطلب من ${currentStatus} إلى ${status}` },
+          { status: 400 }
+        );
+      }
+    } else {
+      // For admins, validate that the status is one of the valid statuses
+      const validStatuses = [
+        'pending', 
+        'confirmed', 
+        'processing', 
+        'ready_for_shipping',
+        'shipped', 
+        'out_for_delivery',
+        'delivered', 
+        'cancelled', 
+        'returned',
+        'refunded'
+      ];
+      if (!validStatuses.includes(status)) {
+        return NextResponse.json(
+          { error: `حالة غير صالحة: ${status}` },
+          { status: 400 }
+        );
+      }
     }
 
     // Update order status and related fields
@@ -179,11 +201,19 @@ export const PUT = withAuth(async (req: NextRequest, user: any, { params }: { pa
         order.processingAt = new Date();
         order.processedBy = user._id;
         break;
+      case 'ready_for_shipping':
+        order.readyForShippingAt = new Date();
+        order.readyForShippingBy = user._id;
+        break;
       case 'shipped':
         order.shippedAt = new Date();
         order.shippedBy = user._id;
         order.trackingNumber = trackingNumber;
         order.shippingCompany = shippingCompany;
+        break;
+      case 'out_for_delivery':
+        order.outForDeliveryAt = new Date();
+        order.outForDeliveryBy = user._id;
         break;
       case 'delivered':
         order.deliveredAt = new Date();
@@ -197,6 +227,10 @@ export const PUT = withAuth(async (req: NextRequest, user: any, { params }: { pa
       case 'returned':
         order.returnedAt = new Date();
         order.returnedBy = user._id;
+        break;
+      case 'refunded':
+        order.refundedAt = new Date();
+        order.refundedBy = user._id;
         break;
     }
 

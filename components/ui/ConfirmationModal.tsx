@@ -7,6 +7,7 @@ interface ConfirmationModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void;
+  onCancel?: () => void; // Optional custom cancel handler
   title: string;
   message: string;
   confirmText?: string;
@@ -20,6 +21,7 @@ export default function ConfirmationModal({
   isOpen,
   onClose,
   onConfirm,
+  onCancel,
   title,
   message,
   confirmText = 'تأكيد',
@@ -83,6 +85,16 @@ export default function ConfirmationModal({
     }
   };
 
+  const handleCancel = () => {
+    if (!loading) {
+      if (onCancel) {
+        onCancel();
+      } else {
+        onClose();
+      }
+    }
+  };
+
   return (
     <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-opacity duration-200 ${
       isOpen ? 'opacity-100' : 'opacity-0'
@@ -131,7 +143,7 @@ export default function ConfirmationModal({
         {/* Actions */}
         <div className="flex justify-end space-x-3 space-x-reverse p-6 border-t border-gray-200 dark:border-slate-700">
           <button
-            onClick={handleClose}
+            onClick={handleCancel}
             disabled={loading}
             className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >

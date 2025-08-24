@@ -43,7 +43,7 @@ async function getFulfillmentRequests(req: NextRequest, user: any) {
     
     const requests = await FulfillmentRequest.find(query)
       .populate('products.productId', 'name costPrice')
-      .populate('supplierId', 'name companyName')
+      .populate('supplierId', 'name companyName phone')
       .populate('approvedBy', 'name')
       .populate('rejectedBy', 'name')
       .sort({ createdAt: -1 })
@@ -60,6 +60,7 @@ async function getFulfillmentRequests(req: NextRequest, user: any) {
     const transformedRequests = requests.map(request => ({
       _id: request._id,
       supplierName: request.supplierId?.name || request.supplierId?.companyName,
+      supplierPhone: request.supplierId?.phone,
       products: request.products.map((product: any) => ({
         productName: product.productId?.name,
         quantity: product.quantity,

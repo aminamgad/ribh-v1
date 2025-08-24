@@ -124,9 +124,7 @@ export default function SettingsPage() {
   
   const [orderData, setOrderData] = useState({
     minimumOrderValue: 50,
-    maximumOrderValue: 100000,
-    shippingCost: 20,
-    freeShippingThreshold: 500
+    maximumOrderValue: 100000
   });
   
   const [productData, setProductData] = useState({
@@ -201,9 +199,7 @@ export default function SettingsPage() {
           // Order settings
           setOrderData({
             minimumOrderValue: data.settings.minimumOrderValue || 50,
-            maximumOrderValue: data.settings.maximumOrderValue || 100000,
-            shippingCost: data.settings.defaultShippingCost || 50,
-            freeShippingThreshold: data.settings.defaultFreeShippingThreshold || 500
+            maximumOrderValue: data.settings.maximumOrderValue || 100000
           });
           
           // Product settings
@@ -648,6 +644,9 @@ export default function SettingsPage() {
                     onChange={(e) => setOrderData({ ...orderData, minimumOrderValue: parseFloat(e.target.value) || 0 })}
                     className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    الحد الأدنى لقيمة الطلب المطلوبة من المسوقين
+                  </p>
                 </div>
                 <div>
                   <Label htmlFor="maximumOrderValue" className="text-gray-700 dark:text-gray-200">الحد الأقصى للطلب</Label>
@@ -658,7 +657,17 @@ export default function SettingsPage() {
                     onChange={(e) => setOrderData({ ...orderData, maximumOrderValue: parseFloat(e.target.value) || 0 })}
                     className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    الحد الأقصى لقيمة الطلب المسموح بها للمسوقين
+                  </p>
                 </div>
+              </div>
+              
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  <strong>ملاحظة:</strong> هذه الإعدادات تحكم الحد الأدنى والأقصى لقيم الطلبات التي يمكن للمسوقين إنشاؤها. 
+                  سيتم تطبيق هذه القيود تلقائياً عند إنشاء الطلبات.
+                </p>
               </div>
               
               <Button 

@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
-import { ArrowLeft, Package, Truck, CheckCircle, Clock, DollarSign, User, MapPin, Phone, Calendar, CheckCircle2, Edit, X, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, MapPin, Package, Truck, CheckCircle, Clock, AlertCircle, MessageSquare, ExternalLink, MessageCircle, Edit, CheckCircle2, DollarSign, User, Calendar, Printer } from 'lucide-react';
 import MediaThumbnail from '@/components/ui/MediaThumbnail';
+import OrderInvoice from '@/components/ui/OrderInvoice';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 
@@ -61,52 +62,92 @@ interface Order {
   trackingNumber?: string;
   shippingCompany?: string;
   adminNotes?: string;
+  confirmedAt?: string;
+  processingAt?: string;
+  readyForShippingAt?: string;
+  shippedAt?: string;
+  outForDeliveryAt?: string;
+  deliveredAt?: string;
+  cancelledAt?: string;
+  returnedAt?: string;
 }
 
 const statusConfig = {
   pending: {
     label: 'معلق',
-    color: 'bg-yellow-100 text-yellow-800',
+    color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200',
     icon: Clock,
     description: 'الطلب في انتظار التأكيد'
   },
   confirmed: {
     label: 'مؤكد',
-    color: 'bg-blue-100 text-blue-800',
+    color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200',
     icon: CheckCircle,
     description: 'تم تأكيد الطلب'
   },
   processing: {
     label: 'قيد المعالجة',
-    color: 'bg-purple-100 text-purple-800',
+    color: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-200',
     icon: Package,
     description: 'الطلب قيد التحضير'
   },
+  ready_for_shipping: {
+    label: 'جاهز للشحن',
+    color: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-200',
+    icon: Package,
+    description: 'الطلب جاهز للشحن'
+  },
   shipped: {
     label: 'تم الشحن',
-    color: 'bg-indigo-100 text-indigo-800',
+    color: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-200',
     icon: Truck,
     description: 'تم شحن الطلب'
   },
+  out_for_delivery: {
+    label: 'خارج للتوصيل',
+    color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-200',
+    icon: Truck,
+    description: 'الطلب خارج للتوصيل'
+  },
   delivered: {
     label: 'تم التسليم',
-    color: 'bg-green-100 text-green-800',
-    icon: CheckCircle2,
+    color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200',
+    icon: CheckCircle,
     description: 'تم تسليم الطلب بنجاح'
   },
   cancelled: {
     label: 'ملغي',
-    color: 'bg-red-100 text-red-800',
-    icon: X,
+    color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200',
+    icon: AlertCircle,
     description: 'تم إلغاء الطلب'
   },
   returned: {
     label: 'مرتجع',
-    color: 'bg-orange-100 text-orange-800',
-    icon: RotateCcw,
+    color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-200',
+    icon: ExternalLink,
     description: 'تم إرجاع الطلب'
+  },
+  refunded: {
+    label: 'مسترد',
+    color: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
+    icon: ExternalLink,
+    description: 'تم استرداد المبلغ'
   }
 };
+
+// Available status options for order updates
+const availableStatuses = [
+  'pending',
+  'confirmed', 
+  'processing',
+  'ready_for_shipping',
+  'shipped',
+  'out_for_delivery',
+  'delivered',
+  'cancelled',
+  'returned',
+  'refunded'
+];
 
 export default function OrderDetailPage() {
   const { user } = useAuth();
@@ -120,6 +161,86 @@ export default function OrderDetailPage() {
   const [trackingNumber, setTrackingNumber] = useState('');
   const [shippingCompany, setShippingCompany] = useState('');
   const [notes, setNotes] = useState('');
+  const [showInvoice, setShowInvoice] = useState(false);
+
+  // Check for print parameter in URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const shouldPrint = urlParams.get('print');
+    if (shouldPrint === 'true' && order) {
+      setShowInvoice(true);
+      // Clean up the URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [order]);
+
+  // WhatsApp communication functions
+  const openWhatsApp = (phone: string, message: string) => {
+    const formattedPhone = phone.replace(/\s+/g, '').replace(/^0/, '970'); // Convert to international format
+    const encodedMessage = encodeURIComponent(message);
+    const whatsappUrl = `https://wa.me/${formattedPhone}?text=${encodedMessage}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
+  const generateOrderConfirmationMessage = () => {
+    if (!order) return '';
+    
+    const customerName = order.shippingAddress?.fullName || 'العميل';
+    const orderNumber = order.orderNumber;
+    const totalAmount = order.total;
+    const productNames = order.items.map(item => item.productName).join('، ');
+    
+    return `مرحباً ${customerName} 👋
+
+تم تأكيد طلبك بنجاح! ✅
+
+📋 رقم الطلب: ${orderNumber}
+🛍️ المنتجات: ${productNames}
+💰 المبلغ الإجمالي: ${totalAmount} ₪
+
+سيتم التواصل معك قريباً لتأكيد التفاصيل النهائية.
+
+شكراً لثقتك بنا 🙏`;
+  };
+
+  const generateOrderUpdateMessage = (newStatus: string) => {
+    if (!order) return '';
+    
+    const customerName = order.shippingAddress?.fullName || 'العميل';
+    const orderNumber = order.orderNumber;
+    const statusLabel = statusConfig[newStatus as keyof typeof statusConfig]?.label || newStatus;
+    
+    return `مرحباً ${customerName} 👋
+
+تم تحديث حالة طلبك 📦
+
+📋 رقم الطلب: ${orderNumber}
+🔄 الحالة الجديدة: ${statusLabel}
+
+سنواصل إعلامك بأي تحديثات جديدة.
+
+شكراً لصبرك 🙏`;
+  };
+
+  const handleWhatsAppConfirmation = () => {
+    const message = generateOrderConfirmationMessage();
+    const phone = order?.shippingAddress?.phone || '';
+    if (phone) {
+      openWhatsApp(phone, message);
+    } else {
+      toast.error('رقم الهاتف غير متوفر');
+    }
+  };
+
+  const handleWhatsAppUpdate = (newStatus: string) => {
+    const message = generateOrderUpdateMessage(newStatus);
+    const phone = order?.shippingAddress?.phone || '';
+    if (phone) {
+      openWhatsApp(phone, message);
+    } else {
+      toast.error('رقم الهاتف غير متوفر');
+    }
+  };
 
   useEffect(() => {
     if (params.id) {
@@ -152,23 +273,46 @@ export default function OrderDetailPage() {
   };
 
   const updateOrderStatus = async () => {
-    if (!order || !newStatus) return;
+    if (!order || !newStatus) {
+      toast.error('يرجى اختيار حالة جديدة');
+      return;
+    }
+    
+    // Don't allow updating to the same status
+    if (newStatus === order.status) {
+      toast.error('الحالة المحددة هي نفس الحالة الحالية');
+      return;
+    }
     
     try {
       setUpdating(true);
-      console.log('Updating order status:', order._id, 'to:', newStatus);
+      console.log('Updating order status:', order._id, 'from:', order.status, 'to:', newStatus);
+      
+      const updateData: any = {
+        status: newStatus
+      };
+      
+      // Add tracking info for shipped status
+      if (newStatus === 'shipped' || newStatus === 'out_for_delivery') {
+        if (!trackingNumber.trim()) {
+          toast.error('رقم التتبع مطلوب عند تغيير الحالة إلى "تم الشحن" أو "خارج للتوصيل"');
+          return;
+        }
+        updateData.trackingNumber = trackingNumber.trim();
+        updateData.shippingCompany = shippingCompany.trim() || 'غير محدد';
+      }
+      
+      // Add notes if provided
+      if (notes.trim()) {
+        updateData.notes = notes.trim();
+      }
       
       const response = await fetch(`/api/orders/${order._id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          status: newStatus,
-          trackingNumber: trackingNumber || undefined,
-          shippingCompany: shippingCompany || undefined,
-          notes: notes || undefined
-        }),
+        body: JSON.stringify(updateData),
       });
 
       console.log('Update response status:', response.status);
@@ -178,7 +322,19 @@ export default function OrderDetailPage() {
         console.log('Update success:', data);
         toast.success(data.message || 'تم تحديث حالة الطلب بنجاح');
         setShowStatusModal(false);
+        setNewStatus('');
+        setTrackingNumber('');
+        setShippingCompany('');
+        setNotes('');
         fetchOrder(order._id); // Refresh order data
+
+        // Send WhatsApp notification if phone number is available
+        if (order.shippingAddress?.phone) {
+          // Small delay to ensure the order is updated first
+          setTimeout(() => {
+            handleWhatsAppUpdate(newStatus);
+          }, 1000);
+        }
       } else {
         const error = await response.json();
         console.error('Update error:', error);
@@ -226,11 +382,14 @@ export default function OrderDetailPage() {
     const validTransitions: Record<string, string[]> = {
       'pending': ['confirmed', 'cancelled'],
       'confirmed': ['processing', 'cancelled'],
-      'processing': ['shipped', 'cancelled'],
-      'shipped': ['delivered', 'returned'],
+      'processing': ['ready_for_shipping', 'cancelled'],
+      'ready_for_shipping': ['shipped', 'cancelled'],
+      'shipped': ['out_for_delivery', 'returned'],
+      'out_for_delivery': ['delivered', 'returned'],
       'delivered': ['returned'],
       'cancelled': [],
-      'returned': []
+      'returned': [],
+      'refunded': []
     };
     
     return validTransitions[order.status] || [];
@@ -242,6 +401,181 @@ export default function OrderDetailPage() {
     setShippingCompany(order?.shippingCompany || '');
     setNotes(order?.adminNotes || '');
     setShowStatusModal(true);
+  };
+
+  const getProcessingSteps = () => {
+    const steps = [
+      {
+        id: 'pending',
+        title: 'الطلب معلق',
+        description: 'الطلب في انتظار التأكيد من الإدارة',
+        icon: Clock,
+        color: 'text-yellow-600',
+        bgColor: 'bg-yellow-50',
+        actions: ['confirmed', 'cancelled']
+      },
+      {
+        id: 'confirmed',
+        title: 'تم تأكيد الطلب',
+        description: 'تم تأكيد الطلب وبدء المعالجة',
+        icon: CheckCircle,
+        color: 'text-blue-600',
+        bgColor: 'bg-blue-50',
+        actions: ['processing', 'cancelled']
+      },
+      {
+        id: 'processing',
+        title: 'قيد المعالجة',
+        description: 'الطلب قيد التحضير والتجهيز',
+        icon: Package,
+        color: 'text-purple-600',
+        bgColor: 'bg-purple-50',
+        actions: ['ready_for_shipping', 'cancelled']
+      },
+      {
+        id: 'ready_for_shipping',
+        title: 'جاهز للشحن',
+        description: 'الطلب جاهز للشحن والتوصيل',
+        icon: Package,
+        color: 'text-cyan-600',
+        bgColor: 'bg-cyan-50',
+        actions: ['shipped', 'cancelled']
+      },
+      {
+        id: 'shipped',
+        title: 'تم الشحن',
+        description: 'تم شحن الطلب وتم إرساله',
+        icon: Truck,
+        color: 'text-indigo-600',
+        bgColor: 'bg-indigo-50',
+        actions: ['out_for_delivery', 'returned']
+      },
+      {
+        id: 'out_for_delivery',
+        title: 'خارج للتوصيل',
+        description: 'الطلب خارج للتوصيل للعميل',
+        icon: Truck,
+        color: 'text-orange-600',
+        bgColor: 'bg-orange-50',
+        actions: ['delivered', 'returned']
+      },
+      {
+        id: 'delivered',
+        title: 'تم التسليم',
+        description: 'تم تسليم الطلب بنجاح للعميل',
+        icon: CheckCircle,
+        color: 'text-green-600',
+        bgColor: 'bg-green-50',
+        actions: ['returned']
+      }
+    ];
+
+    return steps.map(step => ({
+      ...step,
+      isCompleted: getStepCompletionStatus(step.id),
+      isCurrent: order?.status === step.id,
+      isUpcoming: getStepUpcomingStatus(step.id)
+    }));
+  };
+
+  const getStepCompletionStatus = (stepId: string) => {
+    const stepOrder = ['pending', 'confirmed', 'processing', 'ready_for_shipping', 'shipped', 'out_for_delivery', 'delivered'];
+    const currentStepIndex = stepOrder.indexOf(order?.status || 'pending');
+    const stepIndex = stepOrder.indexOf(stepId);
+    return stepIndex < currentStepIndex;
+  };
+
+  const getStepUpcomingStatus = (stepId: string) => {
+    const stepOrder = ['pending', 'confirmed', 'processing', 'ready_for_shipping', 'shipped', 'out_for_delivery', 'delivered'];
+    const currentStepIndex = stepOrder.indexOf(order?.status || 'pending');
+    const stepIndex = stepOrder.indexOf(stepId);
+    return stepIndex > currentStepIndex;
+  };
+
+  const getProcessingTimeline = () => {
+    const timeline = [];
+    
+    if (order?.confirmedAt) {
+      timeline.push({
+        date: order.confirmedAt,
+        title: 'تم تأكيد الطلب',
+        description: 'تم تأكيد الطلب من قبل الإدارة',
+        icon: CheckCircle,
+        color: 'text-green-600'
+      });
+    }
+    
+    if (order?.processingAt) {
+      timeline.push({
+        date: order.processingAt,
+        title: 'بدء المعالجة',
+        description: 'تم بدء معالجة وتجهيز الطلب',
+        icon: Package,
+        color: 'text-purple-600'
+      });
+    }
+    
+    if (order?.readyForShippingAt) {
+      timeline.push({
+        date: order.readyForShippingAt,
+        title: 'جاهز للشحن',
+        description: 'تم تجهيز الطلب للشحن',
+        icon: Package,
+        color: 'text-cyan-600'
+      });
+    }
+    
+    if (order?.shippedAt) {
+      timeline.push({
+        date: order.shippedAt,
+        title: 'تم الشحن',
+        description: `تم شحن الطلب عبر ${order.shippingCompany || 'شركة الشحن'}`,
+        icon: Truck,
+        color: 'text-indigo-600'
+      });
+    }
+    
+    if (order?.outForDeliveryAt) {
+      timeline.push({
+        date: order.outForDeliveryAt,
+        title: 'خارج للتوصيل',
+        description: 'الطلب خارج للتوصيل للعميل',
+        icon: Truck,
+        color: 'text-orange-600'
+      });
+    }
+    
+    if (order?.deliveredAt) {
+      timeline.push({
+        date: order.deliveredAt,
+        title: 'تم التسليم',
+        description: 'تم تسليم الطلب بنجاح للعميل',
+        icon: CheckCircle,
+        color: 'text-green-600'
+      });
+    }
+    
+    if (order?.cancelledAt) {
+      timeline.push({
+        date: order.cancelledAt,
+        title: 'تم الإلغاء',
+        description: 'تم إلغاء الطلب',
+        icon: AlertCircle,
+        color: 'text-red-600'
+      });
+    }
+    
+    if (order?.returnedAt) {
+      timeline.push({
+        date: order.returnedAt,
+        title: 'تم الإرجاع',
+        description: 'تم إرجاع الطلب',
+        icon: ExternalLink,
+        color: 'text-orange-600'
+      });
+    }
+    
+    return timeline.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   };
 
   if (loading) {
@@ -292,15 +626,28 @@ export default function OrderDetailPage() {
           </div>
         </div>
         
-        {canUpdateOrder() && availableStatuses.length > 0 && (
+        <div className="flex items-center space-x-3 space-x-reverse">
+          {/* Print Invoice Button */}
           <button
-            onClick={() => openStatusModal('')}
-            className="btn-primary flex items-center"
+            onClick={() => setShowInvoice(true)}
+            className="btn-secondary flex items-center bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 text-white font-medium px-4 py-2 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
+            title="طباعة الفاتورة"
           >
-            <Edit className="w-4 h-4 ml-2" />
-            تحديث الحالة
+            <Printer className="w-4 h-4 ml-2" />
+            طباعة الفاتورة
           </button>
-        )}
+          
+          {/* Update Status Button */}
+          {canUpdateOrder() && availableStatuses.length > 0 && (
+            <button
+              onClick={() => openStatusModal('')}
+              className="btn-primary flex items-center bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
+            >
+              <Edit className="w-4 h-4 ml-2" />
+              تحديث الحالة
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -331,14 +678,148 @@ export default function OrderDetailPage() {
             </div>
           </div>
 
+          {/* Processing Workflow */}
+          <div className="card">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
+              <Package className="w-5 h-5 ml-2" />
+              مراحل معالجة الطلب
+            </h3>
+            
+            {/* Processing Steps */}
+            <div className="space-y-4 mb-8">
+              {getProcessingSteps().map((step, index) => {
+                const StepIcon = step.icon;
+                return (
+                  <div key={step.id} className="flex items-start space-x-4 space-x-reverse">
+                    {/* Step Icon */}
+                    <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                      step.isCompleted 
+                        ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-200' 
+                        : step.isCurrent 
+                        ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-200' 
+                        : 'bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500'
+                    }`}>
+                      {step.isCompleted ? (
+                        <CheckCircle className="w-5 h-5" />
+                      ) : (
+                        <StepIcon className="w-5 h-5" />
+                      )}
+                    </div>
+                    
+                    {/* Step Content */}
+                    <div className="flex-1 min-w-0">
+                      <div className={`p-4 rounded-lg border ${
+                        step.isCompleted 
+                          ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-700' 
+                          : step.isCurrent 
+                          ? 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-700' 
+                          : 'bg-gray-50 border-gray-200 dark:bg-gray-800 dark:border-gray-600'
+                      }`}>
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className={`font-medium ${
+                            step.isCompleted 
+                              ? 'text-green-800 dark:text-green-200' 
+                              : step.isCurrent 
+                              ? 'text-blue-800 dark:text-blue-200' 
+                              : 'text-gray-600 dark:text-gray-400'
+                          }`}>
+                            {step.title}
+                          </h4>
+                          {step.isCurrent && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200">
+                              الحالية
+                            </span>
+                          )}
+                        </div>
+                        <p className={`text-sm ${
+                          step.isCompleted 
+                            ? 'text-green-700 dark:text-green-300' 
+                            : step.isCurrent 
+                            ? 'text-blue-700 dark:text-blue-300' 
+                            : 'text-gray-500 dark:text-gray-400'
+                        }`}>
+                          {step.description}
+                        </p>
+                        
+                        {/* Available Actions */}
+                        {step.isCurrent && canUpdateOrder() && (
+                          <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
+                            <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">الإجراءات المتاحة:</p>
+                            <div className="flex flex-wrap gap-2">
+                              {step.actions.map(action => (
+                                <button
+                                  key={action}
+                                  onClick={() => openStatusModal(action)}
+                                  className="px-3 py-1 text-xs bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors text-gray-700 dark:text-gray-200 font-medium"
+                                >
+                                  {statusConfig[action as keyof typeof statusConfig]?.label || action}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Processing Timeline */}
+            {getProcessingTimeline().length > 0 && (
+              <div>
+                <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-4">
+                  سجل المعالجة
+                </h4>
+                <div className="space-y-3">
+                  {getProcessingTimeline().map((event, index) => {
+                    const EventIcon = event.icon;
+                    return (
+                      <div key={index} className="flex items-start space-x-3 space-x-reverse">
+                        <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${event.color} bg-opacity-10 dark:bg-opacity-20`}>
+                          <EventIcon className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <h5 className="text-sm font-medium text-gray-900 dark:text-white">
+                              {event.title}
+                            </h5>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              {formatDate(event.date)}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            {event.description}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Items */}
           <div className="card">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">المنتجات</h3>
             <div className="space-y-4">
               {order.items.map((item, index) => (
                 <div key={index} className="flex items-center space-x-4 space-x-reverse p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <div className="w-16 h-16 bg-gray-200 dark:bg-gray-600 rounded-lg flex items-center justify-center">
-                    <Package className="w-8 h-8 text-gray-400" />
+                  <div className="w-16 h-16 bg-gray-200 dark:bg-gray-600 rounded-lg flex items-center justify-center overflow-hidden">
+                    {item.productId?.images && item.productId.images.length > 0 ? (
+                      <img 
+                        src={item.productId.images[0]} 
+                        alt={item.productId.name || item.productName}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          // Fallback to placeholder if image fails to load
+                          e.currentTarget.style.display = 'none';
+                          e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                        }}
+                      />
+                    ) : null}
+                    <Package className={`w-8 h-8 text-gray-400 ${item.productId?.images && item.productId.images.length > 0 ? 'hidden' : ''}`} />
                   </div>
                   <div className="flex-1">
                     <h4 className="font-medium text-gray-900 dark:text-white">
@@ -395,37 +876,222 @@ export default function OrderDetailPage() {
               </div>
             </div>
           )}
+
+          {/* Shipping Information */}
+          <div className="card">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+              <Truck className="w-5 h-5 ml-2" />
+              معلومات الشحن والتوصيل
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Shipping Status */}
+              <div>
+                <h4 className="font-medium text-gray-900 dark:text-white mb-3">حالة الشحن</h4>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">الحالة الحالية</span>
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${status.color}`}>
+                      {status.label}
+                    </span>
+                  </div>
+                  
+                  {order.trackingNumber && (
+                    <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">رقم التتبع</span>
+                      <span className="font-mono text-sm font-medium text-gray-900 dark:text-white">
+                        {order.trackingNumber}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {order.shippingCompany && (
+                    <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">شركة الشحن</span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">
+                        {order.shippingCompany}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Delivery Information */}
+              <div>
+                <h4 className="font-medium text-gray-900 dark:text-white mb-3">معلومات التوصيل</h4>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">تاريخ الطلب</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">
+                      {formatDate(order.createdAt)}
+                    </span>
+                  </div>
+                  
+                  {order.shippedAt && (
+                    <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">تاريخ الشحن</span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">
+                        {formatDate(order.shippedAt)}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {order.deliveredAt && (
+                    <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                      <span className="text-sm text-green-600 dark:text-green-400">تاريخ التسليم</span>
+                      <span className="text-sm font-medium text-green-600 dark:text-green-400">
+                        {formatDate(order.deliveredAt)}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {order.actualDelivery && (
+                    <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                      <span className="text-sm text-green-600 dark:text-green-400">التسليم الفعلي</span>
+                      <span className="text-sm font-medium text-green-600 dark:text-green-400">
+                        {formatDate(order.actualDelivery)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Shipping Timeline */}
+            {['shipped', 'out_for_delivery', 'delivered'].includes(order.status) && (
+              <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <h4 className="font-medium text-gray-900 dark:text-white mb-4">جدول الشحن</h4>
+                <div className="space-y-3">
+                  {order.shippedAt && (
+                    <div className="flex items-center space-x-3 space-x-reverse">
+                      <div className="flex-shrink-0 w-6 h-6 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center">
+                        <Truck className="w-3 h-3 text-indigo-600 dark:text-indigo-200" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">تم الشحن</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{formatDate(order.shippedAt)}</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {order.outForDeliveryAt && (
+                    <div className="flex items-center space-x-3 space-x-reverse">
+                      <div className="flex-shrink-0 w-6 h-6 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center">
+                        <Truck className="w-3 h-3 text-orange-600 dark:text-orange-200" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">خارج للتوصيل</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{formatDate(order.outForDeliveryAt)}</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {order.deliveredAt && (
+                    <div className="flex items-center space-x-3 space-x-reverse">
+                      <div className="flex-shrink-0 w-6 h-6 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                        <CheckCircle2 className="w-3 h-3 text-green-600 dark:text-green-200" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">تم التسليم</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{formatDate(order.deliveredAt)}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Sidebar */}
         <div className="space-y-6">
-          {/* Customer Info */}
+          {/* Customer Information */}
           <div className="card">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4 flex items-center">
               <User className="w-5 h-5 ml-2" />
               معلومات العميل
             </h3>
-            <div className="space-y-3">
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">الاسم</p>
-                <p className="font-medium text-gray-900 dark:text-white">
-                  {order.customerName || order.customerId?.name || 'غير محدد'}
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+                  اسم العميل
+                </label>
+                <p className="text-gray-900 dark:text-slate-100">
+                  {order.shippingAddress?.fullName || 'غير محدد'}
                 </p>
               </div>
+              
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">رقم الهاتف</p>
-                <p className="font-medium text-gray-900 dark:text-white flex items-center">
-                  <Phone className="w-4 h-4 ml-1" />
-                  {order.customerPhone || order.shippingAddress?.phone || 'غير محدد'}
-                </p>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+                  رقم الهاتف
+                </label>
+                <div className="flex items-center space-x-2 space-x-reverse">
+                  <p className="text-gray-900 dark:text-slate-100">
+                    {order.shippingAddress?.phone || 'غير محدد'}
+                  </p>
+                  {order.shippingAddress?.phone && (
+                    <div className="flex space-x-2 space-x-reverse">
+                      <a
+                        href={`tel:${order.shippingAddress.phone}`}
+                        className="p-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                        title="اتصال"
+                      >
+                        <Phone className="w-4 h-4" />
+                      </a>
+                      <button
+                        onClick={handleWhatsAppConfirmation}
+                        className="p-1 text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300 transition-colors"
+                        title="واتساب - تأكيد الطلب"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">نوع الحساب</p>
-                <p className="font-medium text-gray-900 dark:text-white">
-                  {order.customerRole === 'marketer' ? 'مسوق' : order.customerRole === 'wholesaler' ? 'تاجر جملة' : order.customerRole}
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+                العنوان
+              </label>
+              <div className="flex items-start space-x-2 space-x-reverse">
+                <MapPin className="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" />
+                <p className="text-gray-900 dark:text-slate-100">
+                  {order.shippingAddress?.street}, {order.shippingAddress?.city}, {order.shippingAddress?.governorate}
+                  {order.shippingAddress?.postalCode && ` - ${order.shippingAddress.postalCode}`}
                 </p>
               </div>
             </div>
+            
+            {/* WhatsApp Communication Buttons */}
+            {order.shippingAddress?.phone && (
+              <div className="border-t pt-4">
+                <h4 className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">
+                  التواصل مع العميل
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={handleWhatsAppConfirmation}
+                    className="btn-secondary flex items-center bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 text-white"
+                  >
+                    <MessageCircle className="w-4 h-4 ml-2" />
+                    تأكيد الطلب عبر واتساب
+                  </button>
+                  
+                  <a
+                    href={`tel:${order.shippingAddress.phone}`}
+                    className="btn-secondary flex items-center bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white"
+                  >
+                    <Phone className="w-4 h-4 ml-2" />
+                    اتصال مباشر
+                  </a>
+                  
+
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Shipping Address */}
@@ -667,96 +1333,83 @@ export default function OrderDetailPage() {
 
       {/* Status Update Modal */}
       {showStatusModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              تحديث حالة الطلب
-            </h3>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-md">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">
+                تحديث حالة الطلب
+              </h3>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                   الحالة الجديدة
                 </label>
                 <select
                   value={newStatus}
                   onChange={(e) => setNewStatus(e.target.value)}
-                  className="w-full input-field"
+                  className="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="">اختر الحالة</option>
-                  {availableStatuses.map(status => (
+                  {availableStatuses.map((status) => (
                     <option key={status} value={status}>
                       {statusConfig[status as keyof typeof statusConfig]?.label || status}
                     </option>
                   ))}
                 </select>
               </div>
-
-              {newStatus === 'shipped' && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      رقم التتبع
-                    </label>
-                    <input
-                      type="text"
-                      value={trackingNumber}
-                      onChange={(e) => setTrackingNumber(e.target.value)}
-                      className="w-full input-field"
-                      placeholder="أدخل رقم التتبع"
-                    />
+              
+              {/* WhatsApp Notification Option */}
+              {newStatus && order?.shippingAddress?.phone && (
+                <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                  <div className="flex items-center mb-2">
+                    <MessageCircle className="w-5 h-5 text-green-600 ml-2" />
+                    <span className="text-sm font-medium text-green-800 dark:text-green-200">
+                      إشعار العميل عبر واتساب
+                    </span>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      شركة الشحن
-                    </label>
-                    <input
-                      type="text"
-                      value={shippingCompany}
-                      onChange={(e) => setShippingCompany(e.target.value)}
-                      className="w-full input-field"
-                      placeholder="أدخل اسم شركة الشحن"
-                    />
-                  </div>
-                </>
+                  <p className="text-xs text-green-700 dark:text-green-300">
+                    سيتم إرسال رسالة تلقائية للعميل عبر واتساب لإعلامه بتحديث حالة الطلب
+                  </p>
+                </div>
               )}
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  ملاحظات (اختياري)
-                </label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  className="w-full input-field"
-                  rows={3}
-                  placeholder="أدخل ملاحظات إضافية"
-                />
+              
+              <div className="flex justify-end space-x-3 space-x-reverse">
+                <button
+                  onClick={() => setShowStatusModal(false)}
+                  className="btn-secondary"
+                >
+                  إلغاء
+                </button>
+                <button
+                  onClick={updateOrderStatus}
+                  disabled={!newStatus || updating}
+                  className="btn-primary flex items-center"
+                >
+                  {updating ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white ml-2"></div>
+                      جاري التحديث...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4 ml-2" />
+                      تحديث الحالة
+                    </>
+                  )}
+                </button>
               </div>
-            </div>
-
-            <div className="flex space-x-3 space-x-reverse mt-6">
-              <button
-                onClick={() => setShowStatusModal(false)}
-                className="btn-secondary flex-1"
-              >
-                إلغاء
-              </button>
-              <button
-                onClick={updateOrderStatus}
-                disabled={!newStatus || updating}
-                className="btn-primary flex-1 flex items-center justify-center"
-              >
-                {updating ? (
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white ml-2"></div>
-                ) : (
-                  <CheckCircle className="w-4 h-4 ml-2" />
-                )}
-                {updating ? 'جاري التحديث...' : 'تحديث الحالة'}
-              </button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Order Invoice Modal */}
+      {order && (
+        <OrderInvoice
+          order={order}
+          isVisible={showInvoice}
+          onClose={() => setShowInvoice(false)}
+        />
       )}
     </div>
   );

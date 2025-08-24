@@ -9,6 +9,8 @@ import { z } from 'zod';
 import { Save } from 'lucide-react';
 import toast from 'react-hot-toast';
 import MediaUpload from '@/components/ui/MediaUpload';
+import ProductVariants from '@/components/ui/ProductVariants';
+import { ProductVariant, ProductVariantOption } from '@/types';
 
 const productSchema = z.object({
   name: z.string().min(3, 'اسم المنتج يجب أن يكون 3 أحرف على الأقل'),
@@ -42,6 +44,10 @@ export default function NewProductPage() {
   const [images, setImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
+  // Product variants state
+  const [hasVariants, setHasVariants] = useState(false);
+  const [variants, setVariants] = useState<ProductVariant[]>([]);
+  const [variantOptions, setVariantOptions] = useState<ProductVariantOption[]>([]);
 
   const {
     register,
@@ -97,6 +103,11 @@ export default function NewProductPage() {
     }
   };
 
+  const handleVariantsChange = (newHasVariants: boolean, newVariants: ProductVariant[], newVariantOptions: ProductVariantOption[]) => {
+    setHasVariants(newHasVariants);
+    setVariants(newVariants);
+    setVariantOptions(newVariantOptions);
+  };
 
 
   const removeImage = (index: number) => {
@@ -141,7 +152,11 @@ export default function NewProductPage() {
           height: data.dimensions.height && data.dimensions.height > 0 ? Number(data.dimensions.height) : null
         } : null,
         tags: [],
-        specifications: {}
+        specifications: {},
+        // Product variants
+        hasVariants,
+        variants: hasVariants ? variants : [],
+        variantOptions: hasVariants ? variantOptions : []
       };
 
       console.log('Sending product data:', productData);
@@ -441,6 +456,17 @@ export default function NewProductPage() {
                   />
                 </div>
               </div>
+            </div>
+
+            {/* Product Variants */}
+            <div className="card">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">متغيرات المنتج</h2>
+              <ProductVariants
+                hasVariants={hasVariants}
+                variants={variants}
+                variantOptions={variantOptions}
+                onVariantsChange={handleVariantsChange}
+              />
             </div>
           </div>
 

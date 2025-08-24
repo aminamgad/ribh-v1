@@ -16,7 +16,10 @@ import {
   XCircle,
   RefreshCw,
   AlertCircle,
-  Save
+  Save,
+  BarChart3,
+  Lock,
+  Unlock
 } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -46,6 +49,9 @@ interface Product {
   sales?: number;
   rating?: number;
   isRejected?: boolean;
+  isLocked?: boolean;
+  lockedBy?: string;
+  lockedAt?: string;
 }
 
 export default function ProductsPage() {
@@ -71,6 +77,12 @@ export default function ProductsPage() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [processing, setProcessing] = useState(false);
+  
+  // Locking states
+  const [showLockModal, setShowLockModal] = useState(false);
+  const [lockReason, setLockReason] = useState('');
+  const [lockAction, setLockAction] = useState<'lock' | 'unlock' | null>(null);
+  const [locking, setLocking] = useState(false);
   
   // Quick edit states
   const [quickEditData, setQuickEditData] = useState({
@@ -232,6 +244,56 @@ export default function ProductsPage() {
     } else {
       await addToFavorites(product as any);
     }
+  };
+
+  const handleLockProduct = (product: Product, action: 'lock' | 'unlock') => {
+    setSelectedProduct(product);
+    setLockAction(action);
+    setLockReason('');
+    setShowLockModal(true);
+  };
+
+  const confirmLock = async () => {
+    if (!selectedProduct) return;
+    
+    try {
+      setLocking(true);
+      
+      const response = await fetch(`/api/products/${selectedProduct._id}/lock`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          isLocked: lockAction === 'lock',
+          lockReason: lockAction === 'lock' ? lockReason : undefined
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        toast.success(data.message);
+        fetchProducts(); // Refresh products list
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.message || 'فشل في قفل/إلغاء قفل المنتج');
+      }
+    } catch (error) {
+      console.error('Error locking/unlocking product:', error);
+      toast.error('حدث خطأ أثناء قفل/إلغاء قفل المنتج');
+    } finally {
+      setLocking(false);
+      setShowLockModal(false);
+      setLockReason('');
+      setLockAction(null);
+      setSelectedProduct(null);
+    }
+  };
+
+  const canLockProduct = (product: Product) => {
+    if (!user) return false;
+    return user.role === 'admin' || 
+           (user.role === 'supplier' && product.supplierId === user._id);
   };
 
   const handleAddToCart = (product: Product) => {
@@ -616,6 +678,12 @@ export default function ProductsPage() {
                            return <span className="badge badge-warning">قيد المراجعة</span>;
                          }
                        })()}
+                       {product.isLocked && (
+                         <span className="badge badge-danger">
+                           <Lock className="w-3 h-3 ml-1" />
+                           مقفل
+                         </span>
+                       )}
                      </div>
                    </div>
 
@@ -696,6 +764,39 @@ export default function ProductsPage() {
                             title="إعادة تقديم"
                           >
                             <RefreshCw className="w-4 h-4" />
+                          </button>
+                        )}
+                        
+                        {user?.role === 'admin' && (
+                          <Link
+                            href={`/dashboard/admin/product-stats?productId=${product._id}`}
+                            className="text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300"
+                            title="عرض الإحصائيات"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <BarChart3 className="w-4 h-4" />
+                          </Link>
+                        )}
+                        
+                        {/* Lock/Unlock Product Button */}
+                        {canLockProduct(product) && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleLockProduct(product, product.isLocked ? 'unlock' : 'lock');
+                            }}
+                            className={`${
+                              product.isLocked 
+                                ? 'text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300' 
+                                : 'text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300'
+                            }`}
+                            title={product.isLocked ? 'إلغاء قفل المنتج' : 'قفل المنتج'}
+                          >
+                            {product.isLocked ? (
+                              <Unlock className="w-4 h-4" />
+                            ) : (
+                              <Lock className="w-4 h-4" />
+                            )}
                           </button>
                         )}
                         
@@ -1325,6 +1426,98 @@ export default function ProductsPage() {
                   </>
                 )}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lock/Unlock Modal */}
+      {showLockModal && selectedProduct && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-md">
+            <div className="p-6">
+              <div className="flex items-center mb-4">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center mr-3 ${
+                  lockAction === 'lock' 
+                    ? 'bg-red-100 dark:bg-red-900/30' 
+                    : 'bg-green-100 dark:bg-green-900/30'
+                }`}>
+                  {lockAction === 'lock' ? (
+                    <Lock className="w-5 h-5 text-red-600 dark:text-red-400" />
+                  ) : (
+                    <Unlock className="w-5 h-5 text-green-600 dark:text-green-400" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
+                    {lockAction === 'lock' ? 'قفل المنتج' : 'إلغاء قفل المنتج'}
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-slate-400">
+                    {lockAction === 'lock' 
+                      ? 'سيتم إخفاء هذا المنتج عن المسوقين والتجار' 
+                      : 'سيتم إظهار هذا المنتج للمسوقين والتجار مرة أخرى'
+                    }
+                  </p>
+                </div>
+              </div>
+              
+              {lockAction === 'lock' && (
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                    سبب القفل (اختياري)
+                  </label>
+                  <textarea
+                    value={lockReason}
+                    onChange={(e) => setLockReason(e.target.value)}
+                    placeholder="اكتب سبب قفل المنتج هنا..."
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent dark:bg-slate-700 dark:text-slate-100 resize-none"
+                    rows={3}
+                  />
+                </div>
+              )}
+              
+              <div className="flex justify-end space-x-3 space-x-reverse">
+                <button
+                  onClick={() => {
+                    setShowLockModal(false);
+                    setLockReason('');
+                    setLockAction(null);
+                    setSelectedProduct(null);
+                  }}
+                  disabled={locking}
+                  className="btn-secondary"
+                >
+                  إلغاء
+                </button>
+                <button
+                  onClick={confirmLock}
+                  disabled={locking}
+                  className={`btn flex items-center ${
+                    lockAction === 'lock' ? 'btn-danger' : 'btn-success'
+                  }`}
+                >
+                  {locking ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white ml-2"></div>
+                      جاري {lockAction === 'lock' ? 'القفل' : 'إلغاء القفل'}...
+                    </>
+                  ) : (
+                    <>
+                      {lockAction === 'lock' ? (
+                        <>
+                          <Lock className="w-4 h-4 ml-2" />
+                          قفل المنتج
+                        </>
+                      ) : (
+                        <>
+                          <Unlock className="w-4 h-4 ml-2" />
+                          إلغاء القفل
+                        </>
+                      )}
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>

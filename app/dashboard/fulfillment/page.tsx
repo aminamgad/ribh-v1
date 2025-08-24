@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
-import { Package, Truck, CheckCircle, XCircle, Clock, Plus, Eye, Edit, Search, RefreshCw, Filter, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Plus, Search, Filter, Eye, CheckCircle, X, Clock, Package, Phone, Mail, MessageCircle, XCircle, RefreshCw, TrendingUp, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
@@ -11,6 +11,7 @@ import ConfirmationModal from '@/components/ui/ConfirmationModal';
 interface FulfillmentRequest {
   _id: string;
   supplierName: string;
+  supplierPhone?: string;
   products: Array<{
     productName: string;
     quantity: number;
@@ -55,11 +56,71 @@ export default function FulfillmentPage() {
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [showRejectModal, setShowRejectModal] = useState(false);
-  const [rejectReason, setRejectReason] = useState('');
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [processingRequest, setProcessingRequest] = useState<string | null>(null);
   const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
   const router = useRouter();
+
+  // WhatsApp communication functions
+  const openWhatsApp = (phone: string, message: string) => {
+    const formattedPhone = phone.replace(/\s+/g, '').replace(/^0/, '970'); // Convert to international format
+    const encodedMessage = encodeURIComponent(message);
+    const whatsappUrl = `https://wa.me/${formattedPhone}?text=${encodedMessage}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
+  const generateApprovalMessage = (request: any) => {
+    const supplierName = request.supplierName || 'المورد';
+    const productName = request.productName;
+    const quantity = request.quantity;
+    
+    return `مرحباً ${supplierName} 👋
+
+تم الموافقة على طلب التخزين الخاص بك! ✅
+
+🛍️ المنتج: ${productName}
+📦 الكمية: ${quantity}
+
+سيتم التواصل معك قريباً لتأكيد التفاصيل النهائية.
+
+شكراً لثقتك بنا 🙏`;
+  };
+
+  const generateRejectionMessage = (request: any, reason: string) => {
+    const supplierName = request.supplierName || 'المورد';
+    const productName = request.productName;
+    
+    return `مرحباً ${supplierName} 👋
+
+نعتذر، تم رفض طلب التخزين الخاص بك ❌
+
+🛍️ المنتج: ${productName}
+📝 السبب: ${reason}
+
+يمكنك التواصل معنا للمزيد من التفاصيل.
+
+شكراً لاهتمامك 🙏`;
+  };
+
+  const handleWhatsAppApproval = (request: any) => {
+    const message = generateApprovalMessage(request);
+    const phone = request.supplierPhone || '';
+    if (phone) {
+      openWhatsApp(phone, message);
+    } else {
+      toast.error('رقم الهاتف غير متوفر');
+    }
+  };
+
+  const handleWhatsAppRejection = (request: any, reason: string) => {
+    const message = generateRejectionMessage(request, reason);
+    const phone = request.supplierPhone || '';
+    if (phone) {
+      openWhatsApp(phone, message);
+    } else {
+      toast.error('رقم الهاتف غير متوفر');
+    }
+  };
 
   useEffect(() => {
     fetchFulfillmentRequests();
@@ -149,7 +210,6 @@ export default function FulfillmentPage() {
         toast.success(data.message || 'تم رفض الطلب بنجاح');
         fetchFulfillmentRequests();
         setShowRejectModal(false);
-        setRejectReason('');
         setSelectedRequestId(null);
       } else {
         const error = await response.json();
@@ -168,11 +228,18 @@ export default function FulfillmentPage() {
   };
 
   const confirmReject = () => {
-    if (!selectedRequestId || !rejectReason.trim()) {
-      toast.error('يرجى إدخال سبب الرفض');
+    if (!selectedRequestId) {
+      toast.error('خطأ في تحديد الطلب');
       return;
     }
-    handleRejectRequest(selectedRequestId, rejectReason.trim());
+    handleRejectRequest(selectedRequestId, 'تم رفض الطلب من قبل الإدارة');
+  };
+
+  const handleCancelReject = () => {
+    console.log('Canceling rejection modal');
+    setShowRejectModal(false);
+    setSelectedRequestId(null);
+    toast.success('تم إلغاء عملية الرفض');
   };
 
   const handleViewDetails = async (requestId: string) => {
@@ -568,6 +635,44 @@ export default function FulfillmentPage() {
                             )}
                           </button>
                           
+                          {/* WhatsApp Contact */}
+                          {request.supplierPhone && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const message = `مرحباً ${request.supplierName} 👋
+
+معلومات طلب التخزين الخاص بك 📦
+
+🛍️ المنتجات: ${request.products.map((p: any) => p.productName).join('، ')}
+📦 إجمالي القطع: ${request.totalItems}
+💰 القيمة الإجمالية: ${request.totalValue} ₪
+🔄 الحالة: ${statusLabels[request.status]}
+
+هل لديك أي استفسارات حول طلبك؟
+
+شكراً لثقتك بنا 🙏`;
+                                openWhatsApp(request.supplierPhone!, message);
+                              }}
+                              className="text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 transition-all duration-200 p-2 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 hover:scale-110"
+                              title="تواصل عبر واتساب"
+                            >
+                              <MessageCircle className="w-4 h-4 hover:scale-110 transition-transform duration-200" />
+                            </button>
+                          )}
+                          
+                          {/* Phone Contact */}
+                          {request.supplierPhone && (
+                            <a
+                              href={`tel:${request.supplierPhone}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-all duration-200 p-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 hover:scale-110"
+                              title="اتصال مباشر"
+                            >
+                              <Phone className="w-4 h-4 hover:scale-110 transition-transform duration-200" />
+                            </a>
+                          )}
+                          
                           {getStatusButton(request)}
                         </div>
                       </td>
@@ -593,26 +698,16 @@ export default function FulfillmentPage() {
         isOpen={showRejectModal}
         onClose={() => {
           setShowRejectModal(false);
-          setRejectReason('');
           setSelectedRequestId(null);
         }}
         onConfirm={confirmReject}
+        onCancel={handleCancelReject}
         title="رفض طلب التخزين"
-        message="يرجى إدخال سبب الرفض:"
+        message="هل أنت متأكد من رفض هذا طلب التخزين؟"
         confirmText="رفض"
         cancelText="إلغاء"
         type="danger"
         loading={processingRequest === selectedRequestId}
-        customContent={
-          <textarea
-            value={rejectReason}
-            onChange={(e) => setRejectReason(e.target.value)}
-            placeholder="أدخل سبب الرفض هنا..."
-            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent dark:bg-slate-700 dark:text-slate-100 mt-3"
-            rows={3}
-            disabled={processingRequest === selectedRequestId}
-          />
-        }
       />
     </div>
   );

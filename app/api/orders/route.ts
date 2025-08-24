@@ -11,7 +11,9 @@ const orderItemSchema = z.object({
   productId: z.string().min(1, 'معرف المنتج مطلوب'),
   quantity: z.number().min(1, 'الكمية يجب أن تكون 1 أو أكثر'),
   customPrice: z.number().optional(),
-  marketerProfit: z.number().optional()
+  marketerProfit: z.number().optional(),
+  selectedVariants: z.record(z.string()).optional(),
+  variantOption: z.any().optional()
 });
 
 const shippingAddressSchema = z.object({
@@ -85,7 +87,9 @@ export const POST = withRole(['marketer', 'supplier', 'admin'])(async (req: Next
         quantity: item.quantity,
         unitPrice,
         totalPrice,
-        priceType
+        priceType,
+        selectedVariants: item.selectedVariants,
+        variantOption: item.variantOption
       });
     }
     
@@ -197,6 +201,9 @@ export const GET = withRole(['marketer', 'supplier', 'admin'])(async (req: NextR
     
     // Get orders with pagination
     const orders = await Order.find(query)
+      .populate('items.productId', 'name images marketerPrice wholesalerPrice')
+      .populate('supplierId', 'name companyName')
+      .populate('customerId', 'name email')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);

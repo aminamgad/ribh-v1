@@ -51,7 +51,25 @@ async function getProductSchema() {
       height: z.number().min(0).optional().nullable()
     }).optional().nullable(),
     tags: z.array(z.string()).optional(),
-    specifications: z.record(z.any()).optional()
+    specifications: z.record(z.any()).optional(),
+    // Product variants
+    hasVariants: z.boolean().default(false),
+    variants: z.array(z.object({
+      _id: z.string(),
+      name: z.string(),
+      values: z.array(z.string()),
+      isRequired: z.boolean().default(true),
+      order: z.number().default(0)
+    })).optional(),
+    variantOptions: z.array(z.object({
+      variantId: z.string(),
+      variantName: z.string(),
+      value: z.string(),
+      price: z.number().min(0).optional(),
+      stockQuantity: z.number().min(0),
+      sku: z.string().optional(),
+      images: z.array(z.string()).optional()
+    })).optional()
   });
 }
 
@@ -110,6 +128,8 @@ async function getProducts(req: NextRequest, user: any) {
         { isRejected: false },
         { isRejected: { $exists: false } }
       );
+      // Exclude locked products for marketers and wholesalers
+      query.isLocked = { $ne: true };
       // لا نضيف فلتر isActive هنا - نترك المسوق يرى جميع المنتجات المعتمدة
       // query.isActive = true;
       // لا نضيف فلتر المخزون هنا - نترك المسوق يرى جميع المنتجات المعتمدة
@@ -162,6 +182,10 @@ async function getProducts(req: NextRequest, user: any) {
       rejectedAt: product.rejectedAt,
       rejectedBy: product.rejectedBy,
       isFulfilled: product.isFulfilled,
+      isLocked: product.isLocked,
+      lockedAt: product.lockedAt,
+      lockedBy: product.lockedBy,
+      lockReason: product.lockReason,
       categoryName: product.categoryId?.name,
       supplierName: product.supplierId?.name || product.supplierId?.companyName,
       sku: product.sku,
@@ -236,7 +260,25 @@ async function createProduct(req: NextRequest, user: any) {
         height: body.dimensions.height ? parseFloat(body.dimensions.height) : null
       } : null,
       tags: Array.isArray(body.tags) ? body.tags : [],
-      specifications: body.specifications || {}
+      specifications: body.specifications || {},
+      // Product variants
+      hasVariants: body.hasVariants || false,
+      variants: Array.isArray(body.variants) ? body.variants.map((variant: any) => ({
+        _id: variant._id || crypto.randomUUID(),
+        name: variant.name?.trim(),
+        values: Array.isArray(variant.values) ? variant.values.map((val: string) => val.trim()) : [],
+        isRequired: variant.isRequired || true,
+        order: variant.order || 0
+      })) : [],
+      variantOptions: Array.isArray(body.variantOptions) ? body.variantOptions.map((option: any) => ({
+        variantId: option.variantId || crypto.randomUUID(),
+        variantName: option.variantName?.trim(),
+        value: option.value?.trim(),
+        price: parseFloat(option.price) || 0,
+        stockQuantity: parseInt(option.stockQuantity) || 0,
+        sku: option.sku?.trim() || '',
+        images: Array.isArray(option.images) ? option.images : []
+      })) : []
     };
     
     // Validate input
@@ -286,9 +328,14 @@ async function createProduct(req: NextRequest, user: any) {
       dimensions: validatedData.dimensions,
       tags: validatedData.tags || [],
       specifications: validatedData.specifications || {},
+      // Product variants
+      hasVariants: validatedData.hasVariants,
+      variants: validatedData.variants || [],
+      variantOptions: validatedData.variantOptions || [],
       isApproved: user.role === 'admin' ? true : (currentSettings.autoApproveProducts || false),
       isActive: true,
-      isFulfilled: false
+      isFulfilled: false,
+      isLocked: false // New field
     };
     
     console.log('Final product data:', {
@@ -358,6 +405,7 @@ async function createProduct(req: NextRequest, user: any) {
         isActive: product.isActive,
         isApproved: product.isApproved,
         isFulfilled: product.isFulfilled,
+        isLocked: product.isLocked,
         categoryName: product.categoryId?.name,
         supplierName: product.supplierId?.name || product.supplierId?.companyName,
         sku: product.sku,

@@ -56,6 +56,22 @@ const productSchema = new Schema<ProductDocument>({
     type: Boolean,
     default: true
   },
+  isLocked: {
+    type: Boolean,
+    default: false
+  },
+  lockedAt: {
+    type: Date
+  },
+  lockedBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  lockReason: {
+    type: String,
+    trim: true,
+    maxlength: [500, 'سبب القفل لا يمكن أن يتجاوز 500 حرف']
+  },
   isApproved: {
     type: Boolean,
     default: false
@@ -141,7 +157,68 @@ const productSchema = new Schema<ProductDocument>({
     length: { type: Number, min: 0 },
     width: { type: Number, min: 0 },
     height: { type: Number, min: 0 }
-  }
+  },
+  // Product variants support
+  hasVariants: {
+    type: Boolean,
+    default: false
+  },
+  variants: [{
+    _id: {
+      type: String,
+      required: true
+    },
+    name: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    values: [{
+      type: String,
+      trim: true
+    }],
+    isRequired: {
+      type: Boolean,
+      default: true
+    },
+    order: {
+      type: Number,
+      default: 0
+    }
+  }],
+  variantOptions: [{
+    variantId: {
+      type: String,
+      required: true
+    },
+    variantName: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    value: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    price: {
+      type: Number,
+      min: 0
+    },
+    stockQuantity: {
+      type: Number,
+      required: true,
+      min: 0,
+      default: 0
+    },
+    sku: {
+      type: String,
+      trim: true
+    },
+    images: [{
+      type: String
+    }]
+  }]
 } as any, {
   timestamps: true,
   toJSON: { virtuals: true },

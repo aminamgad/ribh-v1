@@ -62,6 +62,7 @@ export default function FulfillmentDetailPage({ params }: { params: { id: string
   const [updating, setUpdating] = useState(false);
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showRejectConfirm, setShowRejectConfirm] = useState(false);
 
   useEffect(() => {
     fetchFulfillmentRequest();
@@ -141,9 +142,10 @@ export default function FulfillmentDetailPage({ params }: { params: { id: string
   };
 
   const handleReject = async () => {
-    const reason = prompt('يرجى إدخال سبب الرفض:');
-    if (!reason) return;
+    setShowRejectConfirm(true);
+  };
 
+  const confirmReject = async () => {
     setUpdating(true);
     try {
       const response = await fetch(`/api/fulfillment/${params.id}`, {
@@ -153,7 +155,7 @@ export default function FulfillmentDetailPage({ params }: { params: { id: string
         },
         body: JSON.stringify({
           status: 'rejected',
-          rejectionReason: reason
+          rejectionReason: 'تم رفض الطلب بواسطة المستخدم' // Placeholder for rejection reason
         }),
       });
 
@@ -169,6 +171,7 @@ export default function FulfillmentDetailPage({ params }: { params: { id: string
       toast.error('حدث خطأ أثناء رفض الطلب');
     } finally {
       setUpdating(false);
+      setShowRejectConfirm(false);
     }
   };
 
@@ -524,6 +527,18 @@ export default function FulfillmentDetailPage({ params }: { params: { id: string
         title="حذف الطلب"
         message="هل أنت متأكد من حذف هذا الطلب؟"
         confirmText="حذف"
+        cancelText="إلغاء"
+        type="danger"
+        loading={updating}
+      />
+
+      <ConfirmationModal
+        isOpen={showRejectConfirm}
+        onClose={() => setShowRejectConfirm(false)}
+        onConfirm={confirmReject}
+        title="رفض الطلب"
+        message="هل أنت متأكد من رفض هذا الطلب؟"
+        confirmText="رفض"
         cancelText="إلغاء"
         type="danger"
         loading={updating}

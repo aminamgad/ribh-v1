@@ -8,13 +8,15 @@ interface CartItem {
   product: Product;
   quantity: number;
   price: number;
+  selectedVariants?: Record<string, string>;
+  variantOption?: any; // The specific variant option selected
 }
 
 interface CartContextType {
   items: CartItem[];
   totalItems: number;
   totalPrice: number;
-  addToCart: (product: Product, quantity?: number) => void;
+  addToCart: (product: Product, quantity?: number, selectedVariants?: Record<string, string>, variantOption?: any) => void;
   removeFromCart: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
@@ -95,60 +97,79 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     return sum + (isNaN(itemTotal) ? 0 : itemTotal);
   }, 0);
 
-  const addToCart = (product: Product, quantity: number = 1) => {
-    console.log('Adding product to cart:', product);
+  const addToCart = (product: Product, quantity: number = 1, selectedVariants?: Record<string, string>, variantOption?: any) => {
+    console.log('Adding product to cart:', product, 'with variants:', selectedVariants);
+    
+    // Create a unique cart item ID that includes variant information
+    const cartItemId = selectedVariants && Object.keys(selectedVariants).length > 0 
+      ? `${product._id}-${JSON.stringify(selectedVariants)}`
+      : product._id;
     
     setItems((currentItems: any[]) => {
-      const existingItem = currentItems.find(item => item.product._id === product._id);
+      const existingItem = currentItems.find(item => {
+        if (selectedVariants && Object.keys(selectedVariants).length > 0) {
+          return item.product._id === product._id && 
+                 JSON.stringify(item.selectedVariants) === JSON.stringify(selectedVariants);
+        }
+        return item.product._id === product._id && !item.selectedVariants;
+      });
+      
+      // Determine price and stock based on variants
+      let finalPrice = product.marketerPrice;
+      let finalStock = product.stockQuantity;
+      
+      if (variantOption) {
+        finalPrice += (variantOption.price || 0);
+        finalStock = variantOption.stockQuantity || 0;
+      }
       
       if (existingItem) {
         // Check stock availability
         const newQuantity = existingItem.quantity + quantity;
-        if (newQuantity > product.stockQuantity) {
+        if (newQuantity > finalStock) {
           return currentItems; // Return without toast - let the page handle it
         }
         
         // تحديث الكمية بدون إشعار
-        return currentItems.map(item =>
-          item.product._id === product._id
+        return currentItems.map(item => {
+          if (selectedVariants && Object.keys(selectedVariants).length > 0) {
+            return (item.product._id === product._id && 
+                   JSON.stringify(item.selectedVariants) === JSON.stringify(selectedVariants))
+              ? { ...item, quantity: newQuantity }
+              : item;
+          }
+          return (item.product._id === product._id && !item.selectedVariants)
             ? { ...item, quantity: newQuantity }
-            : item
-        );
+            : item;
+        });
       } else {
         // Check stock availability
-        if (quantity > product.stockQuantity) {
+        if (quantity > finalStock) {
           return currentItems; // Return without toast - let the page handle it
         }
         
         // Get the appropriate price based on user role
-        let price = product.marketerPrice;
-        console.log('Product prices:', {
-          name: product.name,
-          marketerPrice: product.marketerPrice,
-          wholesalerPrice: product.wholesalerPrice
-        });
-        
-        if (price === undefined || price === null || isNaN(price) || price <= 0) {
-          price = product.wholesalerPrice;
-          console.log('Using wholesaler price:', price);
+        if (finalPrice === undefined || finalPrice === null || isNaN(finalPrice) || finalPrice <= 0) {
+          finalPrice = product.wholesalerPrice;
+          console.log('Using wholesaler price:', finalPrice);
         }
-        if (price === undefined || price === null || isNaN(price) || price <= 0) {
-          price = 0;
+        if (finalPrice === undefined || finalPrice === null || isNaN(finalPrice) || finalPrice <= 0) {
+          finalPrice = 0;
           console.error('No valid price found for product:', product.name);
         }
         
-        console.log('Final price for product:', product.name, 'Price:', price);
+        console.log('Final price for product:', product.name, 'Price:', finalPrice, 'Variants:', selectedVariants);
         
-                 // Ensure we have all required product data with fallbacks
-         const cartProduct = {
-           _id: product._id,
-           name: product.name || 'منتج بدون اسم',
-           description: product.description || '',
-           images: product.images || [],
-           marketerPrice: product.marketerPrice || 0,
-           wholesalerPrice: product.wholesalerPrice || 0,
-           minimumSellingPrice: product.minimumSellingPrice || null,
-           isMinimumPriceMandatory: product.isMinimumPriceMandatory || false,
+        // Ensure we have all required product data with fallbacks
+        const cartProduct = {
+          _id: product._id,
+          name: product.name || 'منتج بدون اسم',
+          description: product.description || '',
+          images: product.images || [],
+          marketerPrice: product.marketerPrice || 0,
+          wholesalerPrice: product.wholesalerPrice || 0,
+          minimumSellingPrice: product.minimumSellingPrice || null,
+          isMinimumPriceMandatory: product.isMinimumPriceMandatory || false,
           stockQuantity: product.stockQuantity || 0,
           supplierId: product.supplierId || '',
           categoryId: product.categoryId || '',
@@ -158,12 +179,22 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           tags: product.tags || [],
           sku: product.sku || '',
           createdAt: product.createdAt || new Date().toISOString(),
-          updatedAt: product.updatedAt || new Date().toISOString()
+          updatedAt: product.updatedAt || new Date().toISOString(),
+          // Include variant information
+          hasVariants: product.hasVariants || false,
+          variants: product.variants || [],
+          variantOptions: product.variantOptions || []
         };
         
-        console.log('Adding product to cart:', cartProduct.name, 'Price:', price);
+        console.log('Adding product to cart:', cartProduct.name, 'Price:', finalPrice, 'Variants:', selectedVariants);
         // لا إشعار هنا - الصفحة ستتعامل مع الإشعار
-        return [...currentItems, { product: cartProduct, quantity, price }];
+        return [...currentItems, { 
+          product: cartProduct, 
+          quantity, 
+          price: finalPrice,
+          selectedVariants,
+          variantOption
+        }];
       }
     });
   };
