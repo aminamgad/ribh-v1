@@ -76,12 +76,12 @@ export default function DashboardHeader() {
           {/* Logo */}
           <div className="flex items-center">
             <Link href="/dashboard" className="flex items-center group">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 rounded-2xl flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                <span className="text-white font-bold text-xl">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 rounded-xl sm:rounded-2xl flex items-center justify-center mr-2 sm:mr-3 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                <span className="text-white font-bold text-lg sm:text-xl">
                   {settings?.platformName?.charAt(0) || 'ر'}
                 </span>
               </div>
-              <h1 className="text-2xl font-bold gradient-text group-hover:scale-105 transition-transform duration-300">
+              <h1 className="text-lg sm:text-xl lg:text-2xl font-bold gradient-text group-hover:scale-105 transition-transform duration-300">
                 {settings?.platformName || 'ربح'}
               </h1>
             </Link>
@@ -102,7 +102,7 @@ export default function DashboardHeader() {
           )}
 
           {/* Right side actions */}
-          <div className="flex items-center space-x-3 space-x-reverse">
+          <div className="flex items-center space-x-2 sm:space-x-3 space-x-reverse">
             {/* Theme Toggle */}
             <ThemeToggle />
 
@@ -110,11 +110,11 @@ export default function DashboardHeader() {
             {(user?.role === 'marketer' || user?.role === 'wholesaler') && (
               <Link 
                 href="/dashboard/cart" 
-                className="relative p-3 rounded-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 shadow-lg hover:shadow-xl dark:hover:shadow-slate-900/30 transition-all duration-300 group hover:scale-105"
+                className="relative p-2 sm:p-3 rounded-lg sm:rounded-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 shadow-lg hover:shadow-xl dark:hover:shadow-slate-900/30 transition-all duration-300 group hover:scale-105"
               >
-                <ShoppingCart className="w-5 h-5 text-gray-600 dark:text-slate-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-300" />
+                <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 dark:text-slate-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-300" />
                 {totalItems > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-bounce shadow-lg">
+                  <span className="absolute -top-1 -right-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full h-4 w-4 sm:h-5 sm:w-5 flex items-center justify-center animate-bounce shadow-lg">
                     {totalItems}
                   </span>
                 )}
@@ -124,11 +124,11 @@ export default function DashboardHeader() {
             {/* Chat Icon */}
             <Link 
               href="/dashboard/chat" 
-              className="relative p-3 rounded-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 shadow-lg hover:shadow-xl dark:hover:shadow-slate-900/30 transition-all duration-300 group hover:scale-105"
+              className="relative p-2 sm:p-3 rounded-lg sm:rounded-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 shadow-lg hover:shadow-xl dark:hover:shadow-slate-900/30 transition-all duration-300 group hover:scale-105"
             >
-              <MessageSquare className="w-5 h-5 text-gray-600 dark:text-slate-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-300" />
+              <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 dark:text-slate-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-300" />
               {totalUnreadChats > 0 && (
-                <span className="absolute -top-1 -right-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-bounce shadow-lg">
+                <span className="absolute -top-1 -right-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs rounded-full h-4 w-4 sm:h-5 sm:w-5 flex items-center justify-center animate-bounce shadow-lg">
                   {totalUnreadChats}
                 </span>
               )}
@@ -137,11 +137,11 @@ export default function DashboardHeader() {
             {/* Notifications */}
             <Link 
               href="/dashboard/notifications" 
-              className="relative p-3 rounded-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 shadow-lg hover:shadow-xl dark:hover:shadow-slate-900/30 transition-all duration-300 group hover:scale-105"
+              className="relative p-2 sm:p-3 rounded-lg sm:rounded-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 shadow-lg hover:shadow-xl dark:hover:shadow-slate-900/30 transition-all duration-300 group hover:scale-105"
             >
-              <Bell className="w-5 h-5 text-gray-600 dark:text-slate-300 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors duration-300" />
+              <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 dark:text-slate-300 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors duration-300" />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-bounce shadow-lg">
+                <span className="absolute -top-1 -right-1 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs rounded-full h-4 w-4 sm:h-5 sm:w-5 flex items-center justify-center animate-bounce shadow-lg">
                   {unreadCount}
                 </span>
               )}
@@ -151,9 +151,9 @@ export default function DashboardHeader() {
             <div className="relative">
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
-                className="flex items-center p-3 rounded-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 shadow-lg hover:shadow-xl dark:hover:shadow-slate-900/30 transition-all duration-300 group hover:scale-105"
+                className="flex items-center p-2 sm:p-3 rounded-lg sm:rounded-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 shadow-lg hover:shadow-xl dark:hover:shadow-slate-900/30 transition-all duration-300 group hover:scale-105"
               >
-                <div className="ml-3 text-right">
+                <div className="ml-2 sm:ml-3 text-right hidden sm:block">
                   <p className="text-sm font-semibold text-gray-700 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-300">
                     {user?.name}
                   </p>
@@ -161,10 +161,10 @@ export default function DashboardHeader() {
                     {roleLabels[user?.role || 'marketer']}
                   </span>
                 </div>
-                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-500 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                  <User className="h-5 w-5 text-white" />
+                <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-500 flex items-center justify-center mr-2 sm:mr-3 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                  <User className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                 </div>
-                <ChevronDown className={`h-4 w-4 text-gray-500 dark:text-slate-300 transition-transform duration-300 ${showUserMenu ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`h-4 w-4 text-gray-500 dark:text-slate-300 transition-transform duration-300 ${showUserMenu ? 'rotate-180' : ''} hidden sm:block`} />
               </button>
 
               {/* Dropdown Menu */}

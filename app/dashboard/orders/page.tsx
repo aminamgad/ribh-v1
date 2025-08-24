@@ -49,13 +49,13 @@ const statusIcons = {
 };
 
 const statusColors = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  confirmed: 'bg-blue-100 text-blue-800',
-  processing: 'bg-purple-100 text-purple-800',
-  shipped: 'bg-indigo-100 text-indigo-800',
-  delivered: 'bg-green-100 text-green-800',
-  cancelled: 'bg-red-100 text-red-800',
-  returned: 'bg-orange-100 text-orange-800'
+  pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200',
+  confirmed: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200',
+  processing: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-200',
+  shipped: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-200',
+  delivered: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200',
+  cancelled: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200',
+  returned: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-200'
 };
 
 const statusLabels = {
@@ -199,215 +199,128 @@ export default function OrdersPage() {
   const getRoleDescription = () => {
     switch (user?.role) {
       case 'supplier':
-        return 'إدارة الطلبات الواردة لمنتجاتك';
+        return 'إدارة طلبات العملاء لمنتجاتك';
       case 'admin':
         return 'إدارة جميع الطلبات في المنصة';
       case 'marketer':
       case 'wholesaler':
-        return 'إدارة طلباتك وطلبات عملائك';
+        return 'متابعة طلباتك وحالتها';
       default:
-        return '';
+        return 'إدارة الطلبات';
     }
-  };
-
-  const canUpdateOrder = (order: Order) => {
-    if (!user) return false;
-    
-    // Admin can update any order
-    if (user.role === 'admin') return true;
-    
-    // Supplier can only update their own orders
-    if (user.role === 'supplier') {
-      const actualSupplierId =
-        typeof order.supplierId === 'object' && order.supplierId !== null && '_id' in order.supplierId
-          ? (order.supplierId as { _id: string })._id
-          : order.supplierId;
-      return actualSupplierId.toString() === user._id.toString();
-    }
-    
-    return false;
-  };
-
-  const getAvailableStatuses = (currentStatus: string) => {
-    const validTransitions: Record<string, string[]> = {
-      'pending': ['confirmed', 'cancelled'],
-      'confirmed': ['processing', 'cancelled'],
-      'processing': ['shipped', 'cancelled'],
-      'shipped': ['delivered', 'returned'],
-      'delivered': ['returned'],
-      'cancelled': [],
-      'returned': []
-    };
-    
-    return validTransitions[currentStatus] || [];
-  };
-
-  const getStatusButton = (order: Order) => {
-    if (!canUpdateOrder(order)) return null;
-    
-    const availableStatuses = getAvailableStatuses(order.status);
-    if (availableStatuses.length === 0) return null;
-
-    const nextStatus = availableStatuses[0]; // Get the first available status
-    const isUpdating = updatingOrder === order._id;
-    
-    let buttonText = '';
-    let buttonClass = '';
-    let icon = CheckCircle;
-
-    switch (nextStatus) {
-      case 'confirmed':
-        buttonText = 'تأكيد الطلب';
-        buttonClass = 'text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300';
-        icon = CheckCircle;
-        break;
-      case 'processing':
-        buttonText = 'بدء المعالجة';
-        buttonClass = 'text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300';
-        icon = Package;
-        break;
-      case 'shipped':
-        buttonText = 'شحن الطلب';
-        buttonClass = 'text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300';
-        icon = Truck;
-        break;
-      case 'delivered':
-        buttonText = 'تسليم الطلب';
-        buttonClass = 'text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300';
-        icon = CheckCircle;
-        break;
-      case 'cancelled':
-        buttonText = 'إلغاء الطلب';
-        buttonClass = 'text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300';
-        icon = X;
-        break;
-      case 'returned':
-        buttonText = 'إرجاع الطلب';
-        buttonClass = 'text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300';
-        icon = RotateCcw;
-        break;
-    }
-
-    return (
-      <button
-        onClick={() => updateOrderStatus(order._id, nextStatus)}
-        disabled={isUpdating}
-        className={`text-sm font-medium flex items-center ${buttonClass}`}
-      >
-        {isUpdating ? (
-          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current ml-1"></div>
-        ) : (
-          React.createElement(icon, { className: "w-4 h-4 ml-1" })
-        )}
-        {isUpdating ? 'جاري التحديث...' : buttonText}
-      </button>
-    );
   };
 
   const filteredOrders = orders.filter(order => {
     const matchesSearch = order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (order.customerName && order.customerName.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesFilter = filterStatus === 'all' || order.status === filterStatus;
-    return matchesSearch && matchesFilter;
+                         order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         order.items.some(item => item.productName.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesStatus = filterStatus === 'all' || order.status === filterStatus;
+    return matchesSearch && matchesStatus;
   });
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="loading-spinner w-8 h-8"></div>
+      <div className="mobile-loading">
+        <div className="mobile-loading-spinner"></div>
+        <p className="text-gray-600 dark:text-gray-400 mt-4">جاري تحميل الطلبات...</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100">{getRoleTitle()}</h1>
-          <p className="text-gray-600 dark:text-slate-400 mt-2">{getRoleDescription()}</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
+            {getRoleTitle()}
+          </h1>
+          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1 sm:mt-2">
+            {getRoleDescription()}
+          </p>
         </div>
-        <div className="flex items-center space-x-3 space-x-reverse">
-          {/* Export/Import buttons for admin and supplier */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          {/* Export Button */}
           {(user?.role === 'admin' || user?.role === 'supplier') && (
-            <>
-              <button
-                onClick={() => setShowExportModal(true)}
-                className="btn-secondary flex items-center"
-              >
-                <Download className="w-4 h-4 ml-2" />
-                تصدير الطلبات
-              </button>
-            </>
-          )}
-          
-          {/* Import button for marketers */}
-          {user?.role === 'marketer' && (
             <button
-              onClick={() => setShowImportModal(true)}
-              className="btn-secondary flex items-center"
+              onClick={() => setShowExportModal(true)}
+              className="btn-secondary flex items-center justify-center"
             >
-              <Upload className="w-4 h-4 ml-2" />
-              استيراد الطلبات
+              <Download className="w-4 h-4 ml-2" />
+              <span className="hidden sm:inline">تصدير الطلبات</span>
+              <span className="sm:hidden">تصدير</span>
             </button>
           )}
           
-          {/* New order button for marketers and wholesalers */}
-          {user?.role === 'marketer' || user?.role === 'wholesaler' ? (
-            <Link href="/dashboard/products" className="btn-primary flex items-center">
-              <Plus className="w-4 h-4 ml-2" />
-              طلب جديد
-            </Link>
-          ) : null}
+          {/* Import Button - Only for Marketer */}
+          {user?.role === 'marketer' && (
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="btn-secondary flex items-center justify-center"
+            >
+              <Upload className="w-4 h-4 ml-2" />
+              <span className="hidden sm:inline">استيراد الطلبات</span>
+              <span className="sm:hidden">استيراد</span>
+            </button>
+          )}
         </div>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-          <input
-            type="text"
-            placeholder="البحث في الطلبات..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-          />
+      <div className="mobile-filters">
+        <div className="mobile-filter-group">
+          <div className="mobile-search">
+            <Search className="mobile-search-icon" />
+            <input
+              type="text"
+              placeholder="البحث في الطلبات..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="mobile-search-input"
+            />
+          </div>
         </div>
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-        >
-          <option value="all">جميع الحالات</option>
-          <option value="pending">معلق</option>
-          <option value="confirmed">مؤكد</option>
-          <option value="processing">قيد المعالجة</option>
-          <option value="shipped">تم الشحن</option>
-          <option value="delivered">تم التسليم</option>
-          <option value="cancelled">ملغي</option>
-          <option value="returned">مرتجع</option>
-        </select>
+        <div className="mobile-filter-group">
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="input-field"
+          >
+            <option value="all">جميع الحالات</option>
+            <option value="pending">معلق</option>
+            <option value="confirmed">مؤكد</option>
+            <option value="processing">قيد المعالجة</option>
+            <option value="shipped">تم الشحن</option>
+            <option value="delivered">تم التسليم</option>
+            <option value="cancelled">ملغي</option>
+            <option value="returned">مرتجع</option>
+          </select>
+        </div>
       </div>
 
-      {/* Orders Table */}
+      {/* Orders List */}
       {filteredOrders.length === 0 ? (
-        <div className="text-center py-12">
-          <Package className="w-16 h-16 text-gray-400 dark:text-slate-500 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100 mb-2">لا توجد طلبات</h3>
-          <p className="text-gray-600 dark:text-slate-400">لم يتم العثور على طلبات تطابق معايير البحث</p>
+        <div className="mobile-empty">
+          <Package className="mobile-empty-icon" />
+          <h3 className="mobile-empty-title">لا توجد طلبات</h3>
+          <p className="mobile-empty-description">
+            {searchTerm || filterStatus !== 'all' 
+              ? 'لا توجد طلبات تطابق معايير البحث المحددة'
+              : 'لم يتم العثور على أي طلبات بعد'
+            }
+          </p>
         </div>
       ) : (
-        <div className="card">
-          <div className="overflow-x-auto">
-            <table className="w-full">
+        <div className="space-y-4">
+          {/* Desktop Table */}
+          <div className="hidden lg:block overflow-x-auto">
+            <table className="min-w-full bg-white dark:bg-slate-800 rounded-lg shadow-lg">
               <thead>
-                <tr className="border-b border-gray-200 dark:border-slate-700">
+                <tr>
                   <th className="table-header">رقم الطلب</th>
                   <th className="table-header">العميل</th>
-                  {user?.role === 'admin' && <th className="table-header">المورد</th>}
                   <th className="table-header">المنتجات</th>
-                  <th className="table-header">المجموع</th>
+                  <th className="table-header">المبلغ</th>
                   <th className="table-header">الحالة</th>
                   <th className="table-header">التاريخ</th>
                   <th className="table-header">الإجراءات</th>
@@ -417,119 +330,82 @@ export default function OrdersPage() {
                 {filteredOrders.map((order) => {
                   const StatusIcon = statusIcons[order.status as keyof typeof statusIcons] || Clock;
                   return (
-                    <tr 
-                      key={order._id} 
-                      className="hover:bg-gray-50 dark:hover:bg-slate-800 cursor-pointer"
-                      onClick={() => router.push(`/dashboard/orders/${order._id}`)}
-                    >
-                      <td className="table-cell">
-                        <span className="font-medium text-primary-600 dark:text-primary-400">#{order.orderNumber}</span>
-                      </td>
+                    <tr key={order._id} className="hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
+                      <td className="table-cell font-medium">{order.orderNumber}</td>
                       <td className="table-cell">
                         <div>
-                          <p className="font-medium text-gray-900 dark:text-slate-100">{order.customerName}</p>
-                          <p className="text-sm text-gray-500 dark:text-slate-400">{order.customerRole}</p>
-                        </div>
-                      </td>
-                      {user?.role === 'admin' && (
-                        <td className="table-cell">
-                          <span className="text-gray-600 dark:text-slate-400">{order.supplierName || '-'}</span>
-                        </td>
-                      )}
-                      <td className="table-cell">
-                        <div className="text-sm">
-                          {order.items.map((item, index) => (
-                            <div key={index} className="flex items-center justify-between mb-2 last:mb-0">
-                              <div className="flex items-center space-x-2 space-x-reverse">
-                                <div className="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded border flex items-center justify-center overflow-hidden">
-                                  {typeof item.productId === 'object' && item.productId?.images && item.productId.images.length > 0 ? (
-                                    <img 
-                                      src={item.productId.images[0]} 
-                                      alt={item.productId.name || item.productName}
-                                      className="w-full h-full object-cover"
-                                      onError={(e) => {
-                                        // Fallback to placeholder if image fails to load
-                                        e.currentTarget.style.display = 'none';
-                                        e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                                      }}
-                                    />
-                                  ) : null}
-                                  <div className={`w-4 h-4 bg-gray-300 dark:bg-gray-600 rounded ${typeof item.productId === 'object' && item.productId?.images && item.productId.images.length > 0 ? 'hidden' : ''}`}></div>
-                                </div>
-                                <span className="text-gray-900 dark:text-slate-100">{item.productName}</span>
-                              </div>
-                              <span className="text-gray-500 dark:text-slate-400">×{item.quantity}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="table-cell">
-                        <span className="font-medium text-gray-900 dark:text-slate-100">
-                          {new Intl.NumberFormat('ar-IL', {
-                            style: 'currency',
-                            currency: 'ILS'
-                          }).format(order.total)}
-                        </span>
-                      </td>
-                      <td className="table-cell">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[order.status as keyof typeof statusColors]}`}>
-                          <StatusIcon className="w-3 h-3 ml-1" />
-                          {statusLabels[order.status as keyof typeof statusLabels]}
-                        </span>
-                      </td>
-                      <td className="table-cell">
-                        <div className="text-sm text-gray-500 dark:text-slate-400">
-                          {new Date(order.createdAt).toLocaleDateString('ar-EG')}
+                          <div className="font-medium text-gray-900 dark:text-gray-100">
+                            {order.shippingAddress?.fullName || order.customerName}
+                          </div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400">
+                            {order.shippingAddress?.phone}
+                          </div>
                         </div>
                       </td>
                       <td className="table-cell">
                         <div className="flex items-center space-x-2 space-x-reverse">
-                          <div className="text-primary-600 dark:text-primary-400 text-sm font-medium">
-                            <Eye className="w-4 h-4 ml-1" />
-                            عرض التفاصيل
+                          <div className="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded border flex items-center justify-center overflow-hidden">
+                            {typeof order.items[0]?.productId === 'object' && order.items[0]?.productId?.images && order.items[0].productId.images.length > 0 ? (
+                              <img
+                                src={order.items[0].productId.images[0]}
+                                alt={order.items[0].productName}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : null}
+                            <div className={`w-4 h-4 bg-gray-300 dark:bg-gray-600 rounded ${typeof order.items[0]?.productId === 'object' && order.items[0]?.productId?.images && order.items[0].productId.images.length > 0 ? 'hidden' : ''}`}></div>
                           </div>
-                          
-                          {/* Print Invoice */}
+                          <div>
+                            <div className="font-medium text-gray-900 dark:text-gray-100">
+                              {order.items[0]?.productName}
+                            </div>
+                            <div className="text-sm text-gray-500 dark:text-gray-400">
+                              {order.items.length > 1 ? `+${order.items.length - 1} منتجات أخرى` : ''}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="table-cell">
+                        <div className="font-medium text-gray-900 dark:text-gray-100">
+                          {order.total} ₪
+                        </div>
+                        {user?.role === 'marketer' && order.marketerProfit && (
+                          <div className="text-sm text-green-600 dark:text-green-400">
+                            ربح: {order.marketerProfit} ₪
+                          </div>
+                        )}
+                      </td>
+                      <td className="table-cell">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[order.status as keyof typeof statusColors]}`}>
+                          <StatusIcon className="w-3 h-3 ml-1" />
+                          {getStatusLabel(order.status)}
+                        </span>
+                      </td>
+                      <td className="table-cell text-sm text-gray-500 dark:text-gray-400">
+                        {new Date(order.createdAt).toLocaleDateString('ar-EG')}
+                      </td>
+                      <td className="table-cell">
+                        <div className="flex items-center space-x-2 space-x-reverse">
+                          <Link
+                            href={`/dashboard/orders/${order._id}`}
+                            className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                            title="عرض التفاصيل"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Link>
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handlePrintInvoice(order);
-                            }}
-                            className="text-purple-600 hover:text-purple-900 dark:text-purple-400 dark:hover:text-purple-300 p-1"
+                            onClick={() => handleWhatsAppContact(order)}
+                            className="p-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                            title="تواصل عبر واتساب"
+                          >
+                            <MessageCircle className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handlePrintInvoice(order)}
+                            className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
                             title="طباعة الفاتورة"
                           >
                             <Printer className="w-4 h-4" />
                           </button>
-                          
-                          {/* WhatsApp Contact */}
-                          {order.shippingAddress?.phone && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleWhatsAppContact(order);
-                              }}
-                              className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 p-1"
-                              title="تواصل عبر واتساب"
-                            >
-                              <MessageCircle className="w-4 h-4" />
-                            </button>
-                          )}
-                          
-                          {/* Phone Contact */}
-                          {order.shippingAddress?.phone && (
-                            <a
-                              href={`tel:${order.shippingAddress.phone}`}
-                              onClick={(e) => e.stopPropagation()}
-                              className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 p-1"
-                              title="اتصال مباشر"
-                            >
-                              <Phone className="w-4 h-4" />
-                            </a>
-                          )}
-                          
-                          <div onClick={(e) => e.stopPropagation()}>
-                            {getStatusButton(order)}
-                          </div>
                         </div>
                       </td>
                     </tr>
@@ -538,22 +414,134 @@ export default function OrdersPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Mobile Cards */}
+          <div className="lg:hidden space-y-4">
+            {filteredOrders.map((order) => {
+              const StatusIcon = statusIcons[order.status as keyof typeof statusIcons] || Clock;
+              return (
+                <div key={order._id} className="mobile-table-card">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <h3 className="font-semibold text-gray-900 dark:text-gray-100">
+                        {order.orderNumber}
+                      </h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {new Date(order.createdAt).toLocaleDateString('ar-EG')}
+                      </p>
+                    </div>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[order.status as keyof typeof statusColors]}`}>
+                      <StatusIcon className="w-3 h-3 ml-1" />
+                      {getStatusLabel(order.status)}
+                    </span>
+                  </div>
+
+                  <div className="space-y-3">
+                    {/* Customer Info */}
+                    <div className="flex items-center space-x-3 space-x-reverse">
+                      <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+                        <span className="text-blue-600 dark:text-blue-400 font-semibold text-sm">
+                          {order.shippingAddress?.fullName?.charAt(0) || order.customerName.charAt(0)}
+                        </span>
+                      </div>
+                      <div>
+                        <div className="font-medium text-gray-900 dark:text-gray-100">
+                          {order.shippingAddress?.fullName || order.customerName}
+                        </div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          {order.shippingAddress?.phone}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Products */}
+                    <div className="flex items-center space-x-3 space-x-reverse">
+                      <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-lg border flex items-center justify-center overflow-hidden">
+                        {typeof order.items[0]?.productId === 'object' && order.items[0]?.productId?.images && order.items[0].productId.images.length > 0 ? (
+                          <img
+                            src={order.items[0].productId.images[0]}
+                            alt={order.items[0].productName}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <Package className="w-6 h-6 text-gray-400" />
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-medium text-gray-900 dark:text-gray-100">
+                          {order.items[0]?.productName}
+                        </div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          {order.items.length > 1 ? `+${order.items.length - 1} منتجات أخرى` : ''}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Amount */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-semibold text-gray-900 dark:text-gray-100">
+                          {order.total} ₪
+                        </div>
+                        {user?.role === 'marketer' && order.marketerProfit && (
+                          <div className="text-sm text-green-600 dark:text-green-400">
+                            ربح: {order.marketerProfit} ₪
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="mobile-actions">
+                      <Link
+                        href={`/dashboard/orders/${order._id}`}
+                        className="btn-primary flex-1 flex items-center justify-center"
+                      >
+                        <Eye className="w-4 h-4 ml-2" />
+                        عرض التفاصيل
+                      </Link>
+                      <button
+                        onClick={() => handleWhatsAppContact(order)}
+                        className="btn-success flex items-center justify-center px-3 py-2"
+                        title="تواصل عبر واتساب"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handlePrintInvoice(order)}
+                        className="btn-secondary flex items-center justify-center px-3 py-2"
+                        title="طباعة الفاتورة"
+                      >
+                        <Printer className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
-      {/* Export Modal */}
-      <OrderExportModal
-        isOpen={showExportModal}
-        onClose={() => setShowExportModal(false)}
-        userRole={user?.role || ''}
-      />
+      {/* Modals */}
+      {showExportModal && (
+        <OrderExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          userRole={user?.role || 'marketer'}
+        />
+      )}
 
-      {/* Import Modal */}
-      <OrderImportModal
-        isOpen={showImportModal}
-        onClose={() => setShowImportModal(false)}
-        onImportSuccess={fetchOrders}
-      />
+      {showImportModal && (
+        <OrderImportModal
+          isOpen={showImportModal}
+          onClose={() => setShowImportModal(false)}
+          onImportSuccess={() => {
+            setShowImportModal(false);
+            fetchOrders();
+          }}
+        />
+      )}
     </div>
   );
 } 
