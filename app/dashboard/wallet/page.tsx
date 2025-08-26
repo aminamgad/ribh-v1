@@ -154,8 +154,8 @@ export default function WalletPage() {
 
           <div className="card">
             <div className="flex items-center">
-              <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg">
-                <ArrowDownLeft className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <div className="bg-[#FF9800]/20 dark:bg-[#FF9800]/30 p-2 rounded-lg">
+                <ArrowDownLeft className="w-5 h-5 text-[#FF9800] dark:text-[#FF9800]" />
               </div>
               <div className="mr-3">
                 <p className="text-sm text-gray-600 dark:text-slate-400">إجمالي السحوبات</p>

@@ -239,8 +239,8 @@ export default function IntegrationsPage() {
 
   const getPlatformLogo = (type: string) => {
     if (type === 'easy_orders') {
-      return <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
-        <span className="text-blue-600 dark:text-blue-300 font-bold">EO</span>
+      return <div className="w-10 h-10 bg-[#FF9800]/20 dark:bg-[#FF9800]/30 rounded-lg flex items-center justify-center">
+        <span className="text-[#FF9800] dark:text-[#FF9800] font-bold">EO</span>
       </div>;
     } else {
       return <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
@@ -313,7 +313,7 @@ export default function IntegrationsPage() {
                           href={integration.storeUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-sm text-blue-400 hover:underline flex items-center gap-1 mt-1"
+                          className="text-sm text-[#FF9800] hover:underline flex items-center gap-1 mt-1"
                         >
                           <LinkIcon className="w-3 h-3" />
                           {integration.storeUrl}
@@ -471,7 +471,7 @@ export default function IntegrationsPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <label className={`card p-4 cursor-pointer border-2 transition-colors ${
                     formData.type === 'easy_orders' 
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
+                      ? 'border-[#FF9800] bg-[#FF9800]/10 dark:bg-[#FF9800]/20' 
                       : 'border-gray-200 dark:border-gray-700'
                   }`}>
                     <input
@@ -483,9 +483,9 @@ export default function IntegrationsPage() {
                       className="sr-only"
                     />
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
-                        <span className="text-blue-600 dark:text-blue-300 font-bold">EO</span>
-                      </div>
+                              <div className="w-12 h-12 bg-[#FF9800]/20 dark:bg-[#FF9800]/30 rounded-lg flex items-center justify-center">
+          <span className="text-[#FF9800] dark:text-[#FF9800] font-bold">EO</span>
+        </div>
                       <div>
                         <p className="font-semibold text-gray-900 dark:text-white">EasyOrders</p>
                         <p className="text-sm text-gray-600 dark:text-gray-400">منصة إيزي أوردرز</p>
@@ -628,7 +628,7 @@ export default function IntegrationsPage() {
                         ...formData, 
                         settings: { ...formData.settings, syncProducts: e.target.checked }
                       })}
-                      className="w-4 h-4 text-blue-600 rounded"
+                      className="w-4 h-4 text-[#FF9800] rounded"
                     />
                     <span className="text-gray-700 dark:text-gray-300">مزامنة المنتجات</span>
                   </label>
@@ -640,7 +640,7 @@ export default function IntegrationsPage() {
                         ...formData, 
                         settings: { ...formData.settings, syncOrders: e.target.checked }
                       })}
-                      className="w-4 h-4 text-blue-600 rounded"
+                      className="w-4 h-4 text-[#FF9800] rounded"
                     />
                     <span className="text-gray-700 dark:text-gray-300">مزامنة الطلبات</span>
                   </label>
@@ -652,7 +652,7 @@ export default function IntegrationsPage() {
                         ...formData, 
                         settings: { ...formData.settings, syncInventory: e.target.checked }
                       })}
-                      className="w-4 h-4 text-blue-600 rounded"
+                      className="w-4 h-4 text-[#FF9800] rounded"
                     />
                     <span className="text-gray-700 dark:text-gray-300">مزامنة المخزون</span>
                   </label>
@@ -664,7 +664,7 @@ export default function IntegrationsPage() {
                         ...formData, 
                         settings: { ...formData.settings, autoFulfillment: e.target.checked }
                       })}
-                      className="w-4 h-4 text-blue-600 rounded"
+                      className="w-4 h-4 text-[#FF9800] rounded"
                     />
                     <span className="text-gray-700 dark:text-gray-300">التنفيذ التلقائي للطلبات</span>
                   </label>

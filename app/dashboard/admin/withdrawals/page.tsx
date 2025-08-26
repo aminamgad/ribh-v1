@@ -341,7 +341,7 @@ export default function AdminWithdrawalsPage() {
                       <Button
                         onClick={() => handleStatusUpdate(withdrawal._id, 'completed')}
                         disabled={processing === withdrawal._id}
-                        className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                        className="bg-[#FF9800] hover:bg-[#F57C00] dark:bg-[#FF9800] dark:hover:bg-[#F57C00]"
                         size="sm"
                       >
                         {processing === withdrawal._id ? 'جاري...' : 'إكمال وتحويل'}
@@ -367,7 +367,7 @@ export default function AdminWithdrawalsPage() {
                       <Button
                         onClick={() => handleStatusUpdate(withdrawal._id, 'completed')}
                         disabled={processing === withdrawal._id}
-                        className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                        className="bg-[#FF9800] hover:bg-[#F57C00] dark:bg-[#FF9800] dark:hover:bg-[#F57C00]"
                         size="sm"
                       >
                         {processing === withdrawal._id ? 'جاري...' : 'إكمال وتحويل'}

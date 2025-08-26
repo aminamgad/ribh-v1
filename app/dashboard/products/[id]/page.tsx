@@ -859,9 +859,9 @@ export default function ProductDetailPage() {
               {/* Pricing - Role-based display */}
               {user?.role === 'marketer' ? (
                 // Marketer sees only marketer price
-                <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
-                  <p className="text-sm text-blue-600 dark:text-blue-400">سعر المسوق (الأساسي)</p>
-                  <p className="text-lg font-bold text-blue-700 dark:text-blue-300">{product.marketerPrice} ₪</p>
+                              <div className="text-center p-3 bg-[#FF9800]/10 dark:bg-[#FF9800]/20 rounded-lg">
+                <p className="text-sm text-[#FF9800] dark:text-[#FF9800]">سعر المسوق (الأساسي)</p>
+                <p className="text-lg font-bold text-[#F57C00] dark:text-[#F57C00]">{product.marketerPrice} ₪</p>
                 </div>
               ) : user?.role === 'wholesaler' ? (
                 // Wholesaler sees only wholesaler price
@@ -884,9 +884,9 @@ export default function ProductDetailPage() {
                     </div>
                   </div>
                   
-                  <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
-                    <p className="text-sm text-blue-600 dark:text-blue-400">السعر الأساسي للمسوق</p>
-                    <p className="text-lg font-bold text-blue-700 dark:text-blue-300">{product.marketerPrice} ₪</p>
+                                <div className="text-center p-3 bg-[#FF9800]/10 dark:bg-[#FF9800]/20 rounded-lg">
+                <p className="text-sm text-[#FF9800] dark:text-[#FF9800]">السعر الأساسي للمسوق</p>
+                <p className="text-lg font-bold text-[#F57C00] dark:text-[#F57C00]">{product.marketerPrice} ₪</p>
                   </div>
                 </>
               )}
@@ -992,7 +992,7 @@ export default function ProductDetailPage() {
                             toast.error('حدث خطأ أثناء إضافة المتغيرات');
                           }
                         }}
-                        className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+                        className="px-3 py-1 bg-[#FF9800] text-white text-xs rounded hover:bg-[#F57C00]"
                       >
                         إضافة متغيرات تجريبية
                       </button>
@@ -1125,7 +1125,7 @@ export default function ProductDetailPage() {
             {/* Chat Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
               <div className="flex items-center">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mr-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-[#FF9800] to-[#F57C00] rounded-full flex items-center justify-center mr-3">
                   <User className="w-5 h-5 text-white" />
                 </div>
                 <div>
@@ -1163,7 +1163,7 @@ export default function ProductDetailPage() {
                     <div
                       className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
                         message.senderId._id === user?._id
-                          ? 'bg-blue-500 text-white'
+                          ? 'bg-[#FF9800] text-white'
                           : 'bg-gray-100 dark:bg-slate-700 text-gray-900 dark:text-slate-100'
                       }`}
                     >
@@ -1193,13 +1193,13 @@ export default function ProductDetailPage() {
                   onChange={(e) => setNewMessage(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                   placeholder="اكتب رسالتك هنا..."
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-slate-100"
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-[#FF9800] focus:border-transparent dark:bg-slate-700 dark:text-slate-100"
                   disabled={sendingMessage}
                 />
                 <button
                   onClick={handleSendMessage}
                   disabled={!newMessage.trim() || sendingMessage}
-                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="px-4 py-2 bg-[#FF9800] text-white rounded-lg hover:bg-[#F57C00] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {sendingMessage ? (
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>

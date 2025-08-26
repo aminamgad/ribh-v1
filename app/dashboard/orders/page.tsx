@@ -50,7 +50,7 @@ const statusIcons = {
 
 const statusColors = {
   pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200',
-  confirmed: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200',
+  confirmed: 'bg-[#4CAF50]/20 text-[#2E7D32] dark:bg-[#4CAF50]/30 dark:text-[#4CAF50]',
   processing: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-200',
   shipped: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-200',
   delivered: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200',
@@ -330,7 +330,11 @@ export default function OrdersPage() {
                 {filteredOrders.map((order) => {
                   const StatusIcon = statusIcons[order.status as keyof typeof statusIcons] || Clock;
                   return (
-                    <tr key={order._id} className="hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
+                    <tr 
+                      key={order._id} 
+                      className="hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                      onClick={() => router.push(`/dashboard/orders/${order._id}`)}
+                    >
                       <td className="table-cell font-medium">{order.orderNumber}</td>
                       <td className="table-cell">
                         <div>
@@ -385,22 +389,27 @@ export default function OrdersPage() {
                       </td>
                       <td className="table-cell">
                         <div className="flex items-center space-x-2 space-x-reverse">
-                          <Link
-                            href={`/dashboard/orders/${order._id}`}
-                            className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                          <div
+                            className="p-2 text-[#FF9800] dark:text-[#FF9800] hover:bg-[#FF9800]/10 dark:hover:bg-[#FF9800]/20 rounded-lg transition-colors"
                             title="عرض التفاصيل"
                           >
                             <Eye className="w-4 h-4" />
-                          </Link>
+                          </div>
                           <button
-                            onClick={() => handleWhatsAppContact(order)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleWhatsAppContact(order);
+                            }}
                             className="p-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
                             title="تواصل عبر واتساب"
                           >
                             <MessageCircle className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => handlePrintInvoice(order)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handlePrintInvoice(order);
+                            }}
                             className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
                             title="طباعة الفاتورة"
                           >
@@ -420,7 +429,11 @@ export default function OrdersPage() {
             {filteredOrders.map((order) => {
               const StatusIcon = statusIcons[order.status as keyof typeof statusIcons] || Clock;
               return (
-                <div key={order._id} className="mobile-table-card">
+                <div 
+                  key={order._id} 
+                  className="mobile-table-card cursor-pointer"
+                  onClick={() => router.push(`/dashboard/orders/${order._id}`)}
+                >
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <h3 className="font-semibold text-gray-900 dark:text-gray-100">
@@ -439,8 +452,8 @@ export default function OrdersPage() {
                   <div className="space-y-3">
                     {/* Customer Info */}
                     <div className="flex items-center space-x-3 space-x-reverse">
-                      <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
-                        <span className="text-blue-600 dark:text-blue-400 font-semibold text-sm">
+                      <div className="w-10 h-10 bg-[#FF9800]/20 dark:bg-[#FF9800]/30 rounded-full flex items-center justify-center">
+                        <span className="text-[#FF9800] dark:text-[#FF9800] font-semibold text-sm">
                           {order.shippingAddress?.fullName?.charAt(0) || order.customerName.charAt(0)}
                         </span>
                       </div>
@@ -493,22 +506,27 @@ export default function OrdersPage() {
 
                     {/* Actions */}
                     <div className="mobile-actions">
-                      <Link
-                        href={`/dashboard/orders/${order._id}`}
+                      <div
                         className="btn-primary flex-1 flex items-center justify-center"
                       >
                         <Eye className="w-4 h-4 ml-2" />
                         عرض التفاصيل
-                      </Link>
+                      </div>
                       <button
-                        onClick={() => handleWhatsAppContact(order)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleWhatsAppContact(order);
+                        }}
                         className="btn-success flex items-center justify-center px-3 py-2"
                         title="تواصل عبر واتساب"
                       >
                         <MessageCircle className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => handlePrintInvoice(order)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePrintInvoice(order);
+                        }}
                         className="btn-secondary flex items-center justify-center px-3 py-2"
                         title="طباعة الفاتورة"
                       >

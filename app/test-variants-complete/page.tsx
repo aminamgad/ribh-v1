@@ -132,7 +132,7 @@ export default function TestVariantsCompletePage() {
             <div className="space-y-4">
               <button
                 onClick={handleAddToCart}
-                className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                className="w-full px-4 py-2 bg-[#FF9800] text-white rounded-md hover:bg-[#F57C00]"
               >
                 إضافة إلى السلة
               </button>

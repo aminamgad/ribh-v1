@@ -306,9 +306,7 @@ export default function MediaUpload({
                            <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
                    الحد الأقصى: {maxSize} ميجابايت لكل ملف • {maxFiles} ملف كحد أقصى
                  </p>
-                 <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                   الملفات الكبيرة (أكثر من 4 ميجابايت) ستُرفع مباشرة إلى Cloudinary
-                 </p>
+                
           <p className="text-xs text-gray-400 dark:text-gray-600 mt-1">
             الصيغ المدعومة: {getAcceptedExtensions(accept).join(', ').toUpperCase()}
           </p>
@@ -407,7 +405,7 @@ export default function MediaUpload({
                              toast.error('فشل في تحميل الملف');
                            }
                          }}
-                         className="bg-blue-500 text-white rounded-full p-1 hover:bg-blue-600 transition-colors"
+                         className="bg-[#FF9800] text-white rounded-full p-1 hover:bg-[#F57C00] transition-colors"
                          title="تحميل الملف"
                        >
                          <Download className="w-3 h-3" />

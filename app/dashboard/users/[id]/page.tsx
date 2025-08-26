@@ -59,7 +59,7 @@ const roleLabels = {
 
 const roleColors = {
   admin: 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200',
-  supplier: 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200',
+      supplier: 'bg-[#4CAF50]/20 dark:bg-[#4CAF50]/30 text-[#4CAF50] dark:text-[#4CAF50]',
   marketer: 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200',
   wholesaler: 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200'
 };
@@ -337,7 +337,7 @@ export default function UserDetailPage() {
             {/* Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-gray-200 dark:border-slate-700 text-center">
-                <Package className="w-8 h-8 text-blue-600 dark:text-blue-400 mx-auto mb-2" />
+                <Package className="w-8 h-8 text-[#FF9800] dark:text-[#FF9800] mx-auto mb-2" />
                 <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">{userDetail.productCount}</p>
                 <p className="text-sm text-gray-600 dark:text-slate-400">المنتجات</p>
               </div>

@@ -614,7 +614,7 @@ export default function ProductsPage() {
                            e.stopPropagation();
                            handleQuickEdit(product);
                          }}
-                         className="bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 px-3 py-2 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 flex items-center space-x-2 space-x-reverse"
+                         className="bg-white dark:bg-slate-800 text-[#FF9800] dark:text-[#FF9800] px-3 py-2 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 flex items-center space-x-2 space-x-reverse"
                        >
                          <Edit className="w-4 h-4" />
                          <span className="text-sm font-medium">تعديل سريع</span>
@@ -651,7 +651,7 @@ export default function ProductsPage() {
                                e.stopPropagation();
                                handleQuickEdit(product);
                              }}
-                             className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
+                             className="text-xs text-[#FF9800] dark:text-[#FF9800] hover:text-[#F57C00] dark:hover:text-[#F57C00] font-medium"
                              title="تعديل سريع"
                            >
                              ✏️ تعديل
@@ -760,7 +760,7 @@ export default function ProductsPage() {
                               e.stopPropagation();
                               handleResubmitProduct(product._id);
                             }}
-                            className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+                            className="text-[#FF9800] dark:text-[#FF9800] hover:text-[#F57C00] dark:hover:text-[#F57C00]"
                             title="إعادة تقديم"
                           >
                             <RefreshCw className="w-4 h-4" />
@@ -1250,8 +1250,8 @@ export default function ProductsPage() {
           <div className="bg-white dark:bg-slate-800 rounded-lg p-6 max-w-lg w-full shadow-xl">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center">
-                <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-full mr-3">
-                  <Edit className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                              <div className="bg-[#FF9800]/20 dark:bg-[#FF9800]/30 p-2 rounded-full mr-3">
+                <Edit className="w-6 h-6 text-[#FF9800] dark:text-[#FF9800]" />
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">تعديل سريع</h3>
@@ -1370,7 +1370,7 @@ export default function ProductsPage() {
                     id="isMinimumPriceMandatory"
                     checked={quickEditData.isMinimumPriceMandatory}
                     onChange={(e) => setQuickEditData({...quickEditData, isMinimumPriceMandatory: e.target.checked})}
-                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                    className="w-4 h-4 text-[#FF9800] bg-gray-100 border-gray-300 rounded focus:ring-[#FF9800] dark:focus:ring-[#FF9800] dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
                   />
                   <label htmlFor="isMinimumPriceMandatory" className="mr-2 text-sm font-medium text-gray-700 dark:text-slate-300">
                     إلزامي للمسوقين
@@ -1391,7 +1391,7 @@ export default function ProductsPage() {
                  </div>
                  <div>
                    <span className="text-gray-600 dark:text-slate-400">نسبة الربح:</span>
-                   <span className="block font-medium text-blue-600 dark:text-blue-400">
+                   <span className="block font-medium text-[#FF9800] dark:text-[#FF9800]">
                      {((quickEditData.marketerPrice - quickEditData.wholesalerPrice) / quickEditData.marketerPrice * 100).toFixed(1)}%
                    </span>
                  </div>

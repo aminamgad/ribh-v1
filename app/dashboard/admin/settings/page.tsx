@@ -355,7 +355,7 @@ export default function SettingsPage() {
         <div className="text-center">
           <AlertCircle className="w-8 h-8 text-yellow-600 dark:text-yellow-400 mx-auto mb-4" />
           <p className="text-gray-600 dark:text-gray-300">جاري تحميل البيانات...</p>
-          <Button onClick={fetchSettings} className="mt-4 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600">
+          <Button onClick={fetchSettings} className="mt-4 bg-[#FF9800] hover:bg-[#F57C00] dark:bg-[#FF9800] dark:hover:bg-[#F57C00]">
             <RefreshCw className="w-4 h-4 ml-2" />
             إعادة المحاولة
           </Button>
@@ -388,7 +388,7 @@ export default function SettingsPage() {
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 px-4 py-2 rounded-t-lg transition-colors ${
                 activeTab === tab.id
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-[#FF9800] text-white'
                   : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
               }`}
             >
@@ -457,7 +457,7 @@ export default function SettingsPage() {
               <Button 
                 onClick={() => saveSettings('general', generalData)}
                 disabled={saving}
-                className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                className="bg-[#FF9800] hover:bg-[#F57C00] dark:bg-[#FF9800] dark:hover:bg-[#F57C00]"
               >
                 <Save className="w-4 h-4 ml-2" />
                 {saving ? 'جاري الحفظ...' : 'حفظ الإعدادات'}
@@ -615,7 +615,7 @@ export default function SettingsPage() {
                   saveSettings('financial', financialData);
                 }}
                 disabled={saving}
-                className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                className="bg-[#FF9800] hover:bg-[#F57C00] dark:bg-[#FF9800] dark:hover:bg-[#F57C00]"
               >
                 <Save className="w-4 h-4 ml-2" />
                 {saving ? 'جاري الحفظ...' : 'حفظ الإعدادات'}
@@ -673,7 +673,7 @@ export default function SettingsPage() {
               <Button 
                 onClick={() => saveSettings('orders', orderData)}
                 disabled={saving}
-                className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                className="bg-[#FF9800] hover:bg-[#F57C00] dark:bg-[#FF9800] dark:hover:bg-[#F57C00]"
               >
                 <Save className="w-4 h-4 ml-2" />
                 {saving ? 'جاري الحفظ...' : 'حفظ الإعدادات'}
@@ -701,7 +701,7 @@ export default function SettingsPage() {
                       id="shippingEnabled"
                       checked={shippingData.shippingEnabled}
                       onChange={(e) => setShippingData({ ...shippingData, shippingEnabled: e.target.checked })}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      className="rounded border-gray-300 text-[#FF9800] focus:ring-[#FF9800]"
                     />
                     <Label htmlFor="shippingEnabled" className="text-gray-700 dark:text-gray-200">تفعيل الشحن</Label>
                   </div>
@@ -779,7 +779,7 @@ export default function SettingsPage() {
                             (newZones[zoneIndex] as any).isActive = e.target.checked;
                             setShippingData({ ...shippingData, governorates: newZones });
                           }}
-                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          className="rounded border-gray-300 text-[#FF9800] focus:ring-[#FF9800]"
                         />
                         <Label htmlFor={`zoneActive-${zoneIndex}`} className="text-gray-700 dark:text-gray-200 font-medium">نشط</Label>
                       </div>
@@ -836,7 +836,7 @@ export default function SettingsPage() {
                                 (newZones[zoneIndex] as any).cities[cityIndex] = e.target.value;
                                 setShippingData({ ...shippingData, governorates: newZones });
                               }}
-                              className="flex-1 text-sm border-none focus:ring-1 focus:ring-blue-500 bg-transparent"
+                              className="flex-1 text-sm border-none focus:ring-1 focus:ring-[#FF9800] bg-transparent"
                               placeholder="اسم المدينة"
                             />
                             <Button
@@ -905,7 +905,7 @@ export default function SettingsPage() {
             <Button 
               onClick={() => saveSettings('shipping', shippingData)}
               disabled={saving}
-              className="w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+              className="w-full bg-[#FF9800] hover:bg-[#F57C00] dark:bg-[#FF9800] dark:hover:bg-[#F57C00]"
             >
               <Save className="w-4 h-4 ml-2" />
               {saving ? 'جاري الحفظ...' : 'حفظ إعدادات الشحن'}
@@ -950,7 +950,7 @@ export default function SettingsPage() {
                     id="autoApproveProducts"
                     checked={productData.autoApproveProducts}
                     onChange={(e) => setProductData({ ...productData, autoApproveProducts: e.target.checked })}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    className="rounded border-gray-300 text-[#FF9800] focus:ring-[#FF9800]"
                   />
                   <Label htmlFor="autoApproveProducts" className="text-gray-700 dark:text-gray-200">تفعيل الموافقة التلقائية على المنتجات</Label>
                 </div>
@@ -959,7 +959,7 @@ export default function SettingsPage() {
               <Button 
                 onClick={() => saveSettings('products', productData)}
                 disabled={saving}
-                className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                className="bg-[#FF9800] hover:bg-[#F57C00] dark:bg-[#FF9800] dark:hover:bg-[#F57C00]"
               >
                 <Save className="w-4 h-4 ml-2" />
                 {saving ? 'جاري الحفظ...' : 'حفظ الإعدادات'}
@@ -985,7 +985,7 @@ export default function SettingsPage() {
                     id="emailNotifications"
                     checked={notificationData.emailNotifications}
                     onChange={(e) => setNotificationData({ ...notificationData, emailNotifications: e.target.checked })}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    className="rounded border-gray-300 text-[#FF9800] focus:ring-[#FF9800]"
                   />
                   <Label htmlFor="emailNotifications" className="text-gray-700 dark:text-gray-200">الإشعارات البريدية</Label>
                 </div>
@@ -995,7 +995,7 @@ export default function SettingsPage() {
                     id="smsNotifications"
                     checked={notificationData.smsNotifications}
                     onChange={(e) => setNotificationData({ ...notificationData, smsNotifications: e.target.checked })}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    className="rounded border-gray-300 text-[#FF9800] focus:ring-[#FF9800]"
                   />
                   <Label htmlFor="smsNotifications" className="text-gray-700 dark:text-gray-200">الإشعارات النصية</Label>
                 </div>
@@ -1005,7 +1005,7 @@ export default function SettingsPage() {
                     id="pushNotifications"
                     checked={notificationData.pushNotifications}
                     onChange={(e) => setNotificationData({ ...notificationData, pushNotifications: e.target.checked })}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    className="rounded border-gray-300 text-[#FF9800] focus:ring-[#FF9800]"
                   />
                   <Label htmlFor="pushNotifications" className="text-gray-700 dark:text-gray-200">الإشعارات الصوتية</Label>
                 </div>
@@ -1014,7 +1014,7 @@ export default function SettingsPage() {
               <Button 
                 onClick={() => saveSettings('notifications', notificationData)}
                 disabled={saving}
-                className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                className="bg-[#FF9800] hover:bg-[#F57C00] dark:bg-[#FF9800] dark:hover:bg-[#F57C00]"
               >
                 <Save className="w-4 h-4 ml-2" />
                 {saving ? 'جاري الحفظ...' : 'حفظ الإعدادات'}
@@ -1069,7 +1069,7 @@ export default function SettingsPage() {
               <Button 
                 onClick={() => saveSettings('security', securityData)}
                 disabled={saving}
-                className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                className="bg-[#FF9800] hover:bg-[#F57C00] dark:bg-[#FF9800] dark:hover:bg-[#F57C00]"
               >
                 <Save className="w-4 h-4 ml-2" />
                 {saving ? 'جاري الحفظ...' : 'حفظ الإعدادات'}
@@ -1122,7 +1122,7 @@ export default function SettingsPage() {
               <Button 
                 onClick={() => saveSettings('legal', legalData)}
                 disabled={saving}
-                className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                className="bg-[#FF9800] hover:bg-[#F57C00] dark:bg-[#FF9800] dark:hover:bg-[#F57C00]"
               >
                 <Save className="w-4 h-4 ml-2" />
                 {saving ? 'جاري الحفظ...' : 'حفظ الإعدادات'}
@@ -1165,7 +1165,7 @@ export default function SettingsPage() {
               <Button 
                 onClick={() => saveSettings('analytics', analyticsData)}
                 disabled={saving}
-                className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                className="bg-[#FF9800] hover:bg-[#F57C00] dark:bg-[#FF9800] dark:hover:bg-[#F57C00]"
               >
                 <Save className="w-4 h-4 ml-2" />
                 {saving ? 'جاري الحفظ...' : 'حفظ الإعدادات'}

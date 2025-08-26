@@ -21,9 +21,9 @@ export const metadata: Metadata = {
   viewport: 'width=device-width, initial-scale=1',
   robots: 'index, follow',
   icons: {
-    icon: '/icon.svg',
-    shortcut: '/icon.svg',
-    apple: '/icon.svg',
+    icon: '/favicon.ico',
+    shortcut: '/favicon.ico',
+    apple: '/logo.png',
   },
   manifest: '/manifest.json',
   openGraph: {
@@ -45,12 +45,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ar" dir="rtl" className="bg-gray-50 dark:bg-slate-900">
+    <html lang="ar" dir="rtl" className="bg-gray-50 dark:bg-[#282828]">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link rel="icon" href="/icon.svg" />
-        <link rel="apple-touch-icon" href="/icon.svg" />
+        <link rel="icon" href="/favicon.ico" />
+        <link rel="apple-touch-icon" href="/logo.png" />
         <link rel="manifest" href="/manifest.json" />
         <script
           dangerouslySetInnerHTML={{
@@ -74,7 +74,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="arabic-text-optimized antialiased bg-gray-50 dark:bg-slate-900 text-gray-900 dark:text-slate-100">
+      <body className="arabic-text-optimized antialiased bg-gray-50 dark:bg-[#282828] text-gray-900 dark:text-slate-100">
         <noscript>
           <div style={{ padding: '20px', textAlign: 'center', backgroundColor: '#fef2f2', color: '#dc2626' }}>
             يرجى تفعيل JavaScript لتشغيل هذا التطبيق.
@@ -91,28 +91,28 @@ export default function RootLayout({
                         position="top-center"
                         reverseOrder={false}
                         gutter={8}
-                        toastOptions={{
-                          duration: 4000,
-                          style: {
-                            background: '#363636',
-                            color: '#fff',
-                            padding: '16px',
-                            borderRadius: '8px',
-                            fontFamily: 'Cairo, sans-serif',
-                          },
-                          success: {
-                            duration: 3000,
-                            style: {
-                              background: '#10b981',
-                            },
-                          },
-                          error: {
-                            duration: 4000,
-                            style: {
-                              background: '#ef4444',
-                            },
-                          },
-                        }}
+                                                 toastOptions={{
+                           duration: 4000,
+                           style: {
+                             background: '#282828',
+                             color: '#fff',
+                             padding: '16px',
+                             borderRadius: '8px',
+                             fontFamily: 'Cairo, sans-serif',
+                           },
+                           success: {
+                             duration: 3000,
+                             style: {
+                               background: '#4CAF50',
+                             },
+                           },
+                           error: {
+                             duration: 4000,
+                             style: {
+                               background: '#FF9800',
+                             },
+                           },
+                         }}
                       />
                       {children}
                     </ChatProvider>

@@ -226,9 +226,9 @@ export default function MessagesPage() {
 
         {/* New Message Notification */}
         {newMessageNotification && (
-          <div className="mb-6 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg p-3 flex items-center">
-            <Bell className="w-5 h-5 text-blue-600 dark:text-blue-400 ml-2" />
-            <span className="text-blue-800 dark:text-blue-200">{newMessageNotification}</span>
+          <div className="mb-6 bg-[#FF9800]/10 dark:bg-[#FF9800]/20 border border-[#FF9800]/20 dark:border-[#FF9800]/30 rounded-lg p-3 flex items-center">
+            <Bell className="w-5 h-5 text-[#FF9800] dark:text-[#FF9800] ml-2" />
+            <span className="text-[#E65100] dark:text-[#FF9800]">{newMessageNotification}</span>
           </div>
         )}
 
@@ -271,7 +271,7 @@ export default function MessagesPage() {
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center space-x-3 space-x-reverse">
-                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
+                        <div className="w-10 h-10 bg-gradient-to-br from-[#FF9800] to-[#F57C00] rounded-full flex items-center justify-center">
                           <User className="w-5 h-5 text-white" />
                         </div>
                         <div>
@@ -312,7 +312,7 @@ export default function MessagesPage() {
                 <div className="p-4 border-b border-gray-200 dark:border-slate-700">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3 space-x-reverse">
-                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
+                      <div className="w-10 h-10 bg-gradient-to-br from-[#FF9800] to-[#F57C00] rounded-full flex items-center justify-center">
                         <User className="w-5 h-5 text-white" />
                       </div>
                       <div>

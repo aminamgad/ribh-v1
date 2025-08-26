@@ -52,7 +52,7 @@ export default function ConfirmationModal({
       case 'success':
         return <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />;
       case 'info':
-        return <Info className="w-6 h-6 text-blue-600 dark:text-blue-400" />;
+        return <Info className="w-6 h-6 text-[#FF9800] dark:text-[#FF9800]" />;
       default:
         return <AlertTriangle className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />;
     }
@@ -67,7 +67,7 @@ export default function ConfirmationModal({
       case 'success':
         return 'bg-green-600 hover:bg-green-700 focus:ring-green-500';
       case 'info':
-        return 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500';
+        return 'bg-[#FF9800] hover:bg-[#F57C00] focus:ring-[#FF9800]';
       default:
         return 'bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500';
     }

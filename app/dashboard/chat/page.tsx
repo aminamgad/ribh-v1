@@ -248,7 +248,7 @@ export default function ChatPage() {
     if (message.senderId._id !== user?._id) return null;
     
     if (message.isRead) {
-      return <CheckCheck className="w-3 h-3 text-blue-500" />;
+      return <CheckCheck className="w-3 h-3 text-[#4CAF50]" />;
     } else {
       return <Check className="w-3 h-3 text-gray-400" />;
     }
@@ -277,7 +277,7 @@ export default function ChatPage() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => fetchChats()}
-                className="text-sm text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 px-3 py-1 rounded border border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                className="text-sm text-[#FF9800] hover:text-[#F57C00] dark:text-[#FF9800] dark:hover:text-[#F57C00] px-3 py-1 rounded border border-[#FF9800] hover:bg-[#FF9800]/10 dark:hover:bg-[#FF9800]/20"
               >
                 تحديث
               </button>
@@ -349,7 +349,7 @@ export default function ChatPage() {
                       }
                     }}
                     className={`w-full p-4 text-right hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors ${
-                      isSelected ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                      isSelected ? 'bg-[#FF9800]/10 dark:bg-[#FF9800]/20' : ''
                     }`}
                   >
                     <div className="flex items-start gap-3">
@@ -403,7 +403,7 @@ export default function ChatPage() {
             <div className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+                  <div className="w-10 h-10 bg-[#FF9800] rounded-full flex items-center justify-center">
                     <MessageSquare className="w-5 h-5 text-white" />
                   </div>
                   <div>
@@ -424,7 +424,7 @@ export default function ChatPage() {
                   {currentChat.unreadCount > 0 && (
                     <button
                       onClick={() => markAsRead(currentChat._id)}
-                      className="text-sm text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 px-3 py-1 rounded border border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                      className="text-sm text-[#FF9800] hover:text-[#F57C00] dark:text-[#FF9800] dark:hover:text-[#F57C00] px-3 py-1 rounded border border-[#FF9800] hover:bg-[#FF9800]/10 dark:hover:bg-[#FF9800]/20"
                     >
                       تحديد كمقروءة
                     </button>
@@ -473,7 +473,7 @@ export default function ChatPage() {
                         <div className={`max-w-md ${isMe ? 'order-1' : 'order-2'} ${isMe ? 'ml-auto' : 'mr-auto'}`}>
                           <div className={`rounded-lg px-4 py-2 ${
                             isMe 
-                              ? 'bg-blue-500 text-white shadow-md' 
+                              ? 'bg-[#FF9800] text-white shadow-md' 
                               : 'bg-gray-100 dark:bg-slate-700 text-gray-900 dark:text-slate-100 shadow-sm'
                           }`}>
                             <p className="text-sm whitespace-pre-wrap">{message.message}</p>
@@ -489,7 +489,7 @@ export default function ChatPage() {
                                     rel="noopener noreferrer"
                                     className={`flex items-center gap-2 p-2 rounded ${
                                       isMe
-                                        ? 'bg-blue-600 hover:bg-blue-700'
+                                        ? 'bg-[#FF9800] hover:bg-[#F57C00]'
                                         : 'bg-gray-200 dark:bg-slate-600 hover:bg-gray-300 dark:hover:bg-slate-500'
                                     } transition-colors`}
                                   >

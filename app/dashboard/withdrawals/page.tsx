@@ -170,7 +170,7 @@ export default function WithdrawalsPage() {
   const getStatusBadge = (status: string) => {
     const statusConfig = {
       pending: { text: 'قيد الانتظار', className: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' },
-      approved: { text: 'تمت الموافقة', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' },
+      approved: { text: 'تمت الموافقة', className: 'bg-[#4CAF50]/20 text-[#4CAF50] dark:bg-[#4CAF50]/30 dark:text-[#4CAF50]' },
       completed: { text: 'مكتمل', className: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' },
       rejected: { text: 'مرفوض', className: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' }
     };

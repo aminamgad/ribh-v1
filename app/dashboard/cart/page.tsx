@@ -400,8 +400,8 @@ export default function CartPage() {
               )}
               
               {settings?.shippingEnabled && availableGovernorates.length === 0 && (
-                <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
-                  <p className="text-blue-800 dark:text-blue-200 text-sm">
+                <div className="bg-[#FF9800]/10 dark:bg-[#FF9800]/20 p-3 rounded-lg border border-[#FF9800]/20 dark:border-[#FF9800]/30">
+                  <p className="text-[#E65100] dark:text-[#FF9800] text-sm">
                     ℹ️ لم يتم تكوين مناطق الشحن بعد. سيتم استخدام التكلفة الافتراضية.
                   </p>
                 </div>
@@ -582,9 +582,9 @@ export default function CartPage() {
                 </div>
                 
                 {user?.role === 'marketer' && (
-                  <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
-                    <div className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">ربح المسوق</div>
-                    <div className="text-lg font-bold text-blue-900 dark:text-blue-100">{totalMarketerProfit}₪</div>
+                  <div className="bg-[#4CAF50]/10 dark:bg-[#4CAF50]/20 p-3 rounded-lg border border-[#4CAF50]/20 dark:border-[#4CAF50]/30">
+                    <div className="text-sm font-medium text-[#2E7D32] dark:text-[#4CAF50] mb-1">ربح المسوق</div>
+                    <div className="text-lg font-bold text-[#2E7D32] dark:text-[#4CAF50]">{totalMarketerProfit}₪</div>
                   </div>
                 )}
               </div>

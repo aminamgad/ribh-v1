@@ -666,7 +666,7 @@ export default function FulfillmentPage() {
                             <a
                               href={`tel:${request.supplierPhone}`}
                               onClick={(e) => e.stopPropagation()}
-                              className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-all duration-200 p-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 hover:scale-110"
+                              className="text-[#FF9800] hover:text-[#F57C00] dark:text-[#FF9800] dark:hover:text-[#F57C00] transition-all duration-200 p-2 rounded-lg hover:bg-[#FF9800]/10 dark:hover:bg-[#FF9800]/20 focus:outline-none focus:ring-2 focus:ring-[#FF9800] focus:ring-offset-2 hover:scale-110"
                               title="اتصال مباشر"
                             >
                               <Phone className="w-4 h-4 hover:scale-110 transition-transform duration-200" />

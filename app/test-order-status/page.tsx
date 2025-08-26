@@ -308,7 +308,7 @@ export default function TestOrderStatusPage() {
                 <button
                   onClick={updateOrderStatus}
                   disabled={!newStatus || updating}
-                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-4 py-2 bg-[#FF9800] text-white rounded-md hover:bg-[#F57C00] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {updating ? 'جاري التحديث...' : 'تحديث الحالة'}
                 </button>

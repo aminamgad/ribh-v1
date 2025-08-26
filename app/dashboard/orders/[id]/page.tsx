@@ -81,7 +81,7 @@ const statusConfig = {
   },
   confirmed: {
     label: 'مؤكد',
-    color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200',
+    color: 'bg-[#FF9800]/20 text-[#FF9800] dark:bg-[#FF9800]/30 dark:text-[#FF9800]',
     icon: CheckCircle,
     description: 'تم تأكيد الطلب'
   },
@@ -292,15 +292,15 @@ export default function OrderDetailPage() {
         status: newStatus
       };
       
-      // Add tracking info for shipped status
-      if (newStatus === 'shipped' || newStatus === 'out_for_delivery') {
-        if (!trackingNumber.trim()) {
-          toast.error('رقم التتبع مطلوب عند تغيير الحالة إلى "تم الشحن" أو "خارج للتوصيل"');
-          return;
-        }
-        updateData.trackingNumber = trackingNumber.trim();
-        updateData.shippingCompany = shippingCompany.trim() || 'غير محدد';
-      }
+             // Add tracking info for shipped status (optional)
+       if (newStatus === 'shipped' || newStatus === 'out_for_delivery') {
+         if (trackingNumber.trim()) {
+           updateData.trackingNumber = trackingNumber.trim();
+         }
+         if (shippingCompany.trim()) {
+           updateData.shippingCompany = shippingCompany.trim();
+         }
+       }
       
       // Add notes if provided
       if (notes.trim()) {
@@ -419,8 +419,8 @@ export default function OrderDetailPage() {
         title: 'تم تأكيد الطلب',
         description: 'تم تأكيد الطلب وبدء المعالجة',
         icon: CheckCircle,
-        color: 'text-blue-600',
-        bgColor: 'bg-blue-50',
+            color: 'text-[#FF9800]',
+    bgColor: 'bg-[#FF9800]/10',
         actions: ['processing', 'cancelled']
       },
       {
@@ -582,7 +582,7 @@ export default function OrderDetailPage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF9800] mx-auto mb-4"></div>
           <p className="text-gray-600 dark:text-gray-400">جاري تحميل تفاصيل الطلب...</p>
         </div>
       </div>
@@ -630,7 +630,7 @@ export default function OrderDetailPage() {
           {/* Print Invoice Button */}
           <button
             onClick={() => setShowInvoice(true)}
-            className="btn-secondary flex items-center bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 text-white font-medium px-4 py-2 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
+            className="btn-secondary-solid flex items-center font-medium px-4 py-2 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
             title="طباعة الفاتورة"
           >
             <Printer className="w-4 h-4 ml-2" />
@@ -641,7 +641,7 @@ export default function OrderDetailPage() {
           {canUpdateOrder() && availableStatuses.length > 0 && (
             <button
               onClick={() => openStatusModal('')}
-              className="btn-primary flex items-center bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
+              className="btn-primary flex items-center font-medium px-4 py-2 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
             >
               <Edit className="w-4 h-4 ml-2" />
               تحديث الحالة
@@ -696,7 +696,7 @@ export default function OrderDetailPage() {
                       step.isCompleted 
                         ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-200' 
                         : step.isCurrent 
-                        ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-200' 
+                        ? 'bg-[#FF9800]/20 text-[#FF9800] dark:bg-[#FF9800]/30 dark:text-[#FF9800]' 
                         : 'bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500'
                     }`}>
                       {step.isCompleted ? (
@@ -712,7 +712,7 @@ export default function OrderDetailPage() {
                         step.isCompleted 
                           ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-700' 
                           : step.isCurrent 
-                          ? 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-700' 
+                          ? 'bg-[#FF9800]/10 border-[#FF9800]/20 dark:bg-[#FF9800]/20 dark:border-[#FF9800]/30' 
                           : 'bg-gray-50 border-gray-200 dark:bg-gray-800 dark:border-gray-600'
                       }`}>
                         <div className="flex items-center justify-between mb-2">
@@ -720,13 +720,13 @@ export default function OrderDetailPage() {
                             step.isCompleted 
                               ? 'text-green-800 dark:text-green-200' 
                               : step.isCurrent 
-                              ? 'text-blue-800 dark:text-blue-200' 
+                              ? 'text-[#F57C00] dark:text-[#F57C00]' 
                               : 'text-gray-600 dark:text-gray-400'
                           }`}>
                             {step.title}
                           </h4>
                           {step.isCurrent && (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200">
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-[#FF9800]/20 text-[#FF9800] dark:bg-[#FF9800]/30 dark:text-[#FF9800]">
                               الحالية
                             </span>
                           )}
@@ -735,7 +735,7 @@ export default function OrderDetailPage() {
                           step.isCompleted 
                             ? 'text-green-700 dark:text-green-300' 
                             : step.isCurrent 
-                            ? 'text-blue-700 dark:text-blue-300' 
+                            ? 'text-[#F57C00] dark:text-[#F57C00]' 
                             : 'text-gray-500 dark:text-gray-400'
                         }`}>
                           {step.description}
@@ -1005,36 +1005,36 @@ export default function OrderDetailPage() {
 
         {/* Sidebar */}
         <div className="space-y-6">
-          {/* Customer Information */}
-          <div className="card">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4 flex items-center">
-              <User className="w-5 h-5 ml-2" />
-              معلومات العميل
-            </h3>
+                     {/* Customer Information */}
+           <div className="card">
+             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+               <User className="w-5 h-5 ml-2 text-[#FF9800] dark:text-[#FF9800]" />
+               معلومات العميل
+             </h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
-                  اسم العميل
-                </label>
-                <p className="text-gray-900 dark:text-slate-100">
-                  {order.shippingAddress?.fullName || 'غير محدد'}
-                </p>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
-                  رقم الهاتف
-                </label>
-                <div className="flex items-center space-x-2 space-x-reverse">
-                  <p className="text-gray-900 dark:text-slate-100">
-                    {order.shippingAddress?.phone || 'غير محدد'}
-                  </p>
+                             <div>
+                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                   اسم العميل
+                 </label>
+                 <p className="text-gray-900 dark:text-white">
+                   {order.shippingAddress?.fullName || 'غير محدد'}
+                 </p>
+               </div>
+               
+               <div>
+                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                   رقم الهاتف
+                 </label>
+                                   <div className="flex items-center space-x-2 space-x-reverse">
+                     <p className="text-gray-900 dark:text-white">
+                       {order.shippingAddress?.phone || 'غير محدد'}
+                     </p>
                   {order.shippingAddress?.phone && (
                     <div className="flex space-x-2 space-x-reverse">
                       <a
                         href={`tel:${order.shippingAddress.phone}`}
-                        className="p-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                        className="p-1 text-[#FF9800] hover:text-[#F57C00] dark:text-[#FF9800] dark:hover:text-[#F57C00] transition-colors"
                         title="اتصال"
                       >
                         <Phone className="w-4 h-4" />
@@ -1052,29 +1052,29 @@ export default function OrderDetailPage() {
               </div>
             </div>
             
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
-                العنوان
-              </label>
-              <div className="flex items-start space-x-2 space-x-reverse">
-                <MapPin className="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" />
-                <p className="text-gray-900 dark:text-slate-100">
-                  {order.shippingAddress?.street}, {order.shippingAddress?.city}, {order.shippingAddress?.governorate}
-                  {order.shippingAddress?.postalCode && ` - ${order.shippingAddress.postalCode}`}
-                </p>
-              </div>
-            </div>
+                         <div className="mb-4">
+               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                 العنوان
+               </label>
+               <div className="flex items-start space-x-2 space-x-reverse">
+                 <MapPin className="w-4 h-4 text-[#4CAF50] dark:text-[#4CAF50] mt-0.5 flex-shrink-0" />
+                 <p className="text-gray-900 dark:text-white">
+                   {order.shippingAddress?.street}, {order.shippingAddress?.city}, {order.shippingAddress?.governorate}
+                   {order.shippingAddress?.postalCode && ` - ${order.shippingAddress.postalCode}`}
+                 </p>
+               </div>
+             </div>
             
-            {/* WhatsApp Communication Buttons */}
-            {order.shippingAddress?.phone && (
-              <div className="border-t pt-4">
-                <h4 className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">
-                  التواصل مع العميل
-                </h4>
+                         {/* WhatsApp Communication Buttons */}
+             {order.shippingAddress?.phone && (
+               <div className="border-t border-gray-200 dark:border-gray-600 pt-4">
+                 <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                   التواصل مع العميل
+                 </h4>
                 <div className="flex flex-wrap gap-2">
                   <button
                     onClick={handleWhatsAppConfirmation}
-                    className="btn-secondary flex items-center bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 text-white"
+                    className="btn-secondary-solid flex items-center"
                   >
                     <MessageCircle className="w-4 h-4 ml-2" />
                     تأكيد الطلب عبر واتساب
@@ -1082,7 +1082,7 @@ export default function OrderDetailPage() {
                   
                   <a
                     href={`tel:${order.shippingAddress.phone}`}
-                    className="btn-secondary flex items-center bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white"
+                    className="btn-primary flex items-center"
                   >
                     <Phone className="w-4 h-4 ml-2" />
                     اتصال مباشر
@@ -1094,12 +1094,12 @@ export default function OrderDetailPage() {
             )}
           </div>
 
-          {/* Shipping Address */}
-          <div className="card">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-              <MapPin className="w-5 h-5 ml-2" />
-              عنوان التوصيل
-            </h3>
+                     {/* Shipping Address */}
+           <div className="card">
+             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+               <MapPin className="w-5 h-5 ml-2 text-[#4CAF50] dark:text-[#4CAF50]" />
+               عنوان التوصيل
+             </h3>
             <div className="space-y-3">
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">الاسم</p>
@@ -1136,12 +1136,12 @@ export default function OrderDetailPage() {
             </div>
           </div>
 
-          {/* Financial Summary */}
-          <div className="card">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-              <DollarSign className="w-5 h-5 ml-2" />
-              ملخص مالي
-            </h3>
+                     {/* Financial Summary */}
+           <div className="card">
+             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+               <DollarSign className="w-5 h-5 ml-2 text-[#FF9800] dark:text-[#FF9800]" />
+               ملخص مالي
+             </h3>
             <div className="space-y-3">
               <div className="flex justify-between">
                 <span className="text-gray-600 dark:text-gray-400">المجموع الفرعي</span>
@@ -1149,140 +1149,140 @@ export default function OrderDetailPage() {
                   {formatCurrency(order.subtotal)}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-400">العمولة</span>
-                <span className="font-medium text-green-600 dark:text-green-400">
-                  {formatCurrency(order.commission)}
-                </span>
-              </div>
+                             <div className="flex justify-between">
+                 <span className="text-gray-600 dark:text-gray-400">العمولة</span>
+                 <span className="font-medium text-[#4CAF50] dark:text-[#4CAF50]">
+                   {formatCurrency(order.commission)}
+                 </span>
+               </div>
               {order.marketerProfit && order.marketerProfit > 0 && (
                 <div className="flex justify-between">
                   <span className="text-gray-600 dark:text-gray-400">ربح المسوق</span>
-                  <span className="font-medium text-blue-600 dark:text-blue-400">
+                  <span className="font-medium text-[#FF9800] dark:text-[#FF9800]">
                     {formatCurrency(order.marketerProfit)}
                   </span>
                 </div>
               )}
-              <div className="border-t pt-3">
-                <div className="flex justify-between">
-                  <span className="font-semibold text-gray-900 dark:text-white">الإجمالي</span>
-                  <span className="font-bold text-lg text-gray-900 dark:text-white">
-                    {formatCurrency(order.total)}
-                  </span>
-                </div>
-              </div>
+                             <div className="border-t border-gray-200 dark:border-gray-600 pt-3">
+                 <div className="flex justify-between">
+                   <span className="font-semibold text-gray-900 dark:text-white">الإجمالي</span>
+                   <span className="font-bold text-lg text-[#FF9800] dark:text-[#FF9800]">
+                     {formatCurrency(order.total)}
+                   </span>
+                 </div>
+               </div>
             </div>
           </div>
 
-          {/* Marketer Profit Details - Only show for marketers */}
-          {user?.role === 'marketer' && order.customerRole === 'marketer' && (
-            <div className="card">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-                <DollarSign className="w-5 h-5 ml-2" />
-                تفاصيل أرباحك
-              </h3>
+                     {/* Marketer Profit Details - Only show for marketers */}
+           {user?.role === 'marketer' && order.customerRole === 'marketer' && (
+             <div className="card">
+               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                 <DollarSign className="w-5 h-5 ml-2 text-[#FF9800] dark:text-[#FF9800]" />
+                 تفاصيل أرباحك
+               </h3>
               <div className="space-y-3">
-                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium text-blue-800 dark:text-blue-200">ربح المسوق</span>
-                    <span className="text-lg font-bold text-blue-800 dark:text-blue-200">
+                              <div className="bg-[#FF9800]/10 dark:bg-[#FF9800]/20 p-4 rounded-lg">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-medium text-[#F57C00] dark:text-[#F57C00]">ربح المسوق</span>
+                  <span className="text-lg font-bold text-[#F57C00] dark:text-[#F57C00]">
                       {formatCurrency(order.marketerProfit || 0)}
                     </span>
                   </div>
-                  <p className="text-xs text-blue-600 dark:text-blue-300">
+                  <p className="text-xs text-[#FF9800] dark:text-[#FF9800]">
                     سيتم إضافة هذا الربح إلى محفظتك عند اكتمال الطلب
                   </p>
                 </div>
                 
-                {order.status === 'delivered' && (
-                  <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
-                    <div className="flex items-center">
-                      <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 ml-2" />
-                      <span className="text-sm font-medium text-green-800 dark:text-green-200">
-                        تم إضافة الربح إلى محفظتك
-                      </span>
-                    </div>
-                  </div>
-                )}
+                                 {order.status === 'delivered' && (
+                   <div className="bg-[#4CAF50]/10 dark:bg-[#4CAF50]/20 p-4 rounded-lg border border-[#4CAF50]/20 dark:border-[#4CAF50]/30">
+                     <div className="flex items-center">
+                       <CheckCircle className="w-5 h-5 text-[#4CAF50] dark:text-[#4CAF50] ml-2" />
+                       <span className="text-sm font-medium text-[#2E7D32] dark:text-[#4CAF50]">
+                         تم إضافة الربح إلى محفظتك
+                       </span>
+                     </div>
+                   </div>
+                 )}
                 
-                {['pending', 'confirmed', 'processing', 'shipped'].includes(order.status) && (
-                  <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg">
-                    <div className="flex items-center">
-                      <Clock className="w-5 h-5 text-yellow-600 dark:text-yellow-400 ml-2" />
-                      <span className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
-                        في انتظار اكتمال الطلب لإضافة الربح
-                      </span>
-                    </div>
-                  </div>
-                )}
+                                 {['pending', 'confirmed', 'processing', 'shipped'].includes(order.status) && (
+                   <div className="bg-[#FF9800]/10 dark:bg-[#FF9800]/20 p-4 rounded-lg border border-[#FF9800]/20 dark:border-[#FF9800]/30">
+                     <div className="flex items-center">
+                       <Clock className="w-5 h-5 text-[#FF9800] dark:text-[#FF9800] ml-2" />
+                       <span className="text-sm font-medium text-[#E65100] dark:text-[#FF9800]">
+                         في انتظار اكتمال الطلب لإضافة الربح
+                       </span>
+                     </div>
+                   </div>
+                 )}
               </div>
             </div>
           )}
 
-          {/* Admin Profit Details - Only show for admins */}
-          {user?.role === 'admin' && (
-            <div className="card">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-                <DollarSign className="w-5 h-5 ml-2" />
-                تفاصيل أرباح الإدارة
-              </h3>
+                     {/* Admin Profit Details - Only show for admins */}
+           {user?.role === 'admin' && (
+             <div className="card">
+               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                 <DollarSign className="w-5 h-5 ml-2 text-[#4CAF50] dark:text-[#4CAF50]" />
+                 تفاصيل أرباح الإدارة
+               </h3>
               <div className="space-y-3">
-                <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium text-green-800 dark:text-green-200">عمولة الإدارة</span>
-                    <span className="text-lg font-bold text-green-800 dark:text-green-200">
-                      {formatCurrency(order.commission || 0)}
-                    </span>
-                  </div>
-                  <p className="text-xs text-green-600 dark:text-green-300">
-                    سيتم إضافة هذه العمولة إلى محفظة الإدارة عند اكتمال الطلب
-                  </p>
-                </div>
+                                 <div className="bg-[#4CAF50]/10 dark:bg-[#4CAF50]/20 p-4 rounded-lg border border-[#4CAF50]/20 dark:border-[#4CAF50]/30">
+                   <div className="flex justify-between items-center mb-2">
+                     <span className="text-sm font-medium text-[#2E7D32] dark:text-[#4CAF50]">عمولة الإدارة</span>
+                     <span className="text-lg font-bold text-[#2E7D32] dark:text-[#4CAF50]">
+                       {formatCurrency(order.commission || 0)}
+                     </span>
+                   </div>
+                   <p className="text-xs text-[#2E7D32] dark:text-[#4CAF50]">
+                     سيتم إضافة هذه العمولة إلى محفظة الإدارة عند اكتمال الطلب
+                   </p>
+                 </div>
                 
-                {order.status === 'delivered' && (
-                  <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
-                    <div className="flex items-center">
-                      <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 ml-2" />
-                      <span className="text-sm font-medium text-green-800 dark:text-green-200">
-                        تم إضافة العمولة إلى محفظة الإدارة
-                      </span>
-                    </div>
-                  </div>
-                )}
+                                 {order.status === 'delivered' && (
+                   <div className="bg-[#4CAF50]/10 dark:bg-[#4CAF50]/20 p-4 rounded-lg border border-[#4CAF50]/20 dark:border-[#4CAF50]/30">
+                     <div className="flex items-center">
+                       <CheckCircle className="w-5 h-5 text-[#4CAF50] dark:text-[#4CAF50] ml-2" />
+                       <span className="text-sm font-medium text-[#2E7D32] dark:text-[#4CAF50]">
+                         تم إضافة العمولة إلى محفظة الإدارة
+                       </span>
+                     </div>
+                   </div>
+                 )}
                 
-                {['pending', 'confirmed', 'processing', 'shipped'].includes(order.status) && (
-                  <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg">
-                    <div className="flex items-center">
-                      <Clock className="w-5 h-5 text-yellow-600 dark:text-yellow-400 ml-2" />
-                      <span className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
-                        في انتظار اكتمال الطلب لإضافة العمولة
-                      </span>
-                    </div>
-                  </div>
-                )}
+                                 {['pending', 'confirmed', 'processing', 'shipped'].includes(order.status) && (
+                   <div className="bg-[#FF9800]/10 dark:bg-[#FF9800]/20 p-4 rounded-lg border border-[#FF9800]/20 dark:border-[#FF9800]/30">
+                     <div className="flex items-center">
+                       <Clock className="w-5 h-5 text-[#FF9800] dark:text-[#FF9800] ml-2" />
+                       <span className="text-sm font-medium text-[#E65100] dark:text-[#FF9800]">
+                         في انتظار اكتمال الطلب لإضافة العمولة
+                       </span>
+                     </div>
+                   </div>
+                 )}
               </div>
             </div>
           )}
 
-          {/* Order Items */}
-          <div className="card">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-              <Package className="w-5 h-5 ml-2" />
-              منتجات الطلب
-            </h3>
+                     {/* Order Items */}
+           <div className="card">
+             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+               <Package className="w-5 h-5 ml-2 text-[#4CAF50] dark:text-[#4CAF50]" />
+               منتجات الطلب
+             </h3>
             <div className="space-y-4">
-              {order.items.map((item, index) => (
-                <div key={index} className="flex items-center space-x-4 space-x-reverse p-4 bg-gray-50 dark:bg-slate-800 rounded-lg">
-                  {/* Product Image */}
-                  <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
-                    <MediaThumbnail
-                      media={item.productId?.images || []}
-                      alt={item.productName}
-                      className="w-full h-full"
-                      showTypeBadge={false}
-                      fallbackIcon={<Package className="w-8 h-8 text-gray-400" />}
-                    />
-                  </div>
+                             {order.items.map((item, index) => (
+                 <div key={index} className="flex items-center space-x-4 space-x-reverse p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+                   {/* Product Image */}
+                   <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
+                     <MediaThumbnail
+                       media={item.productId?.images || []}
+                       alt={item.productName}
+                       className="w-full h-full"
+                       showTypeBadge={false}
+                       fallbackIcon={<Package className="w-8 h-8 text-[#4CAF50] dark:text-[#4CAF50]" />}
+                     />
+                   </div>
                   
                   {/* Product Info */}
                   <div className="flex-1">
@@ -1303,12 +1303,12 @@ export default function OrderDetailPage() {
             </div>
           </div>
 
-          {/* Order Info */}
-          <div className="card">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-              <Calendar className="w-5 h-5 ml-2" />
-              معلومات الطلب
-            </h3>
+                     {/* Order Info */}
+           <div className="card">
+             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+               <Calendar className="w-5 h-5 ml-2 text-[#FF9800] dark:text-[#FF9800]" />
+               معلومات الطلب
+             </h3>
             <div className="space-y-3">
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">رقم الطلب</p>
@@ -1340,23 +1340,68 @@ export default function OrderDetailPage() {
                 تحديث حالة الطلب
               </h3>
               
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                  الحالة الجديدة
-                </label>
-                <select
-                  value={newStatus}
-                  onChange={(e) => setNewStatus(e.target.value)}
-                  className="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">اختر الحالة</option>
-                  {availableStatuses.map((status) => (
-                    <option key={status} value={status}>
-                      {statusConfig[status as keyof typeof statusConfig]?.label || status}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                             <div className="mb-4">
+                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                   الحالة الجديدة
+                 </label>
+                 <select
+                   value={newStatus}
+                   onChange={(e) => setNewStatus(e.target.value)}
+                   className="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-[#FF9800] focus:border-transparent"
+                 >
+                   <option value="">اختر الحالة</option>
+                   {availableStatuses.map((status) => (
+                     <option key={status} value={status}>
+                       {statusConfig[status as keyof typeof statusConfig]?.label || status}
+                     </option>
+                   ))}
+                 </select>
+               </div>
+
+               {/* Tracking Information - Required for shipped and out_for_delivery statuses */}
+               {(newStatus === 'shipped' || newStatus === 'out_for_delivery') && (
+                 <div className="space-y-4 mb-4">
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                       رقم التتبع (اختياري)
+                     </label>
+                     <input
+                       type="text"
+                       value={trackingNumber}
+                       onChange={(e) => setTrackingNumber(e.target.value)}
+                       placeholder="أدخل رقم التتبع (اختياري)"
+                       className="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-[#FF9800] focus:border-transparent"
+                     />
+                   </div>
+                   
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                       شركة الشحن
+                     </label>
+                     <input
+                       type="text"
+                       value={shippingCompany}
+                       onChange={(e) => setShippingCompany(e.target.value)}
+                       placeholder="أدخل اسم شركة الشحن"
+                       className="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-[#FF9800] focus:border-transparent"
+                     />
+                   </div>
+                 </div>
+               )}
+
+               {/* Notes Field */}
+               <div className="mb-4">
+                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                   ملاحظات إضافية
+                 </label>
+                 <textarea
+                   value={notes}
+                   onChange={(e) => setNotes(e.target.value)}
+                   placeholder="أدخل أي ملاحظات إضافية (اختياري)"
+                   rows={3}
+                   className="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-[#FF9800] focus:border-transparent resize-none"
+                 />
+               </div>
               
               {/* WhatsApp Notification Option */}
               {newStatus && order?.shippingAddress?.phone && (
@@ -1376,7 +1421,7 @@ export default function OrderDetailPage() {
               <div className="flex justify-end space-x-3 space-x-reverse">
                 <button
                   onClick={() => setShowStatusModal(false)}
-                  className="btn-secondary"
+                  className="btn-secondary-solid"
                 >
                   إلغاء
                 </button>

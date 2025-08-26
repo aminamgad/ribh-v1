@@ -114,7 +114,7 @@ export default function CountrySelect({
                 placeholder="ابحث عن دولة..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100"
+                className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-[#FF9800] focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100"
                 autoFocus
               />
             </div>

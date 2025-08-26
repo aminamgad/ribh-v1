@@ -25,7 +25,7 @@ export default function ThemeToggle() {
     return theme === 'light' ? (
       <Sun className="w-5 h-5 text-yellow-500 transition-all duration-300 group-hover:scale-110 group-hover:rotate-12" />
     ) : (
-      <Moon className="w-5 h-5 text-blue-400 transition-all duration-300 group-hover:scale-110 group-hover:-rotate-12" />
+      <Moon className="w-5 h-5 text-[#FF9800] transition-all duration-300 group-hover:scale-110 group-hover:-rotate-12" />
     );
   };
 
@@ -84,7 +84,7 @@ export function ThemeToggleCompact() {
     return theme === 'light' ? (
       <Sun className="w-4 h-4 text-yellow-500 group-hover:scale-110 transition-transform duration-200" />
     ) : (
-      <Moon className="w-4 h-4 text-blue-400 group-hover:scale-110 transition-transform duration-200" />
+      <Moon className="w-4 h-4 text-[#FF9800] group-hover:scale-110 transition-transform duration-200" />
     );
   };
 
@@ -181,7 +181,7 @@ export function ThemeIndicator() {
     } : {
       icon: <Moon className="w-4 h-4" />,
       text: 'الوضع المظلم',
-      color: 'text-blue-400'
+      color: 'text-[#FF9800]'
     };
   };
 

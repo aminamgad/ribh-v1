@@ -31,7 +31,7 @@ const roleLabels = {
 
 const roleColors = {
   admin: 'bg-red-100 text-red-800',
-  supplier: 'bg-blue-100 text-blue-800',
+      supplier: 'bg-[#4CAF50]/20 text-[#4CAF50]',
   marketer: 'bg-green-100 text-green-800',
   wholesaler: 'bg-purple-100 text-purple-800'
 };
@@ -207,8 +207,8 @@ export default function AdminUsersPage() {
         
         <div className="card">
           <div className="flex items-center">
-            <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg">
-              <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                          <div className="bg-[#FF9800]/20 dark:bg-[#FF9800]/30 p-2 rounded-lg">
+                <User className="w-5 h-5 text-[#FF9800] dark:text-[#FF9800]" />
             </div>
             <div className="mr-3">
               <p className="text-sm text-gray-600 dark:text-slate-300">الموردين</p>
@@ -386,7 +386,7 @@ export default function AdminUsersPage() {
                               e.stopPropagation();
                               handleVerifyUser(userItem._id);
                             }}
-                            className="text-blue-600 hover:text-blue-700"
+                            className="text-[#FF9800] hover:text-[#F57C00]"
                             title="التحقق من المستخدم"
                           >
                             <Shield className="w-4 h-4" />

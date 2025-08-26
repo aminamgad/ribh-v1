@@ -480,13 +480,13 @@ export default function EditProductPage() {
             </div>
 
             {/* Preview Section */}
-            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
-              <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-300 mb-2">معاينة الأسعار:</h4>
+            <div className="mt-4 p-3 bg-[#FF9800]/10 dark:bg-[#FF9800]/20 rounded-lg">
+              <h4 className="text-sm font-semibold text-[#F57C00] dark:text-[#F57C00] mb-2">معاينة الأسعار:</h4>
               <div className="space-y-1">
-                <p className="text-sm text-blue-600 dark:text-blue-400">الجملة (للتجار): {watchedValues.wholesalerPrice} ₪</p>
-                <p className="text-sm text-blue-600 dark:text-blue-400">المسوق (الأساسي): {watchedValues.marketerPrice} ₪</p>
+                <p className="text-sm text-[#FF9800] dark:text-[#FF9800]">الجملة (للتجار): {watchedValues.wholesalerPrice} ₪</p>
+                <p className="text-sm text-[#FF9800] dark:text-[#FF9800]">المسوق (الأساسي): {watchedValues.marketerPrice} ₪</p>
                 {watchedValues.minimumSellingPrice > 0 && (
-                  <p className="text-sm text-blue-600 dark:text-blue-400">
+                  <p className="text-sm text-[#FF9800] dark:text-[#FF9800]">
                     السعر الأدنى للبيع: {watchedValues.minimumSellingPrice} ₪ {watchedValues.isMinimumPriceMandatory ? '(إلزامي)' : '(اختياري)'}
                   </p>
                 )}

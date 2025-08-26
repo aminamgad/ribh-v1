@@ -261,7 +261,7 @@ export default function DashboardPage() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF9800] mx-auto mb-4"></div>
           <p className="text-gray-600 dark:text-slate-400">جاري تحميل لوحة التحكم...</p>
         </div>
       </div>
@@ -275,7 +275,7 @@ export default function DashboardPage() {
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div className="flex-1">
             <div className="flex items-center gap-4 mb-6">
-              <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl flex items-center justify-center shadow-lg">
+              <div className="w-16 h-16 bg-gradient-to-br from-[#FF9800] to-[#F57C00] rounded-2xl flex items-center justify-center shadow-lg">
                 <span className="text-white text-xl font-bold">
                   {user?.name?.charAt(0)?.toUpperCase() || 'U'}
                 </span>
@@ -293,9 +293,9 @@ export default function DashboardPage() {
                   <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                   <span className="text-sm font-medium text-green-700 dark:text-green-400">متصل</span>
                 </div>
-                <div className="flex items-center gap-2 px-4 py-2 bg-blue-100 dark:bg-blue-900/30 rounded-full">
-                  <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                  <span className="text-sm font-medium text-blue-700 dark:text-blue-400">
+                <div className="flex items-center gap-2 px-4 py-2 bg-[#FF9800]/20 dark:bg-[#FF9800]/30 rounded-full">
+                  <Clock className="w-4 h-4 text-[#FF9800] dark:text-[#FF9800]" />
+                  <span className="text-sm font-medium text-[#F57C00] dark:text-[#F57C00]">
                     آخر تحديث: {lastUpdate.toLocaleTimeString('ar-SA')}
                   </span>
                 </div>
@@ -309,7 +309,7 @@ export default function DashboardPage() {
                 <p className="text-lg font-semibold text-gray-900 dark:text-slate-100">{user?.name}</p>
                 <p className="text-sm text-gray-500 dark:text-slate-400">{getRoleLabel()}</p>
               </div>
-              <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center shadow-lg">
+              <div className="w-12 h-12 bg-gradient-to-br from-[#FF9800] to-[#F57C00] rounded-xl flex items-center justify-center shadow-lg">
                 <span className="text-white text-lg font-bold">
                   {user?.name?.charAt(0)?.toUpperCase() || 'U'}
                 </span>
@@ -323,14 +323,14 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
         {/* Orders Card */}
         <div className="card-hover group p-8 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-500/10 to-indigo-600/10 rounded-full -translate-y-16 translate-x-16"></div>
+          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#4CAF50]/10 to-[#388E3C]/10 rounded-full -translate-y-16 translate-x-16"></div>
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-6">
-              <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-4 rounded-2xl shadow-lg group-hover:scale-110 transition-all duration-300">
+              <div className="bg-gradient-to-br from-[#4CAF50] to-[#388E3C] p-4 rounded-2xl shadow-lg group-hover:scale-110 transition-all duration-300">
                 <ShoppingBag className="w-8 h-8 text-white" />
               </div>
               <div className="text-left">
-                <div className="flex items-center text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                <div className="flex items-center text-sm font-medium text-[#4CAF50] dark:text-[#4CAF50]">
                   <ArrowUpRight className="w-4 h-4 ml-1" />
                   +12.5%
                 </div>
@@ -345,7 +345,7 @@ export default function DashboardPage() {
                 {stats?.totalOrders || 0}
               </p>
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <div className="w-2 h-2 bg-[#4CAF50] rounded-full"></div>
                 <span className="text-xs text-gray-500 dark:text-slate-400">نشط</span>
               </div>
             </div>
@@ -354,14 +354,14 @@ export default function DashboardPage() {
 
         {/* Revenue Card */}
         <div className="card-hover group p-8 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-emerald-500/10 to-green-600/10 rounded-full -translate-y-16 translate-x-16"></div>
+          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#FF9800]/10 to-[#F57C00]/10 rounded-full -translate-y-16 translate-x-16"></div>
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-6">
-              <div className="bg-gradient-to-br from-emerald-500 to-green-600 p-4 rounded-2xl shadow-lg group-hover:scale-110 transition-all duration-300">
+              <div className="bg-gradient-to-br from-[#FF9800] to-[#F57C00] p-4 rounded-2xl shadow-lg group-hover:scale-110 transition-all duration-300">
                 <DollarSign className="w-8 h-8 text-white" />
               </div>
               <div className="text-left">
-                <div className="flex items-center text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                <div className="flex items-center text-sm font-medium text-[#FF9800] dark:text-[#FF9800]">
                   <ArrowUpRight className="w-4 h-4 ml-1" />
                   +8.3%
                 </div>
@@ -376,7 +376,7 @@ export default function DashboardPage() {
                 {formatCurrency(stats?.totalRevenue || 0)}
               </p>
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                <div className="w-2 h-2 bg-[#FF9800] rounded-full"></div>
                 <span className="text-xs text-gray-500 dark:text-slate-400">متنامي</span>
               </div>
             </div>
@@ -385,14 +385,14 @@ export default function DashboardPage() {
 
         {/* Products Card */}
         <div className="card-hover group p-8 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-amber-500/10 to-orange-600/10 rounded-full -translate-y-16 translate-x-16"></div>
+          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#FF9800]/10 to-[#F57C00]/10 rounded-full -translate-y-16 translate-x-16"></div>
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-6">
-              <div className="bg-gradient-to-br from-amber-500 to-orange-600 p-4 rounded-2xl shadow-lg group-hover:scale-110 transition-all duration-300">
+              <div className="bg-gradient-to-br from-[#FF9800] to-[#F57C00] p-4 rounded-2xl shadow-lg group-hover:scale-110 transition-all duration-300">
                 <Package className="w-8 h-8 text-white" />
               </div>
               <div className="text-left">
-                <div className="flex items-center text-sm font-medium text-amber-600 dark:text-amber-400">
+                <div className="flex items-center text-sm font-medium text-[#FF9800] dark:text-[#FF9800]">
                   <ArrowUpRight className="w-4 h-4 ml-1" />
                   +15.2%
                 </div>
@@ -409,7 +409,7 @@ export default function DashboardPage() {
                  user?.role === 'marketer' ? (stats?.favoritesCount || 0) : (stats?.totalProducts || 0)}
               </p>
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+                <div className="w-2 h-2 bg-[#FF9800] rounded-full"></div>
                 <span className="text-xs text-gray-500 dark:text-slate-400">متوفر</span>
               </div>
             </div>
@@ -420,43 +420,43 @@ export default function DashboardPage() {
         {user?.role === 'admin' ? (
           <>
             <div className="card-hover group p-8 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-500/10 to-pink-600/10 rounded-full -translate-y-16 translate-x-16"></div>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#4CAF50]/10 to-[#388E3C]/10 rounded-full -translate-y-16 translate-x-16"></div>
               <div className="relative z-10">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="bg-gradient-to-br from-purple-500 to-pink-600 p-4 rounded-2xl shadow-lg group-hover:scale-110 transition-all duration-300">
-                    <Users className="w-8 h-8 text-white" />
-                  </div>
-                  <div className="text-left">
-                    <div className="flex items-center text-sm font-medium text-purple-600 dark:text-purple-400">
-                      <ArrowUpRight className="w-4 h-4 ml-1" />
-                      +5.8%
-                    </div>
-                    <p className="text-xs text-gray-500 dark:text-slate-400">من الشهر الماضي</p>
-                  </div>
+                            <div className="flex items-center justify-between mb-6">
+              <div className="bg-gradient-to-br from-[#4CAF50] to-[#388E3C] p-4 rounded-2xl shadow-lg group-hover:scale-110 transition-all duration-300">
+                <Users className="w-8 h-8 text-white" />
+              </div>
+              <div className="text-left">
+                <div className="flex items-center text-sm font-medium text-[#4CAF50] dark:text-[#4CAF50]">
+                  <ArrowUpRight className="w-4 h-4 ml-1" />
+                  +5.8%
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-3">المستخدمين</p>
-                  <p className="text-4xl font-bold text-gray-900 dark:text-slate-100 mb-2">
-                    {stats?.totalUsers || 0}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                    <span className="text-xs text-gray-500 dark:text-slate-400">مسجلين</span>
-                  </div>
-                </div>
+                <p className="text-xs text-gray-500 dark:text-slate-400">من الشهر الماضي</p>
+              </div>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-3">المستخدمين</p>
+              <p className="text-4xl font-bold text-gray-900 dark:text-slate-100 mb-2">
+                {stats?.totalUsers || 0}
+              </p>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-[#4CAF50] rounded-full"></div>
+                <span className="text-xs text-gray-500 dark:text-slate-400">مسجلين</span>
+              </div>
+            </div>
               </div>
             </div>
 
             {/* Messages Card - Only for Admin */}
             <Link href="/dashboard/admin/messages" className="card-hover group p-8 relative overflow-hidden cursor-pointer">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-cyan-500/10 to-blue-600/10 rounded-full -translate-y-16 translate-x-16"></div>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#FF9800]/10 to-[#F57C00]/10 rounded-full -translate-y-16 translate-x-16"></div>
               <div className="relative z-10">
                 <div className="flex items-center justify-between mb-6">
-                  <div className="bg-gradient-to-br from-cyan-500 to-blue-600 p-4 rounded-2xl shadow-lg group-hover:scale-110 transition-all duration-300">
+                  <div className="bg-gradient-to-br from-[#FF9800] to-[#F57C00] p-4 rounded-2xl shadow-lg group-hover:scale-110 transition-all duration-300">
                     <MessageSquare className="w-8 h-8 text-white" />
                   </div>
                   <div className="text-left">
-                    <div className="flex items-center text-sm font-medium text-cyan-600 dark:text-cyan-400">
+                    <div className="flex items-center text-sm font-medium text-[#FF9800] dark:text-[#FF9800]">
                       <ArrowUpRight className="w-4 h-4 ml-1" />
                       +22.1%
                     </div>
@@ -476,7 +476,7 @@ export default function DashboardPage() {
                     )}
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-cyan-500 rounded-full"></div>
+                    <div className="w-2 h-2 bg-[#FF9800] rounded-full"></div>
                     <span className="text-xs text-gray-500 dark:text-slate-400">نشط</span>
                   </div>
                 </div>
@@ -486,14 +486,14 @@ export default function DashboardPage() {
          ) : (
           // Additional stats for non-admin users
           <div className="card-hover group p-8 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-500/10 to-pink-600/10 rounded-full -translate-y-16 translate-x-16"></div>
+            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#4CAF50]/10 to-[#388E3C]/10 rounded-full -translate-y-16 translate-x-16"></div>
             <div className="relative z-10">
               <div className="flex items-center justify-between mb-6">
-                <div className="bg-gradient-to-br from-purple-500 to-pink-600 p-4 rounded-2xl shadow-lg group-hover:scale-110 transition-all duration-300">
+                <div className="bg-gradient-to-br from-[#4CAF50] to-[#388E3C] p-4 rounded-2xl shadow-lg group-hover:scale-110 transition-all duration-300">
                   <TrendingUp className="w-8 h-8 text-white" />
                 </div>
                 <div className="text-left">
-                  <div className="flex items-center text-sm font-medium text-purple-600 dark:text-purple-400">
+                  <div className="flex items-center text-sm font-medium text-[#4CAF50] dark:text-[#4CAF50]">
                     <ArrowUpRight className="w-4 h-4 ml-1" />
                     +15.2%
                   </div>
@@ -509,7 +509,7 @@ export default function DashboardPage() {
                   {user?.role === 'supplier' ? (stats?.activeProducts || 0) : '+15%'}
                 </p>
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                  <div className="w-2 h-2 bg-[#4CAF50] rounded-full"></div>
                   <span className="text-xs text-gray-500 dark:text-slate-400">
                     {user?.role === 'supplier' ? 'نشط' : 'متنامي'}
                   </span>
@@ -527,7 +527,7 @@ export default function DashboardPage() {
           <div className="card p-8">
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                <div className="w-12 h-12 bg-gradient-to-br from-[#4CAF50] to-[#388E3C] rounded-xl flex items-center justify-center shadow-lg">
                   <ShoppingBag className="w-6 h-6 text-white" />
                 </div>
                 <div>
@@ -535,7 +535,7 @@ export default function DashboardPage() {
                   <p className="text-sm text-gray-600 dark:text-slate-400">أحدث الطلبات المقدمة</p>
                 </div>
               </div>
-              <Link href="/dashboard/orders" className="btn-ghost text-sm hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
+              <Link href="/dashboard/orders" className="btn-ghost text-sm hover:bg-[#4CAF50]/10 dark:hover:bg-[#4CAF50]/20 transition-colors">
                 عرض الكل
                 <ArrowUpRight className="w-4 h-4 mr-1" />
               </Link>
@@ -551,7 +551,7 @@ export default function DashboardPage() {
                       onClick={() => handleOrderClick(order._id)}
                     >
                       <div className="flex items-center">
-                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center mr-5">
+                        <div className="w-12 h-12 bg-gradient-to-br from-[#4CAF50] to-[#388E3C] rounded-lg flex items-center justify-center mr-5">
                           <ShoppingBag className="w-6 h-6 text-white" />
                         </div>
                         <div>
@@ -581,7 +581,7 @@ export default function DashboardPage() {
           <div className="card p-8">
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg">
+                <div className="w-12 h-12 bg-gradient-to-br from-[#FF9800] to-[#F57C00] rounded-xl flex items-center justify-center shadow-lg">
                   <Package className="w-6 h-6 text-white" />
                 </div>
                 <div>
@@ -589,7 +589,7 @@ export default function DashboardPage() {
                   <p className="text-sm text-gray-600 dark:text-slate-400">المنتجات الأكثر مبيعاً</p>
                 </div>
               </div>
-              <Link href="/dashboard/products" className="btn-ghost text-sm hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors">
+              <Link href="/dashboard/products" className="btn-ghost text-sm hover:bg-[#FF9800]/10 dark:hover:bg-[#FF9800]/20 transition-colors">
                 عرض الكل
                 <ArrowUpRight className="w-4 h-4 mr-1" />
               </Link>
@@ -699,7 +699,7 @@ export default function DashboardPage() {
                               e.stopPropagation();
                               handleQuickEdit(product);
                             }}
-                            className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
+                            className="text-xs text-[#FF9800] dark:text-[#FF9800] hover:text-[#F57C00] dark:hover:text-[#F57C00] font-medium"
                             title="تعديل سريع"
                           >
                             ✏️ تعديل
@@ -732,7 +732,7 @@ export default function DashboardPage() {
           <div className="card p-8">
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                <div className="w-12 h-12 bg-gradient-to-br from-[#4CAF50] to-[#388E3C] rounded-xl flex items-center justify-center shadow-lg">
                   <ShoppingBag className="w-6 h-6 text-white" />
                 </div>
                 <div>
@@ -740,7 +740,7 @@ export default function DashboardPage() {
                   <p className="text-sm text-gray-600 dark:text-slate-400">أحدث طلبات العملاء</p>
                 </div>
               </div>
-              <Link href="/dashboard/orders" className="btn-ghost text-sm hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
+              <Link href="/dashboard/orders" className="btn-ghost text-sm hover:bg-[#4CAF50]/10 dark:hover:bg-[#4CAF50]/20 transition-colors">
                 عرض الكل
                 <ArrowUpRight className="w-4 h-4 mr-1" />
               </Link>
@@ -756,7 +756,7 @@ export default function DashboardPage() {
                       onClick={() => handleOrderClick(order._id)}
                     >
                       <div className="flex items-center">
-                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center mr-5">
+                        <div className="w-12 h-12 bg-gradient-to-br from-[#4CAF50] to-[#388E3C] rounded-lg flex items-center justify-center mr-5">
                           <ShoppingBag className="w-6 h-6 text-white" />
                         </div>
                         <div>
@@ -808,7 +808,7 @@ export default function DashboardPage() {
                 stats.topProducts.slice(0, 4).map((product: any, index: number) => (
                   <div 
                     key={product._id} 
-                    className="group relative flex items-center justify-between p-6 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-slate-800 dark:to-slate-700 rounded-xl hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900/20 dark:hover:to-indigo-900/20 transition-all duration-300 cursor-pointer border border-gray-200 dark:border-slate-600 hover:border-blue-300 dark:hover:border-blue-600"
+                    className="group relative flex items-center justify-between p-6 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-slate-800 dark:to-slate-700 rounded-xl hover:from-[#FF9800]/10 hover:to-[#F57C00]/10 dark:hover:from-[#FF9800]/20 dark:hover:to-[#F57C00]/20 transition-all duration-300 cursor-pointer border border-gray-200 dark:border-slate-600 hover:border-[#FF9800]/30 dark:hover:border-[#FF9800]/40"
                     onClick={() => handleProductClick(product._id)}
                   >
                     {/* Product Image */}
@@ -831,7 +831,7 @@ export default function DashboardPage() {
                       </div>
                       
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-gray-900 dark:text-slate-100 mb-3 text-lg group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-200 truncate">
+                        <h4 className="font-semibold text-gray-900 dark:text-slate-100 mb-3 text-lg group-hover:text-[#FF9800] dark:group-hover:text-[#FF9800] transition-colors duration-200 truncate">
                           {product.name}
                         </h4>
                         <div className="flex items-center space-x-3 space-x-reverse mb-3">
@@ -862,7 +862,7 @@ export default function DashboardPage() {
                     
                     <div className="text-left ml-6 flex flex-col items-end">
                       <div className="text-right mb-3">
-                        <p className="text-2xl font-bold text-gray-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-200">
+                        <p className="text-2xl font-bold text-gray-900 dark:text-slate-100 group-hover:text-[#FF9800] dark:group-hover:text-[#FF9800] transition-colors duration-200">
                           {formatCurrency(user?.role === 'wholesaler' ? product.wholesalerPrice : product.marketerPrice)}
                         </p>
                         <p className="text-xs text-gray-500 dark:text-slate-400">
@@ -885,9 +885,9 @@ export default function DashboardPage() {
                 ))
               ) : (
                 <div className="text-center py-16">
-                  <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <Store className="w-10 h-10 text-blue-600 dark:text-blue-400" />
-                  </div>
+                                  <div className="w-20 h-20 bg-gradient-to-br from-[#FF9800]/20 to-[#F57C00]/20 dark:from-[#FF9800]/30 dark:to-[#F57C00]/30 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Store className="w-10 h-10 text-[#FF9800] dark:text-[#FF9800]" />
+                </div>
                   <h4 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-3">لا توجد منتجات مميزة</h4>
                   <p className="text-gray-600 dark:text-slate-400 mb-6">ابدأ بتصفح المنتجات المتاحة وإضافة المفضلة</p>
                   <Link href="/dashboard/products" className="btn-primary">
@@ -936,9 +936,9 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 
-                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl">
+                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-[#4CAF50]/10 to-[#388E3C]/10 dark:from-[#4CAF50]/20 dark:to-[#388E3C]/20 rounded-xl">
                   <div className="flex items-center">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center mr-5">
+                    <div className="w-12 h-12 bg-gradient-to-br from-[#4CAF50] to-[#388E3C] rounded-lg flex items-center justify-center mr-5">
                       <ShoppingBag className="w-6 h-6 text-white" />
                     </div>
                     <div>
@@ -949,7 +949,7 @@ export default function DashboardPage() {
                     </div>
                   </div>
                   <div className="text-left">
-                    <div className="flex items-center text-sm font-medium text-blue-600 dark:text-blue-400">
+                    <div className="flex items-center text-sm font-medium text-[#4CAF50] dark:text-[#4CAF50]">
                       <ArrowUpRight className="w-4 h-4 ml-1" />
                       +8.3%
                     </div>
@@ -1011,9 +1011,9 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 
-                <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200 dark:border-blue-700">
+                <div className="p-4 bg-gradient-to-r from-[#FF9800]/10 to-[#F57C00]/10 dark:from-[#FF9800]/20 dark:to-[#F57C00]/20 rounded-xl border border-[#FF9800]/20 dark:border-[#FF9800]/30">
                   <div className="flex items-start">
-                    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center mr-4 flex-shrink-0">
+                    <div className="w-8 h-8 bg-gradient-to-br from-[#FF9800] to-[#F57C00] rounded-lg flex items-center justify-center mr-4 flex-shrink-0">
                       <Clock className="w-4 h-4 text-white" />
                     </div>
                     <div>
@@ -1021,7 +1021,7 @@ export default function DashboardPage() {
                       <p className="text-sm text-gray-600 dark:text-slate-400 mb-3">
                         أفضل وقت للطلب هو بين 9 صباحاً و 2 ظهراً
                       </p>
-                      <Link href="/dashboard/cart" className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium">
+                      <Link href="/dashboard/cart" className="text-sm text-[#FF9800] dark:text-[#FF9800] hover:text-[#F57C00] dark:hover:text-[#F57C00] font-medium">
                         إضافة للسلة →
                       </Link>
                     </div>
@@ -1145,8 +1145,8 @@ export default function DashboardPage() {
                 {new Date().toLocaleDateString('ar-SA')}
               </p>
             </div>
-            <div className="bg-blue-100 dark:bg-blue-900/20 p-4 rounded-xl">
-              <Clock className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                            <div className="bg-[#FF9800]/20 dark:bg-[#FF9800]/30 p-4 rounded-xl">
+                  <Clock className="w-6 h-6 text-[#FF9800] dark:text-[#FF9800]" />
             </div>
           </div>
         </div>
@@ -1174,8 +1174,8 @@ export default function DashboardPage() {
           <div className="bg-white dark:bg-slate-800 rounded-lg p-8 max-w-lg w-full shadow-xl">
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center">
-                <div className="bg-blue-100 dark:bg-blue-900/30 p-3 rounded-full mr-4">
-                  <Edit className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                <div className="bg-[#FF9800]/20 dark:bg-[#FF9800]/30 p-3 rounded-full mr-4">
+                  <Edit className="w-6 h-6 text-[#FF9800] dark:text-[#FF9800]" />
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">تعديل سريع</h3>
@@ -1294,7 +1294,7 @@ export default function DashboardPage() {
                     id="isMinimumPriceMandatory"
                     checked={quickEditData.isMinimumPriceMandatory}
                     onChange={(e) => setQuickEditData({...quickEditData, isMinimumPriceMandatory: e.target.checked})}
-                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                                         className="w-4 h-4 text-[#FF9800] bg-gray-100 border-gray-300 rounded focus:ring-[#FF9800] dark:focus:ring-[#FF9800] dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
                   />
                   <label htmlFor="isMinimumPriceMandatory" className="mr-2 text-sm font-medium text-gray-700 dark:text-slate-300">
                     إلزامي للمسوقين
@@ -1315,7 +1315,7 @@ export default function DashboardPage() {
                 </div>
                 <div>
                   <span className="text-gray-600 dark:text-slate-400">نسبة الربح:</span>
-                  <span className="block font-medium text-blue-600 dark:text-blue-400 mt-1">
+                                      <span className="block font-medium text-[#FF9800] dark:text-[#FF9800] mt-1">
                     {((quickEditData.marketerPrice - quickEditData.wholesalerPrice) / quickEditData.marketerPrice * 100).toFixed(1)}%
                   </span>
                 </div>

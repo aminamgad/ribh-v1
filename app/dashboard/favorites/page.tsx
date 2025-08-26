@@ -84,9 +84,9 @@ export default function FavoritesPage() {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center">
-          <Heart className="w-24 h-24 text-gray-300 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">لا توجد منتجات في المفضلة</h2>
-          <p className="text-gray-600 mb-6">لم تقم بإضافة أي منتجات إلى قائمة المفضلة بعد</p>
+          <Heart className="w-24 h-24 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">لا توجد منتجات في المفضلة</h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">لم تقم بإضافة أي منتجات إلى قائمة المفضلة بعد</p>
           <Link href="/dashboard/products" className="btn-primary">
             <Store className="w-5 h-5 ml-2" />
             تصفح المنتجات
@@ -101,8 +101,8 @@ export default function FavoritesPage() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">المفضلة</h1>
-          <p className="text-gray-600 mt-2">{favorites.length} منتج في قائمة المفضلة</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">المفضلة</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-2">{favorites.length} منتج في قائمة المفضلة</p>
         </div>
       </div>
 
@@ -138,23 +138,23 @@ export default function FavoritesPage() {
 
             {/* Product Info */}
             <div className="space-y-2">
-              <h3 className="font-semibold text-gray-900 line-clamp-2">{product.name}</h3>
-              <p className="text-sm text-gray-600 line-clamp-2">{product.description}</p>
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100 line-clamp-2">{product.name}</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">{product.description}</p>
 
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-lg font-bold text-primary-600">
+                  <p className="text-lg font-bold text-[#FF9800] dark:text-[#FF9800]">
                     {user?.role === 'wholesaler' ? product.wholesalePrice : product.marketerPrice} ₪
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
                     {product.stockQuantity > 0 ? `متوفر: ${product.stockQuantity}` : 'غير متوفر'}
                   </p>
                 </div>
               </div>
 
               {/* Actions */}
-              <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
-                <div className="btn-secondary flex-1 text-sm py-2 text-center">
+              <div className="flex items-center gap-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                <div className="btn-secondary-solid flex-1 text-sm py-2 text-center">
                   عرض التفاصيل
                 </div>
                 
@@ -173,7 +173,7 @@ export default function FavoritesPage() {
               </div>
 
               {/* Added date */}
-              <p className="text-xs text-gray-400 text-center">
+              <p className="text-xs text-gray-400 dark:text-gray-500 text-center">
                 أضيف في {new Date(product.addedAt).toLocaleDateString('ar-EG')}
               </p>
             </div>
