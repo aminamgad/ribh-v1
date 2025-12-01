@@ -33,6 +33,12 @@ interface CommissionRate {
   rate: number;
 }
 
+interface AdminProfitMargin {
+  minPrice: number;
+  maxPrice: number;
+  margin: number;
+}
+
 interface WithdrawalSettings {
   minimumWithdrawal: number;
   maximumWithdrawal: number;
@@ -112,6 +118,12 @@ export default function SettingsPage() {
       { minPrice: 1001, maxPrice: 5000, rate: 8 },
       { minPrice: 5001, maxPrice: 10000, rate: 6 },
       { minPrice: 10001, maxPrice: 999999, rate: 5 }
+    ],
+    adminProfitMargins: [
+      { minPrice: 1, maxPrice: 100, margin: 10 },
+      { minPrice: 101, maxPrice: 500, margin: 8 },
+      { minPrice: 501, maxPrice: 1000, margin: 6 },
+      { minPrice: 1001, maxPrice: 999999, margin: 5 }
     ]
   });
   
@@ -185,6 +197,12 @@ export default function SettingsPage() {
             },
             commissionRates: data.settings.commissionRates || [
               { minPrice: 0, maxPrice: 1000, rate: 10 }
+            ],
+            adminProfitMargins: data.settings.adminProfitMargins || [
+              { minPrice: 1, maxPrice: 100, margin: 10 },
+              { minPrice: 101, maxPrice: 500, margin: 8 },
+              { minPrice: 501, maxPrice: 1000, margin: 6 },
+              { minPrice: 1001, maxPrice: 999999, margin: 5 }
             ]
           });
           
@@ -270,7 +288,19 @@ export default function SettingsPage() {
         return;
       }
       
-      console.log('💾 حفظ الإعدادات:', { section, data });
+      // For financial section, ensure adminProfitMargins is included
+      if (section === 'financial' && data) {
+        if (!data.adminProfitMargins) {
+          console.warn('⚠️ adminProfitMargins غير موجود في البيانات، استخدام القيم الحالية');
+          data.adminProfitMargins = financialData.adminProfitMargins || [];
+        }
+        console.log('💾 حفظ الإعدادات المالية مع adminProfitMargins:', {
+          adminProfitMargins: data.adminProfitMargins,
+          count: data.adminProfitMargins?.length || 0
+        });
+      }
+      
+      console.log('💾 حفظ الإعدادات:', { section, data: JSON.stringify(data, null, 2) });
       
       const response = await fetch('/api/admin/settings', {
         method: 'PUT',
@@ -285,6 +315,16 @@ export default function SettingsPage() {
       if (result.success) {
         toast.success('تم حفظ الإعدادات بنجاح');
         console.log('✅ تم حفظ الإعدادات بنجاح:', result);
+        console.log('✅ adminProfitMargins المحفوظة:', result.settings?.adminProfitMargins);
+        console.log('✅ adminProfitMargins count:', result.settings?.adminProfitMargins?.length || 0);
+        
+        // Update local state immediately with saved data
+        if (result.settings?.adminProfitMargins) {
+          setFinancialData(prev => ({
+            ...prev,
+            adminProfitMargins: result.settings.adminProfitMargins
+          }));
+        }
         
         // Refresh settings after successful save
         await fetchSettings();
@@ -321,6 +361,30 @@ export default function SettingsPage() {
     setFinancialData(prev => ({
       ...prev,
       commissionRates: (prev.commissionRates || []).filter((_, i) => i !== index)
+    }));
+  };
+
+  // Admin profit margin handlers
+  const addAdminProfitMargin = () => {
+    setFinancialData(prev => ({
+      ...prev,
+      adminProfitMargins: [...(prev.adminProfitMargins || []), { minPrice: 0, maxPrice: 0, margin: 0 }]
+    }));
+  };
+
+  const updateAdminProfitMargin = (index: number, field: keyof AdminProfitMargin, value: number) => {
+    setFinancialData(prev => ({
+      ...prev,
+      adminProfitMargins: (prev.adminProfitMargins || []).map((margin, i) => 
+        i === index ? { ...margin, [field]: value } : margin
+      )
+    }));
+  };
+
+  const removeAdminProfitMargin = (index: number) => {
+    setFinancialData(prev => ({
+      ...prev,
+      adminProfitMargins: (prev.adminProfitMargins || []).filter((_, i) => i !== index)
     }));
   };
 
@@ -543,76 +607,144 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              {/* Commission Rates */}
+              {/* Admin Profit Margins - النظام الوحيد المستخدم */}
               <div className="space-y-4">
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                    <strong>ملاحظة:</strong> هامش ربح الإدارة يُحسب بناءً على <strong>سعر المنتج الفردي</strong> وليس إجمالي الطلب. 
+                    على سبيل المثال: إذا كان سعر المنتج 50 وهامش الربح 10%، فستكون عمولة الإدارة 5 لكل منتج.
+                  </p>
+                </div>
+              </div>
+
+              {/* Admin Profit Margins */}
+              <div className="space-y-4 border-t pt-6">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">نسب العمولة</h3>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">هامش ربح الإدارة (بناءً على سعر المنتج)</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                      هامش ربح الإدارة يُحسب بناءً على <strong>سعر المنتج الفردي</strong> وليس إجمالي الطلب.
+                      يتم تطبيق الهامش المناسب حسب نطاق السعر لكل منتج في الطلب.
+                    </p>
+                  </div>
                   <Button
-                    onClick={addCommissionRate}
+                    onClick={addAdminProfitMargin}
                     className="bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600"
                   >
-                    + إضافة نسبة عمولة
+                    <Plus className="w-4 h-4 ml-2" />
+                    إضافة هامش ربح
                   </Button>
                 </div>
                 
-                {financialData?.commissionRates?.map((rate, index) => (
-                  <div key={index} className="flex items-center space-x-4 p-4 border rounded-lg bg-gray-50 dark:bg-gray-700">
-                    <div className="flex-1 grid grid-cols-3 gap-4">
+                {/* Preview Section */}
+                {financialData?.adminProfitMargins && financialData.adminProfitMargins.length > 0 && (
+                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                    <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-2">معاينة الهوامش:</h4>
+                    <div className="space-y-1 text-xs text-blue-800 dark:text-blue-200">
+                      {financialData.adminProfitMargins.map((margin, idx) => (
+                        <div key={idx} className="flex items-center justify-between">
+                          <span>من {margin.minPrice}₪ إلى {margin.maxPrice}₪:</span>
+                          <span className="font-semibold">{margin.margin}%</span>
+                          <span className="text-blue-600 dark:text-blue-300">
+                            (مثال: منتج بسعر {Math.floor((margin.minPrice + margin.maxPrice) / 2)}₪ = {((Math.floor((margin.minPrice + margin.maxPrice) / 2)) * margin.margin / 100).toFixed(2)}₪ ربح)
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {financialData?.adminProfitMargins?.map((margin, index) => (
+                  <div key={index} className="flex items-start space-x-4 space-x-reverse p-4 border rounded-lg bg-gray-50 dark:bg-gray-700">
+                    <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <Label className="text-gray-700 dark:text-gray-200">من</Label>
+                        <Label className="text-gray-700 dark:text-gray-200">من السعر (₪)</Label>
                         <Input
                           type="number"
-                          value={rate.minPrice}
+                          min="0"
+                          step="0.01"
+                          value={margin.minPrice}
                           onChange={(e) => {
                             const value = parseFloat(e.target.value) || 0;
-                            console.log('💰 تحديث الحد الأدنى للعمولة:', value);
-                            updateCommissionRate(index, 'minPrice', value);
+                            updateAdminProfitMargin(index, 'minPrice', value);
                           }}
-                          className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                          className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                          placeholder="0"
                         />
                       </div>
                       <div>
-                        <Label className="text-gray-700 dark:text-gray-200">إلى</Label>
+                        <Label className="text-gray-700 dark:text-gray-200">إلى السعر (₪)</Label>
                         <Input
                           type="number"
-                          value={rate.maxPrice}
+                          min="0"
+                          step="0.01"
+                          value={margin.maxPrice}
                           onChange={(e) => {
                             const value = parseFloat(e.target.value) || 0;
-                            console.log('💰 تحديث الحد الأقصى للعمولة:', value);
-                            updateCommissionRate(index, 'maxPrice', value);
+                            updateAdminProfitMargin(index, 'maxPrice', value);
                           }}
-                          className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                          className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                          placeholder="999999"
                         />
                       </div>
                       <div>
-                        <Label className="text-gray-700 dark:text-gray-200">النسبة (%)</Label>
+                        <Label className="text-gray-700 dark:text-gray-200">الهامش (%)</Label>
                         <Input
                           type="number"
-                          value={rate.rate}
+                          min="0"
+                          max="100"
+                          step="0.1"
+                          value={margin.margin}
                           onChange={(e) => {
                             const value = parseFloat(e.target.value) || 0;
-                            console.log('💰 تحديث نسبة العمولة:', value);
-                            updateCommissionRate(index, 'rate', value);
+                            updateAdminProfitMargin(index, 'margin', value);
                           }}
-                          className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                          className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                          placeholder="5"
                         />
+                        {margin.margin > 0 && margin.minPrice > 0 && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            مثال: منتج {margin.minPrice}₪ = {(margin.minPrice * margin.margin / 100).toFixed(2)}₪ ربح
+                          </p>
+                        )}
                       </div>
                     </div>
                     <Button
-                      onClick={() => removeCommissionRate(index)}
+                      onClick={() => removeAdminProfitMargin(index)}
                       variant="destructive"
                       size="sm"
+                      className="bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600"
                     >
-                      حذف
+                      <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
                 ))}
+                
+                {(!financialData?.adminProfitMargins || financialData.adminProfitMargins.length === 0) && (
+                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                    <p>لا توجد هوامش ربح محددة</p>
+                    <Button
+                      onClick={addAdminProfitMargin}
+                      className="mt-4 bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600"
+                    >
+                      + إضافة هامش ربح
+                    </Button>
+                  </div>
+                )}
               </div>
 
               <Button 
                 onClick={() => {
-                  console.log('💰 حفظ الإعدادات المالية:', financialData);
-                  saveSettings('financial', financialData);
+                  // Ensure adminProfitMargins is always included
+                  const dataToSave = {
+                    ...financialData,
+                    adminProfitMargins: financialData.adminProfitMargins || []
+                  };
+                  console.log('💰 حفظ الإعدادات المالية:', {
+                    ...dataToSave,
+                    adminProfitMarginsCount: dataToSave.adminProfitMargins?.length || 0
+                  });
+                  saveSettings('financial', dataToSave);
                 }}
                 disabled={saving}
                 className="bg-[#FF9800] hover:bg-[#F57C00] dark:bg-[#FF9800] dark:hover:bg-[#F57C00]"

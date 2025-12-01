@@ -66,14 +66,26 @@ const addressSchema = new Schema({
     required: [true, 'اسم الشارع مطلوب'],
     trim: true
   },
+  // Village-based system (new)
+  villageId: {
+    type: Number,
+    index: true
+  },
+  villageName: {
+    type: String,
+    trim: true
+  },
+  deliveryCost: {
+    type: Number,
+    min: [0, 'تكلفة التوصيل يجب أن تكون أكبر من أو تساوي صفر']
+  },
+  // Legacy fields for backward compatibility
   city: {
     type: String,
-    required: [true, 'المدينة مطلوبة'],
     trim: true
   },
   governorate: {
     type: String,
-    required: [true, 'المحافظة مطلوبة'],
     trim: true
   },
   postalCode: {
@@ -239,6 +251,12 @@ const orderSchema = new Schema<OrderDocument>({
   refundedBy: {
     type: Schema.Types.ObjectId,
     ref: 'User'
+  },
+  // Link to fulfillment request
+  fulfillmentRequestId: {
+    type: Schema.Types.ObjectId,
+    ref: 'FulfillmentRequest',
+    default: null
   }
 } as any, {
   timestamps: true,
@@ -247,13 +265,25 @@ const orderSchema = new Schema<OrderDocument>({
 });
 
 // Indexes
+// Single field indexes
 orderSchema.index({ customerId: 1 });
 orderSchema.index({ supplierId: 1 });
 orderSchema.index({ status: 1 });
 orderSchema.index({ paymentStatus: 1 });
 orderSchema.index({ createdAt: -1 });
+orderSchema.index({ orderNumber: 1 }, { unique: true });
+orderSchema.index({ 'shippingAddress.villageId': 1 });
 orderSchema.index({ 'shippingAddress.city': 1 });
 orderSchema.index({ 'shippingAddress.governorate': 1 });
+orderSchema.index({ customerRole: 1 });
+
+// Compound indexes for common queries
+orderSchema.index({ customerId: 1, status: 1, createdAt: -1 }); // For customer orders by status
+orderSchema.index({ supplierId: 1, status: 1, createdAt: -1 }); // For supplier orders by status
+orderSchema.index({ status: 1, paymentStatus: 1, createdAt: -1 }); // For order management
+orderSchema.index({ customerRole: 1, status: 1 }); // For role-based order filtering
+orderSchema.index({ 'items.productId': 1 }); // For product order history
+orderSchema.index({ fulfillmentRequestId: 1 }); // For orders by fulfillment request
 
 // Virtual for order summary
 orderSchema.virtual('itemCount').get(function() {
@@ -289,7 +319,11 @@ orderSchema.pre('save', async function(next) {
       );
       this.orderNumber = counter.sequence_value.toString();
     } catch (error) {
-      console.error('Error generating order number:', error);
+      // Log error but don't break order creation - use fallback
+      if (process.env.NODE_ENV === 'development') {
+        const logger = require('@/lib/logger').logger;
+        logger.error('Error generating order number', error);
+      }
       // Fallback to timestamp-based number if counter fails
       this.orderNumber = Date.now().toString();
     }

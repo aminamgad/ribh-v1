@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import Wallet from '@/models/Wallet';
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
 
 // GET /api/wallet/transactions - Get user transactions
 async function getTransactions(req: NextRequest, user: any) {
@@ -70,12 +72,11 @@ async function getTransactions(req: NextRequest, user: any) {
         pages: Math.ceil(total / limit)
       }
     });
+    
+    logger.apiResponse('GET', '/api/wallet/transactions', 200);
   } catch (error) {
-    console.error('Error fetching transactions:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء جلب المعاملات' },
-      { status: 500 }
-    );
+    logger.error('Error fetching transactions', error, { userId: user._id });
+    return handleApiError(error, 'حدث خطأ أثناء جلب المعاملات');
   }
 }
 

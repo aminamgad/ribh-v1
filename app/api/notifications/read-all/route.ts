@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import Notification from '@/models/Notification';
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
 
 // PUT /api/notifications/read-all - Mark all notifications as read
 async function markAllAsRead(req: NextRequest, user: any) {
@@ -19,16 +21,15 @@ async function markAllAsRead(req: NextRequest, user: any) {
       }
     );
     
+    logger.apiResponse('POST', '/api/notifications/read-all', 200);
+    
     return NextResponse.json({
       success: true,
       message: 'تم تحديد جميع الإشعارات كمقروءة'
     });
   } catch (error) {
-    console.error('Error marking all notifications as read:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء تحديث الإشعارات' },
-      { status: 500 }
-    );
+    logger.error('Error marking all notifications as read', error, { userId: user._id.toString() });
+    return handleApiError(error, 'حدث خطأ أثناء تحديث الإشعارات');
   }
 }
 

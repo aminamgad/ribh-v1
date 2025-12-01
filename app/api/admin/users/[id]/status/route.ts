@@ -3,13 +3,18 @@ import { withRole } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import User from '@/models/User';
 import { z } from 'zod';
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
 
 const statusSchema = z.object({
   isActive: z.boolean()
 });
 
 // PUT /api/admin/users/[id]/status - Update user status
-async function updateUserStatus(req: NextRequest, user: any, { params }: { params: { id: string } }) {
+async function updateUserStatus(req: NextRequest, user: any, ...args: unknown[]) {
+  // Extract params from args - Next.js passes it as third parameter
+  const routeParams = args[0] as { params: { id: string } };
+  const params = routeParams.params;
   try {
     await connectDB();
     
@@ -55,18 +60,17 @@ async function updateUserStatus(req: NextRequest, user: any, { params }: { param
       }
     });
   } catch (error) {
+    const routeParams = args[0] as { params: { id: string } };
     if (error instanceof z.ZodError) {
+      logger.warn('User status update validation failed', { errors: error.errors, userId: routeParams?.params?.id });
       return NextResponse.json(
         { success: false, message: error.errors[0].message },
         { status: 400 }
       );
     }
     
-    console.error('Error updating user status:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء تحديث حالة المستخدم' },
-      { status: 500 }
-    );
+    logger.error('Error updating user status', error, { userId: routeParams?.params?.id, adminId: user._id });
+    return handleApiError(error, 'حدث خطأ أثناء تحديث حالة المستخدم');
   }
 }
 

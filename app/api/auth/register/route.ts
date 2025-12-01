@@ -4,6 +4,10 @@ import User from '@/models/User';
 import Wallet from '@/models/Wallet';
 import { generateToken } from '@/lib/auth';
 import { z } from 'zod';
+import { sanitizeString, sanitizeEmail, sanitizePhone, sanitizeUrl } from '@/lib/sanitize';
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
+import { authRateLimit } from '@/lib/rate-limiter';
 
 const registerSchema = z.object({
   name: z.string().min(2, 'الاسم يجب أن يكون حرفين على الأقل').max(100, 'الاسم لا يمكن أن يتجاوز 100 حرف'),
@@ -50,14 +54,28 @@ const registerSchema = z.object({
   path: ['role'],
 });
 
-export async function POST(req: NextRequest) {
+async function registerHandler(req: NextRequest) {
   try {
     await connectDB();
 
     const body = await req.json();
     
+    // Sanitize input before validation
+    const sanitizedBody = {
+      ...body,
+      name: sanitizeString(body.name, 100),
+      email: sanitizeEmail(body.email),
+      phone: sanitizePhone(body.phone),
+      country: body.country ? sanitizeString(body.country, 100) : body.country,
+      websiteLink: body.websiteLink ? sanitizeUrl(body.websiteLink) : body.websiteLink,
+      companyName: body.companyName ? sanitizeString(body.companyName, 200) : body.companyName,
+      address: body.address ? sanitizeString(body.address, 500) : body.address,
+      commercialRegisterNumber: body.commercialRegisterNumber ? sanitizeString(body.commercialRegisterNumber, 50) : body.commercialRegisterNumber,
+      taxId: body.taxId ? sanitizeString(body.taxId, 50) : body.taxId,
+    };
+    
     // Validate input
-    const validatedData = registerSchema.parse(body);
+    const validatedData = registerSchema.parse(sanitizedBody);
 
     // Check if user already exists
     const existingUser = await User.findOne({
@@ -155,21 +173,25 @@ export async function POST(req: NextRequest) {
       path: '/'
     });
 
+    logger.auth('User registered', user._id.toString(), { email: user.email, role: user.role });
+    logger.apiResponse('POST', '/api/auth/register', 201);
+
     return response;
 
   } catch (error) {
-    console.error('Registration error:', error);
+    logger.error('Registration error', error);
     
     if (error instanceof z.ZodError) {
+      logger.warn('Registration validation failed', { errors: error.errors });
       return NextResponse.json(
         { success: false, error: error.errors[0].message },
         { status: 400 }
       );
     }
 
-    return NextResponse.json(
-      { success: false, error: 'حدث خطأ أثناء إنشاء الحساب' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'حدث خطأ أثناء إنشاء الحساب');
   }
-} 
+}
+
+// Apply rate limiting to registration endpoint
+export const POST = authRateLimit(registerHandler); 

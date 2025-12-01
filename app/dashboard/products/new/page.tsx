@@ -15,6 +15,7 @@ import { ProductVariant, ProductVariantOption } from '@/types';
 const productSchema = z.object({
   name: z.string().min(3, 'اسم المنتج يجب أن يكون 3 أحرف على الأقل'),
   description: z.string().optional(),
+  marketingText: z.string().optional(),
   categoryId: z.string().optional(),
   marketerPrice: z.number().min(0.01, 'سعر المسوق يجب أن يكون أكبر من 0'),
   wholesalerPrice: z.number().min(0.01, 'سعر الجملة يجب أن يكون أكبر من 0'),
@@ -37,10 +38,19 @@ interface Category {
   name: string;
 }
 
+interface Supplier {
+  _id: string;
+  name: string;
+  companyName?: string;
+  email: string;
+}
+
 export default function NewProductPage() {
   const { user, isAuthenticated } = useAuth();
   const router = useRouter();
   const [categories, setCategories] = useState<Category[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string>('');
   const [images, setImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -61,6 +71,7 @@ export default function NewProductPage() {
     defaultValues: {
       name: '',
       description: '',
+      marketingText: '',
       categoryId: '',
       stockQuantity: 0,
       marketerPrice: 0,
@@ -79,7 +90,11 @@ export default function NewProductPage() {
 
   useEffect(() => {
     fetchCategories();
-  }, []);
+    // Fetch suppliers if user is admin
+    if (user?.role === 'admin') {
+      fetchSuppliers();
+    }
+  }, [user]);
 
   useEffect(() => {
     if (user?.role !== 'supplier' && user?.role !== 'admin') {
@@ -100,6 +115,20 @@ export default function NewProductPage() {
     } catch (error) {
       console.error('Error fetching categories:', error);
       toast.error('حدث خطأ أثناء جلب الفئات');
+    }
+  };
+
+  const fetchSuppliers = async () => {
+    try {
+      const response = await fetch('/api/admin/users?role=supplier&status=active&limit=100');
+      if (response.ok) {
+        const data = await response.json();
+        setSuppliers(data.users || []);
+      } else {
+        console.error('Failed to fetch suppliers');
+      }
+    } catch (error) {
+      console.error('Error fetching suppliers:', error);
     }
   };
 
@@ -137,6 +166,7 @@ export default function NewProductPage() {
       const productData = {
         name: data.name.trim(),
         description: data.description?.trim() || '',
+        marketingText: data.marketingText?.trim() || '',
         categoryId: data.categoryId && data.categoryId !== '' ? data.categoryId : null,
         marketerPrice: Number(data.marketerPrice),
         wholesalerPrice: Number(data.wholesalerPrice),
@@ -156,7 +186,9 @@ export default function NewProductPage() {
         // Product variants
         hasVariants,
         variants: hasVariants ? variants : [],
-        variantOptions: hasVariants ? variantOptions : []
+        variantOptions: hasVariants ? variantOptions : [],
+        // Supplier selection for admin
+        ...(user?.role === 'admin' && selectedSupplierId ? { supplierId: selectedSupplierId } : {})
       };
 
       console.log('Sending product data:', productData);
@@ -256,6 +288,30 @@ export default function NewProductPage() {
                     <p className="text-danger-600 dark:text-danger-400 text-sm mt-1">{errors.categoryId.message}</p>
                   )}
                 </div>
+
+                {/* Supplier Selection - Only for Admin */}
+                {user?.role === 'admin' && (
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      المورد (اختياري)
+                    </label>
+                    <select
+                      value={selectedSupplierId}
+                      onChange={(e) => setSelectedSupplierId(e.target.value)}
+                      className="input-field"
+                    >
+                      <option value="">اختر المورد (اختياري - سيتم إضافة المنتج باسمك إذا لم تختر)</option>
+                      {suppliers.map((supplier) => (
+                        <option key={supplier._id} value={supplier._id}>
+                          {supplier.companyName || supplier.name} {supplier.email ? `(${supplier.email})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      يمكنك اختيار مورد محدد لإضافة المنتج باسمه. إذا لم تختر، سيتم إضافة المنتج باسمك كإدارة.
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="mt-4">
@@ -271,6 +327,24 @@ export default function NewProductPage() {
                 {errors.description && (
                   <p className="text-danger-600 dark:text-danger-400 text-sm mt-1">{errors.description.message}</p>
                 )}
+              </div>
+
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  النص التسويقي (اختياري)
+                </label>
+                <textarea
+                  {...register('marketingText')}
+                  rows={4}
+                  className="input-field"
+                  placeholder="أدخل نص تسويقي للمنتج يمكن نسخه واستخدامه في التسويق"
+                />
+                {errors.marketingText && (
+                  <p className="text-danger-600 dark:text-danger-400 text-sm mt-1">{errors.marketingText.message}</p>
+                )}
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  هذا النص سيظهر في صفحة المنتج مع زر نسخ للمسوقين والتجار
+                </p>
               </div>
             </div>
 
@@ -512,6 +586,17 @@ export default function NewProductPage() {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">المخزون:</label>
                   <p className="text-gray-900 dark:text-gray-100">{watch('stockQuantity') || 0} قطعة</p>
                 </div>
+                
+                {user?.role === 'admin' && selectedSupplierId && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">المورد المحدد:</label>
+                    <p className="text-gray-900 dark:text-gray-100">
+                      {suppliers.find(s => s._id === selectedSupplierId)?.companyName || 
+                       suppliers.find(s => s._id === selectedSupplierId)?.name || 
+                       'غير محدد'}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>

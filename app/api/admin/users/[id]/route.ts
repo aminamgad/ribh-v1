@@ -5,13 +5,14 @@ import User from '@/models/User';
 import Product from '@/models/Product';
 import Order from '@/models/Order';
 import { Product as ProductType } from '@/types';
-
-interface RouteParams {
-  params: { id: string };
-}
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
 
 // GET /api/admin/users/[id] - Get user details
-async function getUserDetail(req: NextRequest, user: any, { params }: RouteParams) {
+async function getUserDetail(req: NextRequest, user: any, ...args: unknown[]) {
+  // Extract params from args - Next.js passes it as third parameter
+  const routeParams = args[0] as { params: { id: string } };
+  const params = routeParams.params;
   try {
     await connectDB();
     
@@ -78,17 +79,20 @@ async function getUserDetail(req: NextRequest, user: any, { params }: RouteParam
       success: true,
       user: userWithStats
     });
+    
+    logger.apiResponse('GET', `/api/admin/users/${params.id}`, 200);
   } catch (error) {
-    console.error('Error fetching user detail:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء جلب تفاصيل المستخدم' },
-      { status: 500 }
-    );
+    const routeParams = args[0] as { params: { id: string } };
+    logger.error('Error fetching user detail', error, { userId: routeParams?.params?.id, adminId: user._id });
+    return handleApiError(error, 'حدث خطأ أثناء جلب تفاصيل المستخدم');
   }
 }
 
 // PUT /api/admin/users/[id] - Update user
-async function updateUser(req: NextRequest, user: any, { params }: RouteParams) {
+async function updateUser(req: NextRequest, user: any, ...args: unknown[]) {
+  // Extract params from args - Next.js passes it as third parameter
+  const routeParams = args[0] as { params: { id: string } };
+  const params = routeParams.params;
   try {
     await connectDB();
     
@@ -146,17 +150,21 @@ async function updateUser(req: NextRequest, user: any, { params }: RouteParams) 
       message: 'تم تحديث المستخدم بنجاح',
       user: updatedUser
     });
+    
+    logger.business('User updated by admin', { userId: params.id, adminId: user._id });
+    logger.apiResponse('PUT', `/api/admin/users/${params.id}`, 200);
   } catch (error) {
-    console.error('Error updating user:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء تحديث المستخدم' },
-      { status: 500 }
-    );
+    const routeParams = args[0] as { params: { id: string } };
+    logger.error('Error updating user', error, { userId: routeParams?.params?.id, adminId: user._id });
+    return handleApiError(error, 'حدث خطأ أثناء تحديث المستخدم');
   }
 }
 
 // DELETE /api/admin/users/[id] - Delete user
-async function deleteUser(req: NextRequest, user: any, { params }: RouteParams) {
+async function deleteUser(req: NextRequest, user: any, ...args: unknown[]) {
+  // Extract params from args - Next.js passes it as third parameter
+  const routeParams = args[0] as { params: { id: string } };
+  const params = routeParams.params;
   try {
     await connectDB();
     
@@ -200,16 +208,17 @@ async function deleteUser(req: NextRequest, user: any, { params }: RouteParams) 
 
     await User.findByIdAndDelete(params.id);
 
+    logger.business('User deleted by admin', { userId: params.id, adminId: user._id });
+    logger.apiResponse('DELETE', `/api/admin/users/${params.id}`, 200);
+    
     return NextResponse.json({
       success: true,
       message: 'تم حذف المستخدم بنجاح'
     });
   } catch (error) {
-    console.error('Error deleting user:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء حذف المستخدم' },
-      { status: 500 }
-    );
+    const routeParams = args[0] as { params: { id: string } };
+    logger.error('Error deleting user', error, { userId: routeParams?.params?.id, adminId: user._id });
+    return handleApiError(error, 'حدث خطأ أثناء حذف المستخدم');
   }
 }
 

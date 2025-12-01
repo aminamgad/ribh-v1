@@ -4,6 +4,8 @@ import { withAuth } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import StoreIntegration, { IntegrationType, IntegrationStatus } from '@/models/StoreIntegration';
 import { UserRole } from '@/types';
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
 
 // Validation schema
 const createIntegrationSchema = z.object({
@@ -24,7 +26,7 @@ const createIntegrationSchema = z.object({
 });
 
 // GET /api/integrations - Get user's store integrations
-export const GET = withAuth(async (req: NextRequest, { user }: { user: any }) => {
+export const GET = withAuth(async (req: NextRequest, user: any) => {
   try {
     // Only marketers and wholesalers can have store integrations
     if (user.role !== 'marketer' && user.role !== 'wholesaler') {
@@ -36,7 +38,7 @@ export const GET = withAuth(async (req: NextRequest, { user }: { user: any }) =>
 
     await connectDB();
 
-    const integrations = await StoreIntegration.findByUser(user.id);
+    const integrations = await StoreIntegration.findByUser(user._id.toString());
 
     // Mask sensitive data
     const safeIntegrations = integrations.map(integration => ({
@@ -57,17 +59,16 @@ export const GET = withAuth(async (req: NextRequest, { user }: { user: any }) =>
       success: true,
       integrations: safeIntegrations
     });
+    
+    logger.apiResponse('GET', '/api/integrations', 200);
   } catch (error) {
-    console.error('Error fetching integrations:', error);
-    return NextResponse.json(
-      { error: 'حدث خطأ في جلب التكاملات' },
-      { status: 500 }
-    );
+    logger.error('Error fetching integrations', error, { userId: user._id });
+    return handleApiError(error, 'حدث خطأ في جلب التكاملات');
   }
 });
 
 // POST /api/integrations - Create new store integration
-export const POST = withAuth(async (req: NextRequest, { user }: { user: any }) => {
+export const POST = withAuth(async (req: NextRequest, user: any) => {
   try {
     // Only marketers and wholesalers can create store integrations
     if (user.role !== 'marketer' && user.role !== 'wholesaler') {
@@ -84,7 +85,7 @@ export const POST = withAuth(async (req: NextRequest, { user }: { user: any }) =
 
     // Check if user already has an integration of this type
     const existingIntegration = await StoreIntegration.findOne({
-      userId: user.id,
+      userId: user._id,
       type: validatedData.type
     });
 
@@ -97,7 +98,7 @@ export const POST = withAuth(async (req: NextRequest, { user }: { user: any }) =
 
     // Create new integration
     const integration = await StoreIntegration.create({
-      userId: user.id,
+      userId: user._id,
       type: validatedData.type as IntegrationType,
       storeName: validatedData.storeName,
       storeUrl: validatedData.storeUrl,
@@ -134,17 +135,22 @@ export const POST = withAuth(async (req: NextRequest, { user }: { user: any }) =
         createdAt: integration.createdAt
       }
     }, { status: 201 });
+    
+    logger.business('Store integration created', {
+      integrationId: (integration as any)._id?.toString() || String((integration as any)._id),
+      userId: user._id,
+      type: (integration as any).type
+    });
+    logger.apiResponse('POST', '/api/integrations', 201);
   } catch (error) {
     if (error instanceof z.ZodError) {
+      logger.warn('Integration creation validation failed', { errors: error.errors, userId: user._id });
       return NextResponse.json(
         { error: 'بيانات غير صالحة', details: error.errors },
         { status: 400 }
       );
     }
-    console.error('Error creating integration:', error);
-    return NextResponse.json(
-      { error: 'حدث خطأ في إنشاء التكامل' },
-      { status: 500 }
-    );
+    logger.error('Error creating integration', error, { userId: user._id });
+    return handleApiError(error, 'حدث خطأ في إنشاء التكامل');
   }
 }); 

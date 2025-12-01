@@ -1,18 +1,16 @@
 import connectDB from './database';
 import SystemSettings from '@/models/SystemSettings';
-
-// Cache for settings to avoid repeated database calls
-let settingsCache: any = null;
-let lastCacheTime = 0;
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+import { settingsCache, generateCacheKey } from './cache';
+import { logger } from './logger';
 
 export async function getSystemSettings() {
   try {
-    const now = Date.now();
+    const cacheKey = generateCacheKey('system', 'settings');
     
-    // Return cached settings if still valid
-    if (settingsCache && (now - lastCacheTime) < CACHE_DURATION) {
-      return settingsCache;
+    // Try to get from cache
+    const cached = settingsCache.get(cacheKey);
+    if (cached) {
+      return cached;
     }
     
     await connectDB();
@@ -20,7 +18,7 @@ export async function getSystemSettings() {
     
     if (!settings) {
       // Return default settings if none exist
-      return {
+      const defaultSettings = {
         withdrawalSettings: {
           minimumWithdrawal: 100,
           maximumWithdrawal: 50000,
@@ -31,6 +29,12 @@ export async function getSystemSettings() {
           { minPrice: 1001, maxPrice: 5000, rate: 8 },
           { minPrice: 5001, maxPrice: 10000, rate: 6 },
           { minPrice: 10001, maxPrice: 999999, rate: 5 }
+        ],
+        adminProfitMargins: [
+          { minPrice: 1, maxPrice: 100, margin: 10 },
+          { minPrice: 101, maxPrice: 500, margin: 8 },
+          { minPrice: 501, maxPrice: 1000, margin: 6 },
+          { minPrice: 1001, maxPrice: 999999, margin: 5 }
         ],
         platformName: 'ربح',
         platformDescription: 'منصة التجارة الإلكترونية العربية',
@@ -65,23 +69,26 @@ export async function getSystemSettings() {
         googleAnalyticsId: '',
         facebookPixelId: ''
       };
+      
+      // Cache default settings
+      settingsCache.set(cacheKey, defaultSettings);
+      return defaultSettings;
     }
     
     // Cache the settings
-    settingsCache = settings.toObject();
-    lastCacheTime = now;
+    const settingsObject = settings.toObject();
+    settingsCache.set(cacheKey, settingsObject);
     
-    return settingsCache;
+    return settingsObject;
   } catch (error) {
-    console.error('❌ خطأ في جلب إعدادات النظام:', error);
+    logger.error('Error fetching system settings', error);
     return null;
   }
 }
 
 // Clear cache when settings are updated
 export function clearSettingsCache() {
-  settingsCache = null;
-  lastCacheTime = 0;
+  settingsCache.clearPattern('system:settings');
 }
 
 // Helper functions to apply settings
@@ -136,6 +143,66 @@ export async function calculateCommission(orderTotal: number) {
   );
   
   return rate ? (orderTotal * rate.rate / 100) : 0;
+}
+
+// Calculate admin profit margin for a product based on its price
+export async function getAdminProfitMargin(productPrice: number): Promise<number> {
+  const settings = await getSystemSettings();
+  logger.debug('Calculating admin profit margin', {
+    productPrice,
+    hasSettings: !!settings,
+    marginsCount: settings?.adminProfitMargins?.length || 0
+  });
+  
+  if (!settings || !settings.adminProfitMargins || settings.adminProfitMargins.length === 0) {
+    logger.debug('Using default margin (5%) - no margins defined');
+    return 5; // Default margin
+  }
+  
+  // Sort margins by minPrice to ensure correct matching
+  const sortedMargins = [...settings.adminProfitMargins].sort((a, b) => a.minPrice - b.minPrice);
+  
+  for (const margin of sortedMargins) {
+    if (productPrice >= margin.minPrice && productPrice <= margin.maxPrice) {
+      logger.debug('Profit margin found', {
+        productPrice,
+        margin: margin.margin,
+        range: `${margin.minPrice} - ${margin.maxPrice}`
+      });
+      return margin.margin;
+    }
+  }
+  
+  logger.debug('Using default margin (5%) - no matching range');
+  return 5; // Default margin if no match
+}
+
+// Calculate admin profit for a single product
+export async function calculateAdminProfitForProduct(productPrice: number, quantity: number = 1): Promise<number> {
+  const margin = await getAdminProfitMargin(productPrice);
+  return (productPrice * margin / 100) * quantity;
+}
+
+// Calculate total admin profit for order items (based on product prices, not order total)
+export async function calculateAdminProfitForOrder(items: Array<{ unitPrice: number; quantity: number }>): Promise<number> {
+  let totalProfit = 0;
+  
+  logger.debug('Calculating admin profit for order', {
+    itemsCount: items.length
+  });
+  
+  for (const item of items) {
+    const itemProfit = await calculateAdminProfitForProduct(item.unitPrice, item.quantity);
+    logger.debug('Product profit calculated', {
+      unitPrice: item.unitPrice,
+      quantity: item.quantity,
+      profit: itemProfit
+    });
+    totalProfit += itemProfit;
+  }
+  
+  logger.debug('Total admin profit calculated', { totalProfit });
+  return totalProfit;
 }
 
 export async function validateWithdrawalAmount(amount: number) {

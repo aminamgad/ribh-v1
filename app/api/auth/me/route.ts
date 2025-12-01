@@ -3,6 +3,8 @@ import { withRole } from '@/lib/auth';
 import User from '@/models/User';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
 
 // GET - Get current user data
 async function getCurrentUser(req: NextRequest, user: any) {
@@ -22,24 +24,20 @@ async function getCurrentUser(req: NextRequest, user: any) {
       success: true,
       user: currentUser
     });
+    
+    logger.apiResponse('GET', '/api/auth/me', 200);
   } catch (error) {
-    console.error('Error getting current user:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء جلب بيانات المستخدم' },
-      { status: 500 }
-    );
+    logger.error('Error getting current user', error, { userId: user?._id });
+    return handleApiError(error, 'حدث خطأ أثناء جلب بيانات المستخدم');
   }
 }
 
 // PUT - Update current user data
 async function updateCurrentUser(req: NextRequest, user: any) {
   try {
-    const body = await req.json();
+    logger.apiRequest('PUT', '/api/auth/me', { userId: user._id });
     
-    console.log('🔄 Updating user data:', {
-      userId: user._id,
-      requestBody: body
-    });
+    const body = await req.json();
     
     // Validation schema for profile updates
     const profileSchema = z.object({
@@ -68,7 +66,7 @@ async function updateCurrentUser(req: NextRequest, user: any) {
 
     const validatedData = profileSchema.parse(body);
     
-    console.log('✅ Validated data:', validatedData);
+    logger.debug('User profile update validated', { userId: user._id });
     
     const updateData: any = {};
     
@@ -84,15 +82,12 @@ async function updateCurrentUser(req: NextRequest, user: any) {
       const currentUser = await User.findById(user._id);
       const currentSettings = currentUser?.settings || {};
       
-      console.log('📋 Current settings:', currentSettings);
-      console.log('📋 New settings:', validatedData.settings);
-      
       updateData.settings = {
         ...currentSettings,
         ...validatedData.settings
       };
       
-      console.log('📋 Merged settings:', updateData.settings);
+      logger.debug('User settings merged', { userId: user._id });
     }
     
     // Handle password change
@@ -117,9 +112,8 @@ async function updateCurrentUser(req: NextRequest, user: any) {
       // Hash new password
       const hashedPassword = await bcrypt.hash(validatedData.newPassword, 12);
       updateData.password = hashedPassword;
+      logger.debug('Password change requested', { userId: user._id });
     }
-    
-    console.log('🔧 Final update data:', updateData);
     
     // Update user
     const updatedUser = await User.findByIdAndUpdate(
@@ -135,11 +129,8 @@ async function updateCurrentUser(req: NextRequest, user: any) {
       );
     }
     
-    console.log('✅ User updated successfully:', {
-      userId: updatedUser._id,
-      name: updatedUser.name,
-      settings: updatedUser.settings
-    });
+    logger.business('User profile updated', { userId: updatedUser._id });
+    logger.apiResponse('PUT', '/api/auth/me', 200);
     
     return NextResponse.json({
       success: true,
@@ -149,18 +140,15 @@ async function updateCurrentUser(req: NextRequest, user: any) {
     
   } catch (error) {
     if (error instanceof z.ZodError) {
-      console.error('❌ Validation error:', error.errors);
+      logger.warn('User profile update validation failed', { errors: error.errors, userId: user._id });
       return NextResponse.json(
         { success: false, message: error.errors[0].message },
         { status: 400 }
       );
     }
     
-    console.error('❌ Error updating current user:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء تحديث البيانات' },
-      { status: 500 }
-    );
+    logger.error('Error updating current user', error, { userId: user._id });
+    return handleApiError(error, 'حدث خطأ أثناء تحديث البيانات');
   }
 }
 

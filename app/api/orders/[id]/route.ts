@@ -2,13 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import Order from '@/models/Order';
+import Product from '@/models/Product';
 import Wallet from '@/models/Wallet';
 import SystemSettings from '@/models/SystemSettings';
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
 
 // Helper function to add profit to marketer's wallet
 async function addProfitToWallet(userId: string, profit: number, orderId: string, orderNumber: string) {
   try {
-    console.log(`💰 إضافة ربح المسوق للمحفظة:`, {
+    logger.business('Adding marketer profit to wallet', {
       userId,
       profit,
       orderId,
@@ -18,7 +21,7 @@ async function addProfitToWallet(userId: string, profit: number, orderId: string
     let wallet = await Wallet.findOne({ userId });
     
     if (!wallet) {
-      console.log(`📝 إنشاء محفظة جديدة للمستخدم: ${userId}`);
+      logger.debug('Creating new wallet for user', { userId });
       wallet = await Wallet.create({
         userId,
         balance: 0,
@@ -30,7 +33,7 @@ async function addProfitToWallet(userId: string, profit: number, orderId: string
     }
     
     if (profit > 0) {
-      console.log(`💳 إضافة رصيد للمحفظة: ${profit}₪`);
+      logger.debug('Adding balance to wallet', { userId, profit, orderNumber });
       
       // Update wallet balance and total earnings
       wallet.balance = (wallet.balance || 0) + profit;
@@ -39,15 +42,19 @@ async function addProfitToWallet(userId: string, profit: number, orderId: string
       
       await wallet.save();
       
-      console.log(`✅ تم إضافة ${profit}₪ لربح المسوق بنجاح`);
-      console.log(`💰 الرصيد الجديد: ${wallet.balance}₪`);
+      logger.business('Marketer profit added successfully', {
+        userId,
+        profit,
+        newBalance: wallet.balance,
+        orderNumber
+      });
     } else {
-      console.log(`ℹ️ لا يوجد ربح لإضافة للمسوق`);
+      logger.debug('No marketer profit to add', { userId, orderNumber });
     }
     
     return wallet;
   } catch (error) {
-    console.error('❌ خطأ في إضافة ربح المسوق للمحفظة:', error);
+    logger.error('Error adding marketer profit to wallet', error, { userId, orderId, orderNumber });
     throw error;
   }
 }
@@ -55,7 +62,7 @@ async function addProfitToWallet(userId: string, profit: number, orderId: string
 // Helper function to add profit to admin wallet
 async function addAdminProfit(profit: number, orderId: string, orderNumber: string) {
   try {
-    console.log(`💰 إضافة عمولة الإدارة:`, {
+    logger.business('Adding admin commission to wallet', {
       profit,
       orderId,
       orderNumber
@@ -64,16 +71,16 @@ async function addAdminProfit(profit: number, orderId: string, orderNumber: stri
     // Find admin user (assuming first admin or specific admin ID)
     const adminUser = await (await import('@/models/User')).default.findOne({ role: 'admin' });
     if (!adminUser) {
-      console.log('⚠️ لم يتم العثور على مستخدم إدارة لتوزيع الأرباح');
+      logger.warn('Admin user not found for profit distribution', { orderId, orderNumber });
       return;
     }
 
-    console.log(`👤 تم العثور على مستخدم الإدارة: ${adminUser.name} (${adminUser._id})`);
+    logger.debug('Admin user found', { adminId: adminUser._id, adminName: adminUser.name });
 
     let wallet = await Wallet.findOne({ userId: adminUser._id });
     
     if (!wallet) {
-      console.log(`📝 إنشاء محفظة جديدة للإدارة: ${adminUser._id}`);
+      logger.debug('Creating new wallet for admin', { adminId: adminUser._id });
       wallet = await Wallet.create({
         userId: adminUser._id,
         balance: 0,
@@ -85,7 +92,7 @@ async function addAdminProfit(profit: number, orderId: string, orderNumber: stri
     }
     
     if (profit > 0) {
-      console.log(`💳 إضافة عمولة للإدارة: ${profit}₪`);
+      logger.debug('Adding commission to admin wallet', { adminId: adminUser._id, profit, orderNumber });
       
       // Update wallet balance and total earnings
       wallet.balance = (wallet.balance || 0) + profit;
@@ -94,27 +101,35 @@ async function addAdminProfit(profit: number, orderId: string, orderNumber: stri
       
       await wallet.save();
       
-      console.log(`✅ تم إضافة ${profit}₪ لعمولة الإدارة بنجاح`);
-      console.log(`💰 رصيد الإدارة الجديد: ${wallet.balance}₪`);
+      logger.business('Admin commission added successfully', {
+        adminId: adminUser._id,
+        profit,
+        newBalance: wallet.balance,
+        orderNumber
+      });
     } else {
-      console.log(`ℹ️ لا توجد عمولة لإضافة للإدارة`);
+      logger.debug('No admin commission to add', { orderNumber });
     }
     
     return wallet;
   } catch (error) {
-    console.error('❌ خطأ في إضافة عمولة الإدارة للمحفظة:', error);
+    logger.error('Error adding admin commission to wallet', error, { orderId, orderNumber });
     throw error;
   }
 }
 
 // PUT /api/orders/[id] - Update order status
-export const PUT = withAuth(async (req: NextRequest, user: any, { params }: { params: { id: string } }) => {
+export const PUT = withAuth(async (req: NextRequest, user: any, ...args: unknown[]) => {
+  const routeParams = args[0] as { params: { id: string } };
+  const params = routeParams.params;
   try {
     await connectDB();
+    logger.apiRequest('PUT', `/api/orders/${params.id}`, { userId: user._id, role: user.role });
+    
     const body = await req.json();
     const { status, trackingNumber, shippingCompany, notes } = body;
     
-    console.log(`🔄 تحديث حالة الطلب ${params.id} إلى: ${status}`);
+    logger.debug('Updating order status', { orderId: params.id, status, userId: user._id });
     
     const order = await Order.findById(params.id);
     if (!order) {
@@ -124,13 +139,12 @@ export const PUT = withAuth(async (req: NextRequest, user: any, { params }: { pa
       );
     }
 
-    console.log(`📦 تفاصيل الطلب:`, {
+    logger.debug('Order details', {
+      orderId: params.id,
       orderNumber: order.orderNumber,
       currentStatus: order.status,
       newStatus: status,
-      customerRole: order.customerRole,
-      marketerProfit: order.marketerProfit,
-      commission: order.commission
+      customerRole: order.customerRole
     });
 
     // Check permissions
@@ -223,10 +237,108 @@ export const PUT = withAuth(async (req: NextRequest, user: any, { params }: { pa
       case 'cancelled':
         order.cancelledAt = new Date();
         order.cancelledBy = user._id;
+        // Restore product stock if cancelling (only if order was confirmed or processing)
+        if (order.status === 'confirmed' || order.status === 'processing') {
+          for (const item of order.items) {
+            const product = await Product.findById(item.productId);
+            if (!product) continue;
+            
+            // If product has variants and variantOption is selected, restore variant stock
+            if (product.hasVariants && item.variantOption?.variantId) {
+              const variantOptionIndex = (product.variantOptions as any[] || []).findIndex(
+                (opt: any) => opt.variantId === item.variantOption.variantId && 
+                             opt.value === item.variantOption.value
+              );
+              
+              if (variantOptionIndex !== -1) {
+                const updatePath = `variantOptions.${variantOptionIndex}.stockQuantity`;
+                await Product.findByIdAndUpdate(item.productId, {
+                  $inc: { 
+                    [updatePath]: item.quantity,
+                    stockQuantity: item.quantity // Also restore main stock
+                  }
+                });
+                logger.dbQuery('UPDATE', 'products', { 
+                  productId: item.productId, 
+                  variantStock: item.quantity,
+                  variantId: item.variantOption.variantId,
+                  action: 'restore_stock_cancel'
+                });
+              } else {
+                // Fallback: restore main stock only
+                await Product.findByIdAndUpdate(item.productId, {
+                  $inc: { stockQuantity: item.quantity }
+                });
+                logger.warn('Variant option not found for stock restoration, restored main stock only', {
+                  productId: item.productId,
+                  variantId: item.variantOption.variantId
+                });
+              }
+            } else {
+              // Restore main product stock
+              await Product.findByIdAndUpdate(item.productId, {
+                $inc: { stockQuantity: item.quantity }
+              });
+              logger.dbQuery('UPDATE', 'products', { 
+                productId: item.productId, 
+                quantity: item.quantity,
+                action: 'restore_stock_cancel'
+              });
+            }
+          }
+        }
         break;
       case 'returned':
         order.returnedAt = new Date();
         order.returnedBy = user._id;
+        // Restore product stock for returns
+        for (const item of order.items) {
+          const product = await Product.findById(item.productId);
+          if (!product) continue;
+          
+          // If product has variants and variantOption is selected, restore variant stock
+          if (product.hasVariants && item.variantOption?.variantId) {
+            const variantOptionIndex = (product.variantOptions as any[] || []).findIndex(
+              (opt: any) => opt.variantId === item.variantOption.variantId && 
+                           opt.value === item.variantOption.value
+            );
+            
+            if (variantOptionIndex !== -1) {
+              const updatePath = `variantOptions.${variantOptionIndex}.stockQuantity`;
+              await Product.findByIdAndUpdate(item.productId, {
+                $inc: { 
+                  [updatePath]: item.quantity,
+                  stockQuantity: item.quantity // Also restore main stock
+                }
+              });
+              logger.dbQuery('UPDATE', 'products', { 
+                productId: item.productId, 
+                variantStock: item.quantity,
+                variantId: item.variantOption.variantId,
+                action: 'restore_stock_return'
+              });
+            } else {
+              // Fallback: restore main stock only
+              await Product.findByIdAndUpdate(item.productId, {
+                $inc: { stockQuantity: item.quantity }
+              });
+              logger.warn('Variant option not found for stock restoration, restored main stock only', {
+                productId: item.productId,
+                variantId: item.variantOption.variantId
+              });
+            }
+          } else {
+            // Restore main product stock
+            await Product.findByIdAndUpdate(item.productId, {
+              $inc: { stockQuantity: item.quantity }
+            });
+            logger.dbQuery('UPDATE', 'products', { 
+              productId: item.productId, 
+              quantity: item.quantity,
+              action: 'restore_stock_return'
+            });
+          }
+        }
         break;
       case 'refunded':
         order.refundedAt = new Date();
@@ -241,12 +353,16 @@ export const PUT = withAuth(async (req: NextRequest, user: any, { params }: { pa
 
     // Handle profit distribution when order is delivered
     if (status === 'delivered') {
-      console.log(`🎉 تم تسليم الطلب! توزيع الأرباح...`);
+      logger.info('Order delivered - distributing profits', { orderId: order._id, orderNumber: order.orderNumber });
       
       try {
         // Add marketer profit if applicable
         if (order.marketerProfit > 0 && order.customerRole === 'marketer') {
-          console.log(`💸 إضافة ربح المسوق: ${order.marketerProfit}₪`);
+          logger.debug('Adding marketer profit', { 
+            marketerProfit: order.marketerProfit, 
+            customerId: order.customerId._id || order.customerId,
+            orderNumber: order.orderNumber
+          });
           const marketerWallet = await addProfitToWallet(
             order.customerId._id || order.customerId,
             order.marketerProfit,
@@ -263,32 +379,36 @@ export const PUT = withAuth(async (req: NextRequest, user: any, { params }: { pa
               { orderNumber: order.orderNumber }
             );
           } catch (txErr) {
-            console.warn('⚠️ لم يتم إنشاء معاملة المحفظة (سيتم الاكتفاء بتحديث الرصيد):', txErr);
+            logger.warn('Failed to create wallet transaction', { error: txErr, orderId: order._id });
           }
         } else {
-          console.log(`ℹ️ لا يوجد ربح لإضافة للمسوق:`, {
+          logger.debug('No marketer profit to add', {
             marketerProfit: order.marketerProfit,
-            customerRole: order.customerRole
+            customerRole: order.customerRole,
+            orderNumber: order.orderNumber
           });
         }
 
         // Add admin profit (commission)
         if (order.commission > 0) {
-          console.log(`💸 إضافة عمولة الإدارة: ${order.commission}₪`);
+          logger.debug('Adding admin commission', { commission: order.commission, orderNumber: order.orderNumber });
           await addAdminProfit(order.commission, order._id, order.orderNumber);
         } else {
-          console.log(`ℹ️ لا توجد عمولة لإضافة للإدارة`);
+          logger.debug('No admin commission to add', { orderNumber: order.orderNumber });
         }
 
-        console.log('✅ تم توزيع الأرباح بنجاح:', {
-          orderId: order._id,
+        logger.business('Profits distributed successfully', {
+          orderId: order._id.toString(),
           orderNumber: order.orderNumber,
           marketerProfit: order.marketerProfit,
           adminCommission: order.commission,
           customerRole: order.customerRole
         });
       } catch (error) {
-        console.error('❌ خطأ في توزيع الأرباح:', error);
+        logger.error('Error distributing profits', error, {
+          orderId: order._id,
+          orderNumber: order.orderNumber
+        });
         // Continue with order update even if profit distribution fails
         // But return an error response to inform the user
         return NextResponse.json(
@@ -303,7 +423,14 @@ export const PUT = withAuth(async (req: NextRequest, user: any, { params }: { pa
     }
 
     await order.save();
-    console.log(`✅ تم تحديث الطلب بنجاح: ${order.orderNumber}`);
+    
+    logger.business('Order status updated', {
+      orderId: order._id.toString(),
+      orderNumber: order.orderNumber,
+      status: order.status,
+      userId: user._id
+    });
+    logger.apiResponse('PUT', `/api/orders/${params.id}`, 200);
 
     return NextResponse.json({
       success: true,
@@ -319,30 +446,23 @@ export const PUT = withAuth(async (req: NextRequest, user: any, { params }: { pa
       }
     });
   } catch (error) {
-    console.error('خطأ في تحديث الطلب:', error);
-    return NextResponse.json(
-      { error: 'حدث خطأ أثناء تحديث الطلب' },
-      { status: 500 }
-    );
+    logger.error('Error updating order', error, { orderId: params.id, userId: user._id });
+    return handleApiError(error, 'حدث خطأ أثناء تحديث الطلب');
   }
 });
 
 // GET /api/orders/[id] - Get order details
-export const GET = withAuth(async (req: NextRequest, user: any, { params }: { params: { id: string } }) => {
+export const GET = withAuth(async (req: NextRequest, user: any, ...args: unknown[]) => {
+  const routeParams = args[0] as { params: { id: string } };
+  const params = routeParams.params;
   try {
     await connectDB();
+    logger.apiRequest('GET', `/api/orders/${params.id}`, { userId: user._id, role: user.role });
     
     const order = await Order.findById(params.id)
       .populate('items.productId', 'name images marketerPrice wholesalerPrice')
       .populate('supplierId', 'name companyName')
       .populate('customerId', 'name email phone');
-    
-    console.log('تم العثور على الطلب:', {
-      orderId: params.id,
-      orderSupplierId: order?.supplierId,
-      orderCustomerId: order?.customerId,
-      orderStatus: order?.status
-    });
     
     if (!order) {
       return NextResponse.json(
@@ -355,35 +475,36 @@ export const GET = withAuth(async (req: NextRequest, user: any, { params }: { pa
     const actualSupplierId = order.supplierId._id || order.supplierId;
     const actualCustomerId = order.customerId._id || order.customerId;
     
-    console.log('فحص الصلاحية:', {
+    logger.debug('Checking order access permissions', {
       userRole: user.role,
-      userId: user._id,
-      orderSupplierId: actualSupplierId,
-      orderCustomerId: actualCustomerId,
-      supplierMatch: user.role === 'supplier' ? actualSupplierId.toString() === user._id.toString() : null,
-      customerMatch: (user.role === 'marketer' || user.role === 'wholesaler') ? actualCustomerId.toString() === user._id.toString() : null
+      userId: user._id.toString(),
+      orderSupplierId: actualSupplierId.toString(),
+      orderCustomerId: actualCustomerId.toString()
     });
     
     if (
       user.role === 'supplier' && actualSupplierId.toString() !== user._id.toString()
       || (user.role === 'marketer' || user.role === 'wholesaler') && actualCustomerId.toString() !== user._id.toString()
     ) {
-      console.log('تم الوصول إلى الوصول ممنوع للمستخدم:', user._id, 'الدور:', user.role);
+      logger.warn('Unauthorized order access attempt', {
+        userId: user._id.toString(),
+        userRole: user.role,
+        orderId: params.id
+      });
       return NextResponse.json(
         { error: 'غير مصرح لك بعرض هذا الطلب' },
         { status: 403 }
       );
     }
 
+    logger.apiResponse('GET', `/api/orders/${params.id}`, 200);
+    
     return NextResponse.json({
       success: true,
       order
     });
   } catch (error) {
-    console.error('خطأ في جلب تفاصيل الطلب:', error);
-    return NextResponse.json(
-      { error: 'حدث خطأ أثناء جلب تفاصيل الطلب' },
-      { status: 500 }
-    );
+    logger.error('Error fetching order details', error, { orderId: params.id, userId: user._id });
+    return handleApiError(error, 'حدث خطأ أثناء جلب تفاصيل الطلب');
   }
 }); 

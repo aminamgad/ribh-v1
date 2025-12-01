@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import Chat from '@/models/Chat';
-import Message from '@/models/Message';
 import connectDB from '@/lib/database';
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
 
 export async function POST(
   request: NextRequest,
@@ -30,32 +31,20 @@ export async function POST(
       return NextResponse.json({ success: false, message: 'غير مصرح' }, { status: 403 });
     }
 
-    // تحديث حالة القراءة لجميع الرسائل في المحادثة
-    await Message.updateMany(
-      {
-        chatId: chatId,
-        'senderId._id': { $ne: user._id }, // الرسائل التي ليست من المستخدم الحالي
-        isRead: false
-      },
-      {
-        $set: {
-          isRead: true,
-          readAt: new Date()
-        }
-      }
-    );
+    // استخدام method الموجود في Chat model لتحديد الرسائل كمقرؤة
+    await chat.markAsRead(user._id.toString());
 
-    // تحديث عداد الرسائل غير المقروءة في المحادثة
-    const unreadCount = await Message.countDocuments({
-      chatId: chatId,
-      'senderId._id': { $ne: user._id },
-      isRead: false
+    // حساب عداد الرسائل غير المقروءة المحدث بعد التحديث
+    const unreadCount = chat.getUnreadCount(user._id.toString());
+    
+    logger.debug('Chat messages marked as read', {
+      chatId,
+      userId: user._id.toString(),
+      unreadCount
     });
 
-    await Chat.findByIdAndUpdate(chatId, {
-      unreadCount: unreadCount
-    });
-
+    logger.apiResponse('POST', `/api/chat/${params.id}/read`, 200);
+    
     return NextResponse.json({
       success: true,
       message: 'تم تحديث حالة القراءة بنجاح',
@@ -63,10 +52,9 @@ export async function POST(
     });
 
   } catch (error) {
-    console.error('Error marking chat as read:', error);
-    return NextResponse.json(
-      { success: false, message: 'خطأ في تحديث حالة القراءة' },
-      { status: 500 }
-    );
+    logger.error('Error marking chat as read', error, {
+      chatId: params.id
+    });
+    return handleApiError(error, 'خطأ في تحديث حالة القراءة');
   }
 } 

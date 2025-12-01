@@ -4,13 +4,17 @@ import connectDB from '@/lib/database';
 import Message from '@/models/Message';
 import Product from '@/models/Product'; // Import Product model for population
 import User from '@/models/User'; // Import User model for population
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
 
 // PUT /api/admin/messages/[id]/reject - Reject a message
-async function rejectMessage(req: NextRequest, user: any, { params }: { params: { id: string } }) {
+async function rejectMessage(req: NextRequest, user: any, ...args: unknown[]) {
   try {
     await connectDB();
     
-    const messageId = params.id;
+    // Extract params from args - Next.js passes it as third parameter
+    const routeParams = args[0] as { params: { id: string } };
+    const messageId = routeParams.params.id;
     const body = await req.json();
     const { adminNotes } = body;
     
@@ -38,17 +42,18 @@ async function rejectMessage(req: NextRequest, user: any, { params }: { params: 
      .populate('productId', 'name images')
      .populate('approvedBy', 'name');
     
+    logger.business('Message rejected by admin', { messageId, adminId: user._id });
+    logger.apiResponse('PUT', `/api/admin/messages/${messageId}/reject`, 200);
+    
     return NextResponse.json({
       success: true,
       message: 'تم رفض الرسالة بنجاح',
       data: updatedMessage
     });
   } catch (error) {
-    console.error('Error rejecting message:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء رفض الرسالة' },
-      { status: 500 }
-    );
+    const routeParams = args[0] as { params: { id: string } };
+    logger.error('Error rejecting message', error, { messageId: routeParams?.params?.id, adminId: user._id });
+    return handleApiError(error, 'حدث خطأ أثناء رفض الرسالة');
   }
 }
 

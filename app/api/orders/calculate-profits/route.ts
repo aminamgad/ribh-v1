@@ -1,39 +1,59 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth';
 import connectDB from '@/lib/database';
-import SystemSettings from '@/models/SystemSettings';
+import { settingsManager } from '@/lib/settings-manager';
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
 
 // POST /api/orders/calculate-profits - Calculate profits for an order
 export const POST = withAuth(async (req: NextRequest, user: any) => {
   try {
     await connectDB();
-    const body = await req.json();
-    const { orderTotal, customerRole } = body;
+    logger.apiRequest('POST', '/api/orders/calculate-profits');
     
-    console.log('🧮 حساب الأرباح للطلب:', {
+    const body = await req.json();
+    const { orderTotal, customerRole, items } = body; // items should contain unitPrice and quantity
+    
+    logger.debug('Calculating order profits', {
       orderTotal,
-      customerRole
+      customerRole,
+      itemsCount: items?.length
     });
     
-    // Get system settings for commission rates
-    const settings = await SystemSettings.findOne();
-    const commissionRates = settings?.commissionRates || [
-      { minPrice: 0, maxPrice: 1000, rate: 10 },
-      { minPrice: 1001, maxPrice: 5000, rate: 8 },
-      { minPrice: 5001, maxPrice: 10000, rate: 6 },
-      { minPrice: 10001, maxPrice: 999999, rate: 5 }
-    ];
-    
-    // Calculate commission based on order total
-    let commissionRate = 5; // Default rate
-    for (const rate of commissionRates) {
-      if (orderTotal >= rate.minPrice && orderTotal <= rate.maxPrice) {
-        commissionRate = rate.rate;
-        break;
+    // Calculate commission based on product prices (new system)
+    let commission = 0;
+    let commissionRate = 0;
+    if (items && Array.isArray(items) && items.length > 0) {
+      // Use new system: calculate profit based on individual product prices
+      commission = await settingsManager.calculateAdminProfitForOrder(
+        items.map((item: any) => ({
+          unitPrice: item.unitPrice || item.price || 0,
+          quantity: item.quantity || 1
+        }))
+      );
+      // Calculate average commission rate for display
+      if (orderTotal > 0) {
+        commissionRate = (commission / orderTotal) * 100;
       }
+    } else {
+      // Fallback to old system if items not provided
+      const settings = await (await import('@/models/SystemSettings')).default.findOne();
+      const commissionRates = settings?.commissionRates || [
+        { minPrice: 0, maxPrice: 1000, rate: 10 },
+        { minPrice: 1001, maxPrice: 5000, rate: 8 },
+        { minPrice: 5001, maxPrice: 10000, rate: 6 },
+        { minPrice: 10001, maxPrice: 999999, rate: 5 }
+      ];
+      
+      commissionRate = 5;
+      for (const rate of commissionRates) {
+        if (orderTotal >= rate.minPrice && orderTotal <= rate.maxPrice) {
+          commissionRate = rate.rate;
+          break;
+        }
+      }
+      commission = (orderTotal * commissionRate) / 100;
     }
-    
-    const commission = (orderTotal * commissionRate) / 100;
     
     // Calculate profits for each party
     let marketerProfit = 0;
@@ -60,7 +80,8 @@ export const POST = withAuth(async (req: NextRequest, user: any) => {
       customerRole
     };
     
-    console.log('💰 تفصيل الأرباح:', profitBreakdown);
+    logger.debug('Profit breakdown calculated', profitBreakdown);
+    logger.apiResponse('POST', '/api/orders/calculate-profits', 200);
     
     return NextResponse.json({
       success: true,
@@ -68,14 +89,7 @@ export const POST = withAuth(async (req: NextRequest, user: any) => {
     });
     
   } catch (error) {
-    console.error('❌ خطأ في حساب الأرباح:', error);
-    return NextResponse.json(
-      { 
-        success: false,
-        error: 'حدث خطأ في حساب الأرباح',
-        details: error instanceof Error ? error.message : 'خطأ غير معروف'
-      },
-      { status: 500 }
-    );
+    logger.error('Error calculating order profits', error);
+    return handleApiError(error, 'حدث خطأ في حساب الأرباح');
   }
 }); 

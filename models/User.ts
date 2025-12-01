@@ -185,10 +185,19 @@ const userSchema = new Schema<UserDocument>({
 });
 
 // Indexes
+// Single field indexes
+userSchema.index({ email: 1 }, { unique: true }); // Already unique, but explicit index
 userSchema.index({ phone: 1 });
 userSchema.index({ role: 1 });
 userSchema.index({ isActive: 1 });
 userSchema.index({ isVerified: 1 });
+userSchema.index({ createdAt: -1 });
+userSchema.index({ lastLogin: -1 });
+
+// Compound indexes for common queries
+userSchema.index({ role: 1, isActive: 1 }); // For filtering users by role and status
+userSchema.index({ role: 1, isVerified: 1 }); // For supplier/wholesaler verification
+userSchema.index({ isActive: 1, isVerified: 1 }); // For active verified users
 
 // Virtual for full name
 userSchema.virtual('fullName').get(function() {

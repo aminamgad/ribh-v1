@@ -20,6 +20,7 @@ export default function DashboardHeader() {
   const { settings } = useSettings();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Debug: طباعة قيمة العداد
   console.log('=== DASHBOARD HEADER DEBUG ===');
@@ -35,6 +36,18 @@ export default function DashboardHeader() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const query = searchQuery.trim();
+    if (query) {
+      // Always navigate to products page with search query
+      router.push(`/dashboard/products?q=${encodeURIComponent(query)}`);
+    } else {
+      // If empty, just go to products page
+      router.push('/dashboard/products');
+    }
+  };
 
   const roleLabels = {
     admin: 'الإدارة',
@@ -52,7 +65,7 @@ export default function DashboardHeader() {
 
   if (!mounted) {
     return (
-      <header className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-b border-gray-200 dark:border-slate-700 sticky top-0 z-40 shadow-xl dark:shadow-slate-900/30">
+      <header className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-lg border-b border-gray-200/50 dark:border-slate-700/50 fixed top-0 left-0 right-0 z-50 shadow-xl dark:shadow-slate-900/30">
         <div className="px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="h-8 w-32 bg-gray-200 dark:bg-slate-700 rounded animate-pulse" />
@@ -70,7 +83,7 @@ export default function DashboardHeader() {
   }
 
   return (
-    <header className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border-b border-gray-200/50 dark:border-slate-700/50 sticky top-0 z-40 shadow-xl dark:shadow-slate-900/30">
+    <header className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-lg border-b border-gray-200/50 dark:border-slate-700/50 fixed top-0 left-0 right-0 z-50 shadow-xl dark:shadow-slate-900/30">
       <div className="px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
@@ -89,19 +102,20 @@ export default function DashboardHeader() {
             </Link>
           </div>
 
-          {/* Search Bar - Only for Admin */}
-          {user?.role === 'admin' && (
-            <div className="hidden md:flex flex-1 max-w-md mx-8">
-              <div className="relative w-full">
-                <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-500 dark:text-slate-300" />
-                <input
-                  type="text"
-                  placeholder="البحث في المنصة..."
-                  className="w-full pl-4 pr-10 py-2 bg-gray-100 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#FF9800] focus:border-transparent transition-all duration-300"
-                />
-              </div>
-            </div>
-          )}
+          {/* Search Bar - Always for Products Search */}
+          <div className="hidden md:flex flex-1 max-w-md mx-8">
+            <form onSubmit={handleSearch} className="relative w-full">
+              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-500 dark:text-slate-300 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="البحث عن المنتجات..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-4 pr-10 py-2 bg-gray-100 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#FF9800] focus:border-transparent transition-all duration-300"
+                title="البحث عن المنتجات"
+              />
+            </form>
+          </div>
 
           {/* Right side actions */}
           <div className="flex items-center space-x-2 sm:space-x-3 space-x-reverse">

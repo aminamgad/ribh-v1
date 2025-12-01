@@ -16,6 +16,7 @@ export interface TransactionDocument extends Document {
 export interface WalletDocument extends Document {
   userId: mongoose.Types.ObjectId;
   balance: number;
+  pendingWithdrawals: number; // Amount reserved for pending withdrawals
   totalEarnings: number;
   totalWithdrawals: number;
   isActive: boolean;
@@ -93,6 +94,12 @@ const walletSchema = new Schema<WalletDocument>({
     default: 0,
     min: [0, 'إجمالي الأرباح لا يمكن أن يكون سالب']
   },
+  pendingWithdrawals: {
+    type: Number,
+    required: true,
+    default: 0,
+    min: [0, 'السحوبات المعلقة لا يمكن أن تكون سالبة']
+  },
   totalWithdrawals: {
     type: Number,
     required: true,
@@ -125,14 +132,20 @@ transactionSchema.index({ status: 1 });
 transactionSchema.index({ createdAt: -1 });
 transactionSchema.index({ reference: 1 });
 
-// Virtual for available balance
+// Compound indexes for common queries
+transactionSchema.index({ walletId: 1, type: 1, createdAt: -1 }); // For wallet transactions by type
+transactionSchema.index({ walletId: 1, status: 1, createdAt: -1 }); // For wallet transactions by status
+transactionSchema.index({ walletId: 1, createdAt: -1 }); // For all wallet transactions sorted
+
+// Virtual for available balance (balance minus pending withdrawals)
 walletSchema.virtual('availableBalance').get(function() {
-  return Math.max(0, this.balance);
+  return Math.max(0, (this.balance || 0) - (this.pendingWithdrawals || 0));
 });
 
-// Virtual for can withdraw
+// Virtual for can withdraw (check available balance, not total balance)
 walletSchema.virtual('canWithdraw').get(function() {
-  return this.balance >= this.minimumWithdrawal;
+  const availableBalance = Math.max(0, (this.balance || 0) - (this.pendingWithdrawals || 0));
+  return availableBalance >= (this.minimumWithdrawal || 100);
 });
 
 // Method to add transaction
@@ -169,9 +182,10 @@ walletSchema.methods.addTransaction = async function(
   return transaction;
 };
 
-// Method to check if sufficient balance
+// Method to check if sufficient balance (considering pending withdrawals)
 walletSchema.methods.hasSufficientBalance = function(amount: number): boolean {
-  return this.balance >= amount;
+  const availableBalance = Math.max(0, (this.balance || 0) - (this.pendingWithdrawals || 0));
+  return availableBalance >= amount;
 };
 
 // Static method to find wallet by user

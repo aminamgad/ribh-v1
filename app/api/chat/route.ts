@@ -4,8 +4,10 @@ import { withAuth } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import Chat, { ChatStatus } from '@/models/Chat';
 import User from '@/models/User';
-import { sendNotificationToUser } from '@/lib/socket';
 import Message from '@/models/Message';
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
+import { sendNotificationToUser, isUserOnline } from '@/lib/notifications';
 
 // Validation schema
 const createChatSchema = z.object({
@@ -56,9 +58,18 @@ export const GET = withAuth(async (req: NextRequest, user: any) => {
 
     // Add unread count for each chat
     const chatsWithUnread = chats.map((chat: any) => {
-      const unreadCount = chat.messages?.filter(
-        (message: any) => message.senderId.toString() !== user._id.toString() && !message.isRead
-      ).length || 0;
+      // حساب الرسائل غير المقروءة بدقة
+      const userIdStr = user._id.toString();
+      const unreadCount = chat.messages?.filter((message: any) => {
+        // التعامل مع senderId كـ ObjectId أو كـ object مأهول
+        const senderId = message.senderId?._id || message.senderId;
+        const senderIdStr = senderId?.toString() || senderId;
+        
+        // الرسالة غير مقروءة إذا كانت:
+        // 1. ليست من المستخدم الحالي
+        // 2. لم يتم قراءتها بعد
+        return senderIdStr && senderIdStr !== userIdStr && !message.isRead;
+      }).length || 0;
       
       return {
         ...chat,
@@ -76,12 +87,11 @@ export const GET = withAuth(async (req: NextRequest, user: any) => {
         pages: Math.ceil(total / limit)
       }
     });
+    
+    logger.apiResponse('GET', '/api/chat', 200);
   } catch (error) {
-    console.error('Error fetching chats:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء جلب المحادثات', error: error instanceof Error ? error.message : String(error) },
-      { status: 500 }
-    );
+    logger.error('Error fetching chats', error, { userId: user?._id });
+    return handleApiError(error, 'حدث خطأ أثناء جلب المحادثات');
   }
 });
 
@@ -169,13 +179,51 @@ export const POST = withAuth(async (req: NextRequest, user: any) => {
     await (chat as any).populate('participants', 'name email role companyName');
 
     // Send notification to recipient
-    sendNotificationToUser(recipientId, {
-      title: 'رسالة جديدة',
-      message: `رسالة جديدة من ${user.name}: ${validatedData.subject}`,
-      type: 'info',
-      actionUrl: `/dashboard/chat?id=${chat._id}`,
-      metadata: { chatId: chat._id, senderId: user._id }
-    });
+    try {
+      // Check if recipient is online
+      const recipientIsOnline = await isUserOnline(recipientId);
+      
+      // Prepare notification message
+      const messagePreview = validatedData.message.length > 50 
+        ? validatedData.message.substring(0, 50) + '...'
+        : validatedData.message;
+      
+      await sendNotificationToUser(
+        recipientId,
+        {
+          title: 'محادثة جديدة',
+          message: `${user.name || 'مستخدم'}: ${messagePreview}`,
+          type: 'info',
+          actionUrl: `/dashboard/chat?id=${chat._id}`,
+          metadata: {
+            chatId: chat._id.toString(),
+            senderId: user._id.toString(),
+            senderName: user.name,
+            chatSubject: validatedData.subject,
+            category: validatedData.category
+          }
+        },
+        {
+          sendEmail: !recipientIsOnline, // Send email if user is offline
+          sendSocket: true
+        }
+      );
+
+      logger.debug('Notification sent for new chat', {
+        chatId: chat._id.toString(),
+        recipientId,
+        senderId: user._id.toString(),
+        recipientIsOnline
+      });
+    } catch (notificationError) {
+      // Log error but don't fail chat creation
+      logger.warn('Error sending notification for new chat', {
+        error: notificationError,
+        chatId: chat._id.toString(),
+        recipientId,
+        senderId: user._id.toString()
+      });
+    }
 
     return NextResponse.json({
       success: true,
@@ -194,17 +242,8 @@ export const POST = withAuth(async (req: NextRequest, user: any) => {
       }
     }, { status: 201 });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { success: false, message: error.errors[0].message, errors: error.errors },
-        { status: 400 }
-      );
-    }
-    
-    console.error('Error creating chat:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء إنشاء المحادثة', error: error instanceof Error ? error.message : String(error) },
-      { status: 500 }
-    );
+    const { handleApiError, safeLogError } = await import('@/lib/error-handler');
+    safeLogError(error, 'Create Chat', { userId: user._id });
+    return handleApiError(error, 'حدث خطأ أثناء إنشاء المحادثة', { userId: user._id });
   }
 }); 

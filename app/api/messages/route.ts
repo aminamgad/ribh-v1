@@ -3,6 +3,8 @@ import { withAuth, withRole } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import Message from '@/models/Message';
 import { z } from 'zod';
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
 
 const messageSchema = z.object({
   receiverId: z.string().min(1, 'يجب اختيار المستلم'),
@@ -43,13 +45,11 @@ async function sendMessage(req: NextRequest, user: any) {
       }
     }
     
-    console.log('📝 Creating message with data:', {
-      senderId: user._id,
+    logger.apiRequest('POST', '/api/messages', { userId: user._id, role: user.role });
+    logger.debug('Creating message', {
+      senderId: user._id.toString(),
       receiverId: validatedData.receiverId,
-      productId: validatedData.productId,
-      subject: validatedData.subject,
-      content: validatedData.content,
-      isApproved: null
+      hasProductId: !!validatedData.productId
     });
     
     // Create message - Set to pending for admin review
@@ -62,15 +62,10 @@ async function sendMessage(req: NextRequest, user: any) {
       isApproved: null // Set to null for admin review
     });
     
-    console.log('✅ Message created successfully:', message._id);
-    console.log('✅ Message details:', {
-      id: message._id,
-      senderId: message.senderId,
-      receiverId: message.receiverId,
-      subject: message.subject,
-      content: message.content,
-      isApproved: message.isApproved,
-      createdAt: message.createdAt
+    logger.business('Message created', {
+      messageId: message._id.toString(),
+      senderId: user._id.toString(),
+      receiverId: validatedData.receiverId
     });
     
     await message.populate('senderId', 'name role');
@@ -92,19 +87,19 @@ async function sendMessage(req: NextRequest, user: any) {
         createdAt: message.createdAt
       }
     }, { status: 201 });
+    
+    logger.apiResponse('POST', '/api/messages', 201);
   } catch (error) {
     if (error instanceof z.ZodError) {
+      logger.warn('Message creation validation failed', { errors: error.errors, userId: user._id });
       return NextResponse.json(
         { success: false, message: error.errors[0].message },
         { status: 400 }
       );
     }
     
-    console.error('Error sending message:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء إرسال الرسالة' },
-      { status: 500 }
-    );
+    logger.error('Error sending message', error, { userId: user._id });
+    return handleApiError(error, 'حدث خطأ أثناء إرسال الرسالة');
   }
 }
 

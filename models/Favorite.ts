@@ -29,6 +29,9 @@ const favoriteSchema = new Schema<Favorite>({
 favoriteSchema.index({ userId: 1, productId: 1 }, { unique: true });
 favoriteSchema.index({ userId: 1, addedAt: -1 });
 
+// Compound index for user favorites query (already covered by existing indexes)
+// The existing indexes already cover the common query pattern
+
 // Static method to get user favorites
 favoriteSchema.statics.getUserFavorites = function(userId: string) {
   return this.find({ userId })

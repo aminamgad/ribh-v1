@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth';
 import { v2 as cloudinary } from 'cloudinary';
+import { uploadRateLimit } from '@/lib/rate-limiter';
+import { handleApiError, safeLogError } from '@/lib/error-handler';
+import { validateFile, checkFileSecurity, sanitizeFileName } from '@/lib/file-validation';
+import { logger } from '@/lib/logger';
 
 // Configure Cloudinary with fallback for missing env vars
 const cloudinaryConfig = {
@@ -19,24 +23,22 @@ const isCloudinaryConfigured = cloudinaryConfig.cloud_name &&
 
 if (isCloudinaryConfigured) {
   cloudinary.config(cloudinaryConfig);
-  console.log('Cloudinary configured successfully with:', {
+  logger.info('Cloudinary configured successfully', {
     cloud_name: cloudinaryConfig.cloud_name,
-    api_key: cloudinaryConfig.api_key ? '***' + cloudinaryConfig.api_key.slice(-4) : 'undefined',
-    api_secret: cloudinaryConfig.api_secret ? '***' + cloudinaryConfig.api_secret.slice(-4) : 'undefined'
+    api_key: cloudinaryConfig.api_key ? '***' + cloudinaryConfig.api_key.slice(-4) : 'undefined'
   });
 } else {
-  console.warn('Cloudinary not configured. Using fallback upload method.');
-  console.log('Cloudinary config check:', {
+  logger.warn('Cloudinary not configured. Using fallback upload method.', {
     cloud_name: cloudinaryConfig.cloud_name,
-    api_key: cloudinaryConfig.api_key ? '***' + cloudinaryConfig.api_key.slice(-4) : 'undefined',
-    api_secret: cloudinaryConfig.api_secret ? '***' + cloudinaryConfig.api_secret.slice(-4) : 'undefined'
+    has_api_key: !!cloudinaryConfig.api_key,
+    has_api_secret: !!cloudinaryConfig.api_secret
   });
 }
 
 // POST /api/upload - Upload file to Cloudinary
 async function uploadFile(req: NextRequest, user: any) {
   try {
-    console.log(`Upload request from user: ${user.email} (${user.role})`);
+    logger.apiRequest('POST', '/api/upload', { userId: user._id, userEmail: user.email, role: user.role });
     
     // Check request method
     if (req.method !== 'POST') {
@@ -72,46 +74,53 @@ async function uploadFile(req: NextRequest, user: any) {
         );
       }
 
-      // تحديد نوع الملف
+      // Determine file category
       const isImage = file.type.startsWith('image/');
       const isVideo = file.type.startsWith('video/');
-      const isAudio = file.type.startsWith('audio/');
       const isDocument = file.type.includes('pdf') || file.type.includes('document') || file.type.includes('text');
       const isArchive = file.type.includes('zip') || file.type.includes('rar') || file.type.includes('7z');
-
-      // التحقق من نوع الملف المدعوم
-      const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
-      const allowedVideoTypes = ['video/mp4', 'video/avi', 'video/mov', 'video/wmv', 'video/flv'];
-      const allowedAudioTypes = ['audio/mp3', 'audio/wav', 'audio/ogg', 'audio/m4a'];
-      const allowedDocumentTypes = ['application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-      const allowedArchiveTypes = ['application/zip', 'application/x-rar-compressed', 'application/x-7z-compressed'];
-
-      let allowedTypes: string[] = [];
-      if (isImage) allowedTypes = allowedImageTypes;
-      else if (isVideo) allowedTypes = allowedVideoTypes;
-      else if (isAudio) allowedTypes = allowedAudioTypes;
-      else if (isDocument) allowedTypes = allowedDocumentTypes;
-      else if (isArchive) allowedTypes = allowedArchiveTypes;
-      else allowedTypes = [...allowedImageTypes, ...allowedVideoTypes, ...allowedAudioTypes, ...allowedDocumentTypes, ...allowedArchiveTypes];
-
-      if (!allowedTypes.includes(file.type)) {
+      
+      const category = isImage ? 'images' : isVideo ? 'videos' : isDocument ? 'documents' : isArchive ? 'archives' : 'all';
+      
+      // Comprehensive file validation
+      const validation = await validateFile(file, {
+        category: category as 'images' | 'videos' | 'documents' | 'archives' | 'all',
+        requireMagicNumber: true
+      });
+      
+      if (!validation.valid) {
         return NextResponse.json(
-          { success: false, message: 'نوع الملف غير مدعوم. يرجى اختيار ملف صالح' },
+          { success: false, message: validation.error || 'الملف غير صالح' },
           { status: 400 }
         );
       }
-
-      // التحقق من حجم الملف (حد أقصى 100 ميجابايت للفيديوهات، 10 ميجابايت للصور)
-      const maxSize = isVideo ? 100 * 1024 * 1024 : 10 * 1024 * 1024; // 100MB for videos, 10MB for images
-      if (file.size > maxSize) {
-        const maxSizeMB = isVideo ? 100 : 10;
-        return NextResponse.json(
-          { success: false, message: `حجم الملف كبير جداً. الحد الأقصى ${maxSizeMB} ميجابايت` },
-          { status: 400 }
+      
+      // Security check
+      const securityCheck = await checkFileSecurity(file);
+      if (!securityCheck.safe && securityCheck.warnings.length > 0) {
+        // Log warning but allow upload (in production, you might want to block)
+        safeLogError(
+          new Error('Security warnings for uploaded file'),
+          'File Upload Security',
+          { 
+            fileName: file.name,
+            warningsCount: securityCheck.warnings.length,
+            warnings: securityCheck.warnings.join(', '),
+            userId: user._id
+          }
         );
       }
+      
+      // Sanitize file name
+      const sanitizedName = validation.sanitizedFileName || sanitizeFileName(file.name);
 
-      console.log(`Processing file: ${file.name} (${file.size} bytes, type: ${file.type}) for user: ${user.name}`);
+      logger.debug('Processing file upload', {
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+        userId: user._id,
+        userName: user.name
+      });
 
       // If Cloudinary is not configured, return error for large files
       if (!isCloudinaryConfigured) {
@@ -127,10 +136,10 @@ async function uploadFile(req: NextRequest, user: any) {
         
         // For small files, use fallback method
         const mockUrl = isImage 
-          ? `https://via.placeholder.com/800x600/4F46E5/FFFFFF?text=${encodeURIComponent(file.name)}`
-          : `https://via.placeholder.com/400x200/6B7280/FFFFFF?text=${encodeURIComponent(file.name)}`;
+          ? `https://via.placeholder.com/800x600/4F46E5/FFFFFF?text=${encodeURIComponent(sanitizedName)}`
+          : `https://via.placeholder.com/400x200/6B7280/FFFFFF?text=${encodeURIComponent(sanitizedName)}`;
         
-        console.log(`Using fallback upload method for ${file.name}`);
+        logger.info('Using fallback upload method', { fileName: sanitizedName });
         
         return NextResponse.json({
           success: true,
@@ -149,7 +158,12 @@ async function uploadFile(req: NextRequest, user: any) {
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
 
-      console.log(`Uploading file: ${file.name} (${file.size} bytes, type: ${file.type}) for user: ${user.name}`);
+      logger.debug('Uploading file to Cloudinary', {
+        fileName: sanitizedName,
+        fileSize: file.size,
+        fileType: file.type,
+        userId: user._id
+      });
 
       // تحديد نوع المورد لـ Cloudinary
       let resourceType: 'image' | 'video' | 'raw' = 'raw';
@@ -173,10 +187,10 @@ async function uploadFile(req: NextRequest, user: any) {
             },
             (error, result) => {
               if (error) {
-                console.error('Cloudinary upload error:', error);
+                logger.error('Cloudinary upload error', error);
                 reject(error);
               } else {
-                console.log('Cloudinary upload success:', result?.public_id);
+                logger.debug('Cloudinary upload success', { publicId: result?.public_id });
                 resolve(result);
               }
             }
@@ -190,7 +204,13 @@ async function uploadFile(req: NextRequest, user: any) {
 
       const uploadResult = result as any;
       
-      console.log(`Upload successful for user ${user.email}: ${uploadResult.secure_url}`);
+      logger.info('File upload successful', {
+        userId: user._id,
+        userEmail: user.email,
+        url: uploadResult.secure_url,
+        publicId: uploadResult.public_id
+      });
+      logger.apiResponse('POST', '/api/upload', 200);
       
       return NextResponse.json({
         success: true,
@@ -205,7 +225,7 @@ async function uploadFile(req: NextRequest, user: any) {
       
     } catch (formDataError: unknown) {
       clearTimeout(timeoutId);
-      console.error('FormData parsing error:', formDataError);
+      logger.error('FormData parsing error', formDataError);
       return NextResponse.json(
         { 
           success: false, 
@@ -217,44 +237,13 @@ async function uploadFile(req: NextRequest, user: any) {
     }
     
   } catch (error: any) {
-    console.error(`Error uploading file for user ${user?.email}:`, error);
-    
-    // Handle specific Cloudinary errors
-    if (error.http_code) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          message: 'خطأ في خدمة رفع الملفات. يرجى المحاولة لاحقاً',
-          error: `Cloudinary error: ${error.message}`
-        },
-        { status: error.http_code }
-      );
-    }
-    
-    // Handle timeout errors
-    if (error.message?.includes('timeout') || error.name === 'AbortError') {
-      return NextResponse.json(
-        { 
-          success: false, 
-          message: 'انتهت مهلة رفع الملف. يرجى المحاولة مرة أخرى',
-          error: 'Upload timeout'
-        },
-        { status: 408 }
-      );
-    }
-    
-    return NextResponse.json(
-      { 
-        success: false, 
-        message: 'حدث خطأ أثناء رفع الملف. يرجى المحاولة مرة أخرى',
-        error: error.message 
-      },
-      { status: 500 }
-    );
+    safeLogError(error, 'File Upload', { userId: user?._id, email: user?.email });
+    return handleApiError(error, 'حدث خطأ أثناء رفع الملف. يرجى المحاولة مرة أخرى', { userId: user?._id });
   }
 }
 
-export const POST = withAuth(uploadFile);
+// Apply rate limiting and authentication to upload endpoint
+export const POST = uploadRateLimit(withAuth(uploadFile));
 
 // Handle CORS preflight requests
 export const OPTIONS = async (req: NextRequest) => {

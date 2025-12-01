@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 
 interface WalletData {
   balance: number;
+  pendingWithdrawals?: number;
   totalEarnings: number;
   totalWithdrawals: number;
   availableBalance: number;
@@ -123,7 +124,7 @@ export default function WalletPage() {
 
       {/* Wallet Overview */}
       {wallet && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="card">
             <div className="flex items-center">
               <div className="bg-primary-100 dark:bg-primary-900/30 p-2 rounded-lg">
@@ -134,6 +135,25 @@ export default function WalletPage() {
                 <p className="text-xl font-bold text-gray-900 dark:text-slate-100">
                   {formatCurrency(wallet.balance)}
                 </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="flex items-center">
+              <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg">
+                <DollarSign className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div className="mr-3">
+                <p className="text-sm text-gray-600 dark:text-slate-400">الرصيد المتاح</p>
+                <p className="text-xl font-bold text-gray-900 dark:text-slate-100">
+                  {formatCurrency(wallet.availableBalance)}
+                </p>
+                {(wallet.pendingWithdrawals || 0) > 0 && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    ({formatCurrency(wallet.pendingWithdrawals || 0)} قيد السحب)
+                  </p>
+                )}
               </div>
             </div>
           </div>

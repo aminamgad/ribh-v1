@@ -23,6 +23,7 @@ import { ProductVariant, ProductVariantOption } from '@/types';
 const productSchema = z.object({
   name: z.string().min(3, 'اسم المنتج يجب أن يكون 3 أحرف على الأقل'),
   description: z.string().optional(),
+  marketingText: z.string().optional(),
   categoryId: z.string().optional().nullable(),
   marketerPrice: z.number().min(0.01, 'سعر المسوق يجب أن يكون أكبر من 0'),
   wholesalerPrice: z.number().min(0.01, 'سعر الجملة يجب أن يكون أكبر من 0'),
@@ -73,6 +74,7 @@ export default function EditProductPage() {
     defaultValues: {
       name: '',
       description: '',
+      marketingText: '',
       categoryId: '',
       marketerPrice: 0,
       wholesalerPrice: 0,
@@ -107,6 +109,7 @@ export default function EditProductPage() {
         // Set form values
         setValue('name', data.product.name);
         setValue('description', data.product.description || '');
+        setValue('marketingText', data.product.marketingText || '');
         setValue('categoryId', data.product.categoryId || '');
         setValue('marketerPrice', data.product.marketerPrice);
         setValue('wholesalerPrice', data.product.wholesalerPrice);
@@ -341,6 +344,39 @@ export default function EditProductPage() {
               </div>
 
 
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                  وصف المنتج (اختياري)
+                </label>
+                <textarea
+                  {...register('description')}
+                  rows={4}
+                  className="input-field"
+                  placeholder="وصف المنتج"
+                />
+                {errors.description && (
+                  <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.description.message}</p>
+                )}
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                  النص التسويقي (اختياري)
+                </label>
+                <textarea
+                  {...register('marketingText')}
+                  rows={4}
+                  className="input-field"
+                  placeholder="أدخل نص تسويقي للمنتج يمكن نسخه واستخدامه في التسويق"
+                />
+                {errors.marketingText && (
+                  <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.marketingText.message}</p>
+                )}
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  هذا النص سيظهر في صفحة المنتج مع زر نسخ للمسوقين والتجار
+                </p>
+              </div>
 
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">

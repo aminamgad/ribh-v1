@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import Order from '@/models/Order';
+import Product from '@/models/Product';
 import Wallet from '@/models/Wallet';
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
 
 // Helper function to add profit to marketer's wallet
 async function addProfitToWallet(userId: string, profit: number, orderId: string, orderNumber: string) {
@@ -34,7 +37,7 @@ async function addProfitToWallet(userId: string, profit: number, orderId: string
     
     return wallet;
   } catch (error) {
-    console.error('Error adding profit to wallet:', error);
+    logger.error('Error adding profit to wallet', error, { userId, orderId, orderNumber });
     throw error;
   }
 }
@@ -44,7 +47,7 @@ async function addAdminProfit(profit: number, orderId: string, orderNumber: stri
   try {
     const adminUser = await (await import('@/models/User')).default.findOne({ role: 'admin' });
     if (!adminUser) {
-      console.log('No admin user found for profit distribution');
+      logger.warn('No admin user found for profit distribution', { orderId, orderNumber });
       return;
     }
 
@@ -75,13 +78,15 @@ async function addAdminProfit(profit: number, orderId: string, orderNumber: stri
     
     return wallet;
   } catch (error) {
-    console.error('Error adding admin profit to wallet:', error);
+    logger.error('Error adding admin profit to wallet', error, { orderId, orderNumber });
     throw error;
   }
 }
 
 // POST /api/orders/[id]/fulfill - Fulfill order (for suppliers)
-export const POST = withAuth(async (req: NextRequest, user: any, { params }: { params: { id: string } }) => {
+export const POST = withAuth(async (req: NextRequest, user: any, ...args: unknown[]) => {
+  const routeParams = args[0] as { params: { id: string } };
+  const params = routeParams.params;
   try {
     await connectDB();
     
@@ -184,6 +189,56 @@ export const POST = withAuth(async (req: NextRequest, user: any, { params }: { p
           cancelledBy: user._id,
           updatedAt: new Date()
         };
+        // Restore product stock if cancelling (only if order was confirmed or processing)
+        if (currentStatus === 'confirmed' || currentStatus === 'processing') {
+          for (const item of order.items) {
+            const product = await Product.findById(item.productId);
+            if (!product) continue;
+            
+            // If product has variants and variantOption is selected, restore variant stock
+            if (product.hasVariants && item.variantOption?.variantId) {
+              const variantOptionIndex = (product.variantOptions as any[] || []).findIndex(
+                (opt: any) => opt.variantId === item.variantOption.variantId && 
+                             opt.value === item.variantOption.value
+              );
+              
+              if (variantOptionIndex !== -1) {
+                const updatePath = `variantOptions.${variantOptionIndex}.stockQuantity`;
+                await Product.findByIdAndUpdate(item.productId, {
+                  $inc: { 
+                    [updatePath]: item.quantity,
+                    stockQuantity: item.quantity // Also restore main stock
+                  }
+                });
+                logger.dbQuery('UPDATE', 'products', { 
+                  productId: item.productId, 
+                  variantStock: item.quantity,
+                  variantId: item.variantOption.variantId,
+                  action: 'restore_stock_cancel'
+                });
+              } else {
+                // Fallback: restore main stock only
+                await Product.findByIdAndUpdate(item.productId, {
+                  $inc: { stockQuantity: item.quantity }
+                });
+                logger.warn('Variant option not found for stock restoration, restored main stock only', {
+                  productId: item.productId,
+                  variantId: item.variantOption.variantId
+                });
+              }
+            } else {
+              // Restore main product stock
+              await Product.findByIdAndUpdate(item.productId, {
+                $inc: { stockQuantity: item.quantity }
+              });
+              logger.dbQuery('UPDATE', 'products', { 
+                productId: item.productId, 
+                quantity: item.quantity,
+                action: 'restore_stock_cancel'
+              });
+            }
+          }
+        }
         break;
 
       case 'return':
@@ -194,6 +249,54 @@ export const POST = withAuth(async (req: NextRequest, user: any, { params }: { p
           returnedBy: user._id,
           updatedAt: new Date()
         };
+        // Restore product stock for returns
+        for (const item of order.items) {
+          const product = await Product.findById(item.productId);
+          if (!product) continue;
+          
+          // If product has variants and variantOption is selected, restore variant stock
+          if (product.hasVariants && item.variantOption?.variantId) {
+            const variantOptionIndex = (product.variantOptions as any[] || []).findIndex(
+              (opt: any) => opt.variantId === item.variantOption.variantId && 
+                           opt.value === item.variantOption.value
+            );
+            
+            if (variantOptionIndex !== -1) {
+              const updatePath = `variantOptions.${variantOptionIndex}.stockQuantity`;
+              await Product.findByIdAndUpdate(item.productId, {
+                $inc: { 
+                  [updatePath]: item.quantity,
+                  stockQuantity: item.quantity // Also restore main stock
+                }
+              });
+              logger.dbQuery('UPDATE', 'products', { 
+                productId: item.productId, 
+                variantStock: item.quantity,
+                variantId: item.variantOption.variantId,
+                action: 'restore_stock_return'
+              });
+            } else {
+              // Fallback: restore main stock only
+              await Product.findByIdAndUpdate(item.productId, {
+                $inc: { stockQuantity: item.quantity }
+              });
+              logger.warn('Variant option not found for stock restoration, restored main stock only', {
+                productId: item.productId,
+                variantId: item.variantOption.variantId
+              });
+            }
+          } else {
+            // Restore main product stock
+            await Product.findByIdAndUpdate(item.productId, {
+              $inc: { stockQuantity: item.quantity }
+            });
+            logger.dbQuery('UPDATE', 'products', { 
+              productId: item.productId, 
+              quantity: item.quantity,
+              action: 'restore_stock_return'
+            });
+          }
+        }
         break;
     }
 
@@ -227,17 +330,25 @@ export const POST = withAuth(async (req: NextRequest, user: any, { params }: { p
           await addAdminProfit(order.commission, order._id, order.orderNumber);
         }
 
-        console.log('✅ Profits distributed successfully:', {
-          orderId: order._id,
+        logger.business('Profits distributed successfully', {
+          orderId: order._id.toString(),
           marketerProfit: order.marketerProfit,
           adminCommission: order.commission,
           customerRole: order.customerRole
         });
       } catch (error) {
-        console.error('❌ Error distributing profits:', error);
+        logger.error('Error distributing profits', error, { orderId: order._id });
         // Continue with order update even if profit distribution fails
       }
     }
+
+    logger.business('Order fulfilled', {
+      orderId: params.id,
+      action,
+      newStatus,
+      userId: user._id.toString()
+    });
+    logger.apiResponse('POST', `/api/orders/${params.id}/fulfill`, 200);
 
     const actionMessages = {
       'confirm': 'تم تأكيد الطلب بنجاح',
@@ -262,10 +373,7 @@ export const POST = withAuth(async (req: NextRequest, user: any, { params }: { p
       }
     });
   } catch (error) {
-    console.error('Error fulfilling order:', error);
-    return NextResponse.json(
-      { error: 'حدث خطأ أثناء تنفيذ الطلب' },
-      { status: 500 }
-    );
+    logger.error('Error fulfilling order', error, { orderId: params.id, userId: user._id });
+    return handleApiError(error, 'حدث خطأ أثناء تنفيذ الطلب');
   }
 }); 

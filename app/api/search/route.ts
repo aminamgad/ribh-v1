@@ -3,6 +3,8 @@ import { withAuth } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import Product from '@/models/Product';
 import Category from '@/models/Category';
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
 
 // GET /api/search - Advanced product search
 async function searchProducts(req: NextRequest, user: any) {
@@ -116,9 +118,8 @@ async function searchProducts(req: NextRequest, user: any) {
     
     const skip = (page - 1) * limit;
     
-    console.log('🔍 Search API - Final query:', JSON.stringify(searchQuery, null, 2));
-    console.log('👤 Search API - User role:', user.role);
-    console.log('👤 Search API - User ID:', user._id);
+    logger.apiRequest('GET', '/api/search', { userId: user._id, role: user.role });
+    logger.debug('Search query', { query, categoryId, hasPriceRange: !!(minPrice || maxPrice) });
     
     // Execute search
     const [products, total] = await Promise.all([
@@ -188,12 +189,13 @@ async function searchProducts(req: NextRequest, user: any) {
         }))
       }
     });
+    
+    logger.apiResponse('GET', '/api/search', 200);
   } catch (error) {
-    console.error('Error searching products:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء البحث' },
-      { status: 500 }
-    );
+    const { searchParams } = new URL(req.url);
+    const query = searchParams.get('q') || '';
+    logger.error('Error searching products', error, { userId: user._id, query });
+    return handleApiError(error, 'حدث خطأ أثناء البحث');
   }
 }
 

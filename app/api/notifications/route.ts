@@ -3,6 +3,8 @@ import { withAuth, withRole } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import Notification from '@/models/Notification';
 import { z } from 'zod';
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
 
 const notificationSchema = z.object({
   userId: z.string().min(1, 'يجب تحديد المستخدم'),
@@ -57,12 +59,11 @@ async function getNotifications(req: NextRequest, user: any) {
         pages: Math.ceil(total / limit)
       }
     });
+    
+    logger.apiResponse('GET', '/api/notifications', 200);
   } catch (error) {
-    console.error('Error fetching notifications:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء جلب الإشعارات' },
-      { status: 500 }
-    );
+    logger.error('Error fetching notifications', error, { userId: user._id });
+    return handleApiError(error, 'حدث خطأ أثناء جلب الإشعارات');
   }
 }
 
@@ -87,19 +88,19 @@ async function createNotification(req: NextRequest, user: any) {
       message: 'تم إنشاء الإشعار بنجاح',
       notification
     }, { status: 201 });
+    
+    logger.apiResponse('POST', '/api/notifications', 201);
   } catch (error) {
     if (error instanceof z.ZodError) {
+      logger.warn('Notification creation validation failed', { errors: error.errors, userId: user._id });
       return NextResponse.json(
         { success: false, message: error.errors[0].message },
         { status: 400 }
       );
     }
     
-    console.error('Error creating notification:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء إنشاء الإشعار' },
-      { status: 500 }
-    );
+    logger.error('Error creating notification', error, { userId: user._id });
+    return handleApiError(error, 'حدث خطأ أثناء إنشاء الإشعار');
   }
 }
 
@@ -125,12 +126,11 @@ async function markAsRead(req: NextRequest, user: any) {
       success: true,
       message: 'تم تحديث الإشعارات بنجاح'
     });
+    
+    logger.apiResponse('PUT', '/api/notifications', 200);
   } catch (error) {
-    console.error('Error marking notifications as read:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء تحديث الإشعارات' },
-      { status: 500 }
-    );
+    logger.error('Error marking notifications as read', error, { userId: user._id });
+    return handleApiError(error, 'حدث خطأ أثناء تحديث الإشعارات');
   }
 }
 

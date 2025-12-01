@@ -3,13 +3,15 @@ import connectDB from '@/lib/database';
 import User from '@/models/User';
 import { generateToken } from '@/lib/auth';
 import { z } from 'zod';
+import { authRateLimit } from '@/lib/rate-limiter';
+import { handleApiError, safeLogError } from '@/lib/error-handler';
 
 const loginSchema = z.object({
   email: z.string().email('البريد الإلكتروني غير صحيح'),
   password: z.string().min(1, 'كلمة المرور مطلوبة'),
 });
 
-export async function POST(req: NextRequest) {
+async function loginHandler(req: NextRequest) {
   try {
     await connectDB();
 
@@ -101,18 +103,10 @@ export async function POST(req: NextRequest) {
     return response;
 
   } catch (error) {
-    console.error('Login error:', error);
-    
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { success: false, error: error.errors[0].message },
-        { status: 400 }
-      );
-    }
-
-    return NextResponse.json(
-      { success: false, error: 'حدث خطأ أثناء تسجيل الدخول' },
-      { status: 500 }
-    );
+    safeLogError(error, 'Login', { email: (await req.json().catch(() => ({}))).email });
+    return handleApiError(error, 'حدث خطأ أثناء تسجيل الدخول');
   }
-} 
+}
+
+// Apply rate limiting to login endpoint
+export const POST = authRateLimit(loginHandler); 

@@ -12,6 +12,8 @@ import { Badge } from '@/components/ui/badge';
 
 interface WalletData {
   balance: number;
+  pendingWithdrawals?: number;
+  availableBalance?: number;
   totalEarnings: number;
   totalWithdrawals: number;
   canWithdraw: boolean;
@@ -207,6 +209,23 @@ export default function WithdrawalsPage() {
                   <span className="text-gray-600 dark:text-gray-400">الرصيد الحالي:</span>
                   <span className="font-bold text-lg">{walletData.balance}₪</span>
                 </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">الرصيد المتاح:</span>
+                  <span className="font-bold text-lg text-blue-600 dark:text-blue-400">
+                    {(walletData.availableBalance || walletData.balance)}₪
+                  </span>
+                  {(walletData.pendingWithdrawals || 0) > 0 && (
+                    <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">
+                      ({(walletData.pendingWithdrawals || 0)}₪ قيد السحب)
+                    </span>
+                  )}
+                </div>
+                {(walletData.pendingWithdrawals || 0) > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">السحوبات المعلقة:</span>
+                    <span className="text-orange-600 dark:text-orange-400">{walletData.pendingWithdrawals}₪</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-gray-600 dark:text-gray-400">إجمالي الأرباح:</span>
                   <span>{walletData.totalEarnings}₪</span>

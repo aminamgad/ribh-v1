@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { settingsManager } from '@/lib/settings-manager';
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
 
 // GET /api/settings - Get public system settings
 export const GET = async (req: NextRequest) => {
   try {
-    console.log('🔧 جلب إعدادات النظام العامة');
+    logger.apiRequest('GET', '/api/settings');
     
     const settings = await settingsManager.getSettings();
     
@@ -85,7 +87,7 @@ export const GET = async (req: NextRequest) => {
       supportWhatsApp: settings.contactPhone
     };
     
-    console.log('✅ تم جلب إعدادات النظام العامة بنجاح');
+    logger.apiResponse('GET', '/api/settings', 200);
     
     return NextResponse.json({
       success: true,
@@ -93,15 +95,7 @@ export const GET = async (req: NextRequest) => {
     });
     
   } catch (error) {
-    console.error('❌ خطأ في جلب إعدادات النظام:', error);
-    
-    return NextResponse.json(
-      { 
-        success: false,
-        message: 'حدث خطأ في جلب إعدادات النظام',
-        details: error instanceof Error ? error.message : 'خطأ غير معروف' 
-      },
-      { status: 500 }
-    );
+    logger.error('Error fetching system settings', error);
+    return handleApiError(error, 'حدث خطأ في جلب إعدادات النظام');
   }
 }; 

@@ -4,6 +4,8 @@ import { withAuth } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import StoreIntegration, { IntegrationStatus } from '@/models/StoreIntegration';
 import { UserRole } from '@/types';
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
 
 // Validation schema for updates
 const updateIntegrationSchema = z.object({
@@ -30,7 +32,9 @@ interface RouteParams {
 }
 
 // GET /api/integrations/[id] - Get specific integration
-export const GET = withAuth(async (req: NextRequest, { user, params }: RouteParams & { user: any }) => {
+export const GET = withAuth(async (req: NextRequest, user: any, ...args: unknown[]) => {
+  const routeParams = args[0] as RouteParams;
+  const params = 'then' in routeParams.params ? await routeParams.params : routeParams.params;
   try {
     if (user.role !== 'marketer' && user.role !== 'wholesaler' && user.role !== 'admin') {
       return NextResponse.json(
@@ -51,7 +55,7 @@ export const GET = withAuth(async (req: NextRequest, { user, params }: RoutePara
     }
 
     // Check ownership (admin can view all)
-    if (user.role !== 'admin' && integration.userId.toString() !== user.id) {
+    if (user.role !== 'admin' && integration.userId.toString() !== user._id.toString()) {
       return NextResponse.json(
         { error: 'غير مصرح لك بالوصول إلى هذا التكامل' },
         { status: 403 }
@@ -72,7 +76,7 @@ export const GET = withAuth(async (req: NextRequest, { user, params }: RoutePara
       createdAt: integration.createdAt,
       updatedAt: integration.updatedAt,
       // Include sensitive data only for owner
-      ...(integration.userId.toString() === user.id && {
+      ...(integration.userId.toString() === user._id.toString() && {
         apiKey: integration.apiKey.slice(0, 10) + '...',
         webhookUrl: integration.webhookUrl
       })
@@ -82,17 +86,18 @@ export const GET = withAuth(async (req: NextRequest, { user, params }: RoutePara
       success: true,
       integration: safeIntegration
     });
+    
+    logger.apiResponse('GET', `/api/integrations/${params.id}`, 200);
   } catch (error) {
-    console.error('Error fetching integration:', error);
-    return NextResponse.json(
-      { error: 'حدث خطأ في جلب التكامل' },
-      { status: 500 }
-    );
+    logger.error('Error fetching integration', error, { integrationId: params.id, userId: user._id });
+    return handleApiError(error, 'حدث خطأ في جلب التكامل');
   }
 });
 
 // PUT /api/integrations/[id] - Update integration
-export const PUT = withAuth(async (req: NextRequest, { user, params }: RouteParams & { user: any }) => {
+export const PUT = withAuth(async (req: NextRequest, user: any, ...args: unknown[]) => {
+  const routeParams = args[0] as RouteParams;
+  const params = 'then' in routeParams.params ? await routeParams.params : routeParams.params;
   try {
     if (user.role !== 'marketer' && user.role !== 'wholesaler') {
       return NextResponse.json(
@@ -116,7 +121,7 @@ export const PUT = withAuth(async (req: NextRequest, { user, params }: RoutePara
     }
 
     // Check ownership
-    if (integration.userId.toString() !== user.id) {
+    if (integration.userId.toString() !== user._id.toString()) {
       return NextResponse.json(
         { error: 'غير مصرح لك بتحديث هذا التكامل' },
         { status: 403 }
@@ -151,23 +156,29 @@ export const PUT = withAuth(async (req: NextRequest, { user, params }: RoutePara
         updatedAt: integration.updatedAt
       }
     });
+    
+    logger.business('Integration updated', {
+      integrationId: params.id,
+      userId: user._id
+    });
+    logger.apiResponse('PUT', `/api/integrations/${params.id}`, 200);
   } catch (error) {
     if (error instanceof z.ZodError) {
+      logger.warn('Integration update validation failed', { errors: error.errors, userId: user.id });
       return NextResponse.json(
         { error: 'بيانات غير صالحة', details: error.errors },
         { status: 400 }
       );
     }
-    console.error('Error updating integration:', error);
-    return NextResponse.json(
-      { error: 'حدث خطأ في تحديث التكامل' },
-      { status: 500 }
-    );
+    logger.error('Error updating integration', error, { integrationId: params.id, userId: user.id });
+    return handleApiError(error, 'حدث خطأ في تحديث التكامل');
   }
 });
 
 // DELETE /api/integrations/[id] - Delete integration
-export const DELETE = withAuth(async (req: NextRequest, { user, params }: RouteParams & { user: any }) => {
+export const DELETE = withAuth(async (req: NextRequest, user: any, ...args: unknown[]) => {
+  const routeParams = args[0] as RouteParams;
+  const params = 'then' in routeParams.params ? await routeParams.params : routeParams.params;
   try {
     if (user.role !== 'marketer' && user.role !== 'wholesaler') {
       return NextResponse.json(
@@ -188,7 +199,7 @@ export const DELETE = withAuth(async (req: NextRequest, { user, params }: RouteP
     }
 
     // Check ownership
-    if (integration.userId.toString() !== user.id) {
+    if (integration.userId.toString() !== user._id.toString()) {
       return NextResponse.json(
         { error: 'غير مصرح لك بحذف هذا التكامل' },
         { status: 403 }
@@ -197,15 +208,18 @@ export const DELETE = withAuth(async (req: NextRequest, { user, params }: RouteP
 
     await integration.deleteOne();
 
+    logger.business('Integration deleted', {
+      integrationId: params.id,
+      userId: user._id
+    });
+    logger.apiResponse('DELETE', `/api/integrations/${params.id}`, 200);
+
     return NextResponse.json({
       success: true,
       message: 'تم حذف التكامل بنجاح'
     });
   } catch (error) {
-    console.error('Error deleting integration:', error);
-    return NextResponse.json(
-      { error: 'حدث خطأ في حذف التكامل' },
-      { status: 500 }
-    );
+    logger.error('Error deleting integration', error, { integrationId: params.id, userId: user.id });
+    return handleApiError(error, 'حدث خطأ في حذف التكامل');
   }
 }); 

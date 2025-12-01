@@ -3,33 +3,32 @@ import { withAuth, withRole } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import FulfillmentRequest from '@/models/FulfillmentRequest';
 import { z } from 'zod';
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
+import { sendNotificationToUser, isUserOnline } from '@/lib/notifications';
 
 const updateFulfillmentSchema = z.object({
   status: z.enum(['pending', 'approved', 'rejected']),
   adminNotes: z.string().optional(),
   rejectionReason: z.string().optional(),
   warehouseLocation: z.string().optional(),
-  expectedDeliveryDate: z.string().optional()
+  expectedDeliveryDate: z.string().optional(),
+  actualDeliveryDate: z.string().optional() // For marking fulfillment as completed
 });
 
 // GET /api/fulfillment/[id] - Get specific fulfillment request
-async function getFulfillmentRequest(req: NextRequest, user: any, { params }: { params: { id: string } }) {
+async function getFulfillmentRequest(req: NextRequest, user: any, ...args: unknown[]) {
+  const routeParams = args[0] as { params: { id: string } };
+  const params = routeParams.params;
   try {
     await connectDB();
     
-    console.log('=== Fulfillment Request Debug ===');
-    console.log('Request ID:', params.id);
-    console.log('User:', {
-      _id: user._id,
-      email: user.email,
-      role: user.role,
-      name: user.name
-    });
+    logger.apiRequest('GET', `/api/fulfillment/${params.id}`, { userId: user._id, role: user.role });
     
     // Validate ObjectId format
     const mongoose = await import('mongoose');
     if (!mongoose.Types.ObjectId.isValid(params.id)) {
-      console.error('Invalid ObjectId format:', params.id);
+      logger.warn('Invalid ObjectId format for fulfillment request', { requestId: params.id, userId: user._id });
       return NextResponse.json(
         { success: false, message: 'معرف طلب التخزين غير صحيح' },
         { status: 400 }
@@ -43,18 +42,8 @@ async function getFulfillmentRequest(req: NextRequest, user: any, { params }: { 
       .populate('rejectedBy', 'name')
       .lean() as any;
     
-    console.log('Found request:', request ? 'Yes' : 'No');
-    if (request) {
-      console.log('Request supplier ID structure:', {
-        hasId: !!request.supplierId._id,
-        hasDirectId: !!request.supplierId,
-        supplierIdType: typeof request.supplierId,
-        supplierIdIdType: typeof request.supplierId._id
-      });
-    }
-    
     if (!request) {
-      console.log('Request not found in database');
+      logger.debug('Fulfillment request not found', { requestId: params.id, userId: user._id });
       return NextResponse.json(
         { success: false, message: 'طلب التخزين غير موجود' },
         { status: 404 }
@@ -69,13 +58,12 @@ async function getFulfillmentRequest(req: NextRequest, user: any, { params }: { 
       const supplierIdString = requestSupplierId.toString();
       const userIdString = user._id.toString();
       
-      console.log('Comparing supplier IDs:');
-      console.log('Request supplier ID:', supplierIdString);
-      console.log('User ID:', userIdString);
-      console.log('Match:', supplierIdString === userIdString);
-      
       if (supplierIdString !== userIdString) {
-        console.log('Access denied: supplier trying to access another supplier\'s request');
+        logger.warn('Supplier tried to access another supplier\'s fulfillment request', {
+          requestId: params.id,
+          userId: user._id,
+          requestSupplierId: supplierIdString
+        });
         return NextResponse.json(
           { success: false, message: 'غير مصرح لك بالوصول لهذا الطلب' },
           { status: 403 }
@@ -83,15 +71,18 @@ async function getFulfillmentRequest(req: NextRequest, user: any, { params }: { 
       }
     } else if (user.role !== 'admin') {
       // Only suppliers and admins can access fulfillment requests
-      console.log('Access denied: user role not authorized');
+      logger.warn('Unauthorized access attempt to fulfillment request', {
+        requestId: params.id,
+        userId: user._id,
+        role: user.role
+      });
       return NextResponse.json(
         { success: false, message: 'غير مصرح لك بالوصول لهذا الطلب' },
         { status: 403 }
       );
     }
     
-    console.log('Access granted - returning request data');
-    console.log('=== End Debug ===');
+    logger.apiResponse('GET', `/api/fulfillment/${params.id}`, 200);
     
     return NextResponse.json({
       success: true,
@@ -124,16 +115,15 @@ async function getFulfillmentRequest(req: NextRequest, user: any, { params }: { 
       }
     });
   } catch (error) {
-    console.error('Error fetching fulfillment request:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء جلب طلب التخزين' },
-      { status: 500 }
-    );
+    logger.error('Error fetching fulfillment request', error, { requestId: params.id, userId: user._id });
+    return handleApiError(error, 'حدث خطأ أثناء جلب طلب التخزين');
   }
 }
 
 // PUT /api/fulfillment/[id] - Update fulfillment request (admin only)
-async function updateFulfillmentRequest(req: NextRequest, user: any, { params }: { params: { id: string } }) {
+async function updateFulfillmentRequest(req: NextRequest, user: any, ...args: unknown[]) {
+  const routeParams = args[0] as { params: { id: string } };
+  const params = routeParams.params;
   try {
     await connectDB();
     
@@ -193,7 +183,13 @@ async function updateFulfillmentRequest(req: NextRequest, user: any, { params }:
                 updatedAt: new Date()
               });
               
-              console.log(`✅ Updated product ${product.name} stock from ${product.stockQuantity} to ${newStockQuantity} (+${productItem.quantity})`);
+              logger.debug('Product stock updated for fulfillment approval', {
+                productId: product._id.toString(),
+                productName: product.name,
+                oldStock: product.stockQuantity,
+                newStock: newStockQuantity,
+                addedQuantity: productItem.quantity
+              });
               
               return {
                 productId: productItem.productId,
@@ -209,7 +205,10 @@ async function updateFulfillmentRequest(req: NextRequest, user: any, { params }:
           const updateResults = await Promise.all(updatePromises);
           const successfulUpdates = updateResults.filter(result => result !== null);
           
-          console.log(`✅ Successfully updated inventory for ${successfulUpdates.length} products`);
+          logger.business('Inventory updated for fulfillment approval', {
+            fulfillmentRequestId: request._id.toString(),
+            updatedProductCount: successfulUpdates.length
+          });
           
           // Add inventory update info to admin notes
           if (successfulUpdates.length > 0) {
@@ -221,9 +220,59 @@ async function updateFulfillmentRequest(req: NextRequest, user: any, { params }:
           }
           
         } catch (error) {
-          console.error('❌ Error updating product inventory:', error);
+          logger.error('Error updating product inventory for fulfillment approval', error, {
+            fulfillmentRequestId: request._id.toString()
+          });
           // Don't fail the entire request if inventory update fails
           // Just log the error and continue
+        }
+        
+        // Update linked orders status when fulfillment is approved
+        if (request.orderIds && request.orderIds.length > 0 && statusChanged) {
+          try {
+            const Order = (await import('@/models/Order')).default;
+            
+            const orderUpdatePromises = request.orderIds.map(async (orderId: any) => {
+              const order = await Order.findById(orderId);
+              if (order) {
+                // Update order status to processing if it's still pending/confirmed
+                const newStatus = ['pending', 'confirmed'].includes(order.status) 
+                  ? 'processing' 
+                  : order.status;
+                
+                await Order.findByIdAndUpdate(orderId, {
+                  status: newStatus,
+                  processingAt: ['pending', 'confirmed'].includes(order.status) ? new Date() : order.processingAt,
+                  processedBy: ['pending', 'confirmed'].includes(order.status) ? user._id : order.processedBy,
+                  updatedAt: new Date()
+                });
+                
+                logger.business('Order status updated after fulfillment approval', {
+                  orderId: orderId.toString(),
+                  orderNumber: order.orderNumber,
+                  oldStatus: order.status,
+                  newStatus: newStatus,
+                  fulfillmentRequestId: request._id.toString()
+                });
+                
+                return { orderId: orderId.toString(), oldStatus: order.status, newStatus };
+              }
+              return null;
+            });
+            
+            const orderUpdates = await Promise.all(orderUpdatePromises);
+            const successfulOrderUpdates = orderUpdates.filter(update => update !== null);
+            
+            logger.info('Orders updated after fulfillment approval', {
+              fulfillmentRequestId: request._id.toString(),
+              updatedOrderCount: successfulOrderUpdates.length
+            });
+          } catch (error) {
+            logger.error('Error updating orders after fulfillment approval', error, {
+              fulfillmentRequestId: request._id.toString()
+            });
+            // Don't fail the fulfillment approval if order update fails
+          }
         }
       }
       
@@ -257,7 +306,13 @@ async function updateFulfillmentRequest(req: NextRequest, user: any, { params }:
                 updatedAt: new Date()
               });
               
-              console.log(`🔄 Reversed product ${product.name} stock from ${product.stockQuantity} to ${newStockQuantity} (-${productItem.quantity})`);
+              logger.debug('Product stock reversed for fulfillment rejection', {
+                productId: product._id.toString(),
+                productName: product.name,
+                oldStock: product.stockQuantity,
+                newStock: newStockQuantity,
+                removedQuantity: productItem.quantity
+              });
               
               return {
                 productId: productItem.productId,
@@ -273,7 +328,10 @@ async function updateFulfillmentRequest(req: NextRequest, user: any, { params }:
           const reverseResults = await Promise.all(reversePromises);
           const successfulReversals = reverseResults.filter(result => result !== null);
           
-          console.log(`🔄 Successfully reversed inventory for ${successfulReversals.length} products`);
+          logger.business('Inventory reversed for fulfillment rejection', {
+            fulfillmentRequestId: request._id.toString(),
+            reversedProductCount: successfulReversals.length
+          });
           
           // Add inventory reversal info to admin notes
           if (successfulReversals.length > 0) {
@@ -285,9 +343,74 @@ async function updateFulfillmentRequest(req: NextRequest, user: any, { params }:
           }
           
         } catch (error) {
-          console.error('❌ Error reversing product inventory:', error);
+          logger.error('Error reversing product inventory for fulfillment rejection', error, {
+            fulfillmentRequestId: request._id.toString()
+          });
           // Don't fail the entire request if inventory reversal fails
           // Just log the error and continue
+        }
+        
+        // Update linked orders when fulfillment is rejected (optional - may want to keep orders as is)
+        if (request.orderIds && request.orderIds.length > 0 && statusChanged && wasApproved) {
+          try {
+            const Order = (await import('@/models/Order')).default;
+            
+            // Optionally revert order status if needed
+            // For now, we'll just log the rejection but keep orders as is
+            logger.info('Fulfillment rejected - linked orders remain unchanged', {
+              fulfillmentRequestId: request._id.toString(),
+              orderCount: request.orderIds.length
+            });
+          } catch (error) {
+            logger.error('Error handling order updates for fulfillment rejection', error, {
+              fulfillmentRequestId: request._id.toString()
+            });
+          }
+        }
+      }
+    }
+    
+    // Handle actual delivery date (fulfillment completion)
+    if (validatedData.actualDeliveryDate) {
+      request.actualDeliveryDate = new Date(validatedData.actualDeliveryDate);
+      
+      // Update linked orders status to ready_for_shipping when fulfillment is completed
+      if (request.orderIds && request.orderIds.length > 0) {
+        try {
+          const Order = (await import('@/models/Order')).default;
+          
+          const orderUpdatePromises = request.orderIds.map(async (orderId: any) => {
+            const order = await Order.findById(orderId);
+            if (order && ['processing', 'confirmed'].includes(order.status)) {
+              await Order.findByIdAndUpdate(orderId, {
+                status: 'ready_for_shipping',
+                readyForShippingAt: new Date(),
+                readyForShippingBy: user._id,
+                updatedAt: new Date()
+              });
+              
+              logger.business('Order status updated to ready_for_shipping after fulfillment completion', {
+                orderId: orderId.toString(),
+                orderNumber: order.orderNumber,
+                fulfillmentRequestId: request._id.toString()
+              });
+              
+              return { orderId: orderId.toString(), newStatus: 'ready_for_shipping' };
+            }
+            return null;
+          });
+          
+          const orderUpdates = await Promise.all(orderUpdatePromises);
+          const successfulOrderUpdates = orderUpdates.filter(update => update !== null);
+          
+          logger.info('Orders updated to ready_for_shipping after fulfillment completion', {
+            fulfillmentRequestId: request._id.toString(),
+            updatedOrderCount: successfulOrderUpdates.length
+          });
+        } catch (error) {
+          logger.error('Error updating orders after fulfillment completion', error, {
+            fulfillmentRequestId: request._id.toString()
+          });
         }
       }
     }
@@ -299,9 +422,10 @@ async function updateFulfillmentRequest(req: NextRequest, user: any, { params }:
     await request.populate('rejectedBy', 'name');
     await request.populate('products.productId', 'name');
     
-    // Send notification to supplier about status change
+    // Send notification to supplier about status change using unified system
     try {
-      const Notification = (await import('@/models/Notification')).default;
+      const supplierId = (request.supplierId as any)._id || request.supplierId;
+      const supplierIdStr = typeof supplierId === 'object' ? supplierId.toString() : supplierId;
       
       // Get product names for the notification
       const productNames = request.products.map((product: any) => product.productId?.name).filter(Boolean).join(', ');
@@ -311,35 +435,61 @@ async function updateFulfillmentRequest(req: NextRequest, user: any, { params }:
         notificationMessage = `تمت الموافقة على طلب التخزين للمنتجات: ${productNames}. تم تحديث المخزون تلقائياً.`;
       } else if (validatedData.status === 'rejected') {
         if (wasApproved) {
-          notificationMessage = `تم رفض طلب التخزين للمنتجات: ${productNames}. تم عكس تحديث المخزون. السبب: ${validatedData.rejectionReason}`;
+          notificationMessage = `تم رفض طلب التخزين للمنتجات: ${productNames}. تم عكس تحديث المخزون. السبب: ${validatedData.rejectionReason || 'غير محدد'}`;
         } else {
-          notificationMessage = `تم رفض طلب التخزين للمنتجات: ${productNames}. السبب: ${validatedData.rejectionReason}`;
+          notificationMessage = `تم رفض طلب التخزين للمنتجات: ${productNames}. السبب: ${validatedData.rejectionReason || 'غير محدد'}`;
         }
       }
       
-      const notificationData = {
-        userId: request.supplierId._id,
-        title: validatedData.status === 'approved' ? 'تمت الموافقة على طلب التخزين' : 'تم رفض طلب التخزين',
-        message: notificationMessage,
-        type: validatedData.status === 'approved' ? 'success' : 'error',
-        actionUrl: `/dashboard/fulfillment/${request._id}`,
-        metadata: { 
-          fulfillmentRequestId: request._id,
-          status: validatedData.status,
-          adminNotes: validatedData.adminNotes,
-          rejectionReason: validatedData.rejectionReason,
-          warehouseLocation: validatedData.warehouseLocation,
-          expectedDeliveryDate: validatedData.expectedDeliveryDate,
-          productNames
-        }
-      };
+      // Check if supplier is online
+      const supplierIsOnline = await isUserOnline(supplierIdStr);
       
-      await Notification.create(notificationData);
-      console.log(`✅ Notification sent to supplier ${request.supplierId.name || request.supplierId.companyName} for fulfillment request ${validatedData.status}`);
+      await sendNotificationToUser(
+        supplierIdStr,
+        {
+          title: validatedData.status === 'approved' ? 'تمت الموافقة على طلب التخزين' : 'تم رفض طلب التخزين',
+          message: notificationMessage,
+          type: validatedData.status === 'approved' ? 'success' : 'error',
+          actionUrl: `/dashboard/fulfillment/${request._id}`,
+          metadata: { 
+            fulfillmentRequestId: request._id.toString(),
+            status: validatedData.status,
+            adminNotes: validatedData.adminNotes,
+            rejectionReason: validatedData.rejectionReason,
+            warehouseLocation: validatedData.warehouseLocation,
+            expectedDeliveryDate: validatedData.expectedDeliveryDate,
+            productNames,
+            linkedOrdersCount: request.orderIds?.length || 0
+          }
+        },
+        {
+          sendEmail: true, // Always send email for important fulfillment status changes
+          sendSocket: true
+        }
+      );
+      
+      logger.info('Notification sent to supplier for fulfillment status change', {
+        fulfillmentRequestId: request._id.toString(),
+        supplierId: supplierIdStr,
+        status: validatedData.status,
+        supplierIsOnline,
+        emailSent: true
+      });
       
     } catch (error) {
-      console.error('❌ Error sending notification to supplier:', error);
+      logger.error('Error sending notification to supplier', error, {
+        fulfillmentRequestId: request._id.toString(),
+        supplierId: request.supplierId._id.toString()
+      });
     }
+    
+    logger.business('Fulfillment request updated', {
+      fulfillmentRequestId: request._id.toString(),
+      oldStatus: request.status,
+      newStatus: validatedData.status,
+      adminId: user._id.toString()
+    });
+    logger.apiResponse('PUT', `/api/fulfillment/${params.id}`, 200);
     
     let successMessage = `تم ${validatedData.status === 'approved' ? 'الموافقة على' : validatedData.status === 'rejected' ? 'رفض' : 'تحديث'} طلب التخزين بنجاح`;
     
@@ -373,16 +523,15 @@ async function updateFulfillmentRequest(req: NextRequest, user: any, { params }:
       );
     }
     
-    console.error('Error updating fulfillment request:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء تحديث طلب التخزين' },
-      { status: 500 }
-    );
+    logger.error('Error updating fulfillment request', error, { requestId: params.id, userId: user._id });
+    return handleApiError(error, 'حدث خطأ أثناء تحديث طلب التخزين');
   }
 }
 
 // DELETE /api/fulfillment/[id] - Delete fulfillment request
-async function deleteFulfillmentRequest(req: NextRequest, user: any, { params }: { params: { id: string } }) {
+async function deleteFulfillmentRequest(req: NextRequest, user: any, ...args: unknown[]) {
+  const routeParams = args[0] as { params: { id: string } };
+  const params = routeParams.params;
   try {
     await connectDB();
     
@@ -412,16 +561,20 @@ async function deleteFulfillmentRequest(req: NextRequest, user: any, { params }:
     
     await FulfillmentRequest.findByIdAndDelete(params.id);
     
+    logger.business('Fulfillment request deleted', {
+      fulfillmentRequestId: params.id,
+      deletedBy: user._id.toString(),
+      role: user.role
+    });
+    logger.apiResponse('DELETE', `/api/fulfillment/${params.id}`, 200);
+    
     return NextResponse.json({
       success: true,
       message: 'تم حذف طلب التخزين بنجاح'
     });
   } catch (error) {
-    console.error('Error deleting fulfillment request:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء حذف طلب التخزين' },
-      { status: 500 }
-    );
+    logger.error('Error deleting fulfillment request', error, { requestId: params.id, userId: user._id });
+    return handleApiError(error, 'حدث خطأ أثناء حذف طلب التخزين');
   }
 }
 

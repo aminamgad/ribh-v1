@@ -30,8 +30,11 @@ export default function ProductVariants({
   const [localVariantOptions, setLocalVariantOptions] = useState<ProductVariantOption[]>(variantOptions);
   const [editingVariant, setEditingVariant] = useState<string | null>(null);
   const [newVariantName, setNewVariantName] = useState('');
-  const [newVariantValues, setNewVariantValues] = useState('');
+  const [newVariantValues, setNewVariantValues] = useState<string[]>(['']);
   const [selectedPredefinedVariant, setSelectedPredefinedVariant] = useState('');
+  const [imageUploadModalOpen, setImageUploadModalOpen] = useState(false);
+  const [selectedVariantOptionId, setSelectedVariantOptionId] = useState<string | null>(null);
+  const [uploadingImages, setUploadingImages] = useState(false);
 
   useEffect(() => {
     setLocalHasVariants(hasVariants);
@@ -53,7 +56,7 @@ export default function ProductVariants({
   const addVariant = () => {
     if (!newVariantName.trim()) return;
     
-    const values = newVariantValues.split(',').map(v => v.trim()).filter(v => v);
+    const values = newVariantValues.map(v => v.trim()).filter(v => v);
     if (values.length === 0) return;
 
     const newVariant: ProductVariant = {
@@ -71,7 +74,22 @@ export default function ProductVariants({
     generateVariantOptions(updatedVariants);
     
     setNewVariantName('');
-    setNewVariantValues('');
+    setNewVariantValues(['']);
+  };
+
+  const addValueField = () => {
+    setNewVariantValues([...newVariantValues, '']);
+  };
+
+  const removeValueField = (index: number) => {
+    const updated = newVariantValues.filter((_, i) => i !== index);
+    setNewVariantValues(updated.length > 0 ? updated : ['']);
+  };
+
+  const updateValueField = (index: number, value: string) => {
+    const updated = [...newVariantValues];
+    updated[index] = value;
+    setNewVariantValues(updated);
   };
 
   const addPredefinedVariant = () => {
@@ -224,19 +242,49 @@ export default function ProductVariants({
                   placeholder="اسم المتغير (مثل: النمط)"
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                 />
-                <input
-                  type="text"
-                  value={newVariantValues}
-                  onChange={(e) => setNewVariantValues(e.target.value)}
-                  placeholder="القيم مفصولة بفواصل (مثل: كلاسيكي، عصري، رياضي)"
-                  className="w-full mt-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                />
-                {newVariantName && newVariantValues && (
+                
+                {/* Value Fields */}
+                <div className="mt-3 space-y-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    قيم المتغير
+                  </label>
+                  {newVariantValues.map((value, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={value}
+                        onChange={(e) => updateValueField(index, e.target.value)}
+                        placeholder={`القيمة ${index + 1}`}
+                        className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                      />
+                      {newVariantValues.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeValueField(index)}
+                          className="p-2 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
+                          title="حذف القيمة"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={addValueField}
+                    className="w-full mt-2 px-3 py-2 text-sm border border-dashed border-gray-300 dark:border-gray-600 rounded-md hover:border-primary-500 dark:hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    إضافة قيمة جديدة
+                  </button>
+                </div>
+
+                {newVariantName && newVariantValues.some(v => v.trim()) && (
                   <button
                     onClick={addVariant}
-                    className="mt-2 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+                    className="mt-3 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
                   >
-                    إضافة
+                    إضافة المتغير
                   </button>
                 )}
               </div>
@@ -350,8 +398,12 @@ export default function ProductVariants({
                               {option.images?.length || 0} صور
                             </span>
                             <button
-                              onClick={() => {/* TODO: Add image upload modal */}}
-                              className="text-primary-600 hover:text-primary-800"
+                              onClick={() => {
+                                setSelectedVariantOptionId(option.variantId);
+                                setImageUploadModalOpen(true);
+                              }}
+                              className="text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-300"
+                              title="إضافة/تعديل الصور"
                             >
                               <ImageIcon className="w-4 h-4" />
                             </button>
@@ -372,6 +424,67 @@ export default function ProductVariants({
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Image Upload Modal */}
+      {imageUploadModalOpen && selectedVariantOptionId && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                إدارة صور المنتج المتغير
+              </h3>
+              <button
+                onClick={() => {
+                  setImageUploadModalOpen(false);
+                  setSelectedVariantOptionId(null);
+                }}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <MediaUpload
+                onUpload={(urls) => {
+                  const option = localVariantOptions.find(opt => opt.variantId === selectedVariantOptionId);
+                  if (option) {
+                    updateVariantOption(selectedVariantOptionId, 'images', urls);
+                  }
+                }}
+                uploadedMedia={
+                  localVariantOptions.find(opt => opt.variantId === selectedVariantOptionId)?.images || []
+                }
+                onRemove={(index) => {
+                  const option = localVariantOptions.find(opt => opt.variantId === selectedVariantOptionId);
+                  if (option && option.images) {
+                    const updatedImages = option.images.filter((_, i) => i !== index);
+                    updateVariantOption(selectedVariantOptionId, 'images', updatedImages);
+                  }
+                }}
+                uploading={uploadingImages}
+                setUploading={setUploadingImages}
+                accept="images"
+                maxFiles={10}
+                maxSize={10}
+                title="صور المنتج المتغير"
+              />
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => {
+                  setImageUploadModalOpen(false);
+                  setSelectedVariantOptionId(null);
+                }}
+                className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-600"
+              >
+                إغلاق
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

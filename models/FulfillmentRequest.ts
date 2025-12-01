@@ -67,7 +67,12 @@ const fulfillmentRequestSchema = new Schema<FulfillmentRequestDocument>({
     trim: true
   },
   expectedDeliveryDate: Date,
-  actualDeliveryDate: Date
+  actualDeliveryDate: Date,
+  // Link to related orders
+  orderIds: [{
+    type: Schema.Types.ObjectId,
+    ref: 'Order'
+  }]
 } as any, {
   timestamps: true,
   toJSON: { virtuals: true },
@@ -80,6 +85,11 @@ fulfillmentRequestSchema.index({ status: 1 });
 fulfillmentRequestSchema.index({ createdAt: -1 });
 fulfillmentRequestSchema.index({ approvedAt: 1 });
 fulfillmentRequestSchema.index({ expectedDeliveryDate: 1 });
+
+// Compound indexes for common queries
+fulfillmentRequestSchema.index({ supplierId: 1, status: 1, createdAt: -1 }); // For supplier fulfillment requests by status
+fulfillmentRequestSchema.index({ status: 1, expectedDeliveryDate: 1 }); // For overdue fulfillment tracking
+fulfillmentRequestSchema.index({ orderIds: 1 }); // For fulfillment requests by order
 
 // Virtual for total items
 fulfillmentRequestSchema.virtual('totalItems').get(function() {

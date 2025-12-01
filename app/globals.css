@@ -48,6 +48,30 @@
   background: linear-gradient(135deg, var(--ribh-green), var(--ribh-green-dark));
 }
 
+/* External Chat Widget Styling - Match Site Identity */
+/* Target common chat widget classes */
+[class*="chat-widget"],
+[class*="chat-button"],
+[class*="chat-icon"],
+[class*="fw-chat"],
+[id*="chat"],
+[id*="widget"] {
+  /* Override with site colors */
+}
+
+/* More specific selectors for fw-cdn chat widget */
+iframe[src*="fw-cdn"],
+div[class*="fw"],
+div[id*="fw"] {
+  /* These will be styled via injected CSS */
+}
+
+/* Inject custom styles for chat widget */
+body::after {
+  content: '';
+  display: none;
+}
+
 @layer base {
   html {
     direction: rtl;
@@ -1212,5 +1236,152 @@
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
     }
+  }
+}
+
+/* Print Styles for Invoice - Traditional Format, One Page */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0.8cm;
+  }
+  
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  
+  html, body {
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    overflow: visible !important;
+  }
+  
+  /* Hide everything except invoice print version */
+  body > *:not(#invoice-print-version) {
+    display: none !important;
+    visibility: hidden !important;
+  }
+  
+  /* Hide modal overlays and backdrops */
+  [class*="fixed"],
+  [class*="inset-0"],
+  [class*="bg-black"],
+  [class*="bg-opacity"] {
+    display: none !important;
+    visibility: hidden !important;
+  }
+  
+  /* Show invoice print version */
+  #invoice-print-version {
+    display: block !important;
+    visibility: visible !important;
+    position: relative !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 10px !important;
+    background: white !important;
+    page-break-inside: avoid !important;
+  }
+  
+  /* Ensure all invoice content is visible */
+  #invoice-print-version,
+  #invoice-print-version * {
+    visibility: visible !important;
+    display: revert !important;
+    opacity: 1 !important;
+    color: #000 !important;
+  }
+  
+  /* Ensure invoice content wrapper is visible */
+  #invoice-print-version .invoice-content {
+    display: block !important;
+    visibility: visible !important;
+  }
+  
+  /* Invoice content styling */
+  .invoice-content {
+    display: block !important;
+    visibility: visible !important;
+    position: relative !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 10px !important;
+    background: white !important;
+    page-break-inside: avoid !important;
+    height: auto !important;
+  }
+  
+  /* Compact spacing */
+  .invoice-content > * {
+    margin-bottom: 6px !important;
+  }
+  
+  /* Simple black borders for traditional invoice */
+  .invoice-content table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin: 5px 0 !important;
+    page-break-inside: avoid !important;
+    font-size: 11px !important;
+  }
+  
+  .invoice-content table,
+  .invoice-content th,
+  .invoice-content td {
+    border: 1px solid #000 !important;
+    padding: 4px !important;
+  }
+  
+  .invoice-content th {
+    background: #f5f5f5 !important;
+    font-weight: bold !important;
+  }
+  
+  /* Prevent page breaks */
+  .invoice-content,
+  .invoice-content table,
+  .invoice-content thead,
+  .invoice-content tbody {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  
+  .invoice-content tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  
+  /* Compact text */
+  .invoice-content h1 {
+    font-size: 18px !important;
+    margin: 4px 0 !important;
+  }
+  
+  .invoice-content h3 {
+    font-size: 12px !important;
+    margin: 3px 0 !important;
+  }
+  
+  .invoice-content p,
+  .invoice-content span,
+  .invoice-content div {
+    font-size: 11px !important;
+    line-height: 1.3 !important;
+  }
+  
+  /* Ensure text is visible and black */
+  .invoice-content,
+  .invoice-content * {
+    color: #000 !important;
   }
 } 

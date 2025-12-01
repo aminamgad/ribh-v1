@@ -4,6 +4,8 @@ import connectDB from '@/lib/database';
 import Order from '@/models/Order';
 import Wallet from '@/models/Wallet';
 import SystemSettings from '@/models/SystemSettings';
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
 
 // GET /api/admin/earnings - Get earnings statistics
 export const GET = withRole(['admin'])(async (req: NextRequest, user: any) => {
@@ -124,12 +126,11 @@ export const GET = withRole(['admin'])(async (req: NextRequest, user: any) => {
         end: dateFilter.createdAt?.$lte || new Date()
       }
     });
+    
+    logger.apiResponse('GET', '/api/admin/earnings', 200);
   } catch (error) {
-    console.error('Error getting earnings:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء جلب إحصائيات الأرباح' },
-      { status: 500 }
-    );
+    logger.error('Error getting earnings', error, { userId: user._id });
+    return handleApiError(error, 'حدث خطأ أثناء جلب إحصائيات الأرباح');
   }
 });
 
@@ -194,11 +195,11 @@ export const POST = withRole(['admin'])(async (req: NextRequest, user: any) => {
         commissionRates: settings.commissionRates
       }
     });
+    
+    logger.business('Commission settings updated', { adminId: user._id });
+    logger.apiResponse('POST', '/api/admin/earnings', 200);
   } catch (error) {
-    console.error('Error updating commission settings:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء تحديث نسب العمولة' },
-      { status: 500 }
-    );
+    logger.error('Error updating commission settings', error, { userId: user._id });
+    return handleApiError(error, 'حدث خطأ أثناء تحديث نسب العمولة');
   }
 }); 

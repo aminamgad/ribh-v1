@@ -1,32 +1,25 @@
 {
-  "name": "كتاب-تعلم-البرمجة-من-الصفر",
+  "name": "ribh-platform",
   "version": "1.0.0",
-  "description": "كتاب شامل لتعلم البرمجة من الصفر - Full Stack Development",
-  "main": "convert_to_pdf.js",
+  "description": "منصة ربح - منصة التجارة الإلكترونية",
   "scripts": {
-    "convert": "node convert_to_pdf.js",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
   },
   "keywords": [
-    "programming",
-    "fullstack",
+    "ecommerce",
+    "platform",
     "react",
     "nextjs",
     "nodejs",
-    "express",
     "mongodb",
-    "sql",
     "typescript",
     "tailwindcss",
-    "arabic",
-    "egyptian",
-    "tutorial",
-    "book"
+    "arabic"
   ],
-  "author": "مطور البرمجة",
+  "author": "Ribh Platform",
   "license": "MIT",
   "dependencies": {
     "@hookform/resolvers": "^3.3.2",
@@ -94,10 +87,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-username/كتاب-تعلم-البرمجة-من-الصفر.git"
+    "url": "https://github.com/your-username/ribh-platform.git"
   },
   "bugs": {
-    "url": "https://github.com/your-username/كتاب-تعلم-البرمجة-من-الصفر/issues"
+    "url": "https://github.com/your-username/ribh-platform/issues"
   },
-  "homepage": "https://github.com/your-username/كتاب-تعلم-البرمجة-من-الصفر#readme"
+  "homepage": "https://github.com/your-username/ribh-platform#readme"
 }

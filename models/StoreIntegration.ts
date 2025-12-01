@@ -136,6 +136,10 @@ storeIntegrationSchema.index({ userId: 1, type: 1 }, { unique: true });
 storeIntegrationSchema.index({ status: 1, isActive: 1 });
 storeIntegrationSchema.index({ lastSync: 1 });
 
+// Compound indexes for common queries
+storeIntegrationSchema.index({ userId: 1, isActive: 1 }); // For user active integrations
+storeIntegrationSchema.index({ status: 1, lastSync: 1 }); // For sync management
+
 // Instance methods
 storeIntegrationSchema.methods.testConnection = async function(): Promise<boolean> {
   // This would be implemented with actual API calls to the respective platforms
@@ -143,16 +147,25 @@ storeIntegrationSchema.methods.testConnection = async function(): Promise<boolea
   try {
     if (this.type === IntegrationType.EASY_ORDERS) {
       // Simulate EasyOrders API test
-      console.log('Testing EasyOrders connection...');
+      if (process.env.NODE_ENV === 'development') {
+        const logger = require('@/lib/logger').logger;
+        logger.debug('Testing EasyOrders connection...');
+      }
       return this.apiKey.length > 10;
     } else if (this.type === IntegrationType.YOUCAN) {
       // Simulate YouCan API test
-      console.log('Testing YouCan connection...');
+      if (process.env.NODE_ENV === 'development') {
+        const logger = require('@/lib/logger').logger;
+        logger.debug('Testing YouCan connection...');
+      }
       return this.apiKey.length > 10 && !!this.apiSecret;
     }
     return false;
   } catch (error) {
-    console.error('Connection test failed:', error);
+    if (process.env.NODE_ENV === 'development') {
+      const logger = require('@/lib/logger').logger;
+      logger.error('Connection test failed', error);
+    }
     return false;
   }
 };
@@ -160,7 +173,10 @@ storeIntegrationSchema.methods.testConnection = async function(): Promise<boolea
 storeIntegrationSchema.methods.syncProducts = async function(): Promise<number> {
   // This would fetch products from the external store and sync with our database
   // For now, return a simulated count
-  console.log(`Syncing products from ${this.type}...`);
+  if (process.env.NODE_ENV === 'development') {
+    const logger = require('@/lib/logger').logger;
+    logger.debug(`Syncing products from ${this.type}...`);
+  }
   this.lastSync = new Date();
   await this.save();
   return Math.floor(Math.random() * 50) + 10;
@@ -169,7 +185,10 @@ storeIntegrationSchema.methods.syncProducts = async function(): Promise<number> 
 storeIntegrationSchema.methods.syncOrders = async function(): Promise<number> {
   // This would fetch orders from the external store and create them in our system
   // For now, return a simulated count
-  console.log(`Syncing orders from ${this.type}...`);
+  if (process.env.NODE_ENV === 'development') {
+    const logger = require('@/lib/logger').logger;
+    logger.debug(`Syncing orders from ${this.type}...`);
+  }
   this.lastSync = new Date();
   await this.save();
   return Math.floor(Math.random() * 20) + 5;

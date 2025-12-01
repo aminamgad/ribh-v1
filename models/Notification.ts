@@ -56,6 +56,11 @@ notificationSchema.index({ createdAt: -1 });
 // TTL index for expired notifications
 notificationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
+// Compound indexes for common queries
+notificationSchema.index({ userId: 1, isRead: 1, createdAt: -1 }); // For user unread notifications
+notificationSchema.index({ userId: 1, type: 1, createdAt: -1 }); // For user notifications by type
+notificationSchema.index({ userId: 1, createdAt: -1 }); // For all user notifications sorted
+
 // Static method to find user notifications
 notificationSchema.statics.findByUser = function(userId: string, limit = 50) {
   return this.find({ userId })

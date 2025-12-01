@@ -339,13 +339,14 @@ export default function ChatPage() {
                 return (
                   <button
                     key={chat._id}
-                    onClick={() => {
-                      setCurrentChat(chat);
-                      // تحديد الرسائل كمقروءة فقط عند النقر على المحادثة
-                      if (chat.unreadCount > 0) {
-                        setTimeout(() => {
-                          markAsRead(chat._id);
-                        }, 1000); // ثانية واحدة بعد النقر
+                    onClick={async () => {
+                      // جلب المحادثة من الخادم للحصول على أحدث البيانات
+                      const fetchedChat = await fetchChat(chat._id);
+                      if (fetchedChat) {
+                        setCurrentChat(fetchedChat);
+                      } else {
+                        // في حالة الفشل، استخدم البيانات المحلية
+                        setCurrentChat(chat);
                       }
                     }}
                     className={`w-full p-4 text-right hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors ${
@@ -449,7 +450,7 @@ export default function ChatPage() {
                   // إضافة console.log للتأكد من التحديد الصحيح
                   console.log('Message debug:', {
                     messageId: message._id,
-                    senderId: message.senderId?._id || message.senderId,
+                    senderId: (message.senderId as any)?._id || message.senderId,
                     userId: user?._id,
                     isMe: isMe,
                     message: message.message.substring(0, 20) + '...'

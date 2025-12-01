@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import Message from '@/models/Message';
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
 
 // POST /api/messages/[id]/read - Mark message as read
-async function markMessageAsRead(req: NextRequest, user: any, { params }: { params: { id: string } }) {
+async function markMessageAsRead(req: NextRequest, user: any, ...args: unknown[]) {
+  const routeParams = args[0] as { params: { id: string } };
+  const params = routeParams.params;
   try {
     await connectDB();
     
@@ -33,18 +37,24 @@ async function markMessageAsRead(req: NextRequest, user: any, { params }: { para
     message.readAt = new Date();
     await message.save();
     
-    console.log(`Message ${messageId} marked as read by user ${user.name}`);
+    logger.debug('Message marked as read', {
+      messageId,
+      userId: user._id.toString(),
+      userName: user.name
+    });
+    
+    logger.apiResponse('POST', `/api/messages/${params.id}/read`, 200);
     
     return NextResponse.json({
       success: true,
       message: 'تم تمييز الرسالة كمقروءة'
     });
   } catch (error) {
-    console.error('Error marking message as read:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء تمييز الرسالة كمقروءة' },
-      { status: 500 }
-    );
+    logger.error('Error marking message as read', error, {
+      messageId: params.id,
+      userId: user._id.toString()
+    });
+    return handleApiError(error, 'حدث خطأ أثناء تمييز الرسالة كمقروءة');
   }
 }
 

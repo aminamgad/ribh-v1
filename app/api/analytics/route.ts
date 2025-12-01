@@ -5,6 +5,8 @@ import Order from '@/models/Order';
 import Product from '@/models/Product';
 import User from '@/models/User';
 import Category from '@/models/Category';
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
 
 async function getAnalytics(req: NextRequest, user: any) {
   try {
@@ -315,12 +317,11 @@ async function getAnalytics(req: NextRequest, user: any) {
       },
       users: usersData
     });
+    
+    logger.apiResponse('GET', '/api/analytics', 200);
   } catch (error) {
-    console.error('Error fetching analytics:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء جلب البيانات التحليلية' },
-      { status: 500 }
-    );
+    logger.error('Error fetching analytics', error, { userId: user._id, role: user.role });
+    return handleApiError(error, 'حدث خطأ أثناء جلب البيانات التحليلية');
   }
 }
 

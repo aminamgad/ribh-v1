@@ -5,13 +5,15 @@ import Order from '@/models/Order';
 import Product from '@/models/Product';
 import User from '@/models/User';
 import mongoose from 'mongoose';
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
 
 export const GET = withRole(['admin'])(async (req: NextRequest, user: any) => {
+  const { searchParams } = new URL(req.url);
+  const productId = searchParams.get('productId');
+  
   try {
     await connectDB();
-    
-    const { searchParams } = new URL(req.url);
-    const productId = searchParams.get('productId');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
     
@@ -59,10 +61,10 @@ export const GET = withRole(['admin'])(async (req: NextRequest, user: any) => {
       createdAt: { $gte: startDateObj, $lte: endDateObj }
     };
 
-    console.log('🔍 Product Stats Debug:', {
+    logger.apiRequest('GET', '/api/admin/product-stats', { productId, userId: user._id });
+    logger.debug('Product Stats Debug', {
       productId: productId,
       productObjectId: productObjectId.toString(),
-      dateFilter,
       productName: product.name
     });
 
@@ -95,7 +97,7 @@ export const GET = withRole(['admin'])(async (req: NextRequest, user: any) => {
       }
     ]);
 
-    console.log('📊 Orders found:', ordersWithProduct.length);
+    logger.debug('Orders found for product stats', { count: ordersWithProduct.length, productId });
 
     // Calculate basic statistics
     const totalOrders = ordersWithProduct.length;
@@ -277,21 +279,15 @@ export const GET = withRole(['admin'])(async (req: NextRequest, user: any) => {
       ? ((totalOrders / categoryTotalOrders) * 100).toFixed(2) 
       : '0';
 
-    console.log('📈 Final Stats:', {
+    logger.debug('Product stats calculated', {
       totalOrders,
       totalQuantity,
       totalRevenue,
       totalCost,
       totalProfit,
       profitMargin,
-      marketShare
-    });
-
-    console.log('🖼️ Product data being returned:', {
-      productName: product.name,
-      productImages: product.images,
-      imageCount: product.images?.length || 0,
-      firstImage: product.images?.[0]
+      marketShare,
+      productId
     });
 
     // Return comprehensive statistics
@@ -336,11 +332,9 @@ export const GET = withRole(['admin'])(async (req: NextRequest, user: any) => {
       }
     });
 
+    logger.apiResponse('GET', '/api/admin/product-stats', 200);
   } catch (error) {
-    console.error('Error fetching product statistics:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء جلب إحصائيات المنتج' },
-      { status: 500 }
-    );
+    logger.error('Error fetching product statistics', error, { productId, userId: user?._id });
+    return handleApiError(error, 'حدث خطأ أثناء جلب إحصائيات المنتج');
   }
 });

@@ -4,6 +4,8 @@ import connectDB from '@/lib/database';
 import User from '@/models/User';
 import Product from '@/models/Product';
 import Order from '@/models/Order';
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
 
 const getRoleLabel = (role: string) => {
   switch (role) {
@@ -89,12 +91,11 @@ async function getUsers(req: NextRequest, user: any) {
         pages: Math.ceil(total / limit)
       }
     });
+    
+    logger.apiResponse('GET', '/api/admin/users', 200);
   } catch (error) {
-    console.error('Error fetching users:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء جلب المستخدمين' },
-      { status: 500 }
-    );
+    logger.error('Error fetching users', error, { userId: user._id });
+    return handleApiError(error, 'حدث خطأ أثناء جلب المستخدمين');
   }
 }
 
@@ -184,15 +185,26 @@ async function createUser(req: NextRequest, user: any) {
       );
       
       await Promise.all(notificationPromises);
-      console.log(`✅ Notifications sent to ${adminUsers.length} admin users for new user: ${newUser.name}`);
+      logger.info('Notifications sent to admins for new user', {
+        adminCount: adminUsers.length,
+        newUserName: newUser.name,
+        newUserRole: newUser.role
+      });
       
     } catch (error) {
-      console.error('❌ Error sending notifications to admins:', error);
+      logger.error('Error sending notifications to admins', error, { newUserId: newUser._id });
     }
 
     // Return user without password
     const userResponse = newUser.toObject();
     delete userResponse.password;
+
+    logger.business('User created by admin', {
+      newUserId: newUser._id.toString(),
+      newUserRole: newUser.role,
+      createdBy: user._id.toString()
+    });
+    logger.apiResponse('POST', '/api/admin/users', 201);
 
     return NextResponse.json({
       success: true,
@@ -200,11 +212,8 @@ async function createUser(req: NextRequest, user: any) {
       user: userResponse
     });
   } catch (error) {
-    console.error('Error creating user:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء إنشاء المستخدم' },
-      { status: 500 }
-    );
+    logger.error('Error creating user', error, { userId: user._id });
+    return handleApiError(error, 'حدث خطأ أثناء إنشاء المستخدم');
   }
 }
 

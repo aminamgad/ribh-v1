@@ -2,6 +2,7 @@
 
 import { Play, Image as ImageIcon } from 'lucide-react';
 import { getMediaType } from '@/lib/mediaUtils';
+import LazyImage from './LazyImage';
 
 interface MediaThumbnailProps {
   media: string[];
@@ -32,10 +33,11 @@ export default function MediaThumbnail({
   return (
     <div className={`aspect-square bg-gray-100 dark:bg-slate-800 rounded-lg overflow-hidden relative ${className}`}>
       {mediaType === 'image' ? (
-        <img
+        <LazyImage
           src={firstMedia}
           alt={alt}
           className="w-full h-full object-cover"
+          priority={true}
         />
       ) : (
         <div className="w-full h-full flex items-center justify-center relative">

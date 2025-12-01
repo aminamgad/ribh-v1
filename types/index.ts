@@ -77,9 +77,22 @@ export interface Category {
   nameEn?: string;
   description?: string;
   image?: string;
+  images?: string[];
+  icon?: string;
   isActive: boolean;
   parentId?: string;
   order: number;
+  slug?: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  featured?: boolean;
+  productCount?: number;
+  level?: number;
+  path?: string[];
+  seoKeywords?: string[];
+  showInMenu?: boolean;
+  showInHome?: boolean;
+  subcategories?: Category[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -106,6 +119,7 @@ export interface Product {
   _id: string;
   name: string;
   description?: string;
+  marketingText?: string;
   images: string[];
   categoryId?: string;
   supplierId: string;
@@ -129,7 +143,7 @@ export interface Product {
   rejectedBy?: string;
   isFulfilled: boolean; // stored in Ribh warehouse
   tags: string[];
-  specifications?: Record<string, any>;
+  specifications?: Record<string, string | number | boolean>;
   sku?: string;
   weight?: number;
   dimensions?: {
@@ -198,6 +212,7 @@ export interface Order {
   returnedBy?: string;
   refundedAt?: Date;
   refundedBy?: string;
+  fulfillmentRequestId?: string; // Link to fulfillment request
   createdAt: Date;
   updatedAt: Date;
 }
@@ -262,6 +277,7 @@ export interface FulfillmentRequest {
   warehouseLocation?: string;
   expectedDeliveryDate?: Date;
   actualDeliveryDate?: Date;
+  orderIds?: string[]; // Linked orders
   createdAt: string;
   updatedAt: string;
   isOverdue?: boolean;
@@ -308,10 +324,12 @@ export interface CommissionRate {
   updatedAt: Date;
 }
 
+import { SystemSettingValue } from './api';
+
 export interface SystemSettings {
   _id: string;
   key: string;
-  value: any;
+  value: SystemSettingValue;
   description?: string;
   updatedAt: Date;
 }
@@ -326,7 +344,7 @@ export interface DashboardStats {
   monthlyRevenue: { month: string; revenue: number }[];
 }
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   message?: string;
@@ -383,7 +401,7 @@ export interface ProductForm {
   stockQuantity: number;
   images: File[];
   tags: string[];
-  specifications?: Record<string, any>;
+  specifications?: Record<string, string | number | boolean>;
 }
 
 export interface OrderForm {

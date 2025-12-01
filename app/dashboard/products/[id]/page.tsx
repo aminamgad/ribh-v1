@@ -26,19 +26,23 @@ import {
   X,
   BarChart3,
   Lock,
-  Unlock
+  Unlock,
+  Copy,
+  Check
 } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import MediaDisplay from '@/components/ui/MediaDisplay';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import ProductVariantSelector from '@/components/ui/ProductVariantSelector';
+import CommentsSection from '@/components/ui/CommentsSection';
 import { ProductVariant, ProductVariantOption } from '@/types';
 
 interface Product {
   _id: string;
   name: string;
   description: string;
+  marketingText?: string;
   images: string[];
   marketerPrice: number;
   wholesalerPrice: number;
@@ -117,6 +121,14 @@ export default function ProductDetailPage() {
   
   // Product variants state
   const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
+  
+  // Copy marketing text function
+  const copyMarketingText = () => {
+    if (product?.marketingText) {
+      navigator.clipboard.writeText(product.marketingText);
+      toast.success('تم نسخ النص التسويقي');
+    }
+  };
 
   useEffect(() => {
     if (params.id) {
@@ -856,6 +868,36 @@ export default function ProductDetailPage() {
 
               <p className="text-gray-700 dark:text-slate-300 leading-relaxed mb-4">{product.description}</p>
 
+              {/* Marketing Text Section */}
+              {product.marketingText && (
+                <div className="mb-6 p-4 bg-gradient-to-r from-primary-50 to-primary-100 dark:from-primary-900/20 dark:to-primary-800/20 rounded-lg border border-primary-200 dark:border-primary-700">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center">
+                      <Tag className="w-5 h-5 text-primary-600 dark:text-primary-400 ml-2" />
+                      <h3 className="text-lg font-semibold text-primary-900 dark:text-primary-100">
+                        النص التسويقي
+                      </h3>
+                    </div>
+                    <button
+                      onClick={copyMarketingText}
+                      className="flex items-center space-x-2 space-x-reverse px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors text-sm"
+                      title="نسخ النص التسويقي"
+                    >
+                      <Copy className="w-4 h-4" />
+                      <span>نسخ</span>
+                    </button>
+                  </div>
+                  <div className="bg-white dark:bg-slate-800 rounded p-3 border border-primary-200 dark:border-primary-700">
+                    <p className="text-gray-800 dark:text-slate-200 whitespace-pre-wrap leading-relaxed">
+                      {product.marketingText}
+                    </p>
+                  </div>
+                  <p className="text-xs text-primary-600 dark:text-primary-400 mt-2">
+                    يمكنك نسخ هذا النص واستخدامه في التسويق للمنتج
+                  </p>
+                </div>
+              )}
+
               {/* Pricing - Role-based display */}
               {user?.role === 'marketer' ? (
                 // Marketer sees only marketer price
@@ -1114,6 +1156,14 @@ export default function ProductDetailPage() {
                 </div>
               </div>
             )}
+
+            {/* Comments Section */}
+            <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-gray-200 dark:border-slate-700">
+              <CommentsSection 
+                entityType="product" 
+                entityId={product._id} 
+              />
+            </div>
           </div>
         </div>
       </div>

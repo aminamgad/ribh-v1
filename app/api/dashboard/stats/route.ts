@@ -6,10 +6,35 @@ import Product from '@/models/Product';
 import User from '@/models/User';
 import Favorite from '@/models/Favorite';
 import Message from '@/models/Message';
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
+import { statsCache, generateCacheKey } from '@/lib/cache';
 
 async function handler(req: NextRequest, user: any) {
   try {
     await connectDB();
+
+    // Generate cache key based on user role and ID
+    const cacheKey = generateCacheKey('stats', user.role, user._id.toString());
+    
+    // Check if cache-busting is requested (for manual refresh)
+    const { searchParams } = new URL(req.url);
+    const forceRefresh = searchParams.get('t'); // timestamp query parameter
+    
+    // Try to get from cache (only if not forcing refresh)
+    if (!forceRefresh) {
+      const cached = statsCache.get<any>(cacheKey);
+      if (cached) {
+        logger.debug('Stats served from cache', { cacheKey, userId: user._id });
+        return NextResponse.json({
+          success: true,
+          stats: cached,
+          cached: true
+        });
+      }
+    } else {
+      logger.debug('Force refresh requested, bypassing cache', { cacheKey, userId: user._id });
+    }
 
     // Get current and previous month dates
     const now = new Date();
@@ -357,17 +382,18 @@ async function handler(req: NextRequest, user: any) {
         };
     }
 
+    // Cache the results
+    statsCache.set(cacheKey, stats);
+    
     return NextResponse.json({
       success: true,
       stats
     });
 
+    logger.apiResponse('GET', '/api/dashboard/stats', 200);
   } catch (error) {
-    console.error('Dashboard stats error:', error);
-    return NextResponse.json(
-      { success: false, error: 'حدث خطأ أثناء جلب الإحصائيات' },
-      { status: 500 }
-    );
+    logger.error('Dashboard stats error', error, { userId: user?._id, role: user?.role });
+    return handleApiError(error, 'حدث خطأ أثناء جلب الإحصائيات');
   }
 }
 

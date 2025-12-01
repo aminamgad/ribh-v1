@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Play, Image as ImageIcon, Video as VideoIcon, Download } from 'lucide-react';
 import { getMediaType, downloadMedia, getFilenameFromUrl, downloadAllMedia } from '@/lib/mediaUtils';
+import LazyImage from './LazyImage';
 
 interface MediaDisplayProps {
   media: string[];
@@ -17,6 +18,10 @@ export default function MediaDisplay({
 }: MediaDisplayProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [downloading, setDownloading] = useState(false);
+
+  // Get current media and type (defined before use)
+  const currentMedia = media && media.length > 0 ? media[selectedIndex] : '';
+  const currentMediaType = currentMedia ? getMediaType(currentMedia) : 'image';
 
   // Function to handle download
   const handleDownload = async () => {
@@ -69,9 +74,6 @@ export default function MediaDisplay({
     );
   }
 
-  const currentMedia = media[selectedIndex];
-  const currentMediaType = getMediaType(currentMedia);
-
   return (
     <div className={`space-y-4 ${className}`}>
       <div className="flex items-center justify-between">
@@ -103,10 +105,11 @@ export default function MediaDisplay({
       {/* Main Media Display */}
       <div className="relative aspect-square bg-white dark:bg-slate-800 rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700">
         {currentMediaType === 'image' ? (
-          <img
+          <LazyImage
             src={currentMedia}
             alt={`${title} ${selectedIndex + 1}`}
             className="w-full h-full object-cover"
+            priority={selectedIndex === 0}
           />
         ) : (
           <video
@@ -144,10 +147,13 @@ export default function MediaDisplay({
               >
                 <div className="w-20 h-20 bg-gray-100 dark:bg-slate-800">
                   {mediaType === 'image' ? (
-                    <img
+                    <LazyImage
                       src={item}
                       alt={`${title} ${index + 1}`}
+                      width={80}
+                      height={80}
                       className="w-full h-full object-cover"
+                      priority={index === 0}
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center relative">

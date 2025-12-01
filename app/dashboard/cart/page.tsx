@@ -14,6 +14,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import MediaThumbnail from '@/components/ui/MediaThumbnail';
 import { Trash2, ShoppingCart, Truck, MapPin, Package, Calculator } from 'lucide-react';
+import { ProductVariant, ProductVariantOption } from '@/types';
+import VillageSelect from '@/components/ui/VillageSelect';
 
 interface CartItem {
   product: {
@@ -26,23 +28,23 @@ interface CartItem {
     isMinimumPriceMandatory?: boolean;
     stockQuantity: number;
     hasVariants?: boolean;
-    variants?: any[];
-    variantOptions?: any[];
+    variants?: ProductVariant[];
+    variantOptions?: ProductVariantOption[];
   };
   quantity: number;
   price: number;
   selectedVariants?: Record<string, string>;
-  variantOption?: any;
+  variantOption?: ProductVariantOption;
 }
 
 interface ShippingAddress {
   fullName: string;
   phone: string;
   street: string;
-  city: string;
-  governorate: string;
+  villageId?: number;
+  villageName?: string;
+  deliveryCost?: number;
   postalCode?: string;
-  notes?: string;
 }
 
 export default function CartPage() {
@@ -53,25 +55,21 @@ export default function CartPage() {
   
   const [isLoading, setIsLoading] = useState(false);
   const [marketerPrices, setMarketerPrices] = useState<Record<string, number>>({});
-  const [customerName, setCustomerName] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
-  const [customerAddress, setCustomerAddress] = useState('');
-  const [orderNotes, setOrderNotes] = useState('');
+  const [orderNotes, setOrderNotes] = useState(''); // ملاحظات موحدة للطلب والتوصيل
   
-  // Shipping address fields
+  // Shipping address fields (includes customer info)
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress>({
-    fullName: '', phone: '', street: '', city: '', governorate: '', postalCode: '', notes: ''
+    fullName: '', phone: '', street: '', postalCode: ''
   });
   const [shippingCalculation, setShippingCalculation] = useState<any>(null);
 
   useEffect(() => {
     if (user) {
-      setCustomerName(user.name || '');
-      setCustomerPhone(user.phone || '');
+      // Initialize shipping address with user data (only on first load)
       setShippingAddress(prev => ({
         ...prev,
-        fullName: user.name || '',
-        phone: user.phone || ''
+        fullName: prev.fullName || user.name || '',
+        phone: prev.phone || user.phone || ''
       }));
     }
   }, [user]);
@@ -85,23 +83,29 @@ export default function CartPage() {
     setMarketerPrices(initialPrices);
   }, [items]);
 
-  // Calculate shipping cost when address or subtotal changes
+  // Calculate shipping cost when village or subtotal changes
   useEffect(() => {
-    if (settings && shippingAddress.city && shippingAddress.governorate) {
+    if (shippingAddress.villageId && shippingAddress.deliveryCost !== undefined) {
       const subtotal = items.reduce((total, item) => {
         const marketerPrice = marketerPrices[item.product._id] ?? item.price;
         return total + (marketerPrice * item.quantity);
       }, 0);
 
-      // Simple shipping calculation based on governorate
-      const shippingCost = getShippingCost(shippingAddress.governorate);
-      const finalShippingCost = subtotal >= (settings.defaultFreeShippingThreshold || 0) ? 0 : shippingCost;
+      // Use delivery cost from selected village
+      const villageDeliveryCost = shippingAddress.deliveryCost || 0;
+      const finalShippingCost = subtotal >= (settings?.defaultFreeShippingThreshold || 0) 
+        ? 0 
+        : villageDeliveryCost;
 
       setShippingCalculation({
         shippingCost: finalShippingCost,
         shippingMethod: 'الشحن الأساسي',
-        shippingZone: shippingAddress.governorate
+        shippingZone: shippingAddress.villageName || 'غير محدد',
+        villageId: shippingAddress.villageId,
+        villageName: shippingAddress.villageName
       });
+    } else {
+      setShippingCalculation(null);
     }
   }, [items, marketerPrices, shippingAddress, settings]);
 
@@ -121,65 +125,15 @@ export default function CartPage() {
     return profit + ((marketerPrice - basePrice) * item.quantity);
   }, 0);
 
-  // Extract cities and governorates from admin's shipping settings
-  const getAvailableGovernorates = () => {
-    if (!settings?.governorates || settings.governorates.length === 0) {
-      console.log('No governorates found in settings');
-      return [];
-    }
-    const governorates = settings.governorates
-      .filter(governorate => governorate.isActive)
-      .map(governorate => governorate.name)
-      .sort();
-    console.log('Available governorates:', governorates);
-    return governorates;
+  // Handle village selection
+  const handleVillageChange = (villageId: number, villageName: string, deliveryCost: number) => {
+    setShippingAddress(prev => ({
+      ...prev,
+      villageId,
+      villageName,
+      deliveryCost
+    }));
   };
-
-  // Get cities for a specific governorate
-  const getCitiesForGovernorate = (governorateName: string) => {
-    if (!settings?.governorates || settings.governorates.length === 0) {
-      console.log('No governorates found in settings');
-      return [];
-    }
-    const governorate = settings.governorates.find(g => g.name === governorateName && g.isActive);
-    if (!governorate) {
-      console.log('Governorate not found:', governorateName);
-      return [];
-    }
-    const cities = governorate.cities || [];
-    console.log(`Cities for governorate "${governorateName}":`, cities);
-    return cities.sort();
-  };
-
-  const availableGovernorates = getAvailableGovernorates();
-  const availableCities = getCitiesForGovernorate(shippingAddress.governorate);
-
-  // Update available cities when governorate changes and clear selected city if it's not in the new governorate
-  useEffect(() => {
-    const citiesForSelectedGovernorate = getCitiesForGovernorate(shippingAddress.governorate);
-    if (shippingAddress.city && !citiesForSelectedGovernorate.includes(shippingAddress.city)) {
-      setShippingAddress(prev => ({ ...prev, city: '' }));
-      console.log('Cleared city selection because it\'s not available in the selected governorate');
-    }
-  }, [shippingAddress.governorate, settings]);
-
-  // Get shipping cost for selected governorate
-  const getShippingCost = (governorateName: string) => {
-    if (!settings?.governorates || settings.governorates.length === 0) {
-      return settings?.defaultShippingCost || 0;
-    }
-    const governorate = settings.governorates.find(g => g.name === governorateName && g.isActive);
-    return governorate ? governorate.shippingCost : (settings.defaultShippingCost || 0);
-  };
-
-  // Debug: Log settings and governorates
-  useEffect(() => {
-    console.log('Settings loaded:', settings);
-    console.log('Governorates:', settings?.governorates);
-    console.log('Selected governorate:', shippingAddress.governorate);
-    console.log('Available cities for selected governorate:', availableCities);
-    console.log('Available governorates:', availableGovernorates);
-  }, [settings, availableCities, availableGovernorates, shippingAddress.governorate]);
 
   const handleRemove = (productId: string) => {
     removeFromCart(productId);
@@ -202,14 +156,13 @@ export default function CartPage() {
     try {
       setIsLoading(true);
 
-      // Validate customer information
-      if (!customerName.trim()) { toast.error('اسم العميل مطلوب'); return; }
-      if (!customerPhone.trim()) { toast.error('رقم الهاتف مطلوب'); return; }
+      // Validate customer information (from shipping address)
+      if (!shippingAddress.fullName.trim()) { toast.error('اسم العميل مطلوب'); return; }
+      if (!shippingAddress.phone.trim()) { toast.error('رقم الهاتف مطلوب'); return; }
       
       // Validate shipping address
       if (!shippingAddress.street.trim()) { toast.error('عنوان الشارع مطلوب'); return; }
-      if (!shippingAddress.city.trim()) { toast.error('المدينة مطلوبة'); return; }
-      if (!shippingAddress.governorate.trim()) { toast.error('المحافظة مطلوبة'); return; }
+      if (!shippingAddress.villageId) { toast.error('القرية مطلوبة'); return; }
 
       // Validate minimum selling prices
       for (const item of items) {
@@ -251,14 +204,19 @@ export default function CartPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          customerName,
-          customerPhone,
-          shippingAddress,
+          customerName: shippingAddress.fullName, // Use from shipping address
+          customerPhone: shippingAddress.phone, // Use from shipping address
+          shippingAddress: {
+            ...shippingAddress,
+            villageId: shippingAddress.villageId,
+            villageName: shippingAddress.villageName,
+            deliveryCost: shippingAddress.deliveryCost
+          },
           items: orderItems,
-          notes: orderNotes,
+          notes: orderNotes, // Unified notes field
           shippingCost,
           shippingMethod: shippingCalculation?.shippingMethod || 'الشحن الأساسي',
-          shippingZone: shippingCalculation?.shippingZone || 'المنطقة الافتراضية',
+          shippingZone: shippingCalculation?.villageName || shippingCalculation?.shippingZone || 'المنطقة الافتراضية',
           orderTotal: total
         })
       });
@@ -399,92 +357,53 @@ export default function CartPage() {
                 </div>
               )}
               
-              {settings?.shippingEnabled && availableGovernorates.length === 0 && (
-                <div className="bg-[#FF9800]/10 dark:bg-[#FF9800]/20 p-3 rounded-lg border border-[#FF9800]/20 dark:border-[#FF9800]/30">
-                  <p className="text-[#E65100] dark:text-[#FF9800] text-sm">
-                    ℹ️ لم يتم تكوين مناطق الشحن بعد. سيتم استخدام التكلفة الافتراضية.
+              {settings?.shippingEnabled && (
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <p className="text-blue-700 dark:text-blue-300 text-sm flex items-center gap-2">
+                    <MapPin className="w-4 h-4" />
+                    اختر المنطقة والقرية لحساب تكلفة الشحن تلقائياً
                   </p>
                 </div>
               )}
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="fullName">الاسم الكامل</Label>
+                  <Label htmlFor="fullName">اسم العميل *</Label>
                   <Input
                     id="fullName"
                     value={shippingAddress.fullName}
                     onChange={(e) => setShippingAddress(prev => ({ ...prev, fullName: e.target.value }))}
-                    placeholder="الاسم الكامل"
+                    placeholder="اسم العميل الكامل"
+                    required
                   />
                 </div>
                 <div>
-                  <Label htmlFor="phone">رقم الهاتف</Label>
+                  <Label htmlFor="phone">رقم الهاتف *</Label>
                   <Input
                     id="phone"
                     value={shippingAddress.phone}
                     onChange={(e) => setShippingAddress(prev => ({ ...prev, phone: e.target.value }))}
                     placeholder="رقم الهاتف"
+                    required
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <Label htmlFor="street">عنوان الشارع</Label>
+                  <Label htmlFor="street">عنوان الشارع *</Label>
                   <Input
                     id="street"
                     value={shippingAddress.street}
                     onChange={(e) => setShippingAddress(prev => ({ ...prev, street: e.target.value }))}
-                    placeholder="عنوان الشارع"
+                    placeholder="عنوان الشارع أو المبنى"
+                    required
                   />
                 </div>
-                <div>
-                  <Label htmlFor="city">المدينة</Label>
-                  <select
-                    id="city"
-                    value={shippingAddress.city}
-                    onChange={(e) => setShippingAddress(prev => ({ ...prev, city: e.target.value }))}
-                    className="w-full border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-md p-2"
-                    disabled={!settings?.shippingEnabled || availableCities.length === 0}
-                  >
-                    <option value="">
-                      {availableCities.length === 0 
-                        ? (shippingAddress.governorate ? 'لا توجد مدن متاحة في هذه المحافظة' : 'اختر المحافظة أولاً')
-                        : 'اختر المدينة'
-                      }
-                    </option>
-                    {availableCities.map((city) => (
-                      <option key={city} value={city}>
-                        {city}
-                      </option>
-                    ))}
-                  </select>
-                  {shippingAddress.governorate && availableCities.length > 0 && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      المدن المتاحة في محافظة {shippingAddress.governorate}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor="governorate">المحافظة</Label>
-                  <select
-                    id="governorate"
-                    value={shippingAddress.governorate}
-                    onChange={(e) => setShippingAddress(prev => ({ ...prev, governorate: e.target.value }))}
-                    className="w-full border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-md p-2"
-                    disabled={!settings?.shippingEnabled || availableGovernorates.length === 0}
-                  >
-                    <option value="">
-                      {availableGovernorates.length === 0 ? 'لا توجد محافظات متاحة' : 'اختر المحافظة'}
-                    </option>
-                    {availableGovernorates.map((governorate) => (
-                      <option key={governorate} value={governorate}>
-                        {governorate}
-                      </option>
-                    ))}
-                  </select>
-                  {!shippingAddress.governorate && availableGovernorates.length > 0 && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      اختر المحافظة أولاً لعرض المدن المتاحة
-                    </p>
-                  )}
+                <div className="md:col-span-2">
+                  <VillageSelect
+                    value={shippingAddress.villageId}
+                    onChange={handleVillageChange}
+                    required
+                    disabled={!settings?.shippingEnabled}
+                  />
                 </div>
                 <div>
                   <Label htmlFor="postalCode">الرمز البريدي (اختياري)</Label>
@@ -495,13 +414,14 @@ export default function CartPage() {
                     placeholder="الرمز البريدي"
                   />
                 </div>
-                <div>
-                  <Label htmlFor="notes">ملاحظات التوصيل (اختياري)</Label>
-                  <Input
-                    id="notes"
-                    value={shippingAddress.notes}
-                    onChange={(e) => setShippingAddress(prev => ({ ...prev, notes: e.target.value }))}
-                    placeholder="ملاحظات التوصيل"
+                <div className="md:col-span-2">
+                  <Label htmlFor="orderNotes">الملاحظات (اختياري)</Label>
+                  <Textarea
+                    id="orderNotes"
+                    value={orderNotes}
+                    onChange={(e) => setOrderNotes(e.target.value)}
+                    placeholder="ملاحظات عامة للطلب والتوصيل (مثل: موعد التوصيل المفضل، الطابق، رقم الشقة، تعليمات خاصة...)"
+                    rows={3}
                   />
                 </div>
               </div>
@@ -531,8 +451,13 @@ export default function CartPage() {
                     </div>
                   )}
                   <div className="text-xs text-gray-500">
-                    المنطقة: {shippingCalculation.shippingZone}
+                    القرية: {shippingCalculation.villageName || shippingCalculation.shippingZone}
                   </div>
+                  {shippingCalculation.villageId && (
+                    <div className="text-xs text-gray-400">
+                      معرف القرية: {shippingCalculation.villageId}
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -587,37 +512,6 @@ export default function CartPage() {
                     <div className="text-lg font-bold text-[#2E7D32] dark:text-[#4CAF50]">{totalMarketerProfit}₪</div>
                   </div>
                 )}
-              </div>
-              
-              <div className="space-y-3">
-                <div>
-                  <Label htmlFor="customerName">اسم العميل</Label>
-                  <Input
-                    id="customerName"
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    placeholder="اسم العميل"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="customerPhone">رقم الهاتف</Label>
-                  <Input
-                    id="customerPhone"
-                    value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                    placeholder="رقم الهاتف"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="orderNotes">ملاحظات الطلب (اختياري)</Label>
-                  <Textarea
-                    id="orderNotes"
-                    value={orderNotes}
-                    onChange={(e) => setOrderNotes(e.target.value)}
-                    placeholder="ملاحظات إضافية للطلب"
-                    rows={3}
-                  />
-                </div>
               </div>
               
               <Button

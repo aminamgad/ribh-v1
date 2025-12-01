@@ -4,6 +4,8 @@ import connectDB from '@/lib/database';
 import Message from '@/models/Message';
 import Product from '@/models/Product'; // Import Product model for population
 import User from '@/models/User'; // Import User model for population
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
 
 // GET /api/admin/messages - Get all messages with filtering
 async function getMessages(req: NextRequest, user: any) {
@@ -63,12 +65,11 @@ async function getMessages(req: NextRequest, user: any) {
       messages: transformedMessages,
       total: transformedMessages.length
     });
+    
+    logger.apiResponse('GET', '/api/admin/messages', 200);
   } catch (error) {
-    console.error('Error fetching messages:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء جلب الرسائل' },
-      { status: 500 }
-    );
+    logger.error('Error fetching messages', error, { userId: user._id });
+    return handleApiError(error, 'حدث خطأ أثناء جلب الرسائل');
   }
 }
 

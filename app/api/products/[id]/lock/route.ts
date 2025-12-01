@@ -3,47 +3,37 @@ import { withAuth } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import Product from '@/models/Product';
 import { z } from 'zod';
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
 
 const lockProductSchema = z.object({
   isLocked: z.boolean(),
   lockReason: z.string().optional()
 });
 
-async function handler(req: NextRequest, user: any, { params }: { params: any } = { params: undefined }) {
-  console.log('🔒 Lock API - Route hit successfully');
-  console.log('🔒 Lock API - Method:', req.method);
-  console.log('🔒 Lock API - URL:', req.url);
-  console.log('🔒 Lock API - User object:', user);
-  console.log('🔒 Lock API - User type:', typeof user);
-  
+async function handler(req: NextRequest, user: any, ...args: unknown[]) {
+  const routeParams = args[0] as { params: { id: string } } | undefined;
+  const params = routeParams?.params || { id: '' };
   try {
     await connectDB();
     
-    console.log('🔍 Lock API - Params:', params);
-    console.log('🔍 Lock API - Params type:', typeof params);
+    logger.apiRequest('PUT', '/api/products/[id]/lock', { userId: user?._id, userRole: user?.role });
     
     // Check if user is authenticated
     if (!user) {
-      console.error('🔒 Lock API - User is undefined, authentication failed');
+      logger.warn('Authentication failed - no user found', { path: '/api/products/[id]/lock' });
       return NextResponse.json(
         { success: false, message: 'يجب تسجيل الدخول أولاً' },
         { status: 401 }
       );
     }
     
-    console.log('🔒 Lock API - User authenticated:', {
-      userId: user._id,
-      userRole: user.role,
-      userEmail: user.email
-    });
-    
     // Extract product ID from URL path since params is undefined
     const url = new URL(req.url);
     const pathParts = url.pathname.split('/');
     const productId = pathParts[pathParts.length - 2]; // Get the ID before 'lock'
     
-    console.log('🔍 Lock API - URL path parts:', pathParts);
-    console.log('🔍 Lock API - Product ID from URL:', productId);
+    logger.debug('Lock API - Extracting product ID from URL', { pathParts, productId });
     
     if (!productId) {
       return NextResponse.json(
@@ -103,6 +93,13 @@ async function handler(req: NextRequest, user: any, { params }: { params: any } 
         { new: true }
       ).populate('supplierId', 'name companyName');
       
+      logger.business('Product lock status changed', {
+        productId,
+        isLocked: validatedData.isLocked,
+        userId: user._id.toString()
+      });
+      logger.apiResponse('PUT', '/api/products/[id]/lock', 200);
+      
       return NextResponse.json({
         success: true,
         message: validatedData.isLocked ? 'تم قفل المنتج بنجاح' : 'تم إلغاء قفل المنتج بنجاح',
@@ -116,24 +113,20 @@ async function handler(req: NextRequest, user: any, { params }: { params: any } 
     );
     
   } catch (error) {
-    console.error('Error in lock/unlock product:', error);
-    console.error('Error details:', {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : 'No stack trace',
-      params: params
+    logger.error('Error in lock/unlock product', error, {
+      userId: user?._id,
+      productId: params?.id
     });
     
     if (error instanceof z.ZodError) {
+      logger.warn('Lock product validation failed', { errors: error.errors });
       return NextResponse.json(
         { success: false, message: 'بيانات غير صحيحة', errors: error.errors },
         { status: 400 }
       );
     }
     
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء قفل/إلغاء قفل المنتج' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'حدث خطأ أثناء قفل/إلغاء قفل المنتج');
   }
 }
 

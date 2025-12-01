@@ -4,6 +4,9 @@ import connectDB from '@/lib/database';
 import FulfillmentRequest from '@/models/FulfillmentRequest';
 import Product from '@/models/Product';
 import { z } from 'zod';
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
+import { sendNotificationToRole, sendNotificationToUser } from '@/lib/notifications';
 
 const fulfillmentProductSchema = z.object({
   productId: z.string().min(1, 'يجب اختيار منتج'),
@@ -14,7 +17,8 @@ const fulfillmentProductSchema = z.object({
 const fulfillmentRequestSchema = z.object({
   products: z.array(fulfillmentProductSchema).min(1, 'يجب إضافة منتج واحد على الأقل'),
   notes: z.string().optional(),
-  expectedDeliveryDate: z.string().optional()
+  expectedDeliveryDate: z.string().optional(),
+  orderIds: z.array(z.string()).optional() // Optional: Link to specific orders
 });
 
 // GET /api/fulfillment - Get fulfillment requests
@@ -53,8 +57,7 @@ async function getFulfillmentRequests(req: NextRequest, user: any) {
     
     const total = await FulfillmentRequest.countDocuments(query);
     
-    console.log('Fulfillment requests found:', requests.length);
-    console.log('Request IDs:', requests.map(r => r._id));
+    logger.debug('Fulfillment requests found', { count: requests.length, userId: user._id });
     
     // Transform requests for frontend
     const transformedRequests = requests.map(request => ({
@@ -77,7 +80,7 @@ async function getFulfillmentRequests(req: NextRequest, user: any) {
       isOverdue: request.isOverdue
     }));
     
-    console.log('Transformed requests:', transformedRequests.map(r => ({ id: r._id, status: r.status })));
+    logger.apiResponse('GET', '/api/fulfillment', 200);
     
     return NextResponse.json({
       success: true,
@@ -90,11 +93,8 @@ async function getFulfillmentRequests(req: NextRequest, user: any) {
       }
     });
   } catch (error) {
-    console.error('Error fetching fulfillment requests:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء جلب طلبات التخزين' },
-      { status: 500 }
-    );
+    logger.error('Error fetching fulfillment requests', error, { userId: user._id });
+    return handleApiError(error, 'حدث خطأ أثناء جلب طلبات التخزين');
   }
 }
 
@@ -122,54 +122,111 @@ async function createFulfillmentRequest(req: NextRequest, user: any) {
       );
     }
     
+    // Validate linked orders if provided
+    let linkedOrders = [];
+    if (validatedData.orderIds && validatedData.orderIds.length > 0) {
+      const Order = (await import('@/models/Order')).default;
+      const orders = await Order.find({
+        _id: { $in: validatedData.orderIds },
+        supplierId: user._id,
+        status: { $in: ['pending', 'confirmed'] }
+      });
+      
+      if (orders.length !== validatedData.orderIds.length) {
+        return NextResponse.json(
+          { success: false, message: 'بعض الطلبات غير موجودة أو لا تنتمي لك أو ليست قابلة للربط' },
+          { status: 400 }
+        );
+      }
+      
+      linkedOrders = orders;
+    }
+    
     // Create fulfillment request
     const fulfillmentRequest = await FulfillmentRequest.create({
       supplierId: user._id,
       products: validatedData.products,
       notes: validatedData.notes,
       expectedDeliveryDate: validatedData.expectedDeliveryDate ? new Date(validatedData.expectedDeliveryDate) : undefined,
+      orderIds: validatedData.orderIds || [],
       status: 'pending'
     });
     
     await fulfillmentRequest.populate('products.productId', 'name costPrice');
     await fulfillmentRequest.populate('supplierId', 'name companyName');
     
+    // Link fulfillment to orders and update order status
+    if (linkedOrders.length > 0) {
+      const Order = (await import('@/models/Order')).default;
+      
+      for (const order of linkedOrders) {
+        await Order.findByIdAndUpdate(order._id, {
+          fulfillmentRequestId: fulfillmentRequest._id,
+          status: order.status === 'pending' ? 'confirmed' : order.status, // Update to confirmed if pending
+          confirmedAt: order.status === 'pending' ? new Date() : order.confirmedAt,
+          updatedAt: new Date()
+        });
+        
+        logger.business('Order linked to fulfillment request', {
+          orderId: order._id.toString(),
+          orderNumber: order.orderNumber,
+          fulfillmentRequestId: fulfillmentRequest._id.toString(),
+          newStatus: order.status === 'pending' ? 'confirmed' : order.status
+        });
+      }
+      
+      logger.info('Orders linked to fulfillment request', {
+        fulfillmentRequestId: fulfillmentRequest._id.toString(),
+        orderCount: linkedOrders.length
+      });
+    }
+    
     // Send notification to admins about new fulfillment request
     try {
-      // Get all admin users
-      const User = (await import('@/models/User')).default;
-      const adminUsers = await User.find({ role: 'admin' }).select('_id name').lean();
-      
       // Get product names for the notification
       const productNames = products.map(product => product.name).join(', ');
       
-      // Create notification for each admin
-      const Notification = (await import('@/models/Notification')).default;
-      const notificationPromises = adminUsers.map(admin => 
-        Notification.create({
-          userId: admin._id,
+      // Send notification to all admins using unified system
+      await sendNotificationToRole(
+        'admin',
+        {
           title: 'طلب تخزين جديد',
           message: `طلب تخزين جديد من ${user.name || user.companyName} للمنتجات: ${productNames}`,
           type: 'info',
           actionUrl: `/dashboard/fulfillment/${fulfillmentRequest._id}`,
           metadata: { 
-            supplierId: user._id,
+            supplierId: user._id.toString(),
             supplierName: user.name || user.companyName,
-            fulfillmentRequestId: fulfillmentRequest._id,
+            fulfillmentRequestId: fulfillmentRequest._id.toString(),
             productCount: products.length,
             totalValue: fulfillmentRequest.totalValue,
             totalItems: fulfillmentRequest.totalItems,
-            notes: validatedData.notes
+            notes: validatedData.notes,
+            linkedOrdersCount: linkedOrders.length
           }
-        })
+        },
+        {
+          sendEmail: false, // Don't send email for new fulfillment requests
+          sendSocket: true
+        }
       );
       
-      await Promise.all(notificationPromises);
-      console.log(`✅ Notifications sent to ${adminUsers.length} admin users for new fulfillment request from ${user.name || user.companyName}`);
+      logger.info('Notifications sent to admins for new fulfillment request', {
+        supplierName: user.name || user.companyName,
+        fulfillmentRequestId: fulfillmentRequest._id.toString(),
+        linkedOrdersCount: linkedOrders.length
+      });
       
     } catch (error) {
-      console.error('❌ Error sending notifications to admins:', error);
+      logger.error('Error sending notifications to admins', error, { fulfillmentRequestId: fulfillmentRequest._id });
     }
+    
+    logger.business('Fulfillment request created', {
+      fulfillmentRequestId: fulfillmentRequest._id.toString(),
+      supplierId: user._id.toString(),
+      productCount: products.length
+    });
+    logger.apiResponse('POST', '/api/fulfillment', 201);
     
     return NextResponse.json({
       success: true,
@@ -183,17 +240,15 @@ async function createFulfillmentRequest(req: NextRequest, user: any) {
     }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
+      logger.warn('Fulfillment request validation failed', { errors: error.errors, userId: user._id });
       return NextResponse.json(
         { success: false, message: error.errors[0].message },
         { status: 400 }
       );
     }
     
-    console.error('Error creating fulfillment request:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء إنشاء طلب التخزين' },
-      { status: 500 }
-    );
+    logger.error('Error creating fulfillment request', error, { userId: user._id });
+    return handleApiError(error, 'حدث خطأ أثناء إنشاء طلب التخزين');
   }
 }
 

@@ -65,6 +65,12 @@ messageSchema.index({ isApproved: 1 });
 messageSchema.index({ isRead: 1 });
 messageSchema.index({ createdAt: -1 });
 
+// Compound indexes for common queries
+messageSchema.index({ senderId: 1, receiverId: 1, createdAt: -1 }); // For conversation queries
+messageSchema.index({ receiverId: 1, isRead: 1, createdAt: -1 }); // For unread messages by receiver
+messageSchema.index({ isApproved: 1, createdAt: -1 }); // For admin pending messages
+messageSchema.index({ productId: 1, isApproved: 1 }); // For product messages
+
 // Virtual for conversation ID
 messageSchema.virtual('conversationId').get(function() {
   const ids = [this.senderId.toString(), this.receiverId.toString()].sort();

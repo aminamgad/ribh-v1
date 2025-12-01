@@ -10,6 +10,7 @@ import { NotificationProvider } from '@/components/providers/NotificationProvide
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { ChatProvider } from '@/components/providers/ChatProvider';
 import { SettingsProvider } from '@/components/providers/SettingsProvider';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -114,7 +115,9 @@ export default function RootLayout({
                            },
                          }}
                       />
-                      {children}
+                      <ErrorBoundary>
+                        {children}
+                      </ErrorBoundary>
                     </ChatProvider>
                   </NotificationProvider>
                 </FavoritesProvider>

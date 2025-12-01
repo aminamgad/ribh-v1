@@ -19,7 +19,14 @@ import {
   Save,
   BarChart3,
   Lock,
-  Unlock
+  Unlock,
+  Sparkles,
+  TrendingUp,
+  Home,
+  Heart as HeartIcon,
+  Zap,
+  Gamepad2,
+  ArrowLeft
 } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -27,6 +34,7 @@ import SearchFilters from '@/components/search/SearchFilters';
 import { useSearchParams } from 'next/navigation';
 import MediaThumbnail from '@/components/ui/MediaThumbnail';
 import { useRouter } from 'next/navigation';
+import ProductSection from '@/components/products/ProductSection';
 
 interface Product {
   _id: string;
@@ -96,9 +104,145 @@ export default function ProductsPage() {
 
   const router = useRouter();
 
+  // Product sections state
+  const [productSections, setProductSections] = useState<{
+    newArrivals: Product[];
+    bestSellers: Product[];
+    gardenHome: Product[];
+    healthBeauty: Product[];
+    electronics: Product[];
+    games: Product[];
+  }>({
+    newArrivals: [],
+    bestSellers: [],
+    gardenHome: [],
+    healthBeauty: [],
+    electronics: [],
+    games: []
+  });
+  const [sectionsLoading, setSectionsLoading] = useState(false);
+
   useEffect(() => {
     fetchProducts();
-  }, [searchParams]);
+    // Only fetch sections if no search/filters are active and user is marketer
+    if (user?.role === 'marketer' && !searchParams.toString()) {
+      fetchProductSections();
+    }
+  }, [searchParams, user]);
+
+  const fetchProductSections = async () => {
+    try {
+      setSectionsLoading(true);
+      
+      // Fetch all sections in parallel
+      const [newArrivalsRes, bestSellersRes, categoriesRes] = await Promise.all([
+        fetch('/api/products?limit=8'),
+        fetch('/api/products?limit=20'), // Get more to sort by sales
+        fetch('/api/categories?active=true')
+      ]);
+
+      const [newArrivalsData, bestSellersData, categoriesData] = await Promise.all([
+        newArrivalsRes.ok ? newArrivalsRes.json() : { products: [] },
+        bestSellersRes.ok ? bestSellersRes.json() : { products: [] },
+        categoriesRes.ok ? categoriesRes.json() : { categories: [] }
+      ]);
+
+      // Sort new arrivals by createdAt (newest first)
+      const newArrivals = (newArrivalsData.products || [])
+        .filter((p: Product) => p.isApproved && !p.isRejected && !p.isLocked)
+        .sort((a: Product, b: Product) => {
+          const dateA = new Date((a as any).createdAt || 0).getTime();
+          const dateB = new Date((b as any).createdAt || 0).getTime();
+          return dateB - dateA;
+        })
+        .slice(0, 8);
+
+      // Sort best sellers by sales (highest first)
+      const bestSellers = (bestSellersData.products || [])
+        .filter((p: Product) => p.isApproved && !p.isRejected && !p.isLocked)
+        .sort((a: Product, b: Product) => (b.sales || 0) - (a.sales || 0))
+        .slice(0, 8);
+
+      // Find category IDs by name
+      const categories = categoriesData.categories || [];
+      const gardenHomeCat = categories.find((c: any) => 
+        c.name?.includes('حديقة') || c.name?.includes('منزل') || c.nameEn?.toLowerCase().includes('garden') || c.nameEn?.toLowerCase().includes('home')
+      );
+      const healthBeautyCat = categories.find((c: any) => 
+        c.name?.includes('صحة') || c.name?.includes('جمال') || c.nameEn?.toLowerCase().includes('health') || c.nameEn?.toLowerCase().includes('beauty')
+      );
+      const electronicsCat = categories.find((c: any) => 
+        c.name?.includes('إلكترون') || c.nameEn?.toLowerCase().includes('electronic')
+      );
+      const gamesCat = categories.find((c: any) => 
+        c.name?.includes('لعبة') || c.name?.includes('ألعاب') || c.nameEn?.toLowerCase().includes('game')
+      );
+
+      // Fetch products by category
+      const categoryPromises = [];
+      if (gardenHomeCat) {
+        categoryPromises.push(
+          fetch(`/api/products?category=${gardenHomeCat._id}&limit=8`).then(r => r.ok ? r.json() : { products: [] })
+        );
+      } else {
+        categoryPromises.push(Promise.resolve({ products: [] }));
+      }
+
+      if (healthBeautyCat) {
+        categoryPromises.push(
+          fetch(`/api/products?category=${healthBeautyCat._id}&limit=8`).then(r => r.ok ? r.json() : { products: [] })
+        );
+      } else {
+        categoryPromises.push(Promise.resolve({ products: [] }));
+      }
+
+      if (electronicsCat) {
+        categoryPromises.push(
+          fetch(`/api/products?category=${electronicsCat._id}&limit=8`).then(r => r.ok ? r.json() : { products: [] })
+        );
+      } else {
+        categoryPromises.push(Promise.resolve({ products: [] }));
+      }
+
+      if (gamesCat) {
+        categoryPromises.push(
+          fetch(`/api/products?category=${gamesCat._id}&limit=8`).then(r => r.ok ? r.json() : { products: [] })
+        );
+      } else {
+        categoryPromises.push(Promise.resolve({ products: [] }));
+      }
+
+      const [gardenHomeData, healthBeautyData, electronicsData, gamesData] = await Promise.all(categoryPromises);
+
+      // Filter and limit category products
+      const filterApproved = (products: Product[]) => 
+        products.filter((p: Product) => p.isApproved && !p.isRejected && !p.isLocked).slice(0, 8);
+
+      const sections = {
+        newArrivals: newArrivals,
+        bestSellers: bestSellers,
+        gardenHome: filterApproved(gardenHomeData.products || []),
+        healthBeauty: filterApproved(healthBeautyData.products || []),
+        electronics: filterApproved(electronicsData.products || []),
+        games: filterApproved(gamesData.products || [])
+      };
+
+      console.log('📦 Product Sections loaded:', {
+        newArrivals: sections.newArrivals.length,
+        bestSellers: sections.bestSellers.length,
+        gardenHome: sections.gardenHome.length,
+        healthBeauty: sections.healthBeauty.length,
+        electronics: sections.electronics.length,
+        games: sections.games.length
+      });
+
+      setProductSections(sections);
+    } catch (error) {
+      console.error('Error fetching product sections:', error);
+    } finally {
+      setSectionsLoading(false);
+    }
+  };
 
   const fetchProducts = async () => {
     try {
@@ -495,7 +639,7 @@ export default function ProductsPage() {
       case 'supplier':
         return 'منتجاتي';
       case 'marketer':
-        return 'المنتجات المعتمدة';
+        return 'منتجات متاحة للبيع';
       case 'wholesaler':
         return 'منتجات الجملة';
       default:
@@ -510,7 +654,7 @@ export default function ProductsPage() {
       case 'admin':
         return 'إدارة جميع المنتجات في المنصة';
       case 'marketer':
-        return 'تصفح المنتجات المعتمدة وإنشاء طلبات';
+        return 'تصفح المنتجات المعتمدة وأضفها للسلة لإنشاء طلبات للعملاء';
       case 'wholesaler':
         return 'تصفح المنتجات المتاحة للطلب بالجملة';
       default:
@@ -528,25 +672,151 @@ export default function ProductsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100">{getRoleTitle()}</h1>
-          <p className="text-gray-600 dark:text-slate-400 mt-2">{getRoleDescription()}</p>
-        </div>
+      {/* Header - Enhanced for Marketer */}
+      <div className={`${user?.role === 'marketer' ? 'bg-gradient-to-r from-[#FF9800] to-[#F57C00] rounded-xl p-6 text-white shadow-lg' : ''}`}>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className={`text-3xl font-bold ${user?.role === 'marketer' ? 'text-white' : 'text-gray-900 dark:text-slate-100'}`}>
+              {getRoleTitle()}
+            </h1>
+            <p className={`mt-2 ${user?.role === 'marketer' ? 'text-white/90' : 'text-gray-600 dark:text-slate-400'}`}>
+              {getRoleDescription()}
+            </p>
+            {user?.role === 'marketer' && products.length > 0 && (
+              <p className="mt-2 text-sm text-white/80">
+                {pagination.total} منتج متاح للطلب
+              </p>
+            )}
+          </div>
 
-        {(user?.role === 'supplier' || user?.role === 'admin') && (
-          <Link href="/dashboard/products/new" className="btn-primary">
-            <Plus className="w-5 h-5 ml-2" />
-            إضافة منتج جديد
-          </Link>
-        )}
+          {(user?.role === 'supplier' || user?.role === 'admin') && (
+            <Link href="/dashboard/products/new" className="btn-primary">
+              <Plus className="w-5 h-5 ml-2" />
+              إضافة منتج جديد
+            </Link>
+          )}
+          
+          {user?.role === 'marketer' && (
+            <div className="flex items-center space-x-3 space-x-reverse">
+              <Link href="/dashboard/cart" className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
+                <ShoppingCart className="w-5 h-5 ml-2" />
+                سلة التسوق
+              </Link>
+              <Link href="/dashboard/favorites" className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
+                <Heart className="w-5 h-5 ml-2" />
+                المفضلة
+              </Link>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Search and Filters */}
       <SearchFilters onSearch={() => setLoading(true)} />
 
-      {/* Products Grid */}
+      {/* Product Sections for Marketer - Only show when no filters/search */}
+      {user?.role === 'marketer' && !searchParams.toString() && (
+        <div className="space-y-8">
+          {sectionsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="loading-spinner w-8 h-8"></div>
+              <span className="mr-3 text-gray-600 dark:text-slate-400">جاري تحميل الأقسام...</span>
+            </div>
+          ) : (
+            <>
+              {/* New Arrivals Section */}
+              <ProductSection
+                title="المضافة حديثاً"
+                icon={<Sparkles className="w-6 h-6" />}
+                products={productSections.newArrivals}
+                onViewAll={() => router.push('/dashboard/products?sortBy=createdAt&sortOrder=desc')}
+                onProductClick={(product) => router.push(`/dashboard/products/${product._id}`)}
+                onAddToCart={(product: any) => handleAddToCart(product)}
+                onToggleFavorite={(product: any) => handleToggleFavorite(product)}
+                isFavorite={isFavorite}
+              />
+
+              {/* Best Sellers Section */}
+              <ProductSection
+                title="الأكثر مبيعاً"
+                icon={<TrendingUp className="w-6 h-6" />}
+                products={productSections.bestSellers}
+                onViewAll={() => router.push('/dashboard/products?sortBy=sales&sortOrder=desc')}
+                onProductClick={(product) => router.push(`/dashboard/products/${product._id}`)}
+                onAddToCart={(product: any) => handleAddToCart(product)}
+                onToggleFavorite={(product: any) => handleToggleFavorite(product)}
+                isFavorite={isFavorite}
+              />
+
+              {/* Garden & Home Section */}
+              <ProductSection
+                title="الحديقة والمنزل"
+                icon={<Home className="w-6 h-6" />}
+                products={productSections.gardenHome}
+                onViewAll={() => {
+                  const cat = productSections.gardenHome[0]?.categoryId;
+                  if (cat) router.push(`/dashboard/products?category=${cat}`);
+                  else router.push('/dashboard/products');
+                }}
+                onProductClick={(product) => router.push(`/dashboard/products/${product._id}`)}
+                onAddToCart={(product: any) => handleAddToCart(product)}
+                onToggleFavorite={(product: any) => handleToggleFavorite(product)}
+                isFavorite={isFavorite}
+              />
+
+              {/* Health & Beauty Section */}
+              <ProductSection
+                title="الصحة والجمال"
+                icon={<HeartIcon className="w-6 h-6" />}
+                products={productSections.healthBeauty}
+                onViewAll={() => {
+                  const cat = productSections.healthBeauty[0]?.categoryId;
+                  if (cat) router.push(`/dashboard/products?category=${cat}`);
+                  else router.push('/dashboard/products');
+                }}
+                onProductClick={(product) => router.push(`/dashboard/products/${product._id}`)}
+                onAddToCart={(product: any) => handleAddToCart(product)}
+                onToggleFavorite={(product: any) => handleToggleFavorite(product)}
+                isFavorite={isFavorite}
+              />
+
+              {/* Electronics Section */}
+              <ProductSection
+                title="إلكترونيات"
+                icon={<Zap className="w-6 h-6" />}
+                products={productSections.electronics}
+                onViewAll={() => {
+                  const cat = productSections.electronics[0]?.categoryId;
+                  if (cat) router.push(`/dashboard/products?category=${cat}`);
+                  else router.push('/dashboard/products');
+                }}
+                onProductClick={(product) => router.push(`/dashboard/products/${product._id}`)}
+                onAddToCart={(product: any) => handleAddToCart(product)}
+                onToggleFavorite={(product: any) => handleToggleFavorite(product)}
+                isFavorite={isFavorite}
+              />
+
+              {/* Games Section */}
+              <ProductSection
+                title="ألعاب"
+                icon={<Gamepad2 className="w-6 h-6" />}
+                products={productSections.games}
+                onViewAll={() => {
+                  const cat = productSections.games[0]?.categoryId;
+                  if (cat) router.push(`/dashboard/products?category=${cat}`);
+                  else router.push('/dashboard/products');
+                }}
+                onProductClick={(product) => router.push(`/dashboard/products/${product._id}`)}
+                onAddToCart={(product: any) => handleAddToCart(product)}
+                onToggleFavorite={(product: any) => handleToggleFavorite(product)}
+                isFavorite={isFavorite}
+              />
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Products Grid - Show when filters/search are active or for other roles */}
       {products.length === 0 ? (
         <div className="card text-center py-12">
           <Package className="w-16 h-16 text-gray-400 dark:text-slate-500 mx-auto mb-4" />
@@ -628,21 +898,26 @@ export default function ProductsPage() {
                   <h3 className="font-semibold text-gray-900 dark:text-slate-100 line-clamp-2">{product.name}</h3>
                   <p className="text-sm text-gray-600 dark:text-slate-300 line-clamp-2">{product.description}</p>
 
-                                     <div className="flex items-center justify-between">
-                     <div>
-                       <p className="text-lg font-bold text-primary-600 dark:text-primary-400">
-                         {user?.role === 'wholesaler' ? product.wholesalerPrice : product.marketerPrice} ₪
-                       </p>
-                       <div className="flex items-center space-x-2 space-x-reverse mt-1">
-                         <span className={`text-xs px-2 py-1 rounded-full ${
-                           product.stockQuantity > 10 
-                             ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                             : product.stockQuantity > 0 
-                             ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                             : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                         }`}>
-                           المخزون: {product.stockQuantity}
-                         </span>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-lg font-bold text-primary-600 dark:text-primary-400">
+                        {user?.role === 'wholesaler' ? product.wholesalerPrice : product.marketerPrice} ₪
+                      </p>
+                      {user?.role === 'marketer' && product.minimumSellingPrice && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          السعر الأدنى: {product.minimumSellingPrice} ₪
+                        </p>
+                      )}
+                      <div className="flex items-center space-x-2 space-x-reverse mt-1">
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          product.stockQuantity > 10 
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                            : product.stockQuantity > 0 
+                            ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                            : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                        }`}>
+                          {product.stockQuantity > 0 ? `متوفر (${product.stockQuantity})` : 'غير متوفر'}
+                        </span>
                          
                          {/* Quick Edit Indicator for Suppliers */}
                          {user?.role === 'supplier' && (
@@ -695,22 +970,22 @@ export default function ProductsPage() {
                     </div>
 
                     {/* Actions for Marketer/Wholesaler */}
-                    {(user?.role === 'marketer' || user?.role === 'wholesaler') && product.isApproved && (
+                    {(user?.role === 'marketer' || user?.role === 'wholesaler') && product.isApproved && !product.isLocked && (
                       <div className="flex items-center space-x-2 space-x-reverse">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             handleAddToCart(product);
                           }}
-                          className={`text-sm font-medium ${
+                          className={`text-sm font-medium px-3 py-1.5 rounded-lg transition-colors flex items-center ${
                             product.stockQuantity > 0 
-                              ? 'text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300' 
-                              : 'text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                              ? 'bg-emerald-600 hover:bg-emerald-700 text-white dark:bg-emerald-500 dark:hover:bg-emerald-600 shadow-md hover:shadow-lg' 
+                              : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
                           }`}
                           title={product.stockQuantity > 0 ? 'إضافة للسلة' : 'غير متوفر في المخزون'}
                           disabled={product.stockQuantity <= 0}
                         >
-                          <ShoppingCart className="w-4 h-4 ml-1 inline" />
+                          <ShoppingCart className="w-4 h-4 ml-1" />
                           {product.stockQuantity > 0 ? 'إضافة للسلة' : 'غير متوفر'}
                         </button>
                       </div>

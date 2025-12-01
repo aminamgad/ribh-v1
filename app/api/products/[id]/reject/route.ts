@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import Product from '@/models/Product';
 import connectDB from '@/lib/database';
+import { productCache, generateCacheKey } from '@/lib/cache';
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
+import { sendNotificationToUser, isUserOnline } from '@/lib/notifications';
 
 async function rejectProductHandler(
   request: NextRequest,
@@ -11,19 +15,13 @@ async function rejectProductHandler(
   try {
     await connectDB();
     
-    console.log('🔍 User authentication successful:', {
-      userId: user._id,
-      userRole: user.role,
-      userName: user.name
-    });
+    logger.apiRequest('PUT', '/api/products/[id]/reject', { userId: user._id, userRole: user.role });
 
     // Check if user is admin
     if (user.role !== 'admin') {
-      console.log('❌ Role check failed - user is not admin:', user.role);
+      logger.warn('Role check failed - user is not admin', { userRole: user.role, userId: user._id });
       return NextResponse.json({ message: 'غير مصرح' }, { status: 403 });
     }
-
-    console.log('✅ Admin role verified successfully');
 
     const { id } = params;
     if (!id) {
@@ -60,28 +58,66 @@ async function rejectProductHandler(
       { new: true }
     ).populate('supplierId', 'name companyName');
 
+    // Invalidate cache
+    productCache.delete(generateCacheKey('product', id, 'admin'));
+    productCache.clearPattern('products');
+    // Invalidate stats cache
+    const { statsCache } = require('@/lib/cache');
+    statsCache.clear();
+
     // Send notification to supplier
     if (updatedProduct.supplierId) {
       try {
-        const Notification = (await import('@/models/Notification')).default;
-        await Notification.create({
-          userId: updatedProduct.supplierId._id,
-          title: 'تم رفض المنتج',
-          message: `تم رفض منتجك "${updatedProduct.name}" من قبل الإدارة. السبب: ${rejectionReason.trim()}`,
-          type: 'error',
-          actionUrl: `/dashboard/products/${updatedProduct._id}`,
-          metadata: { 
-            productId: updatedProduct._id,
-            productName: updatedProduct.name,
-            adminName: user.name,
-            rejectionReason: rejectionReason.trim()
+        const supplierId = (updatedProduct.supplierId as any)._id || updatedProduct.supplierId;
+        const supplierIdStr = supplierId.toString();
+        
+        // Check if supplier is online
+        const supplierIsOnline = await isUserOnline(supplierIdStr);
+        
+        // Send notification via unified system (Database + Socket.io + Email)
+        await sendNotificationToUser(
+          supplierIdStr,
+          {
+            title: 'تم رفض المنتج',
+            message: `تم رفض منتجك "${updatedProduct.name}" من قبل الإدارة. السبب: ${rejectionReason.trim()}`,
+            type: 'error',
+            actionUrl: `/dashboard/products/${updatedProduct._id}`,
+            metadata: { 
+              productId: updatedProduct._id.toString(),
+              productName: updatedProduct.name,
+              adminName: user.name,
+              rejectionReason: rejectionReason.trim(),
+              rejectedAt: new Date().toISOString()
+            }
+          },
+          {
+            sendEmail: true, // Always send email for important product rejection notifications
+            sendSocket: true
           }
+        );
+        
+        logger.info('Notification sent to supplier for rejected product', {
+          productId: updatedProduct._id.toString(),
+          productName: updatedProduct.name,
+          supplierId: supplierIdStr,
+          supplierIsOnline,
+          emailSent: true,
+          rejectionReason: rejectionReason.trim()
         });
-        console.log(`✅ Notification sent to supplier for rejected product: ${updatedProduct.name}`);
       } catch (error) {
-        console.error('❌ Error sending notification to supplier:', error);
+        logger.error('Error sending notification to supplier', error, {
+          productId: updatedProduct._id.toString()
+        });
+        // Don't fail the rejection if notification fails
       }
     }
+
+    logger.business('Product rejected', {
+      productId: updatedProduct._id.toString(),
+      rejectedBy: user._id.toString(),
+      rejectionReason
+    });
+    logger.apiResponse('PUT', '/api/products/[id]/reject', 200);
 
     return NextResponse.json({
       message: 'تم رفض المنتج بنجاح',
@@ -89,11 +125,8 @@ async function rejectProductHandler(
     });
 
   } catch (error) {
-    console.error('Error rejecting product:', error);
-    return NextResponse.json(
-      { message: 'حدث خطأ أثناء رفض المنتج' },
-      { status: 500 }
-    );
+    logger.error('Error rejecting product', error, { userId: user._id });
+    return handleApiError(error, 'حدث خطأ أثناء رفض المنتج');
   }
 }
 
@@ -102,21 +135,16 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    console.log('🔍 Starting product rejection process');
-    
     const user = await getCurrentUser(request);
     if (!user) {
-      console.log('❌ Authentication failed - no user found');
+      logger.warn('Authentication failed - no user found', { path: '/api/products/[id]/reject' });
       return NextResponse.json({ message: 'غير مصرح' }, { status: 401 });
     }
 
     return await rejectProductHandler(request, user, { params });
   } catch (error) {
-    console.error('Error in rejection route:', error);
-    return NextResponse.json(
-      { message: 'حدث خطأ أثناء رفض المنتج' },
-      { status: 500 }
-    );
+    logger.error('Error in rejection route', error);
+    return handleApiError(error, 'حدث خطأ أثناء رفض المنتج');
   }
 }
 

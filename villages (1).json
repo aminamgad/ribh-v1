@@ -1,0 +1,5822 @@
+{
+    "code": 200,
+    "msg": "success",
+    "data": [
+        {
+            "id": 1,
+            "village_name": "جنين-جنين",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:40:21.000000Z"
+        },
+        {
+            "id": 2,
+            "village_name": "جنين-أم التوت",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:50:46.000000Z"
+        },
+        {
+            "id": 3,
+            "village_name": "جنين-أم الريحان",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:53:02.000000Z"
+        },
+        {
+            "id": 4,
+            "village_name": "جنين-أم دار",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:29:50.000000Z"
+        },
+        {
+            "id": 5,
+            "village_name": "جنين-الجديدة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:30:07.000000Z"
+        },
+        {
+            "id": 6,
+            "village_name": "جنين-الجلمة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:30:38.000000Z"
+        },
+        {
+            "id": 7,
+            "village_name": "جنين-الخلجان",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:31:15.000000Z"
+        },
+        {
+            "id": 8,
+            "village_name": "جنين-الرامة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:31:30.000000Z"
+        },
+        {
+            "id": 9,
+            "village_name": "جنين-الزاوية",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:31:45.000000Z"
+        },
+        {
+            "id": 10,
+            "village_name": "جنين-الزبابدة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:32:05.000000Z"
+        },
+        {
+            "id": 11,
+            "village_name": "جنين-السيلة الحارثية",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:51:50.000000Z"
+        },
+        {
+            "id": 12,
+            "village_name": "جنين-الطيبة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:32:35.000000Z"
+        },
+        {
+            "id": 13,
+            "village_name": "جنين-العطارة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:33:08.000000Z"
+        },
+        {
+            "id": 14,
+            "village_name": "جنين-العقبة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:33:22.000000Z"
+        },
+        {
+            "id": 15,
+            "village_name": "جنين-الفندقومية",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:33:40.000000Z"
+        },
+        {
+            "id": 16,
+            "village_name": "جنين-الكفير",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:34:01.000000Z"
+        },
+        {
+            "id": 17,
+            "village_name": "جنين-اللجون",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:34:16.000000Z"
+        },
+        {
+            "id": 18,
+            "village_name": "جنين-المزار",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:34:50.000000Z"
+        },
+        {
+            "id": 19,
+            "village_name": "جنين-المغير",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:35:04.000000Z"
+        },
+        {
+            "id": 20,
+            "village_name": "جنين-المنشية",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:35:56.000000Z"
+        },
+        {
+            "id": 21,
+            "village_name": "جنين-اليامون",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:36:24.000000Z"
+        },
+        {
+            "id": 22,
+            "village_name": "الداخل(الشمال)-برطعة الشرقية",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:15:35.000000Z"
+        },
+        {
+            "id": 23,
+            "village_name": "جنين-برقين",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:36:39.000000Z"
+        },
+        {
+            "id": 24,
+            "village_name": "جنين-بيت قاد",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:36:52.000000Z"
+        },
+        {
+            "id": 25,
+            "village_name": "جنين-بير الباشا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:37:33.000000Z"
+        },
+        {
+            "id": 26,
+            "village_name": "جنين-تعنك",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:37:47.000000Z"
+        },
+        {
+            "id": 27,
+            "village_name": "جنين-تل الآسمر",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:53:55.000000Z"
+        },
+        {
+            "id": 28,
+            "village_name": "جنين-تلفيت",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:38:15.000000Z"
+        },
+        {
+            "id": 29,
+            "village_name": "جنين-جبع",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:38:47.000000Z"
+        },
+        {
+            "id": 30,
+            "village_name": "نابلس-جبل حريش",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T03:52:01.000000Z"
+        },
+        {
+            "id": 31,
+            "village_name": "جنين-جربا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:39:11.000000Z"
+        },
+        {
+            "id": 32,
+            "village_name": "جنين-جلبون",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:39:26.000000Z"
+        },
+        {
+            "id": 33,
+            "village_name": "جنين-جلقموس",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:39:43.000000Z"
+        },
+        {
+            "id": 34,
+            "village_name": "جنين-جنزور",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:40:02.000000Z"
+        },
+        {
+            "id": 35,
+            "village_name": "جنين-خربة الجوفة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:40:37.000000Z"
+        },
+        {
+            "id": 36,
+            "village_name": "جنين-خربة الرعدية",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:40:50.000000Z"
+        },
+        {
+            "id": 37,
+            "village_name": "جنين-خربة السويطات",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:41:03.000000Z"
+        },
+        {
+            "id": 38,
+            "village_name": "جنين-خربة المطلة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:41:18.000000Z"
+        },
+        {
+            "id": 39,
+            "village_name": "جنين-خربة خروبة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:41:31.000000Z"
+        },
+        {
+            "id": 40,
+            "village_name": "جنين-دير أبو ضعيف",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:41:49.000000Z"
+        },
+        {
+            "id": 41,
+            "village_name": "جنين-دير غزالة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:42:04.000000Z"
+        },
+        {
+            "id": 42,
+            "village_name": "جنين-رابا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:42:16.000000Z"
+        },
+        {
+            "id": 43,
+            "village_name": "جنين-رمانة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:42:39.000000Z"
+        },
+        {
+            "id": 44,
+            "village_name": "جنين-زبدة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:43:00.000000Z"
+        },
+        {
+            "id": 45,
+            "village_name": "جنين-زبوبا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:43:21.000000Z"
+        },
+        {
+            "id": 46,
+            "village_name": "جنين-زرعين",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:43:32.000000Z"
+        },
+        {
+            "id": 47,
+            "village_name": "جنين-سيريس",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:43:47.000000Z"
+        },
+        {
+            "id": 48,
+            "village_name": "جنين-سيلة الظهر",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:44:04.000000Z"
+        },
+        {
+            "id": 49,
+            "village_name": "جنين-صانور",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:44:17.000000Z"
+        },
+        {
+            "id": 50,
+            "village_name": "جنين-صير",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:44:31.000000Z"
+        },
+        {
+            "id": 51,
+            "village_name": "جنين-طورة الشرقية",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:44:43.000000Z"
+        },
+        {
+            "id": 52,
+            "village_name": "جنين-طورة الغربية ",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-04-02T05:09:30.000000Z"
+        },
+        {
+            "id": 53,
+            "village_name": "اريحا-ظهر المالح",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-09-03T18:44:35.000000Z"
+        },
+        {
+            "id": 54,
+            "village_name": "جنين-عابا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:45:01.000000Z"
+        },
+        {
+            "id": 55,
+            "village_name": "جنين-عانين",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:45:17.000000Z"
+        },
+        {
+            "id": 56,
+            "village_name": "جنين-عجة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:45:33.000000Z"
+        },
+        {
+            "id": 57,
+            "village_name": "جنين-عرابة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:45:45.000000Z"
+        },
+        {
+            "id": 58,
+            "village_name": "جنين-عرانة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:45:56.000000Z"
+        },
+        {
+            "id": 59,
+            "village_name": "جنين-عربونة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:46:09.000000Z"
+        },
+        {
+            "id": 60,
+            "village_name": "جنين-عرقة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:46:22.000000Z"
+        },
+        {
+            "id": 61,
+            "village_name": "جنين-عطارة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:46:33.000000Z"
+        },
+        {
+            "id": 62,
+            "village_name": "جنين-عين المنسي",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:46:49.000000Z"
+        },
+        {
+            "id": 63,
+            "village_name": "جنين-فحمة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:47:01.000000Z"
+        },
+        {
+            "id": 64,
+            "village_name": "جنين-فراسين",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:47:16.000000Z"
+        },
+        {
+            "id": 65,
+            "village_name": "جنين-فقوعة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:47:28.000000Z"
+        },
+        {
+            "id": 66,
+            "village_name": "جنين-قباطية",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:47:40.000000Z"
+        },
+        {
+            "id": 67,
+            "village_name": "جنين-كفر دان",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:47:54.000000Z"
+        },
+        {
+            "id": 68,
+            "village_name": "جنين-كفر راعي",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:48:09.000000Z"
+        },
+        {
+            "id": 69,
+            "village_name": "جنين-كفر قود",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:48:21.000000Z"
+        },
+        {
+            "id": 70,
+            "village_name": "جنين-كفير",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:48:33.000000Z"
+        },
+        {
+            "id": 71,
+            "village_name": "جنين-كفيرت",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:48:47.000000Z"
+        },
+        {
+            "id": 72,
+            "village_name": "جنين-مثلث الشهداء",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:49:01.000000Z"
+        },
+        {
+            "id": 73,
+            "village_name": "جنين-مخيم جنين",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:49:13.000000Z"
+        },
+        {
+            "id": 74,
+            "village_name": "جنين-مركة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:49:40.000000Z"
+        },
+        {
+            "id": 75,
+            "village_name": "جنين-مسلية",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:49:52.000000Z"
+        },
+        {
+            "id": 76,
+            "village_name": "جنين-ميثلون",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:50:05.000000Z"
+        },
+        {
+            "id": 77,
+            "village_name": "جنين-نزلة الشيخ زيد",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:50:18.000000Z"
+        },
+        {
+            "id": 78,
+            "village_name": "جنين-الهاشمية",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:36:11.000000Z"
+        },
+        {
+            "id": 79,
+            "village_name": "جنين-الجامعه العربيه الامريكيه",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:51:37.000000Z"
+        },
+        {
+            "id": 80,
+            "village_name": "جنين-الجربا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:30:23.000000Z"
+        },
+        {
+            "id": 81,
+            "village_name": "جنين-العصاعصه",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:32:49.000000Z"
+        },
+        {
+            "id": 82,
+            "village_name": "جنين-يعبد",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:50:32.000000Z"
+        },
+        {
+            "id": 83,
+            "village_name": "نابلس-أودلا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:23:56.000000Z"
+        },
+        {
+            "id": 84,
+            "village_name": "نابلس-اوصرين",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-08-03T00:28:18.000000Z"
+        },
+        {
+            "id": 85,
+            "village_name": "نابلس-إجنسنيا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:18:12.000000Z"
+        },
+        {
+            "id": 86,
+            "village_name": "نابلس-الباذان",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:24:09.000000Z"
+        },
+        {
+            "id": 87,
+            "village_name": "نابلس-الساوية",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:24:38.000000Z"
+        },
+        {
+            "id": 88,
+            "village_name": "نابلس-العقربانية",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:24:55.000000Z"
+        },
+        {
+            "id": 89,
+            "village_name": "نابلس-اللبن الشرقية",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:25:38.000000Z"
+        },
+        {
+            "id": 90,
+            "village_name": "نابلس-الناقورة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:18:31.000000Z"
+        },
+        {
+            "id": 91,
+            "village_name": "نابلس-النصارية",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:18:49.000000Z"
+        },
+        {
+            "id": 92,
+            "village_name": "نابلس-برقة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:19:28.000000Z"
+        },
+        {
+            "id": 93,
+            "village_name": "نابلس-بزاريا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:25:55.000000Z"
+        },
+        {
+            "id": 94,
+            "village_name": "نابلس-بورين",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:19:07.000000Z"
+        },
+        {
+            "id": 95,
+            "village_name": "نابلس-بيت إمرين",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:20:11.000000Z"
+        },
+        {
+            "id": 96,
+            "village_name": "نابلس-بيت إيبا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:26:10.000000Z"
+        },
+        {
+            "id": 97,
+            "village_name": "نابلس-بيت حسن",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:19:52.000000Z"
+        },
+        {
+            "id": 98,
+            "village_name": "نابلس-بيت دجن",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:20:30.000000Z"
+        },
+        {
+            "id": 99,
+            "village_name": "نابلس-بيت فوريك",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:26:23.000000Z"
+        },
+        {
+            "id": 100,
+            "village_name": "نابلس-بيت وزن",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:26:36.000000Z"
+        },
+        {
+            "id": 101,
+            "village_name": "نابلس-بيتا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:20:48.000000Z"
+        },
+        {
+            "id": 102,
+            "village_name": "نابلس-حوارة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:21:36.000000Z"
+        },
+        {
+            "id": 103,
+            "village_name": "نابلس-تل",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:21:04.000000Z"
+        },
+        {
+            "id": 104,
+            "village_name": "نابلس-تلفيت",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:21:20.000000Z"
+        },
+        {
+            "id": 105,
+            "village_name": "نابلس-خربة عطية",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:03:17.000000Z"
+        },
+        {
+            "id": 106,
+            "village_name": "نابلس-جالود",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T03:52:36.000000Z"
+        },
+        {
+            "id": 107,
+            "village_name": "نابلس-جماعين",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:39:57.000000Z"
+        },
+        {
+            "id": 108,
+            "village_name": "نابلس - المساكن الشعبيه",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-06-09T02:13:09.000000Z"
+        },
+        {
+            "id": 109,
+            "village_name": "نابلس-جوريش",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-04-02T05:09:30.000000Z"
+        },
+        {
+            "id": 110,
+            "village_name": "نابلس-دوما",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:56:14.000000Z"
+        },
+        {
+            "id": 111,
+            "village_name": "نابلس-دير الحطب",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:11:15.000000Z"
+        },
+        {
+            "id": 112,
+            "village_name": "نابلس-دير شرف",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:22:32.000000Z"
+        },
+        {
+            "id": 113,
+            "village_name": "نابلس-رفيديا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:30:28.000000Z"
+        },
+        {
+            "id": 114,
+            "village_name": "نابلس-روجيب",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:32:25.000000Z"
+        },
+        {
+            "id": 115,
+            "village_name": "نابلس-زعترة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:21:54.000000Z"
+        },
+        {
+            "id": 116,
+            "village_name": "نابلس-زواتا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:38:11.000000Z"
+        },
+        {
+            "id": 117,
+            "village_name": "نابلس-زيتا جماعين",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:40:18.000000Z"
+        },
+        {
+            "id": 118,
+            "village_name": "نابلس-سالم",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:22:09.000000Z"
+        },
+        {
+            "id": 119,
+            "village_name": "نابلس-سبسطية",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:39:12.000000Z"
+        },
+        {
+            "id": 120,
+            "village_name": "نابلس-صرة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:22:24.000000Z"
+        },
+        {
+            "id": 121,
+            "village_name": "نابلس-طلوزة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-04-02T05:09:30.000000Z"
+        },
+        {
+            "id": 122,
+            "village_name": "اريحا-فروش بيت دجن",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2024-09-21T07:57:29.000000Z"
+        },
+        {
+            "id": 123,
+            "village_name": "نابلس-عراق التايه",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-07-21T00:09:39.000000Z"
+        },
+        {
+            "id": 124,
+            "village_name": "نابلس-عراق بورين",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-07-21T00:10:10.000000Z"
+        },
+        {
+            "id": 125,
+            "village_name": "نابلس-عزموط",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-07-21T00:15:39.000000Z"
+        },
+        {
+            "id": 126,
+            "village_name": "نابلس-عصيرة الشمالية",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-07-21T00:16:10.000000Z"
+        },
+        {
+            "id": 127,
+            "village_name": "نابلس-عصيرة القبلية",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-07-21T00:16:34.000000Z"
+        },
+        {
+            "id": 128,
+            "village_name": "نابلس-عقربا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:22:39.000000Z"
+        },
+        {
+            "id": 129,
+            "village_name": "نابلس-عمورية",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:22:55.000000Z"
+        },
+        {
+            "id": 130,
+            "village_name": "نابلس-عورتا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-07-21T00:37:39.000000Z"
+        },
+        {
+            "id": 131,
+            "village_name": "نابلس-عوريف",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-07-21T00:23:54.000000Z"
+        },
+        {
+            "id": 132,
+            "village_name": "اريحا-عين شبلي",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-07-27T22:35:15.000000Z"
+        },
+        {
+            "id": 133,
+            "village_name": "نابلس-عينبوس",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-07-21T00:34:15.000000Z"
+        },
+        {
+            "id": 134,
+            "village_name": "نابلس-قبلان",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T01:48:24.000000Z"
+        },
+        {
+            "id": 135,
+            "village_name": "نابلس-قريوت",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T01:42:26.000000Z"
+        },
+        {
+            "id": 136,
+            "village_name": "نابلس-قصرة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T01:42:07.000000Z"
+        },
+        {
+            "id": 137,
+            "village_name": "نابلس-قوصين",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T01:40:16.000000Z"
+        },
+        {
+            "id": 138,
+            "village_name": "نابلس-كفر قليل",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T01:33:45.000000Z"
+        },
+        {
+            "id": 139,
+            "village_name": "نابلس-طلوزة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-07-27T22:40:49.000000Z"
+        },
+        {
+            "id": 140,
+            "village_name": "نابلس-نصف جبيل",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T04:04:15.000000Z"
+        },
+        {
+            "id": 141,
+            "village_name": "نابلس-مادما",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T01:31:52.000000Z"
+        },
+        {
+            "id": 142,
+            "village_name": "نابلس-مجدل بني فاضل",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T01:31:36.000000Z"
+        },
+        {
+            "id": 144,
+            "village_name": "نابلس-ياصيد",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-12T20:22:13.000000Z"
+        },
+        {
+            "id": 145,
+            "village_name": "نابلس-يانون",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T04:03:00.000000Z"
+        },
+        {
+            "id": 146,
+            "village_name": "نابلس-يتما",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-12T02:41:36.000000Z"
+        },
+        {
+            "id": 147,
+            "village_name": "طوباس-إبزيق",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:17:01.000000Z"
+        },
+        {
+            "id": 148,
+            "village_name": "طوباس-العقبة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:31:05.000000Z"
+        },
+        {
+            "id": 149,
+            "village_name": "طوباس-تياسير",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T03:53:25.000000Z"
+        },
+        {
+            "id": 150,
+            "village_name": "طوباس-بردلة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:35:33.000000Z"
+        },
+        {
+            "id": 151,
+            "village_name": "رام الله-جباريس",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:45:33.000000Z"
+        },
+        {
+            "id": 152,
+            "village_name": "طوباس-حمرة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:56:52.000000Z"
+        },
+        {
+            "id": 153,
+            "village_name": "طوباس-خربة عاطوف",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:04:27.000000Z"
+        },
+        {
+            "id": 154,
+            "village_name": "طوباس-خربة الراس الأحمر",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:56:00.000000Z"
+        },
+        {
+            "id": 155,
+            "village_name": "طوباس-خربة المالح",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:57:46.000000Z"
+        },
+        {
+            "id": 156,
+            "village_name": "طوباس-خربة حمصة الفوقا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:05:21.000000Z"
+        },
+        {
+            "id": 157,
+            "village_name": "طوباس-راس الفارعة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:21:09.000000Z"
+        },
+        {
+            "id": 158,
+            "village_name": "طوباس-سلحب",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:43:36.000000Z"
+        },
+        {
+            "id": 159,
+            "village_name": "طوباس-عقابا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-07-21T00:27:17.000000Z"
+        },
+        {
+            "id": 160,
+            "village_name": "اريحا-عين البيضا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-07-21T00:29:18.000000Z"
+        },
+        {
+            "id": 161,
+            "village_name": "طوباس-كردلة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:10:59.000000Z"
+        },
+        {
+            "id": 162,
+            "village_name": "طوباس-مخيم الفارعة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-07-27T22:40:08.000000Z"
+        },
+        {
+            "id": 163,
+            "village_name": "طوباس-وادي الفارعة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T04:02:15.000000Z"
+        },
+        {
+            "id": 164,
+            "village_name": "طوباس-وادي حمد",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-12T20:25:47.000000Z"
+        },
+        {
+            "id": 165,
+            "village_name": "طولكرم-أم خالد",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:52:44.000000Z"
+        },
+        {
+            "id": 166,
+            "village_name": "طولكرم-الجاروشية",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:45:25.000000Z"
+        },
+        {
+            "id": 167,
+            "village_name": "طولكرم-الراس",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:42:03.000000Z"
+        },
+        {
+            "id": 168,
+            "village_name": "طولكرم-النزلة الشرقية",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-07-27T22:39:27.000000Z"
+        },
+        {
+            "id": 169,
+            "village_name": "طولكرم-النزلة الغربية",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-07-27T22:36:34.000000Z"
+        },
+        {
+            "id": 170,
+            "village_name": "طولكرم-النزلة الوسطى",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T04:03:38.000000Z"
+        },
+        {
+            "id": 171,
+            "village_name": "طولكرم-باقة الشرقية",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:34:30.000000Z"
+        },
+        {
+            "id": 172,
+            "village_name": "طولكرم-بلعا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:34:19.000000Z"
+        },
+        {
+            "id": 173,
+            "village_name": "طولكرم-بيت ليد",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:43:49.000000Z"
+        },
+        {
+            "id": 174,
+            "village_name": "طولكرم-خربة بيت ليد",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:07:23.000000Z"
+        },
+        {
+            "id": 175,
+            "village_name": "طولكرم-خربة جبارة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:02:57.000000Z"
+        },
+        {
+            "id": 176,
+            "village_name": "طولكرم-دير الغصون",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:12:32.000000Z"
+        },
+        {
+            "id": 177,
+            "village_name": "طولكرم-رامين",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:30:12.000000Z"
+        },
+        {
+            "id": 178,
+            "village_name": "طولكرم-زيتا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:38:29.000000Z"
+        },
+        {
+            "id": 179,
+            "village_name": "طولكرم-سفارين",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:42:12.000000Z"
+        },
+        {
+            "id": 180,
+            "village_name": "طولكرم-شوفه",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2024-02-07T08:22:19.000000Z"
+        },
+        {
+            "id": 181,
+            "village_name": "طولكرم-صيدا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2024-02-05T00:13:31.000000Z"
+        },
+        {
+            "id": 182,
+            "village_name": "طولكرم-عتيل",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-06-19T06:34:12.000000Z"
+        },
+        {
+            "id": 183,
+            "village_name": "طولكرم-عكابة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-07-21T00:26:27.000000Z"
+        },
+        {
+            "id": 184,
+            "village_name": "طولكرم-عنبتا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-07-10T05:21:14.000000Z"
+        },
+        {
+            "id": 185,
+            "village_name": "طولكرم-فرعون",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T01:43:18.000000Z"
+        },
+        {
+            "id": 186,
+            "village_name": "طولكرم-قفين",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T01:41:28.000000Z"
+        },
+        {
+            "id": 187,
+            "village_name": "طولكرم-كفر اللبد",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T01:54:03.000000Z"
+        },
+        {
+            "id": 188,
+            "village_name": "طولكرم-كفر جمال",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T01:54:46.000000Z"
+        },
+        {
+            "id": 189,
+            "village_name": "طولكرم-كفر رمان",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T01:35:29.000000Z"
+        },
+        {
+            "id": 190,
+            "village_name": "طولكرم-كفر زيباد",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T01:35:08.000000Z"
+        },
+        {
+            "id": 191,
+            "village_name": "طولكرم-كفر صور",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T01:34:41.000000Z"
+        },
+        {
+            "id": 192,
+            "village_name": "طولكرم-كفر عبوش",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T01:34:17.000000Z"
+        },
+        {
+            "id": 193,
+            "village_name": "طولكرم- طولكرم",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-07-27T22:37:27.000000Z"
+        },
+        {
+            "id": 194,
+            "village_name": "طولكرم-وادي الشعير",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T04:36:28.000000Z"
+        },
+        {
+            "id": 195,
+            "village_name": "طولكرم-نزلة أبو نار",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T04:41:34.000000Z"
+        },
+        {
+            "id": 196,
+            "village_name": "طولكرم-نزلة عيسى",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T04:35:54.000000Z"
+        },
+        {
+            "id": 197,
+            "village_name": "قلقيلية-إماتين",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-12T20:28:40.000000Z"
+        },
+        {
+            "id": 198,
+            "village_name": "قلقيلية-الضبعة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:29:19.000000Z"
+        },
+        {
+            "id": 199,
+            "village_name": "قلقيلة-الفندق",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:30:32.000000Z"
+        },
+        {
+            "id": 200,
+            "village_name": "قلقيلة-المدور",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:33:01.000000Z"
+        },
+        {
+            "id": 201,
+            "village_name": "قلقيلة-باقة الحطب",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:34:06.000000Z"
+        },
+        {
+            "id": 202,
+            "village_name": "قلقيلية-بيت أمين",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:20:47.000000Z"
+        },
+        {
+            "id": 203,
+            "village_name": "قلقيلية-صير",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:20:35.000000Z"
+        },
+        {
+            "id": 204,
+            "village_name": "قلقيلة-جيت",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:48:11.000000Z"
+        },
+        {
+            "id": 205,
+            "village_name": "قلقيلية-جينصافوط",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:50:06.000000Z"
+        },
+        {
+            "id": 206,
+            "village_name": "قلقيلية-جيوس",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:50:31.000000Z"
+        },
+        {
+            "id": 207,
+            "village_name": "قلقيلية-كفر لاقف",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T01:55:00.000000Z"
+        },
+        {
+            "id": 208,
+            "village_name": "قلقيلية-حبلة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:51:16.000000Z"
+        },
+        {
+            "id": 209,
+            "village_name": "قلقيلية-حجة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:51:48.000000Z"
+        },
+        {
+            "id": 210,
+            "village_name": "طولكرم-فلامية",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T01:43:53.000000Z"
+        },
+        {
+            "id": 211,
+            "village_name": "قلقيلة-راس الطيرة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:22:51.000000Z"
+        },
+        {
+            "id": 212,
+            "village_name": "قلقيلة-راس عطية",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:18:50.000000Z"
+        },
+        {
+            "id": 213,
+            "village_name": "قلقيلية-فرعتا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:21:41.000000Z"
+        },
+        {
+            "id": 214,
+            "village_name": "قلقيلية-عرب الرماضين الجنوبي",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:20:23.000000Z"
+        },
+        {
+            "id": 215,
+            "village_name": "قلقيلية-عرب الرماضين الشمالي",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:20:06.000000Z"
+        },
+        {
+            "id": 216,
+            "village_name": "قلقيلية-عزبة الأشقر",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:19:51.000000Z"
+        },
+        {
+            "id": 217,
+            "village_name": "قلقيلية-عزبة الطبيب",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:19:35.000000Z"
+        },
+        {
+            "id": 218,
+            "village_name": "قلقيلية-عزبة جلعود",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:19:22.000000Z"
+        },
+        {
+            "id": 219,
+            "village_name": "قلقيلية-عزبة سلمان",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:19:07.000000Z"
+        },
+        {
+            "id": 220,
+            "village_name": "قلقيلية-عزون",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:18:41.000000Z"
+        },
+        {
+            "id": 221,
+            "village_name": "قلقيلية-عزون عتمة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:18:54.000000Z"
+        },
+        {
+            "id": 222,
+            "village_name": "قلقيلية-عسلة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:21:28.000000Z"
+        },
+        {
+            "id": 223,
+            "village_name": "قلقيلة-وادي الرشا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T04:05:53.000000Z"
+        },
+        {
+            "id": 224,
+            "village_name": "قلقيلية-كفر ثلث",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T01:36:02.000000Z"
+        },
+        {
+            "id": 225,
+            "village_name": "سلفيت-حارس",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:49:20.000000Z"
+        },
+        {
+            "id": 226,
+            "village_name": "سلفيت-اسكاكا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-12T20:20:01.000000Z"
+        },
+        {
+            "id": 227,
+            "village_name": "سلفيت-الزاوية",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-12T20:32:56.000000Z"
+        },
+        {
+            "id": 228,
+            "village_name": "سلفيت-بديا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:35:06.000000Z"
+        },
+        {
+            "id": 229,
+            "village_name": "سلفيت-بروقين",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:34:34.000000Z"
+        },
+        {
+            "id": 230,
+            "village_name": "سلفيت-خربة قيس",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:36:03.000000Z"
+        },
+        {
+            "id": 231,
+            "village_name": "سلفيت-رافات",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:19:44.000000Z"
+        },
+        {
+            "id": 232,
+            "village_name": "سلفيت-دير استيا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:09:50.000000Z"
+        },
+        {
+            "id": 233,
+            "village_name": "سلفيت-دير بلوط",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:15:07.000000Z"
+        },
+        {
+            "id": 234,
+            "village_name": "سلفيت-سرطة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:41:36.000000Z"
+        },
+        {
+            "id": 235,
+            "village_name": "سلفيت-فرخة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-07-27T22:33:23.000000Z"
+        },
+        {
+            "id": 236,
+            "village_name": "سلفيت-قراوة بني حسان",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-28T05:10:59.000000Z"
+        },
+        {
+            "id": 237,
+            "village_name": "سلفيت-قيرة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:11:26.000000Z"
+        },
+        {
+            "id": 238,
+            "village_name": "سلفيت-كفر الديك",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T01:53:42.000000Z"
+        },
+        {
+            "id": 239,
+            "village_name": "سلفيت-كفل حارس",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T01:33:28.000000Z"
+        },
+        {
+            "id": 240,
+            "village_name": "سلفيت-مردة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:38:09.000000Z"
+        },
+        {
+            "id": 241,
+            "village_name": "سلفيت-مسحة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:00:52.000000Z"
+        },
+        {
+            "id": 242,
+            "village_name": "سلفيت-ياسوف",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-12T20:24:37.000000Z"
+        },
+        {
+            "id": 243,
+            "village_name": "الخليل-أم الخير",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:15:36.000000Z"
+        },
+        {
+            "id": 244,
+            "village_name": "الخليل-إمريش",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:08:24.000000Z"
+        },
+        {
+            "id": 245,
+            "village_name": "بيت لحم-بيت جالا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T03:58:16.000000Z"
+        },
+        {
+            "id": 246,
+            "village_name": "الخليل-افقيقيس",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:14:58.000000Z"
+        },
+        {
+            "id": 247,
+            "village_name": "الخليل-البقعة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:09:31.000000Z"
+        },
+        {
+            "id": 248,
+            "village_name": "الخليل-البويرة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-12T20:20:21.000000Z"
+        },
+        {
+            "id": 249,
+            "village_name": "الخليل-التواني",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:11:24.000000Z"
+        },
+        {
+            "id": 250,
+            "village_name": "الخليل-الحيلة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-12T20:21:36.000000Z"
+        },
+        {
+            "id": 251,
+            "village_name": "الخليل-الدوارة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-12T20:18:48.000000Z"
+        },
+        {
+            "id": 252,
+            "village_name": "الخليل-الدوايمة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:14:40.000000Z"
+        },
+        {
+            "id": 253,
+            "village_name": "الخليل-الرماضين",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:11:40.000000Z"
+        },
+        {
+            "id": 254,
+            "village_name": "الخليل-الشيوخ",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:21:08.000000Z"
+        },
+        {
+            "id": 255,
+            "village_name": "الخليل-الصرة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T03:44:14.000000Z"
+        },
+        {
+            "id": 256,
+            "village_name": "الخليل-الطبقة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:29:44.000000Z"
+        },
+        {
+            "id": 257,
+            "village_name": "الخليل-الظاهرية",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:12:58.000000Z"
+        },
+        {
+            "id": 258,
+            "village_name": "الخليل-العديسة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:31:31.000000Z"
+        },
+        {
+            "id": 259,
+            "village_name": "الخليل-الكرمل",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:11:05.000000Z"
+        },
+        {
+            "id": 260,
+            "village_name": "الخليل-الكوم",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:32:40.000000Z"
+        },
+        {
+            "id": 261,
+            "village_name": "الخليل-بركوسيا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:12:43.000000Z"
+        },
+        {
+            "id": 262,
+            "village_name": "الخليل-بيت أولا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:11:59.000000Z"
+        },
+        {
+            "id": 263,
+            "village_name": "الخليل-بيت الروش التحتا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:13:37.000000Z"
+        },
+        {
+            "id": 264,
+            "village_name": "الخليل-بيت الروش الفوقا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:12:27.000000Z"
+        },
+        {
+            "id": 265,
+            "village_name": "الخليل-بيت عمرة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:14:25.000000Z"
+        },
+        {
+            "id": 266,
+            "village_name": "الخليل-بيت عوا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:13:52.000000Z"
+        },
+        {
+            "id": 267,
+            "village_name": "الخليل-بيت مرسم",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:13:20.000000Z"
+        },
+        {
+            "id": 268,
+            "village_name": "الخليل-تفوح",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:14:08.000000Z"
+        },
+        {
+            "id": 269,
+            "village_name": "الخليل-تل الصافي",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:15:16.000000Z"
+        },
+        {
+            "id": 270,
+            "village_name": "الخليل-حتا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:56:31.000000Z"
+        },
+        {
+            "id": 271,
+            "village_name": "الخليل-حدب العلقة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:53:38.000000Z"
+        },
+        {
+            "id": 272,
+            "village_name": "الخليل-حدب الفوار",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:54:03.000000Z"
+        },
+        {
+            "id": 273,
+            "village_name": "الخليل-حريز",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:51:24.000000Z"
+        },
+        {
+            "id": 274,
+            "village_name": "الخليل-حلحول",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:53:04.000000Z"
+        },
+        {
+            "id": 275,
+            "village_name": "الخليل-خربة الدير",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:51:50.000000Z"
+        },
+        {
+            "id": 276,
+            "village_name": "الخليل-خربة السيميا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:58:21.000000Z"
+        },
+        {
+            "id": 277,
+            "village_name": "الخليل-خربة المجد",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:57:15.000000Z"
+        },
+        {
+            "id": 278,
+            "village_name": "الخليل-خربة جمرين",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:36:35.000000Z"
+        },
+        {
+            "id": 279,
+            "village_name": "الخليل-خربة زنوتة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:07:51.000000Z"
+        },
+        {
+            "id": 280,
+            "village_name": "الخليل-خربة صافا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:04:50.000000Z"
+        },
+        {
+            "id": 281,
+            "village_name": "الخليل-خربة عتير",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:03:49.000000Z"
+        },
+        {
+            "id": 282,
+            "village_name": "الخليل-خرسا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:56:37.000000Z"
+        },
+        {
+            "id": 283,
+            "village_name": "الخليل-خلة المية",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:14:22.000000Z"
+        },
+        {
+            "id": 284,
+            "village_name": "الخليل-دير الدبان",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:11:33.000000Z"
+        },
+        {
+            "id": 285,
+            "village_name": "الخليل-دير العسل التحتا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:11:53.000000Z"
+        },
+        {
+            "id": 286,
+            "village_name": "الخليل-دير العسل الفوقا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:12:10.000000Z"
+        },
+        {
+            "id": 287,
+            "village_name": "الخليل-دير رازح",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:16:27.000000Z"
+        },
+        {
+            "id": 288,
+            "village_name": "الخليل-دير نخاس",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:25:04.000000Z"
+        },
+        {
+            "id": 289,
+            "village_name": "الخليل-زيف",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:39:00.000000Z"
+        },
+        {
+            "id": 290,
+            "village_name": "الخليل-رابود",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:21:31.000000Z"
+        },
+        {
+            "id": 291,
+            "village_name": "الخليل-رافات",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:20:01.000000Z"
+        },
+        {
+            "id": 292,
+            "village_name": "الخليل-سنجر",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:45:28.000000Z"
+        },
+        {
+            "id": 293,
+            "village_name": "الخليل-شيوخ العروب",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-04-02T05:09:30.000000Z"
+        },
+        {
+            "id": 294,
+            "village_name": "الخليل - طرامة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-04-02T05:09:30.000000Z"
+        },
+        {
+            "id": 295,
+            "village_name": "الخليل-عبدة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-08-19T02:40:53.000000Z"
+        },
+        {
+            "id": 296,
+            "village_name": "الخليل-عناب الكبير",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-07-21T00:28:25.000000Z"
+        },
+        {
+            "id": 297,
+            "village_name": "بيت لحم-جبعة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-28T05:09:29.000000Z"
+        },
+        {
+            "id": 298,
+            "village_name": "الخليل-قلقس",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-28T05:08:28.000000Z"
+        },
+        {
+            "id": 299,
+            "village_name": "الخليل-قيلة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T01:40:04.000000Z"
+        },
+        {
+            "id": 300,
+            "village_name": "الخليل-كرزا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:12:04.000000Z"
+        },
+        {
+            "id": 301,
+            "village_name": "الخليل-كرمة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:08:25.000000Z"
+        },
+        {
+            "id": 302,
+            "village_name": "الخليل-كريسة الشرقية",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:08:01.000000Z"
+        },
+        {
+            "id": 303,
+            "village_name": "الخليل-كويزبة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:07:22.000000Z"
+        },
+        {
+            "id": 304,
+            "village_name": "الخليل-وادي الحسين",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T04:05:33.000000Z"
+        },
+        {
+            "id": 305,
+            "village_name": "الخليل-وادي الشاجنة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T04:06:12.000000Z"
+        },
+        {
+            "id": 306,
+            "village_name": "الخليل-يطا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-12T02:41:11.000000Z"
+        },
+        {
+            "id": 307,
+            "village_name": "رام الله-ترمسعيا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:27:10.000000Z"
+        },
+        {
+            "id": 308,
+            "village_name": "رام الله-أبو شخيدم",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:39:44.000000Z"
+        },
+        {
+            "id": 309,
+            "village_name": "رام الله-أبو قش",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:39:59.000000Z"
+        },
+        {
+            "id": 310,
+            "village_name": "بيت لحم-أم صفا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T03:58:45.000000Z"
+        },
+        {
+            "id": 311,
+            "village_name": "رام الله-الجانية",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:38:59.000000Z"
+        },
+        {
+            "id": 312,
+            "village_name": "رام الله-الطيبة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:28:03.000000Z"
+        },
+        {
+            "id": 313,
+            "village_name": "رام الله-الطيرة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:27:39.000000Z"
+        },
+        {
+            "id": 314,
+            "village_name": "رام الله-اللبن الغربي",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:23:44.000000Z"
+        },
+        {
+            "id": 315,
+            "village_name": "رام الله-المدية",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:23:58.000000Z"
+        },
+        {
+            "id": 316,
+            "village_name": "رام الله-المزرعة الشرقية",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:24:18.000000Z"
+        },
+        {
+            "id": 317,
+            "village_name": "رام الله-المزرعة الغربية",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2024-11-07T12:07:47.000000Z"
+        },
+        {
+            "id": 318,
+            "village_name": "رام الله-المغير",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:33:23.000000Z"
+        },
+        {
+            "id": 319,
+            "village_name": "رام الله-بدرس",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:27:09.000000Z"
+        },
+        {
+            "id": 320,
+            "village_name": "رام الله-برقة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:23:32.000000Z"
+        },
+        {
+            "id": 321,
+            "village_name": "رام الله-برهام",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:27:26.000000Z"
+        },
+        {
+            "id": 322,
+            "village_name": "رام الله-بلعين",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:27:39.000000Z"
+        },
+        {
+            "id": 323,
+            "village_name": "رام الله-بيت ريما",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:27:54.000000Z"
+        },
+        {
+            "id": 324,
+            "village_name": "رام الله-بيت سيرا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:28:10.000000Z"
+        },
+        {
+            "id": 325,
+            "village_name": "رام الله-بيت عور التحتا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:28:44.000000Z"
+        },
+        {
+            "id": 326,
+            "village_name": "رام الله-بيت عور الفوقا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:28:28.000000Z"
+        },
+        {
+            "id": 327,
+            "village_name": "رام الله-بيت لقيا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:25:24.000000Z"
+        },
+        {
+            "id": 328,
+            "village_name": "رام الله-بيتللو",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:25:58.000000Z"
+        },
+        {
+            "id": 329,
+            "village_name": "رام الله-بيتين",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:26:19.000000Z"
+        },
+        {
+            "id": 330,
+            "village_name": "رام الله-بير نبالا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:26:37.000000Z"
+        },
+        {
+            "id": 331,
+            "village_name": "رام الله-بيرزيت",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:26:57.000000Z"
+        },
+        {
+            "id": 332,
+            "village_name": "رام الله-جفنا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-07-27T22:32:50.000000Z"
+        },
+        {
+            "id": 333,
+            "village_name": "رام الله-جلجيليا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T03:47:49.000000Z"
+        },
+        {
+            "id": 334,
+            "village_name": "رام الله-جمالا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:41:43.000000Z"
+        },
+        {
+            "id": 335,
+            "village_name": "رام الله-جيبيا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:48:46.000000Z"
+        },
+        {
+            "id": 336,
+            "village_name": "رام الله-خربة أبو فلاح",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:51:02.000000Z"
+        },
+        {
+            "id": 337,
+            "village_name": "رام الله-خربثا المصباح",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:13:41.000000Z"
+        },
+        {
+            "id": 338,
+            "village_name": "رام الله-خربثا بني حارث",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:14:01.000000Z"
+        },
+        {
+            "id": 339,
+            "village_name": "رام الله-دورا القرع",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:08:40.000000Z"
+        },
+        {
+            "id": 340,
+            "village_name": "رام الله-دير أبو مشعل",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:09:08.000000Z"
+        },
+        {
+            "id": 341,
+            "village_name": "رام الله-دير إبزيع",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:16:45.000000Z"
+        },
+        {
+            "id": 342,
+            "village_name": "رام الله-دير السودان",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:19:03.000000Z"
+        },
+        {
+            "id": 343,
+            "village_name": "رام الله-دير جرير",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:15:24.000000Z"
+        },
+        {
+            "id": 344,
+            "village_name": "رام الله-دير دبوان",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:16:11.000000Z"
+        },
+        {
+            "id": 345,
+            "village_name": "رام الله-دير عمار",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:24:32.000000Z"
+        },
+        {
+            "id": 346,
+            "village_name": "رام الله-دير غسانة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:24:47.000000Z"
+        },
+        {
+            "id": 347,
+            "village_name": "رام الله-دير قديس",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:26:17.000000Z"
+        },
+        {
+            "id": 348,
+            "village_name": "رام الله-دير نظام",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:26:37.000000Z"
+        },
+        {
+            "id": 349,
+            "village_name": "رام الله-نعلين",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T04:04:37.000000Z"
+        },
+        {
+            "id": 350,
+            "village_name": "رام الله-راس كركر",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:20:29.000000Z"
+        },
+        {
+            "id": 351,
+            "village_name": "رام الله-رمون",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:33:39.000000Z"
+        },
+        {
+            "id": 352,
+            "village_name": "رام الله-رنتيس",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:33:17.000000Z"
+        },
+        {
+            "id": 353,
+            "village_name": "رام الله-يبرود",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-12T20:24:07.000000Z"
+        },
+        {
+            "id": 354,
+            "village_name": "رام الله-سردا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:40:18.000000Z"
+        },
+        {
+            "id": 355,
+            "village_name": "رام الله-سلواد",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:43:47.000000Z"
+        },
+        {
+            "id": 356,
+            "village_name": "رام الله-سنجل",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:47:35.000000Z"
+        },
+        {
+            "id": 357,
+            "village_name": "رام الله-صفا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-28T05:12:59.000000Z"
+        },
+        {
+            "id": 358,
+            "village_name": "رام الله-شبتين",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:49:11.000000Z"
+        },
+        {
+            "id": 359,
+            "village_name": "رام الله-شقبا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-28T05:12:31.000000Z"
+        },
+        {
+            "id": 360,
+            "village_name": "رام الله-عابود",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-08-19T02:41:16.000000Z"
+        },
+        {
+            "id": 361,
+            "village_name": "رام الله-عارورة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-07-21T00:06:06.000000Z"
+        },
+        {
+            "id": 362,
+            "village_name": "رام الله -عبوين",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-10-18T22:42:34.000000Z"
+        },
+        {
+            "id": 363,
+            "village_name": "رام الله- عجول",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-08-12T04:59:40.000000Z"
+        },
+        {
+            "id": 364,
+            "village_name": "رام الله-عطارة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:23:23.000000Z"
+        },
+        {
+            "id": 365,
+            "village_name": "رام الله-عين سينيا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-07-21T00:38:13.000000Z"
+        },
+        {
+            "id": 366,
+            "village_name": "رام الله-عين عريك",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-07-27T22:34:44.000000Z"
+        },
+        {
+            "id": 367,
+            "village_name": "رام الله-عين قينيا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-07-27T22:34:13.000000Z"
+        },
+        {
+            "id": 368,
+            "village_name": "رام الله-عين يبرود",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-07-27T22:33:49.000000Z"
+        },
+        {
+            "id": 369,
+            "village_name": "رام الله-مزارع النوباني",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:37:38.000000Z"
+        },
+        {
+            "id": 370,
+            "village_name": "رام الله-قبيا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-07-27T22:32:12.000000Z"
+        },
+        {
+            "id": 371,
+            "village_name": "رام الله-قراوة بني زيد",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-28T05:10:25.000000Z"
+        },
+        {
+            "id": 372,
+            "village_name": "رام الله-كفر عين",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T01:37:12.000000Z"
+        },
+        {
+            "id": 373,
+            "village_name": "رام الله-كفر مالك",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T01:37:47.000000Z"
+        },
+        {
+            "id": 374,
+            "village_name": "رام الله-كفر نعمة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T01:39:32.000000Z"
+        },
+        {
+            "id": 375,
+            "village_name": "رام الله-كوبر",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T01:32:47.000000Z"
+        },
+        {
+            "id": 376,
+            "village_name": "بيت لحم-أم سلمونة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T04:01:18.000000Z"
+        },
+        {
+            "id": 377,
+            "village_name": "بيت لحم-وادي النيص",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T04:02:40.000000Z"
+        },
+        {
+            "id": 378,
+            "village_name": "بيت لحم-الحجيلة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T03:54:33.000000Z"
+        },
+        {
+            "id": 379,
+            "village_name": "بيت لحم-الحدايدة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T03:54:49.000000Z"
+        },
+        {
+            "id": 380,
+            "village_name": "بيت لحم-الحلقوم",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T03:59:00.000000Z"
+        },
+        {
+            "id": 381,
+            "village_name": "بيت لحم-الخضر",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T03:46:30.000000Z"
+        },
+        {
+            "id": 382,
+            "village_name": "بيت لحم-الدوحة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-12T20:32:28.000000Z"
+        },
+        {
+            "id": 383,
+            "village_name": "بيت لحم-الشواورة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:42:51.000000Z"
+        },
+        {
+            "id": 384,
+            "village_name": "بيت لحم-العبيدية",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T03:55:31.000000Z"
+        },
+        {
+            "id": 385,
+            "village_name": "جنين-العساكرة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:52:04.000000Z"
+        },
+        {
+            "id": 386,
+            "village_name": "بيت لحم-المعصرة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T03:55:47.000000Z"
+        },
+        {
+            "id": 387,
+            "village_name": "بيت لحم-المنشية",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T03:57:28.000000Z"
+        },
+        {
+            "id": 388,
+            "village_name": "بيت لحم -النعمان",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T04:00:46.000000Z"
+        },
+        {
+            "id": 389,
+            "village_name": "بيت لحم-الولجة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:42:48.000000Z"
+        },
+        {
+            "id": 390,
+            "village_name": "بيت لحم-بتير",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-29T21:31:41.000000Z"
+        },
+        {
+            "id": 391,
+            "village_name": "بيت لحم-بيت تعمر",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T03:59:15.000000Z"
+        },
+        {
+            "id": 392,
+            "village_name": "بيت لحم-بيت فجار",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T04:01:03.000000Z"
+        },
+        {
+            "id": 393,
+            "village_name": "بيت لحم-جبة الذيب",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T03:49:04.000000Z"
+        },
+        {
+            "id": 394,
+            "village_name": "بيت لحم-الجبعة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T03:55:09.000000Z"
+        },
+        {
+            "id": 395,
+            "village_name": "بيت لحم-جهاثم",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:46:45.000000Z"
+        },
+        {
+            "id": 396,
+            "village_name": "بيت لحم-جورة الشمعة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:47:28.000000Z"
+        },
+        {
+            "id": 397,
+            "village_name": "بيت لحم-حوسان",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:50:14.000000Z"
+        },
+        {
+            "id": 398,
+            "village_name": "بيت لحم-وادي رحال",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-12T20:25:23.000000Z"
+        },
+        {
+            "id": 399,
+            "village_name": "بيت لحم-خربة الدير",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:52:18.000000Z"
+        },
+        {
+            "id": 400,
+            "village_name": "بيت لحم-خربة النخلة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:59:05.000000Z"
+        },
+        {
+            "id": 401,
+            "village_name": "بيت لحم-خربة تقوع",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:01:17.000000Z"
+        },
+        {
+            "id": 402,
+            "village_name": "بيت لحم-دار صلاح",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:14:40.000000Z"
+        },
+        {
+            "id": 403,
+            "village_name": "بيت لحم-رخمة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:37:59.000000Z"
+        },
+        {
+            "id": 404,
+            "village_name": "بيت لحم-عرب الرشايدة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-08-19T02:41:38.000000Z"
+        },
+        {
+            "id": 405,
+            "village_name": "الخليل-كفار عصيون",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:07:43.000000Z"
+        },
+        {
+            "id": 406,
+            "village_name": "بيت لحم-كيسان",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:16:22.000000Z"
+        },
+        {
+            "id": 407,
+            "village_name": "بيت لحم-نحالين",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T04:42:17.000000Z"
+        },
+        {
+            "id": 408,
+            "village_name": "بيت لحم-مخيم بيت جبرين",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T03:58:30.000000Z"
+        },
+        {
+            "id": 409,
+            "village_name": "بيت لحم-مخيم عايدة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-12T00:26:59.000000Z"
+        },
+        {
+            "id": 410,
+            "village_name": "الخليل-مراح رباح",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T01:57:09.000000Z"
+        },
+        {
+            "id": 411,
+            "village_name": "بيت لحم-مراح معلا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:02:18.000000Z"
+        },
+        {
+            "id": 412,
+            "village_name": "بيت لحم-وادي فوكين",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-12T20:24:57.000000Z"
+        },
+        {
+            "id": 413,
+            "village_name": "بيت لحم-وادي العرايس",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T04:06:56.000000Z"
+        },
+        {
+            "id": 414,
+            "village_name": "اريحا-دير حجلة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:15:49.000000Z"
+        },
+        {
+            "id": 415,
+            "village_name": "اريحا-الجفتلك",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:03:41.000000Z"
+        },
+        {
+            "id": 416,
+            "village_name": "اريحا-الزبيدات",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:04:19.000000Z"
+        },
+        {
+            "id": 417,
+            "village_name": "اريحا-العوجا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:33:44.000000Z"
+        },
+        {
+            "id": 418,
+            "village_name": "اريحا-النبي موسى",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:33:45.000000Z"
+        },
+        {
+            "id": 419,
+            "village_name": "اريحا-النويعمة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:05:03.000000Z"
+        },
+        {
+            "id": 420,
+            "village_name": "اريحا-عين الديوك الفوقا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-07-21T00:29:59.000000Z"
+        },
+        {
+            "id": 421,
+            "village_name": "رام الله-فصايل",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-07-27T22:33:04.000000Z"
+        },
+        {
+            "id": 422,
+            "village_name": "اريحا-مرج الغزال",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:55:23.000000Z"
+        },
+        {
+            "id": 423,
+            "village_name": "اريحا-مخيم عقبة جبر",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:03:13.000000Z"
+        },
+        {
+            "id": 424,
+            "village_name": "اريحا-مخيم عين السلطان",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T20:04:03.000000Z"
+        },
+        {
+            "id": 425,
+            "village_name": "رام الله-ابو ديس",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:37:27.000000Z"
+        },
+        {
+            "id": 426,
+            "village_name": "القدس-ام طوبا",
+            "delivery_cost": 30,
+            "area_id": 2,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-08-17T01:58:04.000000Z"
+        },
+        {
+            "id": 427,
+            "village_name": "القدس-الحي الإسلامي",
+            "delivery_cost": 30,
+            "area_id": 2,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T23:48:56.000000Z"
+        },
+        {
+            "id": 428,
+            "village_name": "رام الله-الزعيم",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:21:41.000000Z"
+        },
+        {
+            "id": 429,
+            "village_name": "القدس-الشيخ جراح",
+            "delivery_cost": 30,
+            "area_id": 2,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T23:49:14.000000Z"
+        },
+        {
+            "id": 430,
+            "village_name": "القدس-الشيخ سعد",
+            "delivery_cost": 30,
+            "area_id": 2,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T23:49:31.000000Z"
+        },
+        {
+            "id": 431,
+            "village_name": "رام الله-العيزرية",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T20:45:45.000000Z"
+        },
+        {
+            "id": 432,
+            "village_name": "القدس-القسطل",
+            "delivery_cost": 30,
+            "area_id": 2,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T23:50:20.000000Z"
+        },
+        {
+            "id": 434,
+            "village_name": "القدس-النبي صموئيل",
+            "delivery_cost": 30,
+            "area_id": 2,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T23:51:05.000000Z"
+        },
+        {
+            "id": 436,
+            "village_name": "القدس-باب حطة",
+            "delivery_cost": 30,
+            "area_id": 2,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T23:51:20.000000Z"
+        },
+        {
+            "id": 437,
+            "village_name": "رام الله-بدو",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:34:49.000000Z"
+        },
+        {
+            "id": 438,
+            "village_name": "رام الله-بيت إكسا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2024-02-02T08:51:47.000000Z"
+        },
+        {
+            "id": 439,
+            "village_name": "رام الله-بيت جمال",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:23:47.000000Z"
+        },
+        {
+            "id": 440,
+            "village_name": "القدس-بيت حنينا",
+            "delivery_cost": 30,
+            "area_id": 2,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T23:51:57.000000Z"
+        },
+        {
+            "id": 441,
+            "village_name": "رام الله-بيت دقو",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:24:04.000000Z"
+        },
+        {
+            "id": 442,
+            "village_name": "رام الله-بيت سوريك",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:24:19.000000Z"
+        },
+        {
+            "id": 443,
+            "village_name": "القدس-بيت صفافا",
+            "delivery_cost": 30,
+            "area_id": 2,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T23:52:09.000000Z"
+        },
+        {
+            "id": 444,
+            "village_name": "القدس-بيت نقوبا",
+            "delivery_cost": 45,
+            "area_id": 2,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:43:14.000000Z"
+        },
+        {
+            "id": 446,
+            "village_name": "رام الله-جبع",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T03:49:31.000000Z"
+        },
+        {
+            "id": 447,
+            "village_name": "القدس-جبل الزيتون",
+            "delivery_cost": 30,
+            "area_id": 2,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T23:52:23.000000Z"
+        },
+        {
+            "id": 448,
+            "village_name": "القدس-جبل المكبر",
+            "delivery_cost": 30,
+            "area_id": 2,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T23:52:53.000000Z"
+        },
+        {
+            "id": 449,
+            "village_name": "رام الله-الجديرة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:37:13.000000Z"
+        },
+        {
+            "id": 450,
+            "village_name": "رام الله-الجيب",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-12T00:23:08.000000Z"
+        },
+        {
+            "id": 452,
+            "village_name": "القدس-حي بطن الهوى",
+            "delivery_cost": 30,
+            "area_id": 2,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T23:53:18.000000Z"
+        },
+        {
+            "id": 453,
+            "village_name": "القدس-راس العامود",
+            "delivery_cost": 30,
+            "area_id": 2,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T23:57:44.000000Z"
+        },
+        {
+            "id": 454,
+            "village_name": "رام الله-رافات",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:19:22.000000Z"
+        },
+        {
+            "id": 455,
+            "village_name": "رام الله-الرام",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:36:56.000000Z"
+        },
+        {
+            "id": 456,
+            "village_name": "القدس-سلوان",
+            "delivery_cost": 30,
+            "area_id": 2,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T23:57:56.000000Z"
+        },
+        {
+            "id": 457,
+            "village_name": "رام الله-السواحرة الشرقية",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T08:13:20.000000Z"
+        },
+        {
+            "id": 458,
+            "village_name": "القدس-صور باهر",
+            "delivery_cost": 30,
+            "area_id": 2,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-08-15T04:10:01.000000Z"
+        },
+        {
+            "id": 459,
+            "village_name": "القدس-شرفات",
+            "delivery_cost": 30,
+            "area_id": 2,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-28T05:12:08.000000Z"
+        },
+        {
+            "id": 460,
+            "village_name": "القدس-شعفاط",
+            "delivery_cost": 30,
+            "area_id": 2,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:42:53.000000Z"
+        },
+        {
+            "id": 461,
+            "village_name": "القدس-الطور",
+            "delivery_cost": 30,
+            "area_id": 2,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T23:49:43.000000Z"
+        },
+        {
+            "id": 462,
+            "village_name": "رام الله-عرب الجهالين",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-13T09:23:08.000000Z"
+        },
+        {
+            "id": 463,
+            "village_name": "رام الله-عناتا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T01:30:34.000000Z"
+        },
+        {
+            "id": 464,
+            "village_name": "القدس-العيسوية",
+            "delivery_cost": 30,
+            "area_id": 2,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T23:49:55.000000Z"
+        },
+        {
+            "id": 465,
+            "village_name": "رام الله-كفر عقب",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T01:34:02.000000Z"
+        },
+        {
+            "id": 466,
+            "village_name": "القدس-عين رافه",
+            "delivery_cost": 45,
+            "area_id": 2,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-08-17T01:59:40.000000Z"
+        },
+        {
+            "id": 467,
+            "village_name": "القدس-عين نقوبا",
+            "delivery_cost": 45,
+            "area_id": 2,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-08-17T01:59:16.000000Z"
+        },
+        {
+            "id": 469,
+            "village_name": "رام الله-القبيبة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2024-05-18T20:15:45.000000Z"
+        },
+        {
+            "id": 470,
+            "village_name": "القدس-عطروت",
+            "delivery_cost": 30,
+            "area_id": 2,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2024-02-02T08:51:10.000000Z"
+        },
+        {
+            "id": 471,
+            "village_name": "رام الله-قطنة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T01:41:53.000000Z"
+        },
+        {
+            "id": 472,
+            "village_name": "رام الله-قلنديا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T02:11:43.000000Z"
+        },
+        {
+            "id": 474,
+            "village_name": "رام الله-مخماس",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-20T01:38:37.000000Z"
+        },
+        {
+            "id": 476,
+            "village_name": "القدس-وادي الجوز",
+            "delivery_cost": 30,
+            "area_id": 2,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-05-11T23:59:17.000000Z"
+        },
+        {
+            "id": 477,
+            "village_name": "الداخل(الشمال)-ابو سنان",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T13:37:28.000000Z"
+        },
+        {
+            "id": 478,
+            "village_name": "القدس-ابو غوش",
+            "delivery_cost": 45,
+            "area_id": 2,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-08-03T00:31:15.000000Z"
+        },
+        {
+            "id": 479,
+            "village_name": "الداخل(الشمال)-ام الفحم",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:17:28.000000Z"
+        },
+        {
+            "id": 480,
+            "village_name": "الداخل(الشمال)-إعبلين",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T13:37:02.000000Z"
+        },
+        {
+            "id": 481,
+            "village_name": "الداخل(الشمال)-إكسال",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T13:36:23.000000Z"
+        },
+        {
+            "id": 482,
+            "village_name": "الداخل(الشمال)-البعنة",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T13:32:49.000000Z"
+        },
+        {
+            "id": 483,
+            "village_name": "الداخل(الشمال)-البعينة",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T13:31:25.000000Z"
+        },
+        {
+            "id": 484,
+            "village_name": "الداخل(الشمال)-البقيعة",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:28:23.000000Z"
+        },
+        {
+            "id": 485,
+            "village_name": "الداخل(الشمال)-البياضة",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:29:25.000000Z"
+        },
+        {
+            "id": 486,
+            "village_name": "الداخل(الشمال)-الجش(الجولان)",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T13:30:39.000000Z"
+        },
+        {
+            "id": 487,
+            "village_name": "الداخل(الشمال)-الدحي",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:29:12.000000Z"
+        },
+        {
+            "id": 488,
+            "village_name": "الداخل(الشمال)-ام الغنم",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:20:05.000000Z"
+        },
+        {
+            "id": 489,
+            "village_name": "الداخل(الشمال)-الشيخ دنون",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:26:48.000000Z"
+        },
+        {
+            "id": 490,
+            "village_name": "الداخل(الشمال)-الرامة",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:28:58.000000Z"
+        },
+        {
+            "id": 491,
+            "village_name": "الداخل(المركز)-الرملة",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:17:21.000000Z"
+        },
+        {
+            "id": 492,
+            "village_name": "الداخل(الشمال)-الرينة",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T13:29:28.000000Z"
+        },
+        {
+            "id": 493,
+            "village_name": "الداخل(المثلث)-الطيبة",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:17:55.000000Z"
+        },
+        {
+            "id": 494,
+            "village_name": "الداخل(المثلث)-الطيرة",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:16:58.000000Z"
+        },
+        {
+            "id": 495,
+            "village_name": "الداخل(الشمال)-العزير",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:25:43.000000Z"
+        },
+        {
+            "id": 496,
+            "village_name": "الداخل(الشمال)-الفريديس",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T13:29:09.000000Z"
+        },
+        {
+            "id": 497,
+            "village_name": "الداخل(الشمال)-الكمانة",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:21:45.000000Z"
+        },
+        {
+            "id": 498,
+            "village_name": "الداخل(المركز)-اللد",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:14:48.000000Z"
+        },
+        {
+            "id": 499,
+            "village_name": "الداخل(النقب)-اللقية",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T13:41:25.000000Z"
+        },
+        {
+            "id": 501,
+            "village_name": "الداخل(الشمال)-المزرعة",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:21:14.000000Z"
+        },
+        {
+            "id": 502,
+            "village_name": "الداخل(الشمال)-المشهد",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:21:01.000000Z"
+        },
+        {
+            "id": 503,
+            "village_name": "الداخل(الشمال)-المغار",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:20:48.000000Z"
+        },
+        {
+            "id": 504,
+            "village_name": "الداخل(الشمال)-الناصرة",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:20:20.000000Z"
+        },
+        {
+            "id": 505,
+            "village_name": "الداخل(الشمال)-الناعورة",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:33:04.000000Z"
+        },
+        {
+            "id": 506,
+            "village_name": "الداخل(النقب)-بئر السبع",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-08T12:54:17.000000Z"
+        },
+        {
+            "id": 507,
+            "village_name": "الداخل(الشمال)-بئر المكسور",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:14:05.000000Z"
+        },
+        {
+            "id": 508,
+            "village_name": "الداخل(المثلث)-باقة الغربية",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:16:12.000000Z"
+        },
+        {
+            "id": 509,
+            "village_name": "الداخل(المثلث)-برطعة الغربية",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:15:40.000000Z"
+        },
+        {
+            "id": 510,
+            "village_name": "الداخل(الشمال)-بسمة مجلس محلي",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:14:51.000000Z"
+        },
+        {
+            "id": 511,
+            "village_name": "الداخل(الشمال)-بسمة طبعون",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:15:19.000000Z"
+        },
+        {
+            "id": 512,
+            "village_name": "الداخل(الشمال)-بيت جن",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:14:17.000000Z"
+        },
+        {
+            "id": 513,
+            "village_name": "..-...",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:21:15.000000Z"
+        },
+        {
+            "id": 514,
+            "village_name": "الداخل(النقب)-تل السبع",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T13:39:49.000000Z"
+        },
+        {
+            "id": 515,
+            "village_name": "الداخل(الشمال)-ترشيحا",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:13:38.000000Z"
+        },
+        {
+            "id": 516,
+            "village_name": "الداخل(المثلث)-جت",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:15:21.000000Z"
+        },
+        {
+            "id": 517,
+            "village_name": "الداخل(الشمال)-جديدة  المكر",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:13:24.000000Z"
+        },
+        {
+            "id": 518,
+            "village_name": "الداخل(الشمال)-جسر الزرقاء",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:12:48.000000Z"
+        },
+        {
+            "id": 519,
+            "village_name": "الداخل(المثلث)-جلجولية",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:26:40.000000Z"
+        },
+        {
+            "id": 520,
+            "village_name": "الداخل(الشمال)-جولس",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:12:31.000000Z"
+        },
+        {
+            "id": 521,
+            "village_name": "الداخل(النقب)-حورة",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T13:39:30.000000Z"
+        },
+        {
+            "id": 522,
+            "village_name": "الداخل(الشمال)-حرفيش",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:07:52.000000Z"
+        },
+        {
+            "id": 523,
+            "village_name": "الداخل(الشمال)-حيفا",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:07:16.000000Z"
+        },
+        {
+            "id": 524,
+            "village_name": "الداخل(الشمال)-دالية الكرمل",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:07:00.000000Z"
+        },
+        {
+            "id": 525,
+            "village_name": "الداخل(الشمال)-دبورية",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:06:34.000000Z"
+        },
+        {
+            "id": 526,
+            "village_name": "الداخل(الشمال)-دير الأسد",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:06:18.000000Z"
+        },
+        {
+            "id": 527,
+            "village_name": "الداخل(الشمال)-دير حنا",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:06:05.000000Z"
+        },
+        {
+            "id": 528,
+            "village_name": "الداخل(النقب)-رهط(النقب)",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T12:42:10.000000Z"
+        },
+        {
+            "id": 529,
+            "village_name": "الداخل(الشمال)-رمانة",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:05:43.000000Z"
+        },
+        {
+            "id": 530,
+            "village_name": "الداخل(المثلث)-زلفة",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:24:17.000000Z"
+        },
+        {
+            "id": 531,
+            "village_name": "الداخل(المثلث)-زيمر",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:27:11.000000Z"
+        },
+        {
+            "id": 532,
+            "village_name": "الداخل(الشمال)-الزرازير",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:28:41.000000Z"
+        },
+        {
+            "id": 533,
+            "village_name": "الداخل(الشمال)-سالم",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:04:50.000000Z"
+        },
+        {
+            "id": 534,
+            "village_name": "الداخل(الشمال)-ساجور",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:05:08.000000Z"
+        },
+        {
+            "id": 535,
+            "village_name": "الداخل(الشمال)-سخنين",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:04:28.000000Z"
+        },
+        {
+            "id": 536,
+            "village_name": "الداخل(الشمال)-سولم",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:04:13.000000Z"
+        },
+        {
+            "id": 537,
+            "village_name": "الداخل(الشمال)-شعب",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:04:00.000000Z"
+        },
+        {
+            "id": 538,
+            "village_name": "الداخل(الشمال)-شفا عمرو",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:03:44.000000Z"
+        },
+        {
+            "id": 539,
+            "village_name": "الداخل(النقب)-شقيب السلام",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:29:28.000000Z"
+        },
+        {
+            "id": 540,
+            "village_name": "الداخل(الشمال)-صندلة",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:03:10.000000Z"
+        },
+        {
+            "id": 541,
+            "village_name": "الداخل(الشمال)-طرعان",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:02:39.000000Z"
+        },
+        {
+            "id": 542,
+            "village_name": "الداخل(الشمال)-طلعة عارة",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:02:16.000000Z"
+        },
+        {
+            "id": 543,
+            "village_name": "الداخل(الشمال)-طمرة",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:01:44.000000Z"
+        },
+        {
+            "id": 544,
+            "village_name": "الداخل(الشمال)-طمرة الزعبية",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:01:18.000000Z"
+        },
+        {
+            "id": 545,
+            "village_name": "الداخل(الشمال)-طوبا الزنغرية",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:01:00.000000Z"
+        },
+        {
+            "id": 546,
+            "village_name": "الداخل(الشمال)-ضميدة",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:02:53.000000Z"
+        },
+        {
+            "id": 547,
+            "village_name": "الداخل(الشمال)-عرابة البطوف",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T13:54:34.000000Z"
+        },
+        {
+            "id": 548,
+            "village_name": "الداخل(الشمال)-عرب الهيب",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T13:51:28.000000Z"
+        },
+        {
+            "id": 549,
+            "village_name": "الداخل(الشمال)-عرب العرامشة",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:28:47.000000Z"
+        },
+        {
+            "id": 550,
+            "village_name": "الداخل(المثلث)-عرعرة المثلث",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T12:40:34.000000Z"
+        },
+        {
+            "id": 551,
+            "village_name": "الداخل(النقب)-عرعرة النقب",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:28:31.000000Z"
+        },
+        {
+            "id": 552,
+            "village_name": "الداخل(الشمال)-عسفيا",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T13:51:12.000000Z"
+        },
+        {
+            "id": 553,
+            "village_name": "الداخل(الشمال)-عكا",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T13:50:42.000000Z"
+        },
+        {
+            "id": 554,
+            "village_name": "الداخل(الشمال)-عيلبون",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:32:20.000000Z"
+        },
+        {
+            "id": 555,
+            "village_name": "الداخل(الشمال)-عيلوط",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T13:48:58.000000Z"
+        },
+        {
+            "id": 556,
+            "village_name": "الداخل(الشمال)-عين الاسد",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T13:48:38.000000Z"
+        },
+        {
+            "id": 557,
+            "village_name": "الداخل(الشمال)-عين السهلة",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T13:48:19.000000Z"
+        },
+        {
+            "id": 558,
+            "village_name": "الداخل(الشمال)-عين ماهل",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T13:47:45.000000Z"
+        },
+        {
+            "id": 559,
+            "village_name": "الداخل(الشمال)-عرب النعيم",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T13:53:25.000000Z"
+        },
+        {
+            "id": 560,
+            "village_name": "الداخل(الشمال)-عاره",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:38:52.000000Z"
+        },
+        {
+            "id": 561,
+            "village_name": "الداخل(الشمال)-الغجر",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:11:51.000000Z"
+        },
+        {
+            "id": 562,
+            "village_name": "الداخل(الشمال)-فسوطة",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:11:37.000000Z"
+        },
+        {
+            "id": 563,
+            "village_name": "الداخل(المثلث)-قلنسوة",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T12:37:18.000000Z"
+        },
+        {
+            "id": 564,
+            "village_name": "الداخل(الشمال)-كابول",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:11:24.000000Z"
+        },
+        {
+            "id": 565,
+            "village_name": "الداخل(النقب)-كسيفة",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T12:36:47.000000Z"
+        },
+        {
+            "id": 566,
+            "village_name": "الداخل(الشمال)-كفرسميع",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:12:28.000000Z"
+        },
+        {
+            "id": 567,
+            "village_name": "الداخل(الشمال)-كعبية",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:11:00.000000Z"
+        },
+        {
+            "id": 568,
+            "village_name": "الداخل(المثلث)-كفر برا",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T12:36:17.000000Z"
+        },
+        {
+            "id": 569,
+            "village_name": "الداخل(المثلث)-كفر قاسم",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T12:35:31.000000Z"
+        },
+        {
+            "id": 570,
+            "village_name": "الداخل(الشمال)-كفر قرع",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:10:33.000000Z"
+        },
+        {
+            "id": 571,
+            "village_name": "الداخل(الشمال)-كفر كنا",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:10:23.000000Z"
+        },
+        {
+            "id": 572,
+            "village_name": "الداخل(الشمال)-كفر مندا",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:10:10.000000Z"
+        },
+        {
+            "id": 573,
+            "village_name": "الداخل(الشمال)-كفر مصر",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:10:00.000000Z"
+        },
+        {
+            "id": 574,
+            "village_name": "الداخل(الشمال)-كفر ياسيف",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:09:51.000000Z"
+        },
+        {
+            "id": 575,
+            "village_name": "الداخل(الشمال)-كوكب أبو الهيجاء",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:09:41.000000Z"
+        },
+        {
+            "id": 576,
+            "village_name": "الداخل(المركز)-يافا",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T12:34:35.000000Z"
+        },
+        {
+            "id": 577,
+            "village_name": "الداخل(الشمال)-مجد الكروم",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:09:28.000000Z"
+        },
+        {
+            "id": 578,
+            "village_name": "الداخل(الشمال)-مشيرفة",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:09:15.000000Z"
+        },
+        {
+            "id": 579,
+            "village_name": "الداخل(الشمال)-مصمص",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:09:04.000000Z"
+        },
+        {
+            "id": 580,
+            "village_name": "الداخل(الشمال)-معاوية",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:08:43.000000Z"
+        },
+        {
+            "id": 581,
+            "village_name": "الداخل(الشمال)-معليا",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:08:30.000000Z"
+        },
+        {
+            "id": 582,
+            "village_name": "الداخل(الشمال)-منشية زبدة",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:12:37.000000Z"
+        },
+        {
+            "id": 583,
+            "village_name": "الداخل(الشمال)-مقيبلة",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:08:18.000000Z"
+        },
+        {
+            "id": 584,
+            "village_name": "الداخل(الشمال)-ميسر",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:08:03.000000Z"
+        },
+        {
+            "id": 585,
+            "village_name": "الداخل(الشمال)-يافة الناصرة",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:07:43.000000Z"
+        },
+        {
+            "id": 586,
+            "village_name": "الداخل(الشمال)-نحف",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:07:32.000000Z"
+        },
+        {
+            "id": 587,
+            "village_name": "الداخل(الشمال)-نين",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:07:22.000000Z"
+        },
+        {
+            "id": 588,
+            "village_name": "الداخل(الشمال)-يانوح جت",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:07:06.000000Z"
+        },
+        {
+            "id": 589,
+            "village_name": "الداخل(الشمال)-وادي الحمام",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:06:53.000000Z"
+        },
+        {
+            "id": 590,
+            "village_name": "الداخل(الشمال)-وادي سلامة",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:06:42.000000Z"
+        },
+        {
+            "id": 591,
+            "village_name": "الداخل(الشمال)-يركا",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:06:01.000000Z"
+        },
+        {
+            "id": 592,
+            "village_name": "الداخل(الشمال)-الجولان",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:05:51.000000Z"
+        },
+        {
+            "id": 593,
+            "village_name": "الداخل(الشمال)-الجليل الاعلى",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:05:41.000000Z"
+        },
+        {
+            "id": 594,
+            "village_name": "الداخل(الشمال)-العفولة",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:05:28.000000Z"
+        },
+        {
+            "id": 595,
+            "village_name": "الداخل(النقب)-عاراد",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-08T12:59:52.000000Z"
+        },
+        {
+            "id": 596,
+            "village_name": "الداخل(الشمال)-بيسان",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:05:17.000000Z"
+        },
+        {
+            "id": 597,
+            "village_name": "الداخل(الشمال)-كارمئيل",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:05:05.000000Z"
+        },
+        {
+            "id": 598,
+            "village_name": "الداخل(الشمال)-معالوت",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:04:51.000000Z"
+        },
+        {
+            "id": 600,
+            "village_name": "الداخل(الشمال)-مجدال هاعيمك",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:04:28.000000Z"
+        },
+        {
+            "id": 601,
+            "village_name": "الداخل(الشمال)-نهاريا",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:04:11.000000Z"
+        },
+        {
+            "id": 602,
+            "village_name": "الداخل(النقب)-عسقلان ",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T13:17:51.000000Z"
+        },
+        {
+            "id": 603,
+            "village_name": "الداخل(الشمال)-الناصرة العليا",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:03:40.000000Z"
+        },
+        {
+            "id": 604,
+            "village_name": "الداخل(النقب)-اسدود",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T13:10:25.000000Z"
+        },
+        {
+            "id": 605,
+            "village_name": "الداخل(النقب)-ديمونة ",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T13:13:03.000000Z"
+        },
+        {
+            "id": 606,
+            "village_name": "الداخل(الشمال)-طبريا",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:03:22.000000Z"
+        },
+        {
+            "id": 607,
+            "village_name": "الداخل(الشمال)-صفد",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:03:09.000000Z"
+        },
+        {
+            "id": 608,
+            "village_name": "الداخل(الشمال)-كريات شمونة",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:02:45.000000Z"
+        },
+        {
+            "id": 609,
+            "village_name": "الداخل(النقب)-كريات ملاخي",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T13:19:29.000000Z"
+        },
+        {
+            "id": 610,
+            "village_name": "..-.. ",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:14:12.000000Z"
+        },
+        {
+            "id": 611,
+            "village_name": "الداخل(النقب)-سديروت ",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:22:16.000000Z"
+        },
+        {
+            "id": 612,
+            "village_name": "قلقيلية-جت",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-08-17T01:55:51.000000Z"
+        },
+        {
+            "id": 613,
+            "village_name": "الداخل(النقب)-ايلات ",
+            "delivery_cost": 115,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T13:12:34.000000Z"
+        },
+        {
+            "id": 614,
+            "village_name": "الداخل(الشمال)-الخضيرة",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:01:24.000000Z"
+        },
+        {
+            "id": 615,
+            "village_name": "الداخل(الشمال)-نيشر",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:01:13.000000Z"
+        },
+        {
+            "id": 616,
+            "village_name": "الداخل(الشمال)-اور عكيفا",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:01:02.000000Z"
+        },
+        {
+            "id": 617,
+            "village_name": "الداخل(الشمال)-كريات آتا",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:00:49.000000Z"
+        },
+        {
+            "id": 618,
+            "village_name": "الداخل(الشمال)-كريات بياليك",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:00:35.000000Z"
+        },
+        {
+            "id": 619,
+            "village_name": "الداخل(الشمال)-كريات موتسكين",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:00:25.000000Z"
+        },
+        {
+            "id": 620,
+            "village_name": "الداخل(الشمال)-كريات يام",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:00:10.000000Z"
+        },
+        {
+            "id": 621,
+            "village_name": "الداخل(الشمال)-طيرة الكرمل",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T21:59:53.000000Z"
+        },
+        {
+            "id": 622,
+            "village_name": "الداخل(النقب)-نيتيفوت ",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T13:22:50.000000Z"
+        },
+        {
+            "id": 623,
+            "village_name": "الداخل(الشمال)-زخرون يعقوب",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T21:59:36.000000Z"
+        },
+        {
+            "id": 625,
+            "village_name": "الداخل(النقب)-اوفاكيم ",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T13:11:31.000000Z"
+        },
+        {
+            "id": 626,
+            "village_name": "الداخل(المركز)-هود هشارون",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T13:24:31.000000Z"
+        },
+        {
+            "id": 627,
+            "village_name": "الداخل(المركز)-كفار سابا",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T13:20:25.000000Z"
+        },
+        {
+            "id": 628,
+            "village_name": "الداخل(النقب)-كريات جات ",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T13:18:52.000000Z"
+        },
+        {
+            "id": 629,
+            "village_name": "الداخل(المركز)-بيت شيمش",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:33:59.000000Z"
+        },
+        {
+            "id": 630,
+            "village_name": "الداخل(المركز)-موديعين",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T13:20:53.000000Z"
+        },
+        {
+            "id": 631,
+            "village_name": "الداخل(المركز)-نيس تسيونا",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T13:23:22.000000Z"
+        },
+        {
+            "id": 632,
+            "village_name": "..-.... ",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:34:15.000000Z"
+        },
+        {
+            "id": 633,
+            "village_name": "الداخل(المركز)-أور يهودا ",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T13:09:46.000000Z"
+        },
+        {
+            "id": 634,
+            "village_name": "الداخل(المركز)-كريات أونو",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-03-24T22:31:02.000000Z"
+        },
+        {
+            "id": 635,
+            "village_name": "الداخل(المركز)-رامات هشارون",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T13:14:44.000000Z"
+        },
+        {
+            "id": 636,
+            "village_name": "الداخل(المركز)-جفعات شومئيل ",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2025-07-06T14:36:10.000000Z"
+        },
+        {
+            "id": 637,
+            "village_name": "نابلس-نابلس",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-03T18:40:11.000000Z",
+            "updated_at": "2023-05-11T04:48:23.000000Z"
+        },
+        {
+            "id": 638,
+            "village_name": "طولكرم-طولكرم",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-03T18:57:46.000000Z",
+            "updated_at": "2023-05-12T01:19:09.000000Z"
+        },
+        {
+            "id": 639,
+            "village_name": "جنين- جنين",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-03T19:04:06.000000Z",
+            "updated_at": "2023-05-11T20:52:27.000000Z"
+        },
+        {
+            "id": 640,
+            "village_name": "سلفيت-سلفيت",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-03T19:14:09.000000Z",
+            "updated_at": "2023-05-12T01:17:09.000000Z"
+        },
+        {
+            "id": 641,
+            "village_name": "الخليل-بني نعيم",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-03T19:20:03.000000Z",
+            "updated_at": "2023-05-20T02:29:58.000000Z"
+        },
+        {
+            "id": 642,
+            "village_name": "الخليل-الخليل",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-03T19:20:39.000000Z",
+            "updated_at": "2023-05-11T20:16:53.000000Z"
+        },
+        {
+            "id": 643,
+            "village_name": "طولكرم- علار",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-03T19:24:58.000000Z",
+            "updated_at": "2023-07-27T22:36:02.000000Z"
+        },
+        {
+            "id": 644,
+            "village_name": "قلقيلية-قلقيلية",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-03T19:25:17.000000Z",
+            "updated_at": "2023-05-20T01:41:04.000000Z"
+        },
+        {
+            "id": 645,
+            "village_name": "رام الله- رام الله",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-03T21:00:10.000000Z",
+            "updated_at": "2023-08-12T04:59:15.000000Z"
+        },
+        {
+            "id": 646,
+            "village_name": "نابلس-مخيم بلاطة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-04T03:47:25.000000Z",
+            "updated_at": "2023-05-11T20:23:25.000000Z"
+        },
+        {
+            "id": 647,
+            "village_name": "بيت لحم-بيت لحم",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-04T04:08:35.000000Z",
+            "updated_at": "2023-05-13T04:01:32.000000Z"
+        },
+        {
+            "id": 648,
+            "village_name": "اريحا-اريحا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-04T08:46:00.000000Z",
+            "updated_at": "2023-05-11T20:01:49.000000Z"
+        },
+        {
+            "id": 649,
+            "village_name": "الداخل(المركز)-تل ابيب",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-04T21:59:24.000000Z",
+            "updated_at": "2025-07-06T14:29:07.000000Z"
+        },
+        {
+            "id": 650,
+            "village_name": "بيت لحم-زعترة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-05T03:42:59.000000Z",
+            "updated_at": "2023-05-13T09:31:13.000000Z"
+        },
+        {
+            "id": 651,
+            "village_name": "الداخل(المركز)-ريشون ليتسون",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-05T04:10:44.000000Z",
+            "updated_at": "2025-07-06T13:16:36.000000Z"
+        },
+        {
+            "id": 652,
+            "village_name": "الداخل(المركز)-هرتسيليا",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-05T04:11:08.000000Z",
+            "updated_at": "2025-07-06T13:08:19.000000Z"
+        },
+        {
+            "id": 653,
+            "village_name": "الداخل(المركز)-رمات جان",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-05T04:11:30.000000Z",
+            "updated_at": "2025-07-06T13:15:48.000000Z"
+        },
+        {
+            "id": 654,
+            "village_name": "الداخل(الشمال)-شلومي",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-05T05:06:20.000000Z",
+            "updated_at": "2025-07-06T14:03:27.000000Z"
+        },
+        {
+            "id": 655,
+            "village_name": "الخليل-صوريف",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-06T03:13:58.000000Z",
+            "updated_at": "2023-05-11T20:08:46.000000Z"
+        },
+        {
+            "id": 656,
+            "village_name": "طولكرم-اكتابا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-08T07:00:45.000000Z",
+            "updated_at": "2023-04-11T14:40:02.000000Z"
+        },
+        {
+            "id": 657,
+            "village_name": "الداخل(الشمال)-دير الاسد",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-04-08T07:01:23.000000Z",
+            "updated_at": "2025-07-06T14:33:40.000000Z"
+        },
+        {
+            "id": 658,
+            "village_name": "قلقيلية-سنيريا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-08T07:07:58.000000Z",
+            "updated_at": "2024-02-19T13:41:34.000000Z"
+        },
+        {
+            "id": 659,
+            "village_name": "قلقيلية-بيت امين",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-08T07:09:09.000000Z",
+            "updated_at": "2024-02-19T13:40:41.000000Z"
+        },
+        {
+            "id": 660,
+            "village_name": "الخليل-خاراس",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-08T08:09:29.000000Z",
+            "updated_at": "2023-05-20T02:29:42.000000Z"
+        },
+        {
+            "id": 661,
+            "village_name": "الخليل-السموع",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-08T08:15:31.000000Z",
+            "updated_at": "2023-05-13T08:12:43.000000Z"
+        },
+        {
+            "id": 662,
+            "village_name": "الخليل-بيت اولا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-08T08:19:11.000000Z",
+            "updated_at": "2023-05-13T08:36:46.000000Z"
+        },
+        {
+            "id": 663,
+            "village_name": "را م الله-مخيم شعفاط",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-08T08:38:33.000000Z",
+            "updated_at": "2023-05-13T09:18:23.000000Z"
+        },
+        {
+            "id": 664,
+            "village_name": "طوباس - طمون",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-08T19:58:41.000000Z",
+            "updated_at": "2023-04-08T19:58:41.000000Z"
+        },
+        {
+            "id": 665,
+            "village_name": "طوباس-طوباس",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-09T08:30:19.000000Z",
+            "updated_at": "2023-07-27T22:40:25.000000Z"
+        },
+        {
+            "id": 666,
+            "village_name": "الخليل-اذنا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-09T08:30:57.000000Z",
+            "updated_at": "2023-05-11T20:15:54.000000Z"
+        },
+        {
+            "id": 667,
+            "village_name": "الخليل-دورا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-10T04:09:00.000000Z",
+            "updated_at": "2023-05-11T20:10:07.000000Z"
+        },
+        {
+            "id": 668,
+            "village_name": "رام الله-البيرة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-10T04:10:50.000000Z",
+            "updated_at": "2023-05-13T08:39:14.000000Z"
+        },
+        {
+            "id": 669,
+            "village_name": "جنين-  بيت قاد",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-02T05:09:30.000000Z",
+            "updated_at": "2023-08-17T02:02:37.000000Z"
+        },
+        {
+            "id": 670,
+            "village_name": "نابلس-مخيم عسكر",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-11T14:33:59.000000Z",
+            "updated_at": "2023-05-11T20:23:41.000000Z"
+        },
+        {
+            "id": 671,
+            "village_name": "نابلس-مخيم العين",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-11T14:34:18.000000Z",
+            "updated_at": "2023-05-11T20:23:09.000000Z"
+        },
+        {
+            "id": 672,
+            "village_name": "رام الله-مخيم الجلزون",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-11T14:34:40.000000Z",
+            "updated_at": "2023-05-13T08:38:26.000000Z"
+        },
+        {
+            "id": 673,
+            "village_name": "جنين-مخيم فحمة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-11T14:34:59.000000Z",
+            "updated_at": "2023-05-11T20:49:27.000000Z"
+        },
+        {
+            "id": 674,
+            "village_name": "رام الله-مخيم الامعري",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-11T14:36:10.000000Z",
+            "updated_at": "2023-05-13T08:38:10.000000Z"
+        },
+        {
+            "id": 675,
+            "village_name": "طولكرم-مخيم نور شمس",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-11T14:36:59.000000Z",
+            "updated_at": "2023-07-27T22:38:56.000000Z"
+        },
+        {
+            "id": 676,
+            "village_name": "طولكرم-مخيم طولكرم",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-11T14:37:30.000000Z",
+            "updated_at": "2023-07-27T22:39:11.000000Z"
+        },
+        {
+            "id": 677,
+            "village_name": "الخليل-مخيم الفوار",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-11T14:39:04.000000Z",
+            "updated_at": "2023-05-11T20:09:52.000000Z"
+        },
+        {
+            "id": 678,
+            "village_name": "طولكرم-ذنابة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-14T05:24:36.000000Z",
+            "updated_at": "2023-05-12T00:18:21.000000Z"
+        },
+        {
+            "id": 680,
+            "village_name": "الخليل-بيت امر",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-04-28T23:26:46.000000Z",
+            "updated_at": "2023-08-03T00:28:54.000000Z"
+        },
+        {
+            "id": 681,
+            "village_name": "رام الله-بيت اجزا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-05-06T02:19:17.000000Z",
+            "updated_at": "2023-05-13T08:38:42.000000Z"
+        },
+        {
+            "id": 682,
+            "village_name": "الخليل-القيزون",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-05-06T02:20:00.000000Z",
+            "updated_at": "2023-05-11T20:08:05.000000Z"
+        },
+        {
+            "id": 683,
+            "village_name": "الخليل-سعير",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-05-06T15:01:37.000000Z",
+            "updated_at": "2023-05-11T20:09:12.000000Z"
+        },
+        {
+            "id": 684,
+            "village_name": "بيت لحم-بيت ساحور",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-05-13T05:01:06.000000Z",
+            "updated_at": "2023-05-13T05:01:06.000000Z"
+        },
+        {
+            "id": 685,
+            "village_name": "رام الله-رام الله",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-05-13T20:47:28.000000Z",
+            "updated_at": "2023-05-13T20:47:28.000000Z"
+        },
+        {
+            "id": 686,
+            "village_name": "الداخل(النقب)-كسيفه",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-05-23T02:14:23.000000Z",
+            "updated_at": "2025-03-24T22:21:36.000000Z"
+        },
+        {
+            "id": 687,
+            "village_name": "طولكرم-علار",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-05-28T00:57:06.000000Z",
+            "updated_at": "2023-05-28T00:57:06.000000Z"
+        },
+        {
+            "id": 688,
+            "village_name": "قلقيلية-النبي الياس",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-06-04T14:31:30.000000Z",
+            "updated_at": "2023-06-04T14:31:30.000000Z"
+        },
+        {
+            "id": 689,
+            "village_name": "الداخل(الشمال)-كرمئيل",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-06-08T02:07:21.000000Z",
+            "updated_at": "2025-07-06T13:44:29.000000Z"
+        },
+        {
+            "id": 690,
+            "village_name": "رام الله-حزما",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-06-19T06:33:19.000000Z",
+            "updated_at": "2023-07-20T23:57:33.000000Z"
+        },
+        {
+            "id": 691,
+            "village_name": "الداخل(الشمال)-كسرى",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-06-20T00:12:03.000000Z",
+            "updated_at": "2025-07-06T13:44:07.000000Z"
+        },
+        {
+            "id": 692,
+            "village_name": "الداخل(الشمال)-قيساريه",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-06-20T00:12:35.000000Z",
+            "updated_at": "2025-07-06T13:45:44.000000Z"
+        },
+        {
+            "id": 693,
+            "village_name": "الداخل(الشمال)-عرب الشبلي",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-06-21T18:55:59.000000Z",
+            "updated_at": "2025-07-06T13:54:06.000000Z"
+        },
+        {
+            "id": 694,
+            "village_name": "الداخل(الشمال)-ابطن",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-07-15T21:45:16.000000Z",
+            "updated_at": "2025-07-06T13:38:05.000000Z"
+        },
+        {
+            "id": 695,
+            "village_name": "الخليل-مخيم العروب",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-08-02T02:13:48.000000Z",
+            "updated_at": "2023-08-02T02:13:48.000000Z"
+        },
+        {
+            "id": 696,
+            "village_name": "الداخل(النقب)-عراد",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-08-09T17:51:37.000000Z",
+            "updated_at": "2025-07-06T13:39:02.000000Z"
+        },
+        {
+            "id": 697,
+            "village_name": "الداخل(الشمال)-نتانيا",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-08-20T01:46:07.000000Z",
+            "updated_at": "2025-07-06T13:43:30.000000Z"
+        },
+        {
+            "id": 698,
+            "village_name": "الداخل(الشمال)-مجدل شمس",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-08-29T19:13:09.000000Z",
+            "updated_at": "2025-07-06T13:43:45.000000Z"
+        },
+        {
+            "id": 699,
+            "village_name": "رام الله-بيت عنان",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-09-07T11:59:30.000000Z",
+            "updated_at": "2023-09-07T11:59:30.000000Z"
+        },
+        {
+            "id": 700,
+            "village_name": "الداخل(المركز)-حولون",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2023-09-17T22:26:52.000000Z",
+            "updated_at": "2025-03-24T22:19:36.000000Z"
+        },
+        {
+            "id": 701,
+            "village_name": "رام الله-النبي صالح",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2023-11-23T23:56:50.000000Z",
+            "updated_at": "2023-11-23T23:56:50.000000Z"
+        },
+        {
+            "id": 702,
+            "village_name": "القدس-الصوانة",
+            "delivery_cost": 30,
+            "area_id": 2,
+            "created_at": "2023-12-14T22:44:36.000000Z",
+            "updated_at": "2023-12-14T22:44:36.000000Z"
+        },
+        {
+            "id": 703,
+            "village_name": "القدس-الشياح",
+            "delivery_cost": 30,
+            "area_id": 2,
+            "created_at": "2023-12-16T21:23:05.000000Z",
+            "updated_at": "2023-12-16T21:23:05.000000Z"
+        },
+        {
+            "id": 704,
+            "village_name": "القدس-البلدة القديمة",
+            "delivery_cost": 30,
+            "area_id": 2,
+            "created_at": "2023-12-16T21:53:21.000000Z",
+            "updated_at": "2023-12-16T21:53:21.000000Z"
+        },
+        {
+            "id": 705,
+            "village_name": "القدس-القدس",
+            "delivery_cost": 30,
+            "area_id": 2,
+            "created_at": "2023-12-17T01:17:18.000000Z",
+            "updated_at": "2023-12-17T01:17:18.000000Z"
+        },
+        {
+            "id": 706,
+            "village_name": "قلقيلية-كفر قدوم",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2024-01-17T07:39:41.000000Z",
+            "updated_at": "2024-01-17T07:39:41.000000Z"
+        },
+        {
+            "id": 707,
+            "village_name": "0-0",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2024-02-05T00:12:02.000000Z",
+            "updated_at": "2024-02-05T00:12:54.000000Z"
+        },
+        {
+            "id": 708,
+            "village_name": "طولكرم-شويكه",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2024-02-17T09:11:40.000000Z",
+            "updated_at": "2024-02-17T09:11:40.000000Z"
+        },
+        {
+            "id": 709,
+            "village_name": "الداخل(النقب)-نتيڤوت",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2024-03-23T21:14:14.000000Z",
+            "updated_at": "2025-07-06T13:21:27.000000Z"
+        },
+        {
+            "id": 710,
+            "village_name": "الداخل(الشمال)-نيشير",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2024-03-23T21:14:47.000000Z",
+            "updated_at": "2025-07-06T13:43:12.000000Z"
+        },
+        {
+            "id": 711,
+            "village_name": "الداخل(الشمال)-أور عقيڤا",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2024-03-23T21:15:09.000000Z",
+            "updated_at": "2025-07-06T14:17:12.000000Z"
+        },
+        {
+            "id": 712,
+            "village_name": "الداخل(النقب)-أفقيم",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2024-03-23T21:16:32.000000Z",
+            "updated_at": "2025-07-06T13:08:56.000000Z"
+        },
+        {
+            "id": 713,
+            "village_name": "الداخل(المركز)-رامات هاشارون",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2024-03-23T21:17:47.000000Z",
+            "updated_at": "2025-07-06T13:14:07.000000Z"
+        },
+        {
+            "id": 714,
+            "village_name": "الداخل(النقب)-رحوڤوت",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2024-03-23T21:18:27.000000Z",
+            "updated_at": "2025-07-06T13:15:16.000000Z"
+        },
+        {
+            "id": 715,
+            "village_name": "الداخل(الشمال)-روش هاعين",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2024-03-23T21:19:40.000000Z",
+            "updated_at": "2025-07-06T14:05:31.000000Z"
+        },
+        {
+            "id": 716,
+            "village_name": "الداخل(النقب)-بيتار عيليت",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2024-03-23T21:20:45.000000Z",
+            "updated_at": "2025-07-06T14:30:05.000000Z"
+        },
+        {
+            "id": 717,
+            "village_name": "الداخل(المركز)-نيس زيونا",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2024-03-23T21:21:10.000000Z",
+            "updated_at": "2025-03-24T22:33:10.000000Z"
+        },
+        {
+            "id": 718,
+            "village_name": "الداخل(المركز)-بيت شمش",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2024-03-23T21:21:29.000000Z",
+            "updated_at": "2025-07-06T14:30:30.000000Z"
+        },
+        {
+            "id": 719,
+            "village_name": "الداخل(النقب)-ام بطين",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2024-05-10T15:20:20.000000Z",
+            "updated_at": "2025-03-08T12:53:32.000000Z"
+        },
+        {
+            "id": 720,
+            "village_name": "طولكرم-الكور",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2024-05-20T14:55:26.000000Z",
+            "updated_at": "2024-05-20T14:55:26.000000Z"
+        },
+        {
+            "id": 721,
+            "village_name": "القدس-الثوري",
+            "delivery_cost": 30,
+            "area_id": 2,
+            "created_at": "2024-06-02T15:07:25.000000Z",
+            "updated_at": "2024-06-02T15:07:25.000000Z"
+        },
+        {
+            "id": 722,
+            "village_name": "القدس-الطوري",
+            "delivery_cost": 30,
+            "area_id": 2,
+            "created_at": "2024-06-02T15:07:46.000000Z",
+            "updated_at": "2024-06-02T15:07:46.000000Z"
+        },
+        {
+            "id": 723,
+            "village_name": "الداخل(النقب)-قصر السر",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2024-06-25T18:26:03.000000Z",
+            "updated_at": "2025-03-08T12:55:43.000000Z"
+        },
+        {
+            "id": 724,
+            "village_name": "الداخل(الشمال)-بقعاتا(جولان)",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2024-06-25T18:27:07.000000Z",
+            "updated_at": "2025-07-06T14:14:36.000000Z"
+        },
+        {
+            "id": 725,
+            "village_name": "رام الله-مخيم قلنديا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2024-07-31T18:32:46.000000Z",
+            "updated_at": "2024-07-31T18:32:46.000000Z"
+        },
+        {
+            "id": 726,
+            "village_name": "الخليل-ترقوميا",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2024-07-31T18:34:00.000000Z",
+            "updated_at": "2024-07-31T18:34:00.000000Z"
+        },
+        {
+            "id": 727,
+            "village_name": "الاردن-عمان",
+            "delivery_cost": 80,
+            "area_id": 4,
+            "created_at": "2025-02-05T14:33:30.000000Z",
+            "updated_at": "2025-02-05T14:34:26.000000Z"
+        },
+        {
+            "id": 728,
+            "village_name": "الاردن-اربد",
+            "delivery_cost": 80,
+            "area_id": 4,
+            "created_at": "2025-02-05T14:33:49.000000Z",
+            "updated_at": "2025-02-05T14:34:40.000000Z"
+        },
+        {
+            "id": 729,
+            "village_name": "الداخل(الشمال)-الطيبة الزعبية",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2025-02-15T16:29:13.000000Z",
+            "updated_at": "2025-07-06T14:26:20.000000Z"
+        },
+        {
+            "id": 732,
+            "village_name": "جنين-عنزه",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2025-03-24T20:12:11.000000Z",
+            "updated_at": "2025-03-24T20:12:11.000000Z"
+        },
+        {
+            "id": 733,
+            "village_name": "جنين-عنزة",
+            "delivery_cost": 20,
+            "area_id": 1,
+            "created_at": "2025-03-24T20:12:31.000000Z",
+            "updated_at": "2025-03-24T20:12:31.000000Z"
+        },
+        {
+            "id": 734,
+            "village_name": "الداخل(الشمال)-حتسور",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2025-07-04T16:05:49.000000Z",
+            "updated_at": "2025-07-06T14:09:28.000000Z"
+        },
+        {
+            "id": 735,
+            "village_name": "الداخل(الشمال)-حريش",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2025-07-04T16:06:19.000000Z",
+            "updated_at": "2025-07-06T14:07:36.000000Z"
+        },
+        {
+            "id": 736,
+            "village_name": "الداخل(النقب)-يفنه",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2025-07-04T16:08:01.000000Z",
+            "updated_at": "2025-07-06T13:38:35.000000Z"
+        },
+        {
+            "id": 737,
+            "village_name": "الداخل(المركز)-رعنانا",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2025-07-04T16:09:49.000000Z",
+            "updated_at": "2025-07-06T13:41:45.000000Z"
+        },
+        {
+            "id": 738,
+            "village_name": "الداخل(الشمال)-كتسرين",
+            "delivery_cost": 70,
+            "area_id": 3,
+            "created_at": "2025-07-04T16:12:14.000000Z",
+            "updated_at": "2025-07-06T13:45:21.000000Z"
+        },
+        {
+            "id": 739,
+            "village_name": "القدس-تل بيوت",
+            "delivery_cost": 30,
+            "area_id": 2,
+            "created_at": "2025-07-04T16:13:07.000000Z",
+            "updated_at": "2025-07-04T16:13:07.000000Z"
+        },
+        {
+            "id": 740,
+            "village_name": "القدس-عين كارم",
+            "delivery_cost": 30,
+            "area_id": 2,
+            "created_at": "2025-07-04T16:13:45.000000Z",
+            "updated_at": "2025-07-04T16:13:45.000000Z"
+        },
+        {
+            "id": 741,
+            "village_name": "القدس-⬅️الضفة الغربية",
+            "delivery_cost": 30,
+            "area_id": 2,
+            "created_at": "2025-09-22T22:41:00.000000Z",
+            "updated_at": "2025-09-22T22:50:32.000000Z"
+        }
+    ]
+}

@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import Favorite from '@/models/Favorite';
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
 
 // DELETE /api/favorites/[id] - Remove from favorites
-async function removeFromFavorites(req: NextRequest, user: any, { params }: { params: { id: string } }) {
+async function removeFromFavorites(req: NextRequest, user: any, ...args: unknown[]) {
+  const routeParams = args[0] as { params: { id: string } };
+  const params = routeParams.params;
   try {
     await connectDB();
     
@@ -24,12 +28,18 @@ async function removeFromFavorites(req: NextRequest, user: any, { params }: { pa
       success: true,
       message: 'تم إزالة المنتج من المفضلة'
     });
+    
+    logger.business('Product removed from favorites', {
+      productId: params.id,
+      userId: user._id.toString()
+    });
+    logger.apiResponse('DELETE', `/api/favorites/${params.id}`, 200);
   } catch (error) {
-    console.error('Error removing from favorites:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء إزالة المنتج من المفضلة' },
-      { status: 500 }
-    );
+    logger.error('Error removing from favorites', error, {
+      productId: params.id,
+      userId: user._id.toString()
+    });
+    return handleApiError(error, 'حدث خطأ أثناء إزالة المنتج من المفضلة');
   }
 }
 

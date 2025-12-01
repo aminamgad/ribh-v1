@@ -1,4 +1,4 @@
-import { getSystemSettings, clearSettingsCache, validateOrderValue, calculateShippingCost, calculateCommission, validateWithdrawalAmount, calculateWithdrawalFees } from './settings';
+import { getSystemSettings, clearSettingsCache, validateOrderValue, calculateShippingCost, calculateCommission, validateWithdrawalAmount, calculateWithdrawalFees, getAdminProfitMargin, calculateAdminProfitForProduct, calculateAdminProfitForOrder } from './settings';
 
 // Settings Manager class to provide a consistent interface
 class SettingsManager {
@@ -39,6 +39,18 @@ class SettingsManager {
 
   async calculateWithdrawalFees(amount: number) {
     return await calculateWithdrawalFees(amount);
+  }
+
+  async getAdminProfitMargin(productPrice: number) {
+    return await getAdminProfitMargin(productPrice);
+  }
+
+  async calculateAdminProfitForProduct(productPrice: number, quantity: number = 1) {
+    return await calculateAdminProfitForProduct(productPrice, quantity);
+  }
+
+  async calculateAdminProfitForOrder(items: Array<{ unitPrice: number; quantity: number }>) {
+    return await calculateAdminProfitForOrder(items);
   }
 }
 

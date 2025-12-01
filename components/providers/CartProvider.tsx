@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Product } from '@/types';
+import { Product, ProductVariantOption } from '@/types';
 import toast from 'react-hot-toast';
 
 interface CartItem {
@@ -9,14 +9,14 @@ interface CartItem {
   quantity: number;
   price: number;
   selectedVariants?: Record<string, string>;
-  variantOption?: any; // The specific variant option selected
+  variantOption?: ProductVariantOption; // The specific variant option selected
 }
 
 interface CartContextType {
   items: CartItem[];
   totalItems: number;
   totalPrice: number;
-  addToCart: (product: Product, quantity?: number, selectedVariants?: Record<string, string>, variantOption?: any) => void;
+  addToCart: (product: Product, quantity?: number, selectedVariants?: Record<string, string>, variantOption?: ProductVariantOption) => void;
   removeFromCart: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;

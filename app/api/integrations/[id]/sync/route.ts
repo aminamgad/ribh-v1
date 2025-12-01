@@ -5,6 +5,8 @@ import StoreIntegration, { IntegrationStatus } from '@/models/StoreIntegration';
 import Product from '@/models/Product';
 import Order from '@/models/Order';
 import { UserRole } from '@/types';
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
 
 interface RouteParams {
   params: {
@@ -13,7 +15,10 @@ interface RouteParams {
 }
 
 // POST /api/integrations/[id]/sync - Trigger sync with external store
-export const POST = withAuth(async (req: NextRequest, { user, params }: RouteParams & { user: any }) => {
+export const POST = withAuth(async (req: NextRequest, user: any, ...args: unknown[]) => {
+  const routeParams = args[0] as RouteParams;
+  const params = 'then' in routeParams.params ? await routeParams.params : routeParams.params;
+  let type: string | undefined;
   try {
     if (user.role !== 'marketer' && user.role !== 'wholesaler') {
       return NextResponse.json(
@@ -22,7 +27,8 @@ export const POST = withAuth(async (req: NextRequest, { user, params }: RoutePar
       );
     }
 
-    const { type } = await req.json(); // 'products', 'orders', or 'all'
+    const body = await req.json();
+    type = body.type; // 'products', 'orders', or 'all'
 
     await connectDB();
 
@@ -36,7 +42,7 @@ export const POST = withAuth(async (req: NextRequest, { user, params }: RoutePar
     }
 
     // Check ownership
-    if (integration.userId.toString() !== user.id) {
+    if (integration.userId.toString() !== user._id.toString()) {
       return NextResponse.json(
         { error: 'غير مصرح لك بتنفيذ المزامنة لهذا التكامل' },
         { status: 403 }
@@ -81,7 +87,7 @@ export const POST = withAuth(async (req: NextRequest, { user, params }: RoutePar
               await Product.create({
                 name: `منتج مستورد ${i + 1}`,
                 description: `منتج تم استيراده من ${integration.storeName}`,
-                supplierId: user.id,
+                supplierId: user._id,
                 categoryId: integration.settings.defaultCategory || null,
                 marketerPrice: 100 + (i * 10),
                 wholesalePrice: 80 + (i * 10),
@@ -133,17 +139,24 @@ export const POST = withAuth(async (req: NextRequest, { user, params }: RoutePar
         { status: 500 }
       );
     }
+    
+    logger.business('Integration sync completed', {
+      integrationId: params.id,
+      userId: user._id,
+      syncType: type,
+      results: syncResults
+    });
+    logger.apiResponse('POST', `/api/integrations/${params.id}/sync`, 200);
   } catch (error) {
-    console.error('Error in sync:', error);
-    return NextResponse.json(
-      { error: 'حدث خطأ في المزامنة' },
-      { status: 500 }
-    );
+    logger.error('Error in sync', error, { integrationId: params.id, userId: user._id, syncType: type });
+    return handleApiError(error, 'حدث خطأ في المزامنة');
   }
 });
 
 // GET /api/integrations/[id]/sync - Get sync status
-export const GET = withAuth(async (req: NextRequest, { user, params }: RouteParams & { user: any }) => {
+export const GET = withAuth(async (req: NextRequest, user: any, ...args: unknown[]) => {
+  const routeParams = args[0] as RouteParams;
+  const params = 'then' in routeParams.params ? await routeParams.params : routeParams.params;
   try {
     if (user.role !== 'marketer' && user.role !== 'wholesaler' && user.role !== 'admin') {
       return NextResponse.json(
@@ -195,11 +208,10 @@ export const GET = withAuth(async (req: NextRequest, { user, params }: RoutePara
         settings: integration.settings
       }
     });
+    
+    logger.apiResponse('GET', `/api/integrations/${params.id}/sync`, 200);
   } catch (error) {
-    console.error('Error fetching sync status:', error);
-    return NextResponse.json(
-      { error: 'حدث خطأ في جلب حالة المزامنة' },
-      { status: 500 }
-    );
+    logger.error('Error fetching sync status', error, { integrationId: params.id, userId: user.id });
+    return handleApiError(error, 'حدث خطأ في جلب حالة المزامنة');
   }
 }); 

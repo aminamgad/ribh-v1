@@ -1,0 +1,148 @@
+'use client';
+
+import { Package, ShoppingCart, Heart, ArrowLeft } from 'lucide-react';
+import MediaThumbnail from '@/components/ui/MediaThumbnail';
+import LazyImage from '@/components/ui/LazyImage';
+
+interface Product {
+  _id: string;
+  name: string;
+  description: string;
+  images: string[];
+  marketerPrice: number;
+  stockQuantity: number;
+  isApproved: boolean;
+  categoryId?: string;
+  sales?: number;
+}
+
+interface ProductSectionProps {
+  title: string;
+  icon: React.ReactNode;
+  products: Product[];
+  onViewAll: () => void;
+  onProductClick: (product: Product) => void;
+  onAddToCart: (product: Product) => void;
+  onToggleFavorite: (product: Product) => void;
+  isFavorite: (productId: string) => boolean;
+}
+
+export default function ProductSection({
+  title,
+  icon,
+  products,
+  onViewAll,
+  onProductClick,
+  onAddToCart,
+  onToggleFavorite,
+  isFavorite
+}: ProductSectionProps) {
+  // Always show section, even if empty (with empty state)
+
+  return (
+    <div className="space-y-4">
+      {/* Section Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-3 space-x-reverse">
+          <div className="p-2 bg-primary-100 dark:bg-primary-900/30 rounded-lg text-primary-600 dark:text-primary-400">
+            {icon}
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">{title}</h2>
+        </div>
+        <button
+          onClick={onViewAll}
+          className="flex items-center text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium transition-colors"
+        >
+          عرض الكل
+          <ArrowLeft className="w-4 h-4 mr-2" />
+        </button>
+      </div>
+
+      {/* Products Grid */}
+      {products.length === 0 ? (
+        <div className="card p-8 text-center">
+          <Package className="w-12 h-12 text-gray-400 dark:text-slate-500 mx-auto mb-3" />
+          <p className="text-gray-600 dark:text-slate-400">لا توجد منتجات في هذا القسم حالياً</p>
+        </div>
+      ) : (
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+        {products.map((product) => (
+          <div
+            key={product._id}
+            className="card p-3 hover:shadow-medium transition-shadow relative group cursor-pointer"
+            onClick={() => onProductClick(product)}
+          >
+            {/* Favorite Button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleFavorite(product);
+              }}
+              className="absolute top-2 left-2 p-1.5 bg-white dark:bg-slate-800 rounded-full shadow-sm hover:shadow-md transition-shadow z-10 opacity-0 group-hover:opacity-100"
+            >
+              <Heart
+                className={`w-4 h-4 ${
+                  isFavorite(product._id)
+                    ? 'text-danger-600 dark:text-danger-400 fill-current'
+                    : 'text-gray-400 dark:text-slate-500 hover:text-danger-600 dark:hover:text-danger-400'
+                }`}
+              />
+            </button>
+
+            {/* Product Image */}
+            <div className="relative mb-3 aspect-square">
+              {product.images && product.images.length > 0 ? (
+                <LazyImage
+                  src={product.images[0]}
+                  alt={product.name}
+                  className="w-full h-full object-cover rounded-lg"
+                />
+              ) : (
+                <div className="w-full h-full bg-gray-200 dark:bg-slate-700 rounded-lg flex items-center justify-center">
+                  <Package className="w-8 h-8 text-gray-400 dark:text-slate-500" />
+                </div>
+              )}
+            </div>
+
+            {/* Product Info */}
+            <div className="space-y-2">
+              <h3 className="font-semibold text-sm text-gray-900 dark:text-slate-100 line-clamp-2 min-h-[2.5rem]">
+                {product.name}
+              </h3>
+              
+              <div className="flex items-center justify-between">
+                <span className="text-lg font-bold text-primary-600 dark:text-primary-400">
+                  {product.marketerPrice} ₪
+                </span>
+                {product.sales && product.sales > 0 && (
+                  <span className="text-xs text-gray-500 dark:text-slate-400">
+                    {product.sales} مبيع
+                  </span>
+                )}
+              </div>
+
+              {/* Add to Cart Button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddToCart(product);
+                }}
+                disabled={product.stockQuantity <= 0 || !product.isApproved}
+                className={`w-full py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center ${
+                  product.stockQuantity > 0 && product.isApproved
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white dark:bg-emerald-500 dark:hover:bg-emerald-600'
+                    : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                <ShoppingCart className="w-4 h-4 ml-1" />
+                {product.stockQuantity > 0 && product.isApproved ? 'إضافة للسلة' : 'غير متوفر'}
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+      )}
+    </div>
+  );
+}
+

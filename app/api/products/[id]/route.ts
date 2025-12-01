@@ -2,17 +2,38 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import Product from '@/models/Product';
+import { productCache, generateCacheKey } from '@/lib/cache';
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
 
 interface RouteParams {
   params: { id: string };
 }
 
 // GET /api/products/[id] - Get single product
-async function getProduct(req: NextRequest, user: any, { params }: RouteParams) {
+async function getProduct(req: NextRequest, user: any, ...args: unknown[]) {
+  const routeParams = args[0] as RouteParams;
+  const params = 'then' in routeParams.params ? await routeParams.params : routeParams.params;
   try {
     await connectDB();
     
+    // Try cache first
+    const cacheKey = generateCacheKey('product', params.id, user.role);
+    const cached = productCache.get(cacheKey);
+    if (cached) {
+      // Check access control
+      if (user.role === 'supplier' && (cached as any).supplierId?._id?.toString() !== user._id.toString()) {
+        return NextResponse.json(
+          { success: false, message: 'غير مصرح لك بالوصول لهذا المنتج' },
+          { status: 403 }
+        );
+      }
+      return NextResponse.json({ success: true, product: cached });
+    }
+    
+    // Fetch from database with optimized query
     const product = await Product.findById(params.id)
+      .select('-__v') // Exclude version field
       .populate('categoryId', 'name')
       .populate('supplierId', 'name companyName')
       .populate('approvedBy', 'name')
@@ -27,13 +48,10 @@ async function getProduct(req: NextRequest, user: any, { params }: RouteParams) 
     }
 
     // Role-based access control - Only suppliers are restricted to their own products
-    console.log('🔍 Access control check:', {
+    logger.debug('Access control check', {
       userRole: user.role,
       userId: user._id.toString(),
-      productSupplierId: product.supplierId._id.toString(),
-      isSupplier: user.role === 'supplier',
-      isOwnProduct: product.supplierId._id.toString() === user._id.toString(),
-      shouldBlock: user.role === 'supplier' && product.supplierId._id.toString() !== user._id.toString()
+      productSupplierId: product.supplierId._id.toString()
     });
     
     if (user.role === 'supplier' && product.supplierId._id.toString() !== user._id.toString()) {
@@ -56,6 +74,7 @@ async function getProduct(req: NextRequest, user: any, { params }: RouteParams) 
       _id: product._id,
       name: product.name,
       description: product.description,
+      marketingText: product.marketingText,
       images: product.images,
       marketerPrice: product.marketerPrice,
       wholesalerPrice: product.wholesalerPrice,
@@ -93,34 +112,32 @@ async function getProduct(req: NextRequest, user: any, { params }: RouteParams) 
       lockReason: product.lockReason
     };
 
-    console.log('📤 Sending product data:', {
-      id: transformedProduct._id,
-      name: transformedProduct.name,
-      isApproved: transformedProduct.isApproved,
-      isRejected: transformedProduct.isRejected,
-      rejectionReason: transformedProduct.rejectionReason,
-      status: transformedProduct.isApproved ? 'معتمد' : transformedProduct.isRejected ? 'مرفوض' : 'قيد المراجعة',
-      // Add variant debugging
+    logger.debug('Sending product data', {
+      productId: transformedProduct._id,
+      productName: transformedProduct.name,
       hasVariants: transformedProduct.hasVariants,
-      variantsCount: transformedProduct.variants?.length || 0,
-      variantOptionsCount: transformedProduct.variantOptions?.length || 0
+      variantsCount: transformedProduct.variants?.length || 0
     });
 
+    // Cache the result
+    productCache.set(cacheKey, transformedProduct);
+    
     return NextResponse.json({
       success: true,
       product: transformedProduct
     });
+    
+    logger.apiResponse('GET', `/api/products/${params.id}`, 200);
   } catch (error) {
-    console.error('Error fetching product:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء جلب المنتج' },
-      { status: 500 }
-    );
+    logger.error('Error fetching product', error, { productId: params.id, userId: user?._id });
+    return handleApiError(error, 'حدث خطأ أثناء جلب المنتج');
   }
 }
 
 // PUT /api/products/[id] - Update product
-async function updateProduct(req: NextRequest, user: any, { params }: RouteParams) {
+async function updateProduct(req: NextRequest, user: any, ...args: unknown[]) {
+  const routeParams = args[0] as RouteParams;
+  const params = 'then' in routeParams.params ? await routeParams.params : routeParams.params;
   try {
     await connectDB();
     
@@ -145,7 +162,7 @@ async function updateProduct(req: NextRequest, user: any, { params }: RouteParam
 
     // Update allowed fields
     const allowedUpdates = [
-      'name', 'description', 'images', 'categoryId',
+      'name', 'description', 'marketingText', 'images', 'categoryId',
       'marketerPrice', 'wholesalerPrice', 'minimumSellingPrice', 'isMinimumPriceMandatory', 'stockQuantity',
       'isActive', 'tags', 'specifications', 'sku', 'weight', 'dimensions',
       // Product variants
@@ -184,22 +201,34 @@ async function updateProduct(req: NextRequest, user: any, { params }: RouteParam
     ).populate('categoryId', 'name')
      .populate('supplierId', 'name companyName');
 
+    // Invalidate cache for this product and product lists
+    productCache.delete(generateCacheKey('product', params.id, user.role));
+    productCache.clearPattern('products');
+    
+    // Invalidate stats cache if product status changed
+    if (updateData.isApproved !== undefined || updateData.isActive !== undefined) {
+      const { statsCache } = require('@/lib/cache');
+      statsCache.clear();
+    }
+
+    logger.business('Product updated', { productId: params.id, userId: user._id.toString() });
+    logger.apiResponse('PUT', `/api/products/${params.id}`, 200);
+
     return NextResponse.json({
       success: true,
       message: 'تم تحديث المنتج بنجاح',
       product: updatedProduct
     });
   } catch (error) {
-    console.error('Error updating product:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء تحديث المنتج' },
-      { status: 500 }
-    );
+    logger.error('Error updating product', error, { productId: params.id, userId: user._id });
+    return handleApiError(error, 'حدث خطأ أثناء تحديث المنتج');
   }
 }
 
 // DELETE /api/products/[id] - Delete product
-async function deleteProduct(req: NextRequest, user: any, { params }: RouteParams) {
+async function deleteProduct(req: NextRequest, user: any, ...args: unknown[]) {
+  const routeParams = args[0] as RouteParams;
+  const params = 'then' in routeParams.params ? await routeParams.params : routeParams.params;
   try {
     await connectDB();
     
@@ -222,16 +251,24 @@ async function deleteProduct(req: NextRequest, user: any, { params }: RouteParam
 
     await Product.findByIdAndDelete(params.id);
 
+    // Invalidate cache for this product and product lists
+    productCache.delete(generateCacheKey('product', params.id, user.role));
+    productCache.clearPattern('products');
+    
+    // Invalidate stats cache
+    const { statsCache } = require('@/lib/cache');
+    statsCache.clear();
+
+    logger.business('Product deleted', { productId: params.id, userId: user._id.toString() });
+    logger.apiResponse('DELETE', `/api/products/${params.id}`, 200);
+
     return NextResponse.json({
       success: true,
       message: 'تم حذف المنتج بنجاح'
     });
   } catch (error) {
-    console.error('Error deleting product:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء حذف المنتج' },
-      { status: 500 }
-    );
+    logger.error('Error deleting product', error, { productId: params.id, userId: user._id });
+    return handleApiError(error, 'حدث خطأ أثناء حذف المنتج');
   }
 }
 

@@ -4,6 +4,7 @@ import connectDB from '@/lib/database';
 import Order from '@/models/Order';
 import Product from '@/models/Product';
 import { z } from 'zod';
+import { logger } from '@/lib/logger';
 
 const orderUpdateSchema = z.object({
   orderIds: z.array(z.string()).min(1, 'يجب اختيار طلب واحد على الأقل'),
@@ -111,9 +112,51 @@ async function manageOrders(req: NextRequest, user: any) {
           // Restore product stock if cancelling
           if (currentStatus === 'confirmed' || currentStatus === 'processing') {
             for (const item of order.items) {
-              await Product.findByIdAndUpdate(item.productId, {
-                $inc: { stockQuantity: item.quantity }
-              });
+              const product = await Product.findById(item.productId);
+              if (!product) continue;
+              
+              // If product has variants and variantOption is selected, restore variant stock
+              if (product.hasVariants && item.variantOption?.variantId) {
+                const variantOptionIndex = (product.variantOptions as any[] || []).findIndex(
+                  (opt: any) => opt.variantId === item.variantOption.variantId && 
+                               opt.value === item.variantOption.value
+                );
+                
+                if (variantOptionIndex !== -1) {
+                  const updatePath = `variantOptions.${variantOptionIndex}.stockQuantity`;
+                  await Product.findByIdAndUpdate(item.productId, {
+                    $inc: { 
+                      [updatePath]: item.quantity,
+                      stockQuantity: item.quantity // Also restore main stock
+                    }
+                  });
+                  logger.dbQuery('UPDATE', 'products', { 
+                    productId: item.productId, 
+                    variantStock: item.quantity,
+                    variantId: item.variantOption.variantId,
+                    action: 'restore_stock_cancel'
+                  });
+                } else {
+                  // Fallback: restore main stock only
+                  await Product.findByIdAndUpdate(item.productId, {
+                    $inc: { stockQuantity: item.quantity }
+                  });
+                  logger.warn('Variant option not found for stock restoration, restored main stock only', {
+                    productId: item.productId,
+                    variantId: item.variantOption.variantId
+                  });
+                }
+              } else {
+                // Restore main product stock
+                await Product.findByIdAndUpdate(item.productId, {
+                  $inc: { stockQuantity: item.quantity }
+                });
+                logger.dbQuery('UPDATE', 'products', { 
+                  productId: item.productId, 
+                  quantity: item.quantity,
+                  action: 'restore_stock_cancel'
+                });
+              }
             }
           }
           break;
@@ -125,9 +168,51 @@ async function manageOrders(req: NextRequest, user: any) {
           
           // Restore product stock for returns
           for (const item of order.items) {
-            await Product.findByIdAndUpdate(item.productId, {
-              $inc: { stockQuantity: item.quantity }
-            });
+            const product = await Product.findById(item.productId);
+            if (!product) continue;
+            
+            // If product has variants and variantOption is selected, restore variant stock
+            if (product.hasVariants && item.variantOption?.variantId) {
+              const variantOptionIndex = (product.variantOptions as any[] || []).findIndex(
+                (opt: any) => opt.variantId === item.variantOption.variantId && 
+                             opt.value === item.variantOption.value
+              );
+              
+              if (variantOptionIndex !== -1) {
+                const updatePath = `variantOptions.${variantOptionIndex}.stockQuantity`;
+                await Product.findByIdAndUpdate(item.productId, {
+                  $inc: { 
+                    [updatePath]: item.quantity,
+                    stockQuantity: item.quantity // Also restore main stock
+                  }
+                });
+                logger.dbQuery('UPDATE', 'products', { 
+                  productId: item.productId, 
+                  variantStock: item.quantity,
+                  variantId: item.variantOption.variantId,
+                  action: 'restore_stock_return'
+                });
+              } else {
+                // Fallback: restore main stock only
+                await Product.findByIdAndUpdate(item.productId, {
+                  $inc: { stockQuantity: item.quantity }
+                });
+                logger.warn('Variant option not found for stock restoration, restored main stock only', {
+                  productId: item.productId,
+                  variantId: item.variantOption.variantId
+                });
+              }
+            } else {
+              // Restore main product stock
+              await Product.findByIdAndUpdate(item.productId, {
+                $inc: { stockQuantity: item.quantity }
+              });
+              logger.dbQuery('UPDATE', 'products', { 
+                productId: item.productId, 
+                quantity: item.quantity,
+                action: 'restore_stock_return'
+              });
+            }
           }
           break;
       }
@@ -161,7 +246,7 @@ async function manageOrders(req: NextRequest, user: any) {
       );
     }
     
-    console.error('Error managing orders:', error);
+    logger.error('Error managing orders', error);
     return NextResponse.json(
       { success: false, message: 'حدث خطأ أثناء إدارة الطلبات' },
       { status: 500 }

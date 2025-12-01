@@ -4,6 +4,9 @@ import { withAuth } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import Chat, { ChatStatus, MessageType } from '@/models/Chat';
 import { UserRole } from '@/types';
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
+import { sendNotificationToUser, isUserOnline } from '@/lib/notifications';
 
 // Validation schemas
 const sendMessageSchema = z.object({
@@ -31,7 +34,9 @@ interface RouteParams {
 }
 
 // GET /api/chat/[id] - Get chat details with messages
-export const GET = withAuth(async (req: NextRequest, user: any, { params }: RouteParams) => {
+export const GET = withAuth(async (req: NextRequest, user: any, ...args: unknown[]) => {
+  const routeParams = args[0] as RouteParams;
+  const params = 'then' in routeParams.params ? await routeParams.params : routeParams.params;
   try {
     await connectDB();
 
@@ -55,27 +60,29 @@ export const GET = withAuth(async (req: NextRequest, user: any, { params }: Rout
       );
     }
 
-    // Mark messages as read
-    await chat.markAsRead(user._id.toString());
+    // حساب عداد الرسائل غير المقروءة (دون تحديث حالة القراءة)
+    // لا نحدد الرسائل كمقرؤة تلقائياً - فقط عند استدعاء /read endpoint
+    const unreadCount = chat.getUnreadCount(user._id.toString());
 
     return NextResponse.json({
       success: true,
       chat: {
         ...chat.toObject(),
-        unreadCount: chat.getUnreadCount(user._id.toString())
+        unreadCount
       }
     });
+    
+    logger.apiResponse('GET', `/api/chat/${params.id}`, 200);
   } catch (error) {
-    console.error('Error fetching chat:', error);
-    return NextResponse.json(
-      { error: 'حدث خطأ في جلب المحادثة' },
-      { status: 500 }
-    );
+    logger.error('Error fetching chat', error, { chatId: params.id, userId: user._id });
+    return handleApiError(error, 'حدث خطأ في جلب المحادثة');
   }
 });
 
 // POST /api/chat/[id] - Send message in chat
-export const POST = withAuth(async (req: NextRequest, user: any, { params }: RouteParams) => {
+export const POST = withAuth(async (req: NextRequest, user: any, ...args: unknown[]) => {
+  const routeParams = args[0] as RouteParams;
+  const params = 'then' in routeParams.params ? await routeParams.params : routeParams.params;
   try {
     const body = await req.json();
     const validatedData = sendMessageSchema.parse(body);
@@ -121,27 +128,103 @@ export const POST = withAuth(async (req: NextRequest, user: any, { params }: Rou
       select: 'name email role'
     });
 
+    // Send notifications to other participants
+    try {
+      const otherParticipants = chat.participants.filter(
+        (p: any) => p.toString() !== user._id.toString()
+      );
+
+      // Get sender info for notification
+      const sender = message.senderId as any;
+      const senderName = sender?.name || user.name || 'مستخدم';
+
+      // Prepare notification message (truncate if too long)
+      const messagePreview = validatedData.message.length > 50 
+        ? validatedData.message.substring(0, 50) + '...'
+        : validatedData.message;
+
+      // Get chat subject for notification
+      const chatSubject = (chat as any).subject || 'محادثة';
+
+      for (const participantId of otherParticipants) {
+        const participantIdStr = participantId.toString();
+        
+        // Check if user is online
+        const userIsOnline = await isUserOnline(participantIdStr);
+        
+        // Send notification
+        // If user is offline, also send email
+        await sendNotificationToUser(
+          participantIdStr,
+          {
+            title: 'رسالة جديدة',
+            message: `${senderName}: ${messagePreview}`,
+            type: 'info',
+            actionUrl: `/dashboard/chat?id=${chat._id}`,
+            metadata: {
+              chatId: chat._id.toString(),
+              senderId: user._id.toString(),
+              senderName,
+              chatSubject,
+              messageType: validatedData.type
+            }
+          },
+          {
+            sendEmail: !userIsOnline, // Send email if user is offline
+            sendSocket: true
+          }
+        );
+
+        logger.debug('Notification sent for chat message', {
+          chatId: params.id,
+          recipientId: participantIdStr,
+          senderId: user._id.toString(),
+          userIsOnline
+        });
+      }
+
+      logger.business('Notifications sent for chat message', {
+        chatId: params.id,
+        participantCount: otherParticipants.length,
+        senderId: user._id.toString()
+      });
+    } catch (notificationError) {
+      // Log error but don't fail the message sending
+      logger.warn('Error sending chat notifications', {
+        error: notificationError,
+        chatId: params.id,
+        userId: user._id.toString()
+      });
+    }
+
     return NextResponse.json({
       success: true,
       message
     }, { status: 201 });
+    
+    logger.business('Message sent in chat', {
+      chatId: params.id,
+      userId: user._id.toString(),
+      messageType: validatedData.type
+    });
+    logger.apiResponse('POST', `/api/chat/${params.id}`, 201);
   } catch (error) {
     if (error instanceof z.ZodError) {
+      logger.warn('Chat message validation failed', { errors: error.errors, userId: user._id });
       return NextResponse.json(
         { error: 'بيانات غير صالحة', details: error.errors },
         { status: 400 }
       );
     }
-    console.error('Error sending message:', error);
-    return NextResponse.json(
-      { error: 'حدث خطأ في إرسال الرسالة' },
-      { status: 500 }
-    );
+    logger.error('Error sending message in chat', error, { chatId: params.id, userId: user._id });
+    return handleApiError(error, 'حدث خطأ في إرسال الرسالة');
   }
 });
 
 // PUT /api/chat/[id] - Update chat (status, priority, etc.)
-export const PUT = withAuth(async (req: NextRequest, user: any, { params }: RouteParams) => {
+export const PUT = withAuth(async (req: NextRequest, user: any, ...args: unknown[]) => {
+  const routeParams = args[0] as RouteParams;
+  const params = 'then' in routeParams.params ? await routeParams.params : routeParams.params;
   try {
     const body = await req.json();
     const validatedData = updateChatSchema.parse(body);
@@ -200,7 +283,7 @@ export const PUT = withAuth(async (req: NextRequest, user: any, { params }: Rout
       try {
         io = require('@/lib/socket').getIO();
       } catch (error) {
-        console.warn('Socket.io not available:', error);
+        logger.warn('Socket.io not available for chat update notification', { error, chatId: params.id });
       }
       if (io) {
         chat.participants.forEach((participantId: any) => {
@@ -225,23 +308,31 @@ export const PUT = withAuth(async (req: NextRequest, user: any, { params }: Rout
         feedback: chat.feedback
       }
     });
+    
+    logger.business('Chat updated', {
+      chatId: params.id,
+      userId: user._id.toString(),
+      status: validatedData.status,
+      priority: validatedData.priority
+    });
+    logger.apiResponse('PUT', `/api/chat/${params.id}`, 200);
   } catch (error) {
     if (error instanceof z.ZodError) {
+      logger.warn('Chat update validation failed', { errors: error.errors, userId: user._id });
       return NextResponse.json(
         { error: 'بيانات غير صالحة', details: error.errors },
         { status: 400 }
       );
     }
-    console.error('Error updating chat:', error);
-    return NextResponse.json(
-      { error: 'حدث خطأ في تحديث المحادثة' },
-      { status: 500 }
-    );
+    logger.error('Error updating chat', error, { chatId: params.id, userId: user._id });
+    return handleApiError(error, 'حدث خطأ في تحديث المحادثة');
   }
 });
 
 // DELETE /api/chat/[id] - Delete chat (admin only)
-export const DELETE = withAuth(async (req: NextRequest, user: any, { params }: RouteParams) => {
+export const DELETE = withAuth(async (req: NextRequest, user: any, ...args: unknown[]) => {
+  const routeParams = args[0] as RouteParams;
+  const params = 'then' in routeParams.params ? await routeParams.params : routeParams.params;
   try {
     if (user.role !== 'admin') {
       return NextResponse.json(
@@ -265,11 +356,14 @@ export const DELETE = withAuth(async (req: NextRequest, user: any, { params }: R
       success: true,
       message: 'تم حذف المحادثة بنجاح'
     });
+    
+    logger.business('Chat deleted', {
+      chatId: params.id,
+      deletedBy: user._id.toString()
+    });
+    logger.apiResponse('DELETE', `/api/chat/${params.id}`, 200);
   } catch (error) {
-    console.error('Error deleting chat:', error);
-    return NextResponse.json(
-      { error: 'حدث خطأ في حذف المحادثة' },
-      { status: 500 }
-    );
+    logger.error('Error deleting chat', error, { chatId: params.id, userId: user._id });
+    return handleApiError(error, 'حدث خطأ في حذف المحادثة');
   }
 }); 

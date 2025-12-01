@@ -3,18 +3,17 @@ import { withAuth } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import Message from '@/models/Message';
 import User from '@/models/User'; // Import User model for population
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
 
 // GET /api/messages/conversations - Get user conversations
 async function getConversations(req: NextRequest, user: any) {
   try {
     await connectDB();
     
-    console.log('🔍 Fetching conversations for user:', user._id);
+    logger.apiRequest('GET', '/api/messages/conversations', { userId: user._id, role: user.role });
     
     // Get conversations with approved messages only
-    console.log('🔍 User ID for conversation search:', user._id);
-    console.log('🔍 User role:', user.role);
-    
     // Let's try a simpler approach first - get all messages for this user
     const allMessages = await Message.find({
       $or: [
@@ -28,7 +27,7 @@ async function getConversations(req: NextRequest, user: any) {
     .populate('receiverId', 'name role')
     .sort({ createdAt: -1 });
     
-    console.log('🔍 Total messages found:', allMessages.length);
+    logger.debug('Messages found for conversations', { userId: user._id, count: allMessages.length });
     
     // Group messages by conversation manually
     const conversationMap = new Map();
@@ -65,7 +64,8 @@ async function getConversations(req: NextRequest, user: any) {
     });
     
     const conversations = Array.from(conversationMap.values());
-    console.log('🔍 Conversations found:', conversations.length);
+    
+    logger.debug('Conversations grouped', { userId: user._id, count: conversations.length });
     
     // Transform conversations for frontend
     const transformedConversations = conversations
@@ -75,18 +75,15 @@ async function getConversations(req: NextRequest, user: any) {
         
         // Ensure we have valid sender and receiver data
         if (!lastMessage.senderId._id || !lastMessage.receiverId._id) {
-          console.log('⚠️ Skipping conversation with invalid user data:', {
+          logger.warn('Skipping conversation with invalid user data', {
             conversationId: conv._id,
-            senderId: lastMessage.senderId?._id,
-            receiverId: lastMessage.receiverId?._id
+            hasSenderId: !!lastMessage.senderId?._id,
+            hasReceiverId: !!lastMessage.receiverId?._id
           });
           return null;
         }
         
         const isSender = lastMessage.senderId._id.toString() === user._id.toString();
-        console.log('🔍 Message sender ID:', lastMessage.senderId._id.toString());
-        console.log('🔍 Current user ID:', user._id.toString());
-        console.log('🔍 Is sender:', isSender);
         const otherUserId = isSender ? lastMessage.receiverId._id : lastMessage.senderId._id;
         const otherUserName = isSender ? lastMessage.receiverId.name : lastMessage.senderId.name;
         const otherUserRole = isSender ? lastMessage.receiverId.role : lastMessage.senderId.role;
@@ -122,42 +119,24 @@ async function getConversations(req: NextRequest, user: any) {
       })
       .filter(Boolean); // Remove null entries
     
-    console.log(`Found ${transformedConversations.length} conversations for user ${user.name}`);
-    console.log('🔍 Raw conversations before transformation:', conversations.length);
-    console.log('🔍 Transformed conversations:', transformedConversations.length);
-    
-    // Debug: Show conversation details
-    transformedConversations.forEach((conv, index) => {
-      if (conv) { // Add null check
-        console.log(`🔍 Conversation ${index + 1}:`, {
-          id: conv._id,
-          otherUser: conv.otherUser.name,
-          lastMessageSubject: conv.lastMessage.subject,
-          lastMessageContent: conv.lastMessage.content,
-          unreadCount: conv.unreadCount
-        });
-      }
+    logger.debug('Conversations transformed', {
+      userId: user._id,
+      transformedCount: transformedConversations.length,
+      rawCount: conversations.length
     });
     
-    // Debug: Show additional message details
-    console.log('🔍 Messages details:', allMessages.map(m => ({
-      id: m._id,
-      sender: m.senderId?.name,
-      receiver: m.receiverId?.name,
-      isApproved: m.isApproved,
-      subject: m.subject
-    })));
+    logger.apiResponse('GET', '/api/messages/conversations', 200);
     
     return NextResponse.json({
       success: true,
       conversations: transformedConversations
     });
   } catch (error) {
-    console.error('Error fetching conversations:', error);
+    logger.error('Error fetching conversations', error, { userId: user._id });
     
     // If it's an aggregation error, try a simpler approach
     if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string' && error.message.includes('aggregation')) {
-      console.log('🔄 Trying simpler conversation fetch...');
+      logger.debug('Trying simpler conversation fetch as fallback', { userId: user._id });
       try {
         // Fallback: get all messages for the user
         const messages = await Message.find({
@@ -173,21 +152,18 @@ async function getConversations(req: NextRequest, user: any) {
          .sort({ createdAt: -1 })
         .limit(50);
         
-        console.log(`Found ${messages.length} messages for user ${user.name}`);
+        logger.debug('Fallback messages fetched', { userId: user._id, count: messages.length });
         
         return NextResponse.json({
           success: true,
           conversations: [] // Return empty conversations for now
         });
       } catch (fallbackError) {
-        console.error('Fallback conversation fetch also failed:', fallbackError);
+        logger.error('Fallback conversation fetch also failed', fallbackError, { userId: user._id });
       }
     }
     
-        return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء جلب المحادثات' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'حدث خطأ أثناء جلب المحادثات');
   }
 }
 

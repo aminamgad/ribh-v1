@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
 
 export async function POST() {
   try {
@@ -10,13 +12,12 @@ export async function POST() {
     // Clear auth cookie
     response.cookies.delete('ribh-token');
 
+    logger.apiResponse('POST', '/api/auth/logout', 200);
+
     return response;
 
   } catch (error) {
-    console.error('Logout error:', error);
-    return NextResponse.json(
-      { success: false, error: 'حدث خطأ أثناء تسجيل الخروج' },
-      { status: 500 }
-    );
+    logger.error('Logout error', error);
+    return handleApiError(error, 'حدث خطأ أثناء تسجيل الخروج');
   }
 } 

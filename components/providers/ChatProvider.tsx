@@ -4,37 +4,8 @@ import { createContext, useContext, useState, useEffect, useCallback, ReactNode 
 import { useAuth } from './AuthProvider';
 import io, { Socket } from 'socket.io-client';
 import toast from 'react-hot-toast';
-
-interface ChatMessage {
-  _id: string;
-  senderId: {
-    _id: string;
-    name: string;
-    email: string;
-    role: string;
-  };
-  message: string;
-  type: string;
-  attachments?: any[];
-  isRead: boolean;
-  readAt?: string;
-  createdAt: string;
-}
-
-interface Chat {
-  _id: string;
-  participants: any[];
-  subject: string;
-  status: string;
-  category?: string;
-  priority: string;
-  messages: ChatMessage[];
-  lastMessage?: string;
-  lastMessageAt?: string;
-  unreadCount: number;
-  createdAt: string;
-  updatedAt: string;
-}
+import { Chat, ChatMessage, ChatAttachment } from '@/types/chat';
+import { logger } from '@/lib/logger';
 
 interface ChatContextType {
   chats: Chat[];
@@ -45,7 +16,7 @@ interface ChatContextType {
   fetchChats: () => Promise<void>;
   fetchChat: (chatId: string) => Promise<Chat | null>;
   createChat: (subject: string, message: string, recipientId?: string, category?: string) => Promise<Chat | null>;
-  sendMessage: (chatId: string, message: string, type?: string, attachments?: any[]) => Promise<boolean>;
+  sendMessage: (chatId: string, message: string, type?: string, attachments?: ChatAttachment[]) => Promise<boolean>;
   markAsRead: (chatId: string) => Promise<void>;
   closeChat: (chatId: string) => Promise<boolean>;
   setCurrentChat: (chat: Chat | null) => void;
@@ -152,7 +123,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
     }
 
     try {
-      console.log('Fetching chat:', chatId);
+      logger.debug('Fetching chat', { chatId, userId: user._id });
       
       const response = await fetch(`/api/chat/${chatId}`, {
         credentials: 'include'
@@ -162,29 +133,22 @@ export function ChatProvider({ children }: ChatProviderProps) {
         const data = await response.json();
         const chat = data.chat;
         
-        // تحسين تحديد الرسائل - إضافة debug
-        if (chat.messages) {
-          chat.messages.forEach((message: ChatMessage, index: number) => {
-            const isMe = (message.senderId as any)?._id === user?._id || (message.senderId as any) === user?._id;
-            console.log(`Message ${index + 1}:`, {
-              messageId: message._id,
-              senderId: message.senderId?._id || message.senderId,
-              userId: user?._id,
-              isMe: isMe,
-              message: message.message.substring(0, 20) + '...'
-            });
-          });
-        }
+        // تحديث قائمة المحادثات بالمحادثة المحدثة
+        setChats(prev => prev.map(c => 
+          c._id === chatId ? { ...chat, unreadCount: chat.unreadCount || 0 } : c
+        ));
         
-        // لا نحدث currentChat تلقائياً - نترك المستخدم يتحكم في ذلك
-        console.log('Chat fetched successfully, unreadCount:', chat.unreadCount);
+        logger.debug('Chat fetched successfully', { 
+          chatId, 
+          unreadCount: chat.unreadCount 
+        });
         return chat;
       } else {
-        console.error('Failed to fetch chat:', response.status);
+        logger.warn('Failed to fetch chat', { chatId, status: response.status });
         return null;
       }
     } catch (error) {
-      console.error('Error fetching chat:', error);
+      logger.error('Error fetching chat', error, { chatId });
       return null;
     }
   }, [user, isAuthenticated]);
@@ -349,40 +313,58 @@ export function ChatProvider({ children }: ChatProviderProps) {
     if (!user || !isAuthenticated) return;
 
     try {
-      console.log('Marking chat as read:', chatId);
+      logger.debug('Marking chat as read', { chatId, userId: user._id });
       
-      // Update locally first for immediate UI feedback
-      setChats(prev => {
-        const updatedChats = prev.map(chat =>
-          chat._id === chatId ? { ...chat, unreadCount: 0 } : chat
-        );
-        
-        // طباعة العداد الجديد
-        const newTotalUnread = updatedChats.reduce((total, chat) => total + chat.unreadCount, 0);
-        console.log('Local update - New total unread count:', newTotalUnread);
-        
-        return updatedChats;
-      });
-
-      // Then update on server
+      // Update on server first to ensure data consistency
       const response = await fetch(`/api/chat/${chatId}/read`, {
         method: 'POST',
         credentials: 'include'
       });
 
       if (!response.ok) {
-        console.error('Failed to mark chat as read:', response.status);
-        // Revert local change if server update failed
+        logger.error('Failed to mark chat as read', new Error(`HTTP ${response.status}`), { chatId });
+        // Refresh chats to get correct state from server
         await fetchChats();
+        return;
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // Update locally after successful server update
+        setChats(prev => prev.map(chat =>
+          chat._id === chatId 
+            ? { ...chat, unreadCount: data.unreadCount || 0 } 
+            : chat
+        ));
+        
+        // Also update currentChat if it's the same chat
+        if (currentChat?._id === chatId) {
+          setCurrentChat(prev => prev ? {
+            ...prev,
+            unreadCount: data.unreadCount || 0,
+            messages: prev.messages.map(msg => ({
+              ...msg,
+              isRead: (msg.senderId as any)?._id !== user._id && (msg.senderId as any) !== user._id ? true : msg.isRead
+            }))
+          } : null);
+        }
+        
+        logger.debug('Chat marked as read successfully', { 
+          chatId, 
+          unreadCount: data.unreadCount 
+        });
       } else {
-        console.log('Chat marked as read successfully on server');
+        logger.warn('Server returned error when marking chat as read', { chatId, message: data.message });
+        // Refresh chats to get correct state
+        await fetchChats();
       }
     } catch (error) {
-      console.error('Error marking chat as read:', error);
-      // Revert local change if request failed
+      logger.error('Error marking chat as read', error, { chatId });
+      // Refresh chats to get correct state from server
       await fetchChats();
     }
-  }, [user, isAuthenticated, fetchChats]);
+  }, [user, isAuthenticated, fetchChats, currentChat]);
 
   const closeChat = useCallback(async (chatId: string): Promise<boolean> => {
     if (!user || !isAuthenticated) {

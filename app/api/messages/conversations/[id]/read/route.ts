@@ -3,9 +3,13 @@ import { withAuth } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import Message from '@/models/Message';
 import User from '@/models/User'; // Import User model for population
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
 
 // POST /api/messages/conversations/[id]/read - Mark messages as read
-async function markMessagesAsRead(req: NextRequest, user: any, { params }: { params: { id: string } }) {
+async function markMessagesAsRead(req: NextRequest, user: any, ...args: unknown[]) {
+  const routeParams = args[0] as { params: { id: string } };
+  const params = routeParams.params;
   try {
     await connectDB();
     
@@ -47,7 +51,13 @@ async function markMessagesAsRead(req: NextRequest, user: any, { params }: { par
       }
     );
     
-    console.log(`Marked ${result.modifiedCount} messages as read in conversation ${conversationId}`);
+    logger.debug('Messages marked as read', {
+      conversationId,
+      modifiedCount: result.modifiedCount,
+      userId: user._id.toString()
+    });
+    
+    logger.apiResponse('POST', `/api/messages/conversations/${params.id}/read`, 200);
     
     return NextResponse.json({
       success: true,
@@ -55,11 +65,11 @@ async function markMessagesAsRead(req: NextRequest, user: any, { params }: { par
       modifiedCount: result.modifiedCount
     });
   } catch (error) {
-    console.error('Error marking messages as read:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء تحديث حالة الرسائل' },
-      { status: 500 }
-    );
+    logger.error('Error marking messages as read', error, {
+      conversationId: params.id,
+      userId: user._id.toString()
+    });
+    return handleApiError(error, 'حدث خطأ أثناء تحديث حالة الرسائل');
   }
 }
 

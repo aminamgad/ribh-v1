@@ -165,6 +165,10 @@ chatSchema.index({ lastMessageAt: -1 });
 chatSchema.index({ status: 1, priority: -1 });
 chatSchema.index({ 'participantRoles.userId': 1, 'participantRoles.role': 1 });
 
+// Compound indexes for common queries
+chatSchema.index({ participants: 1, status: 1, lastMessageAt: -1 }); // For user chats sorted by last message
+chatSchema.index({ status: 1, priority: -1, lastMessageAt: -1 }); // For admin chat management
+
 // Instance methods
 chatSchema.methods.addMessage = async function(
   senderId: string, 
@@ -206,12 +210,16 @@ chatSchema.methods.addMessage = async function(
   await this.save();
   
   // Emit socket event for real-time updates
-  let io;
-  try {
-    io = require('@/lib/socket').getIO();
-  } catch (error) {
-    console.warn('Socket.io not available:', error);
-  }
+    let io;
+    try {
+      io = require('@/lib/socket').getIO();
+    } catch (error) {
+      // Socket.io not available (e.g., on Vercel)
+      if (process.env.NODE_ENV === 'development') {
+        const logger = require('@/lib/logger').logger;
+        logger.warn('Socket.io not available', { error });
+      }
+    }
   if (io) {
     this.participants.forEach(participantId => {
       if (participantId.toString() !== senderId) {
@@ -228,9 +236,17 @@ chatSchema.methods.addMessage = async function(
 
 chatSchema.methods.markAsRead = async function(userId: string): Promise<void> {
   let hasUpdates = false;
+  const userIdStr = userId.toString();
   
-  this.messages.forEach(message => {
-    if (message.senderId.toString() !== userId && !message.isRead) {
+  this.messages.forEach((message: any) => {
+    // التعامل مع senderId كـ ObjectId أو كـ object مأهول
+    const senderId = message.senderId?._id || message.senderId;
+    const senderIdStr = senderId?.toString() || senderId?.toString?.() || String(senderId);
+    
+    // تحديث الرسالة إذا كانت:
+    // 1. ليست من المستخدم المحدد
+    // 2. لم يتم قراءتها بعد
+    if (senderIdStr && senderIdStr !== userIdStr && !message.isRead) {
       message.isRead = true;
       message.readAt = new Date();
       hasUpdates = true;
@@ -245,7 +261,11 @@ chatSchema.methods.markAsRead = async function(userId: string): Promise<void> {
     try {
       io = require('@/lib/socket').getIO();
     } catch (error) {
-      console.warn('Socket.io not available:', error);
+      // Socket.io not available (e.g., on Vercel)
+      if (process.env.NODE_ENV === 'development') {
+        const logger = require('@/lib/logger').logger;
+        logger.warn('Socket.io not available', { error });
+      }
     }
     if (io) {
       this.participants.forEach(participantId => {
@@ -275,9 +295,17 @@ chatSchema.methods.reopenChat = async function(): Promise<void> {
 };
 
 chatSchema.methods.getUnreadCount = function(userId: string): number {
-  return this.messages.filter(
-    message => message.senderId.toString() !== userId && !message.isRead
-  ).length;
+  const userIdStr = userId.toString();
+  return this.messages.filter((message: any) => {
+    // التعامل مع senderId كـ ObjectId أو كـ object مأهول
+    const senderId = message.senderId?._id || message.senderId;
+    const senderIdStr = senderId?.toString() || senderId?.toString?.() || String(senderId);
+    
+    // الرسالة غير مقروءة إذا كانت:
+    // 1. ليست من المستخدم المحدد
+    // 2. لم يتم قراءتها بعد
+    return senderIdStr && senderIdStr !== userIdStr && !message.isRead;
+  }).length;
 };
 
 // Static methods

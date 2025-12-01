@@ -3,6 +3,11 @@ import { withAuth } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import Wallet from '@/models/Wallet';
 import SystemSettings from '@/models/SystemSettings';
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
+import { walletRateLimit } from '@/lib/rate-limiter';
+import { withdrawalRequestSchema } from '@/lib/validations/wallet.validation';
+import { z } from 'zod';
 
 // GET /api/wallet - Get user wallet
 async function getWallet(req: NextRequest, user: any) {
@@ -27,34 +32,35 @@ async function getWallet(req: NextRequest, user: any) {
     const maximumWithdrawal = settings?.maximumWithdrawal || 10000;
     const withdrawalFee = settings?.withdrawalFee || 0;
     
-    // Calculate available and pending balance
-    const availableBalance = Math.max(0, wallet.balance - wallet.totalWithdrawals);
+    // Calculate available balance (balance minus pending withdrawals)
+    const pendingWithdrawals = wallet.pendingWithdrawals || 0;
+    const availableBalance = Math.max(0, (wallet.balance || 0) - pendingWithdrawals);
     const pendingBalance = wallet.totalEarnings - wallet.balance;
     
     return NextResponse.json({
       success: true,
       wallet: {
-        balance: wallet.balance,
-        totalEarnings: wallet.totalEarnings,
-        totalWithdrawals: wallet.totalWithdrawals,
-        availableBalance,
-        pendingBalance,
+        balance: wallet.balance || 0,
+        pendingWithdrawals: pendingWithdrawals,
+        totalEarnings: wallet.totalEarnings || 0,
+        totalWithdrawals: wallet.totalWithdrawals || 0,
+        availableBalance: availableBalance,
+        pendingBalance: pendingBalance,
         // Include withdrawal settings from system
         withdrawalSettings: {
           minimumWithdrawal,
           maximumWithdrawal,
           withdrawalFee,
-          canWithdraw: availableBalance >= minimumWithdrawal,
+          canWithdraw: availableBalance >= minimumWithdrawal && availableBalance > 0,
           maxWithdrawable: Math.min(availableBalance, maximumWithdrawal)
         }
       }
     });
+    
+    logger.apiResponse('GET', '/api/wallet', 200);
   } catch (error) {
-    console.error('Error fetching wallet:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء جلب بيانات المحفظة' },
-      { status: 500 }
-    );
+    logger.error('Error fetching wallet', error, { userId: user._id });
+    return handleApiError(error, 'حدث خطأ أثناء جلب بيانات المحفظة');
   }
 }
 
@@ -62,16 +68,26 @@ async function getWallet(req: NextRequest, user: any) {
 async function requestWithdrawal(req: NextRequest, user: any) {
   try {
     await connectDB();
+    logger.apiRequest('POST', '/api/wallet', { userId: user._id, role: user.role });
     
     const body = await req.json();
-    const { amount, bankDetails } = body;
     
-    if (!amount || amount <= 0) {
-      return NextResponse.json(
-        { success: false, message: 'مبلغ السحب غير صحيح' },
-        { status: 400 }
-      );
+    // Validate input using Zod schema
+    let validatedData;
+    try {
+      validatedData = withdrawalRequestSchema.parse(body);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        logger.warn('Withdrawal request validation failed', { errors: error.errors, userId: user._id });
+        return NextResponse.json(
+          { success: false, message: error.errors[0].message, errors: error.errors },
+          { status: 400 }
+        );
+      }
+      throw error;
     }
+    
+    const { amount, walletNumber, notes } = validatedData;
     
     // Get system settings
     const settings = await SystemSettings.findOne().sort({ updatedAt: -1 });
@@ -133,7 +149,8 @@ async function requestWithdrawal(req: NextRequest, user: any) {
       {
         withdrawalAmount: amount,
         feeAmount,
-        bankDetails,
+        walletNumber,
+        notes,
         status: 'pending'
       }
     );
@@ -165,11 +182,24 @@ async function requestWithdrawal(req: NextRequest, user: any) {
       );
       
       await Promise.all(notificationPromises);
-      console.log(`✅ Notifications sent to ${adminUsers.length} admin users for withdrawal request: ${amount} ₪`);
+      logger.info('Notifications sent to admins for withdrawal request', {
+        adminCount: adminUsers.length,
+        amount,
+        userId: user._id
+      });
       
     } catch (error) {
-      console.error('❌ Error sending notifications to admins:', error);
+      logger.error('Error sending notifications to admins', error, { userId: user._id });
     }
+    
+    logger.business('Withdrawal request created', {
+      userId: user._id,
+      amount,
+      feeAmount,
+      totalAmount: totalWithdrawal,
+      transactionId: transaction._id.toString()
+    });
+    logger.apiResponse('POST', '/api/wallet', 200);
     
     return NextResponse.json({
       success: true,
@@ -184,13 +214,11 @@ async function requestWithdrawal(req: NextRequest, user: any) {
       }
     });
   } catch (error) {
-    console.error('Error requesting withdrawal:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء إرسال طلب السحب' },
-      { status: 500 }
-    );
+    logger.error('Error requesting withdrawal', error, { userId: user._id });
+    return handleApiError(error, 'حدث خطأ أثناء إرسال طلب السحب');
   }
 }
 
-export const GET = withAuth(getWallet);
-export const POST = withAuth(requestWithdrawal); 
+// Apply rate limiting and authentication to wallet endpoints
+export const GET = walletRateLimit(withAuth(getWallet));
+export const POST = walletRateLimit(withAuth(requestWithdrawal)); 

@@ -74,6 +74,11 @@ withdrawalRequestSchema.index({ status: 1 });
 withdrawalRequestSchema.index({ requestDate: -1 });
 withdrawalRequestSchema.index({ processedDate: -1 });
 
+// Compound indexes for common queries
+withdrawalRequestSchema.index({ userId: 1, status: 1, requestDate: -1 }); // For user withdrawals by status
+withdrawalRequestSchema.index({ status: 1, requestDate: -1 }); // For admin withdrawal management
+withdrawalRequestSchema.index({ processedBy: 1, processedDate: -1 }); // For admin withdrawal history
+
 // Virtual for formatted amount
 withdrawalRequestSchema.virtual('formattedAmount').get(function() {
   return `${this.amount.toFixed(2)}₪`;

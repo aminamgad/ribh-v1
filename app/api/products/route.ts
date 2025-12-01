@@ -5,6 +5,10 @@ import Product from '@/models/Product';
 import Category from '@/models/Category';
 import SystemSettings from '@/models/SystemSettings';
 import { z } from 'zod';
+import { handleApiError, safeLogError } from '@/lib/error-handler';
+import { sanitizeString, sanitizeObject } from '@/lib/sanitize';
+import { productCache, generateCacheKey } from '@/lib/cache';
+import { logger } from '@/lib/logger';
 
 // Dynamic product schema based on system settings
 async function getProductSchema() {
@@ -12,7 +16,7 @@ async function getProductSchema() {
   try {
     settings = await SystemSettings.findOne().sort({ updatedAt: -1 });
   } catch (error) {
-    console.warn('Failed to fetch system settings in schema, using defaults:', error);
+    logger.warn('Failed to fetch system settings in schema, using defaults', { error });
     settings = null;
   }
   
@@ -34,6 +38,9 @@ async function getProductSchema() {
       .optional()
       .refine((val) => !val || val.length >= 10, 'وصف المنتج يجب أن يكون 10 أحرف على الأقل')
       .refine((val) => !val || val.length <= maxProductDescription, `وصف المنتج لا يمكن أن يتجاوز ${maxProductDescription} حرف`),
+    marketingText: z.string()
+      .optional()
+      .refine((val) => !val || val.length <= 2000, 'النص التسويقي لا يمكن أن يتجاوز 2000 حرف'),
     categoryId: z.string().optional().nullable(),
     marketerPrice: z.number().min(0.01, 'سعر المسوق يجب أن يكون أكبر من 0'),
     wholesalerPrice: z.number().min(0.01, 'سعر الجملة يجب أن يكون أكبر من 0'),
@@ -78,9 +85,11 @@ async function getProducts(req: NextRequest, user: any) {
   try {
     await connectDB();
     
+    logger.apiRequest('GET', '/api/products', { userId: user._id, role: user.role });
+    
     // Test database connection and get product count
     const totalProductCount = await Product.countDocuments({});
-    console.log('📊 Total products in database:', totalProductCount);
+    logger.debug('Total products count', { totalProductCount });
     
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -141,19 +150,47 @@ async function getProducts(req: NextRequest, user: any) {
       query.$or = searchConditions;
     }
     
-    console.log('🔍 Final query:', JSON.stringify(query, null, 2));
-    console.log('👤 User role:', user.role);
-    console.log('👤 User ID:', user._id);
+    logger.debug('Products query', { query, userRole: user.role, userId: user._id });
     
     // Test: Check if user's products exist
     if (user.role === 'supplier') {
       const userProductCount = await Product.countDocuments({ supplierId: user._id });
-      console.log('📊 User products count:', userProductCount);
+      logger.debug('Supplier products count', { userProductCount, userId: user._id });
     }
     
     const skip = (page - 1) * limit;
     
+    // Generate cache key
+    const cacheKey = generateCacheKey(
+      'products',
+      user.role,
+      user._id.toString(),
+      page,
+      limit,
+      category || '',
+      search || '',
+      status || ''
+    );
+    
+    // Try to get from cache
+    const cached = productCache.get<{ products: any[]; total: number }>(cacheKey);
+    if (cached) {
+      return NextResponse.json({
+        success: true,
+        products: cached.products,
+        pagination: {
+          page,
+          limit,
+          total: cached.total,
+          pages: Math.ceil(cached.total / limit)
+        }
+      });
+    }
+    
+    // Fetch from database with optimized query
+    // Use select to only get needed fields
     const products = await Product.find(query)
+      .select('name description images marketerPrice wholesalerPrice stockQuantity isActive isApproved isRejected rejectionReason adminNotes approvedAt approvedBy rejectedAt rejectedBy isFulfilled isLocked lockedAt lockedBy lockReason sku weight dimensions tags createdAt categoryId supplierId')
       .populate('categoryId', 'name')
       .populate('supplierId', 'name companyName')
       .sort({ createdAt: -1 })
@@ -161,6 +198,8 @@ async function getProducts(req: NextRequest, user: any) {
       .limit(limit)
       .lean();
     
+    // Use estimatedDocumentCount for better performance if exact count not critical
+    // Or use countDocuments with same query for accuracy
     const total = await Product.countDocuments(query);
     
     // Transform products for frontend
@@ -195,6 +234,9 @@ async function getProducts(req: NextRequest, user: any) {
       createdAt: product.createdAt
     }));
     
+    // Cache the results
+    productCache.set(cacheKey, { products: transformedProducts, total });
+    
     return NextResponse.json({
       success: true,
       products: transformedProducts,
@@ -206,11 +248,8 @@ async function getProducts(req: NextRequest, user: any) {
       }
     });
   } catch (error) {
-    console.error('Error fetching products:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء جلب المنتجات', error: error instanceof Error ? error.message : String(error) },
-      { status: 500 }
-    );
+    logger.error('Error fetching products', error, { userId: user?._id });
+    return handleApiError(error, 'حدث خطأ أثناء جلب المنتجات');
   }
 }
 
@@ -224,7 +263,7 @@ async function createProduct(req: NextRequest, user: any) {
     try {
       settings = await SystemSettings.findOne().sort({ updatedAt: -1 });
     } catch (error) {
-      console.warn('Failed to fetch system settings, using defaults:', error);
+      logger.warn('Failed to fetch system settings, using defaults', { error });
       settings = null;
     }
     
@@ -239,7 +278,17 @@ async function createProduct(req: NextRequest, user: any) {
     const currentSettings = settings || defaultSettings;
     
     const body = await req.json();
-    console.log('Creating product with data:', body);
+    
+    // Sanitize input before validation
+    const sanitizedBody = sanitizeObject({
+      ...body,
+      name: body.name ? sanitizeString(body.name, 200) : body.name,
+      description: body.description ? sanitizeString(body.description, 2000) : body.description,
+      sku: body.sku ? sanitizeString(body.sku, 100) : body.sku,
+    });
+    
+    logger.apiRequest('POST', '/api/products', { userId: user._id, role: user.role });
+    logger.debug('Creating product', { sanitizedBody });
     
     // Clean and prepare data
     const cleanData = {
@@ -315,6 +364,7 @@ async function createProduct(req: NextRequest, user: any) {
     const productData = {
       name: validatedData.name,
       description: validatedData.description,
+      marketingText: validatedData.marketingText,
       categoryId: validatedData.categoryId,
       supplierId: user.role === 'supplier' ? user._id : (body.supplierId || user._id), // Admin can create for themselves or specify supplier
       marketerPrice: validatedData.marketerPrice,
@@ -338,8 +388,8 @@ async function createProduct(req: NextRequest, user: any) {
       isLocked: false // New field
     };
     
-    console.log('Final product data:', {
-      ...productData,
+    logger.debug('Final product data prepared', {
+      productName: productData.name,
       supplierId: productData.supplierId.toString(),
       userRole: user.role,
       userId: user._id.toString()
@@ -347,12 +397,12 @@ async function createProduct(req: NextRequest, user: any) {
     
     const product = await Product.create(productData);
     
-    console.log('✅ Product created successfully:', {
-      id: product._id,
-      name: product.name,
-      supplierId: product.supplierId,
+    logger.business('Product created', {
+      productId: product._id.toString(),
+      productName: product.name,
+      supplierId: product.supplierId.toString(),
       isApproved: product.isApproved,
-      isActive: product.isActive
+      userId: user._id.toString()
     });
     
     // Populate category and supplier info
@@ -384,10 +434,17 @@ async function createProduct(req: NextRequest, user: any) {
         );
         
         await Promise.all(notificationPromises);
-        console.log(`✅ Notifications sent to ${adminUsers.length} admin users for new product: ${product.name}`);
+        logger.info('Notifications sent to admins for new product', {
+          adminCount: adminUsers.length,
+          productId: product._id.toString(),
+          productName: product.name
+        });
         
       } catch (error) {
-        console.error('❌ Error sending notifications to admins:', error);
+        logger.error('Error sending notifications to admins', error, {
+          productId: product._id.toString(),
+          userId: user._id
+        });
       }
     }
     
@@ -415,27 +472,16 @@ async function createProduct(req: NextRequest, user: any) {
         createdAt: product.createdAt
       }
     }, { status: 201 });
+    
+    // Invalidate product cache and stats cache after creating
+    productCache.clearPattern('products');
+    const { statsCache } = require('@/lib/cache');
+    statsCache.clear();
+    
+    logger.apiResponse('POST', '/api/products', 201);
   } catch (error) {
-    console.error('Error creating product:', error);
-    
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { success: false, message: error.errors[0].message, errors: error.errors },
-        { status: 400 }
-      );
-    }
-    
-    if ((error as any).code === 11000) {
-      return NextResponse.json(
-        { success: false, message: 'SKU موجود بالفعل. يرجى استخدام SKU مختلف' },
-        { status: 400 }
-      );
-    }
-    
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء إضافة المنتج', error: error instanceof Error ? error.message : String(error) },
-      { status: 500 }
-    );
+    logger.error('Error creating product', error, { userId: user._id });
+    return handleApiError(error, 'حدث خطأ أثناء إضافة المنتج', { userId: user._id });
   }
 }
 

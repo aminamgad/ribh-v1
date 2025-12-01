@@ -133,6 +133,7 @@ export const countries: Country[] = [
   { code: 'NG', nameAr: 'نيجيريا', nameEn: 'Nigeria' },
   { code: 'NO', nameAr: 'النرويج', nameEn: 'Norway' },
   { code: 'OM', nameAr: 'عمان', nameEn: 'Oman' },
+  { code: 'PS', nameAr: 'فلسطين', nameEn: 'Palestine' },
   { code: 'PK', nameAr: 'باكستان', nameEn: 'Pakistan' },
   { code: 'PW', nameAr: 'بالاو', nameEn: 'Palau' },
   { code: 'PA', nameAr: 'بنما', nameEn: 'Panama' },

@@ -4,6 +4,8 @@ import connectDB from '@/lib/database';
 import Favorite from '@/models/Favorite';
 import Product from '@/models/Product';
 import { z } from 'zod';
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
 
 const addFavoriteSchema = z.object({
   productId: z.string().min(1, 'معرف المنتج مطلوب')
@@ -40,12 +42,11 @@ async function getFavorites(req: NextRequest, user: any) {
       success: true,
       favorites: validFavorites
     });
+    
+    logger.apiResponse('GET', '/api/favorites', 200);
   } catch (error) {
-    console.error('Error fetching favorites:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء جلب المفضلة' },
-      { status: 500 }
-    );
+    logger.error('Error fetching favorites', error, { userId: user._id });
+    return handleApiError(error, 'حدث خطأ أثناء جلب المفضلة');
   }
 }
 
@@ -96,19 +97,20 @@ async function addToFavorites(req: NextRequest, user: any) {
       success: true,
       message: 'تم إضافة المنتج إلى المفضلة'
     }, { status: 201 });
+    
+    logger.business('Product added to favorites', { userId: user._id, productId: validatedData.productId });
+    logger.apiResponse('POST', '/api/favorites', 201);
   } catch (error) {
     if (error instanceof z.ZodError) {
+      logger.warn('Add favorite validation failed', { errors: error.errors, userId: user._id });
       return NextResponse.json(
         { success: false, message: error.errors[0].message },
         { status: 400 }
       );
     }
     
-    console.error('Error adding to favorites:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء إضافة المنتج إلى المفضلة' },
-      { status: 500 }
-    );
+    logger.error('Error adding to favorites', error, { userId: user._id });
+    return handleApiError(error, 'حدث خطأ أثناء إضافة المنتج إلى المفضلة');
   }
 }
 

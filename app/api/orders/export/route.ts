@@ -3,6 +3,8 @@ import { withAuth } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import Order from '@/models/Order';
 import * as XLSX from 'xlsx';
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
 
 // GET /api/orders/export - Export orders to Excel
 async function exportOrders(req: NextRequest, user: any) {
@@ -137,11 +139,8 @@ async function exportOrders(req: NextRequest, user: any) {
     });
     
   } catch (error) {
-    console.error('Error exporting orders:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء تصدير الطلبات' },
-      { status: 500 }
-    );
+    logger.error('Error exporting orders', error, { userId: user?._id, role: user?.role });
+    return handleApiError(error, 'حدث خطأ أثناء تصدير الطلبات');
   }
 }
 

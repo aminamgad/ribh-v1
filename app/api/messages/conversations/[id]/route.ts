@@ -3,9 +3,13 @@ import { withAuth } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import Message from '@/models/Message';
 import User from '@/models/User'; // Import User model for population
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-handler';
 
 // GET /api/messages/conversations/[id] - Get messages in a conversation
-async function getConversationMessages(req: NextRequest, user: any, { params }: { params: { id: string } }) {
+async function getConversationMessages(req: NextRequest, user: any, ...args: unknown[]) {
+  const routeParams = args[0] as { params: { id: string } };
+  const params = routeParams.params;
   try {
     await connectDB();
     
@@ -14,11 +18,13 @@ async function getConversationMessages(req: NextRequest, user: any, { params }: 
     // Parse conversation ID to get the two user IDs
     const [userId1, userId2] = conversationId.split('-');
     
-    console.log('🔍 Conversation ID:', conversationId);
-    console.log('🔍 Parsed user IDs:', { userId1, userId2 });
-    console.log('🔍 Current user ID:', user._id.toString());
+    logger.apiRequest('GET', `/api/messages/conversations/${params.id}`, {
+      conversationId,
+      userId: user._id.toString()
+    });
     
     if (!userId1 || !userId2) {
+      logger.warn('Invalid conversation ID format', { conversationId, userId: user._id });
       return NextResponse.json(
         { success: false, message: 'معرف المحادثة غير صحيح' },
         { status: 400 }
@@ -27,7 +33,11 @@ async function getConversationMessages(req: NextRequest, user: any, { params }: 
     
     // Verify that the current user is part of this conversation
     if (userId1 !== user._id.toString() && userId2 !== user._id.toString()) {
-      console.log('🔍 Access denied - user not part of conversation');
+      logger.warn('Unauthorized access attempt to conversation', {
+        conversationId,
+        userId: user._id.toString(),
+        conversationUsers: [userId1, userId2]
+      });
       return NextResponse.json(
         { success: false, message: 'غير مصرح لك بالوصول لهذه المحادثة' },
         { status: 403 }
@@ -47,18 +57,24 @@ async function getConversationMessages(req: NextRequest, user: any, { params }: 
     .populate('receiverId', 'name role')
     .sort({ createdAt: 1 });
     
-    console.log(`Found ${messages.length} messages in conversation ${conversationId}`);
+    logger.debug('Conversation messages fetched', {
+      conversationId,
+      messageCount: messages.length,
+      userId: user._id.toString()
+    });
+    
+    logger.apiResponse('GET', `/api/messages/conversations/${params.id}`, 200);
     
     return NextResponse.json({
       success: true,
       messages: messages
     });
   } catch (error) {
-    console.error('Error fetching conversation messages:', error);
-    return NextResponse.json(
-      { success: false, message: 'حدث خطأ أثناء جلب الرسائل' },
-      { status: 500 }
-    );
+    logger.error('Error fetching conversation messages', error, {
+      conversationId: params.id,
+      userId: user._id.toString()
+    });
+    return handleApiError(error, 'حدث خطأ أثناء جلب الرسائل');
   }
 }
 

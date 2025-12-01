@@ -6,6 +6,12 @@ export interface CommissionRate {
   rate: number;
 }
 
+export interface AdminProfitMargin {
+  minPrice: number;
+  maxPrice: number;
+  margin: number; // Percentage
+}
+
 export interface WithdrawalSettings {
   minimumWithdrawal: number;
   maximumWithdrawal: number;
@@ -24,6 +30,7 @@ export interface SystemSettings {
   // Financial Settings
   withdrawalSettings: WithdrawalSettings;
   commissionRates: CommissionRate[];
+  adminProfitMargins: AdminProfitMargin[]; // هامش ربح الإدارة بناءً على سعر المنتج
   
   // General Settings
   platformName: string;
@@ -90,6 +97,25 @@ const commissionRateSchema = new Schema<CommissionRate>({
   }
 });
 
+const adminProfitMarginSchema = new Schema<AdminProfitMargin>({
+  minPrice: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  maxPrice: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  margin: {
+    type: Number,
+    required: true,
+    min: 0,
+    max: 100
+  }
+});
+
 const withdrawalSettingsSchema = new Schema<WithdrawalSettings>({
   minimumWithdrawal: {
     type: Number,
@@ -130,6 +156,15 @@ const systemSettingsSchema = new Schema<SystemSettingsDocument>({
       { minPrice: 1001, maxPrice: 5000, rate: 8 },
       { minPrice: 5001, maxPrice: 10000, rate: 6 },
       { minPrice: 10001, maxPrice: 999999, rate: 5 }
+    ]
+  },
+  adminProfitMargins: {
+    type: [adminProfitMarginSchema],
+    default: [
+      { minPrice: 1, maxPrice: 100, margin: 10 },
+      { minPrice: 101, maxPrice: 500, margin: 8 },
+      { minPrice: 501, maxPrice: 1000, margin: 6 },
+      { minPrice: 1001, maxPrice: 999999, margin: 5 }
     ]
   },
   
@@ -314,6 +349,27 @@ systemSettingsSchema.methods.getCommissionRate = function(orderTotal: number): n
 systemSettingsSchema.methods.calculateCommission = function(orderTotal: number): number {
   const rate = this.getCommissionRate(orderTotal);
   return (orderTotal * rate) / 100;
+};
+
+// Method to get admin profit margin for a product price
+systemSettingsSchema.methods.getAdminProfitMargin = function(productPrice: number): number {
+  if (!this.adminProfitMargins || this.adminProfitMargins.length === 0) {
+    return 5; // Default margin
+  }
+  
+  for (const margin of this.adminProfitMargins) {
+    if (productPrice >= margin.minPrice && productPrice <= margin.maxPrice) {
+      return margin.margin;
+    }
+  }
+  
+  return 5; // Default margin if no match
+};
+
+// Method to calculate admin profit for a product
+systemSettingsSchema.methods.calculateAdminProfit = function(productPrice: number, quantity: number = 1): number {
+  const margin = this.getAdminProfitMargin(productPrice);
+  return (productPrice * margin / 100) * quantity;
 };
 
 // Method to validate withdrawal amount

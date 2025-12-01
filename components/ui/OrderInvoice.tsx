@@ -1,5 +1,6 @@
 'use client';
 
+// Traditional Invoice Format - Simple and Clean
 import { useEffect, useRef } from 'react';
 
 interface OrderItem {
@@ -31,6 +32,7 @@ interface Order {
   };
   items: OrderItem[];
   subtotal: number;
+  shippingCost?: number;
   commission: number;
   total: number;
   marketerProfit?: number;
@@ -55,14 +57,6 @@ interface Order {
   trackingNumber?: string;
   shippingCompany?: string;
   adminNotes?: string;
-  confirmedAt?: string;
-  processingAt?: string;
-  readyForShippingAt?: string;
-  shippedAt?: string;
-  outForDeliveryAt?: string;
-  deliveredAt?: string;
-  cancelledAt?: string;
-  returnedAt?: string;
 }
 
 interface OrderInvoiceProps {
@@ -75,262 +69,258 @@ export default function OrderInvoice({ order, isVisible, onClose }: OrderInvoice
   const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (isVisible) {
+    if (isVisible && order && printRef.current) {
+      // Wait for DOM to be ready
       const timeoutId = setTimeout(() => {
-        if (printRef.current) {
-          window.print();
-          onClose();
+        // Find the invoice content element inside the modal
+        const invoiceContentEl = printRef.current?.querySelector('.invoice-content');
+        
+        if (invoiceContentEl) {
+          // Remove any existing print version
+          const existingPrint = document.getElementById('invoice-print-version');
+          if (existingPrint) existingPrint.remove();
+          
+          // Create print container
+          const printContainer = document.createElement('div');
+          printContainer.id = 'invoice-print-version';
+          printContainer.className = 'invoice-content';
+          
+          // Clone the invoice content (deep clone to preserve structure)
+          const clonedContent = invoiceContentEl.cloneNode(true) as HTMLElement;
+          printContainer.appendChild(clonedContent);
+          
+          // Add to body (off-screen initially)
+          printContainer.style.position = 'fixed';
+          printContainer.style.top = '-9999px';
+          printContainer.style.left = '-9999px';
+          printContainer.style.width = '210mm'; // A4 width
+          printContainer.style.background = 'white';
+          document.body.appendChild(printContainer);
+          
+          // Remove any existing print styles
+          const existingStyle = document.getElementById('invoice-print-styles');
+          if (existingStyle) existingStyle.remove();
+          
+          // Add comprehensive print styles
+          const printStyle = document.createElement('style');
+          printStyle.id = 'invoice-print-styles';
+          printStyle.innerHTML = `
+            @media print {
+              @page {
+                size: A4 portrait;
+                margin: 0.8cm;
+              }
+              
+              * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+              }
+              
+              html, body {
+                width: 100% !important;
+                height: auto !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: white !important;
+                overflow: visible !important;
+              }
+              
+              /* Hide everything except invoice print version */
+              body > *:not(#invoice-print-version) {
+                display: none !important;
+                visibility: hidden !important;
+              }
+              
+              /* Show invoice print version */
+              #invoice-print-version {
+                display: block !important;
+                visibility: visible !important;
+                position: relative !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                height: auto !important;
+                margin: 0 !important;
+                padding: 10px !important;
+                background: white !important;
+                page-break-inside: avoid !important;
+              }
+              
+              /* Ensure all invoice content is visible */
+              #invoice-print-version,
+              #invoice-print-version * {
+                visibility: visible !important;
+                display: revert !important;
+                opacity: 1 !important;
+                color: #000 !important;
+                background: transparent !important;
+              }
+              
+              #invoice-print-version table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+                font-size: 11px !important;
+                margin: 5px 0 !important;
+              }
+              
+              #invoice-print-version table,
+              #invoice-print-version th,
+              #invoice-print-version td {
+                border: 1px solid #000 !important;
+                padding: 4px !important;
+              }
+              
+              #invoice-print-version th {
+                background: #f5f5f5 !important;
+                font-weight: bold !important;
+              }
+              
+              /* Hide print-hidden elements */
+              .print\\:hidden,
+              [class*="print:hidden"] {
+                display: none !important;
+              }
+            }
+          `;
+          document.head.appendChild(printStyle);
+          
+          // Trigger print after a short delay to ensure styles are applied
+          setTimeout(() => {
+            window.print();
+            
+            // Cleanup function
+            const cleanup = () => {
+              const container = document.getElementById('invoice-print-version');
+              if (container) {
+                container.remove();
+              }
+              const style = document.getElementById('invoice-print-styles');
+              if (style) {
+                style.remove();
+              }
+              // Don't close modal automatically - let user close it
+            };
+            
+            // Handle both afterprint event and timeout
+            const handleAfterPrint = () => {
+              cleanup();
+            };
+            
+            window.addEventListener('afterprint', handleAfterPrint, { once: true });
+            // Fallback cleanup after 2 seconds
+            setTimeout(cleanup, 2000);
+          }, 300);
         }
-      }, 100);
+      }, 300);
+      
       return () => clearTimeout(timeoutId);
     }
-  }, [isVisible, onClose]);
+  }, [isVisible, order]);
 
-  if (!isVisible) return null;
+  if (!isVisible || !order) return null;
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('ar-EG', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    try {
+      return new Date(dateString).toLocaleDateString('ar-EG', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch (e) {
+      return dateString;
+    }
   };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('ar-IL', {
-      style: 'currency',
-      currency: 'ILS'
-    }).format(amount);
+      style: 'decimal',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount || 0);
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4 print:hidden">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+    <div 
+      className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4 print:hidden"
+      onClick={onClose}
+    >
+      <div 
+        ref={printRef}
+        className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex justify-between items-center mb-6 print:hidden">
             <h2 className="text-2xl font-bold text-gray-900">فاتورة الطلب</h2>
             <button
               onClick={onClose}
-              className="text-gray-500 hover:text-gray-700 text-xl font-bold"
+              className="text-gray-500 hover:text-gray-700 text-xl font-bold print:hidden"
             >
               ×
             </button>
           </div>
           
-          <div ref={printRef} className="print:block">
-            {/* Print Styles */}
-            <style jsx>{`
-              @media print {
-                body { margin: 0; }
-                .print-hidden { display: none !important; }
-                .print-break { page-break-before: always; }
-                .invoice-container { 
-                  max-width: none !important;
-                  margin: 0 !important;
-                  padding: 20px !important;
-                }
-              }
-            `}</style>
+          {/* Invoice content - This is what gets printed */}
+          <div className="invoice-content">
+            <div className="text-center mb-3 border-b-2 border-gray-800 pb-2">
+              <h1 className="text-xl font-bold mb-1 text-gray-900">ربح</h1>
+              <p className="text-xs text-gray-700">فاتورة رقم: #{order.orderNumber || 'N/A'} - {order.createdAt ? formatDate(order.createdAt) : ''}</p>
+            </div>
 
-            <div className="invoice-container bg-white p-8 max-w-4xl mx-auto">
-              {/* Header */}
-              <div className="border-b-2 border-gray-300 pb-6 mb-6">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2">ريبح</h1>
-                    <p className="text-gray-600 text-lg">منصة التجارة الإلكترونية</p>
-                    <p className="text-gray-500">فلسطين</p>
-                  </div>
-                  <div className="text-right">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-2">فاتورة</h2>
-                    <p className="text-gray-600">رقم الطلب: #{order.orderNumber}</p>
-                    <p className="text-gray-500">التاريخ: {formatDate(order.createdAt)}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Customer & Supplier Info */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+            <div className="mb-3">
+              <h3 className="font-bold text-sm mb-1 text-gray-900">بيانات العميل:</h3>
+              <div className="text-xs grid grid-cols-2 gap-x-4 gap-y-0.5 text-gray-900">
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900 mb-3 border-b border-gray-200 pb-2">
-                    معلومات العميل
-                  </h3>
-                  <div className="space-y-2">
-                    <p><strong>الاسم:</strong> {order.shippingAddress.fullName}</p>
-                    <p><strong>الهاتف:</strong> {order.shippingAddress.phone}</p>
-                    <p><strong>البريد الإلكتروني:</strong> {order.customerId.email}</p>
-                    <p><strong>الدور:</strong> {order.customerRole}</p>
-                  </div>
+                  <span className="font-semibold">الاسم: </span>
+                  <span>{order.shippingAddress?.fullName || order.customerName || 'غير متوفر'}</span>
                 </div>
-                
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900 mb-3 border-b border-gray-200 pb-2">
-                    معلومات المورد
-                  </h3>
-                  <div className="space-y-2">
-                    <p><strong>الاسم:</strong> {order.supplierId.name}</p>
-                    {order.supplierId.companyName && (
-                      <p><strong>اسم الشركة:</strong> {order.supplierId.companyName}</p>
-                    )}
-                  </div>
+                  <span className="font-semibold">الهاتف: </span>
+                  <span>{order.shippingAddress?.phone || order.customerPhone || 'غير متوفر'}</span>
+                </div>
+                <div className="col-span-2">
+                  <span className="font-semibold">العنوان: </span>
+                  <span>
+                    {order.shippingAddress?.street || ''}، {order.shippingAddress?.city || ''}، {order.shippingAddress?.governorate || ''}
+                  </span>
                 </div>
               </div>
+            </div>
 
-              {/* Shipping Address */}
-              <div className="mb-8">
-                <h3 className="text-lg font-bold text-gray-900 mb-3 border-b border-gray-200 pb-2">
-                  عنوان الشحن
-                </h3>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="font-medium">{order.shippingAddress.fullName}</p>
-                  <p>{order.shippingAddress.street}</p>
-                  <p>{order.shippingAddress.city}, {order.shippingAddress.governorate}</p>
-                  {order.shippingAddress.postalCode && (
-                    <p>الرمز البريدي: {order.shippingAddress.postalCode}</p>
-                  )}
-                  {order.shippingAddress.notes && (
-                    <p className="mt-2 text-gray-600">ملاحظات: {order.shippingAddress.notes}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Order Items */}
-              <div className="mb-8">
-                <h3 className="text-lg font-bold text-gray-900 mb-3 border-b border-gray-200 pb-2">
-                  المنتجات المطلوبة
-                </h3>
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse border border-gray-300">
-                    <thead>
-                      <tr className="bg-gray-100">
-                        <th className="border border-gray-300 p-3 text-right font-bold">المنتج</th>
-                        <th className="border border-gray-300 p-3 text-center font-bold">الكمية</th>
-                        <th className="border border-gray-300 p-3 text-center font-bold">سعر الوحدة</th>
-                        <th className="border border-gray-300 p-3 text-center font-bold">المجموع</th>
+            <div>
+              <h3 className="font-bold text-sm mb-1 text-gray-900">المنتجات:</h3>
+              <table className="w-full border-collapse border border-gray-800 text-xs">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="border border-gray-800 p-1 text-center font-bold w-8 text-gray-900">م</th>
+                    <th className="border border-gray-800 p-1 text-right font-bold text-gray-900">اسم المنتج</th>
+                    <th className="border border-gray-800 p-1 text-center font-bold w-16 text-gray-900">الكمية</th>
+                    <th className="border border-gray-800 p-1 text-center font-bold w-20 text-gray-900">سعر الوحدة</th>
+                    <th className="border border-gray-800 p-1 text-center font-bold w-24 text-gray-900">الإجمالي</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {order.items && order.items.length > 0 ? (
+                    order.items.map((item, index) => (
+                      <tr key={index}>
+                        <td className="border border-gray-800 p-1 text-center text-gray-900">{index + 1}</td>
+                        <td className="border border-gray-800 p-1 text-right text-gray-900">{item.productName || item.productId?.name || 'غير محدد'}</td>
+                        <td className="border border-gray-800 p-1 text-center text-gray-900">{item.quantity || 0}</td>
+                        <td className="border border-gray-800 p-1 text-center text-gray-900">{formatCurrency(item.unitPrice)} ₪</td>
+                        <td className="border border-gray-800 p-1 text-center font-semibold text-gray-900">{formatCurrency(item.totalPrice)} ₪</td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {order.items.map((item, index) => (
-                        <tr key={index}>
-                          <td className="border border-gray-300 p-3 text-right">
-                            <div className="flex items-center space-x-3 space-x-reverse">
-                              <div className="w-12 h-12 bg-gray-100 rounded border flex items-center justify-center overflow-hidden">
-                                {item.productId?.images && item.productId.images.length > 0 ? (
-                                  <img 
-                                    src={item.productId.images[0]} 
-                                    alt={item.productId.name || item.productName}
-                                    className="w-full h-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-6 h-6 bg-gray-300 rounded"></div>
-                                )}
-                              </div>
-                              <div>
-                                <p className="font-medium">{item.productName}</p>
-                                <p className="text-sm text-gray-500">نوع السعر: {item.priceType === 'marketer' ? 'تسويق' : 'جملة'}</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="border border-gray-300 p-3 text-center">{item.quantity}</td>
-                          <td className="border border-gray-300 p-3 text-center">{formatCurrency(item.unitPrice)}</td>
-                          <td className="border border-gray-300 p-3 text-center font-medium">{formatCurrency(item.totalPrice)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Order Summary */}
-              <div className="mb-8">
-                <div className="bg-gray-50 p-6 rounded-lg">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4">ملخص الطلب</h3>
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span>المجموع الفرعي:</span>
-                      <span>{formatCurrency(order.subtotal)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>العمولة:</span>
-                      <span>{formatCurrency(order.commission)}</span>
-                    </div>
-                    {order.marketerProfit && (
-                      <div className="flex justify-between">
-                        <span>ربح المسوق:</span>
-                        <span>{formatCurrency(order.marketerProfit)}</span>
-                      </div>
-                    )}
-                    <div className="border-t border-gray-300 pt-3">
-                      <div className="flex justify-between font-bold text-lg">
-                        <span>المجموع الإجمالي:</span>
-                        <span>{formatCurrency(order.total)}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Payment & Shipping Info */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900 mb-3 border-b border-gray-200 pb-2">
-                    معلومات الدفع
-                  </h3>
-                  <div className="space-y-2">
-                    <p><strong>طريقة الدفع:</strong> {order.paymentMethod}</p>
-                    <p><strong>حالة الدفع:</strong> {order.paymentStatus}</p>
-                  </div>
-                </div>
-                
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900 mb-3 border-b border-gray-200 pb-2">
-                    معلومات الشحن
-                  </h3>
-                  <div className="space-y-2">
-                    <p><strong>حالة الطلب:</strong> {order.status}</p>
-                    {order.trackingNumber && (
-                      <p><strong>رقم التتبع:</strong> {order.trackingNumber}</p>
-                    )}
-                    {order.shippingCompany && (
-                      <p><strong>شركة الشحن:</strong> {order.shippingCompany}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Notes */}
-              {(order.notes || order.adminNotes) && (
-                <div className="mb-8">
-                  <h3 className="text-lg font-bold text-gray-900 mb-3 border-b border-gray-200 pb-2">
-                    ملاحظات
-                  </h3>
-                  <div className="space-y-3">
-                    {order.notes && (
-                      <div>
-                        <p className="font-medium">ملاحظات العميل:</p>
-                        <p className="text-gray-600 bg-gray-50 p-3 rounded">{order.notes}</p>
-                      </div>
-                    )}
-                    {order.adminNotes && (
-                      <div>
-                        <p className="font-medium">ملاحظات الإدارة:</p>
-                        <p className="text-gray-600 bg-gray-50 p-3 rounded">{order.adminNotes}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Footer */}
-              <div className="border-t-2 border-gray-300 pt-6 mt-8">
-                <div className="text-center">
-                  <p className="text-gray-600 mb-2">شكراً لثقتك بنا</p>
-                  <p className="text-sm text-gray-500">ريبح - منصة التجارة الإلكترونية</p>
-                  <p className="text-xs text-gray-400 mt-2">تم إنشاء هذه الفاتورة في {formatDate(order.createdAt)}</p>
-                </div>
-              </div>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="border border-gray-800 p-2 text-center text-gray-500">
+                        لا توجد منتجات
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

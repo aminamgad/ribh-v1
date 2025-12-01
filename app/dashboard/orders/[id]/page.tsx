@@ -6,6 +6,7 @@ import { useAuth } from '@/components/providers/AuthProvider';
 import { ArrowLeft, Phone, Mail, MapPin, Package, Truck, CheckCircle, Clock, AlertCircle, MessageSquare, ExternalLink, MessageCircle, Edit, CheckCircle2, DollarSign, User, Calendar, Printer } from 'lucide-react';
 import MediaThumbnail from '@/components/ui/MediaThumbnail';
 import OrderInvoice from '@/components/ui/OrderInvoice';
+import CommentsSection from '@/components/ui/CommentsSection';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 
@@ -161,6 +162,7 @@ export default function OrderDetailPage() {
   const [trackingNumber, setTrackingNumber] = useState('');
   const [shippingCompany, setShippingCompany] = useState('');
   const [notes, setNotes] = useState('');
+  const [sendWhatsApp, setSendWhatsApp] = useState(true); // Default to true for backward compatibility
   const [showInvoice, setShowInvoice] = useState(false);
 
   // Check for print parameter in URL
@@ -328,13 +330,16 @@ export default function OrderDetailPage() {
         setNotes('');
         fetchOrder(order._id); // Refresh order data
 
-        // Send WhatsApp notification if phone number is available
-        if (order.shippingAddress?.phone) {
+        // Send WhatsApp notification if phone number is available and user opted in
+        if (sendWhatsApp && order.shippingAddress?.phone) {
           // Small delay to ensure the order is updated first
           setTimeout(() => {
             handleWhatsAppUpdate(newStatus);
           }, 1000);
         }
+        
+        // Reset WhatsApp option for next time
+        setSendWhatsApp(true);
       } else {
         const error = await response.json();
         console.error('Update error:', error);
@@ -608,7 +613,7 @@ export default function OrderDetailPage() {
   const availableStatuses = getAvailableStatuses();
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 print:hidden">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4 space-x-reverse">
@@ -1328,6 +1333,14 @@ export default function OrderDetailPage() {
               </div>
             </div>
           </div>
+
+          {/* Comments Section */}
+          <div className="card">
+            <CommentsSection 
+              entityType="order" 
+              entityId={order._id} 
+            />
+          </div>
         </div>
       </div>
 
@@ -1405,16 +1418,27 @@ export default function OrderDetailPage() {
               
               {/* WhatsApp Notification Option */}
               {newStatus && order?.shippingAddress?.phone && (
-                <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                  <div className="flex items-center mb-2">
-                    <MessageCircle className="w-5 h-5 text-green-600 ml-2" />
-                    <span className="text-sm font-medium text-green-800 dark:text-green-200">
-                      إشعار العميل عبر واتساب
-                    </span>
+                <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                  <div className="flex items-start">
+                    <input
+                      type="checkbox"
+                      id="sendWhatsApp"
+                      checked={sendWhatsApp}
+                      onChange={(e) => setSendWhatsApp(e.target.checked)}
+                      className="mt-1 w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 dark:focus:ring-green-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                    />
+                    <label htmlFor="sendWhatsApp" className="mr-3 flex-1 cursor-pointer">
+                      <div className="flex items-center mb-1">
+                        <MessageCircle className="w-5 h-5 text-green-600 ml-2" />
+                        <span className="text-sm font-medium text-green-800 dark:text-green-200">
+                          إرسال إشعار للعميل عبر واتساب
+                        </span>
+                      </div>
+                      <p className="text-xs text-green-700 dark:text-green-300">
+                        سيتم إرسال رسالة تلقائية للعميل عبر واتساب لإعلامه بتحديث حالة الطلب
+                      </p>
+                    </label>
                   </div>
-                  <p className="text-xs text-green-700 dark:text-green-300">
-                    سيتم إرسال رسالة تلقائية للعميل عبر واتساب لإعلامه بتحديث حالة الطلب
-                  </p>
                 </div>
               )}
               

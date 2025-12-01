@@ -15,6 +15,11 @@ const productSchema = new Schema<ProductDocument>({
     trim: true,
     maxlength: [2000, 'وصف المنتج لا يمكن أن يتجاوز 2000 حرف']
   },
+  marketingText: {
+    type: String,
+    trim: true,
+    maxlength: [2000, 'النص التسويقي لا يمكن أن يتجاوز 2000 حرف']
+  },
   images: [{
     type: String,
     required: [true, 'صورة واحدة على الأقل مطلوبة']
@@ -231,16 +236,27 @@ productSchema.path('images').validate(function(images: string[]) {
 }, 'يجب أن يحتوي المنتج على صورة واحدة على الأقل ولا يزيد عن 10 صور');
 
 // Indexes
+// Single field indexes
 productSchema.index({ name: 1 });
 productSchema.index({ supplierId: 1 });
 productSchema.index({ categoryId: 1 });
-productSchema.index({ isActive: 1, isApproved: 1 });
 productSchema.index({ marketerPrice: 1 });
 productSchema.index({ wholesalerPrice: 1 });
 productSchema.index({ stockQuantity: 1 });
 productSchema.index({ sales: -1 });
 productSchema.index({ createdAt: -1 });
 productSchema.index({ featured: 1 });
+productSchema.index({ sku: 1 }, { unique: true, sparse: true });
+productSchema.index({ isRejected: 1 });
+productSchema.index({ isLocked: 1 });
+
+// Compound indexes for common queries
+productSchema.index({ isActive: 1, isApproved: 1, isRejected: 1, isLocked: 1 }); // For product listing
+productSchema.index({ supplierId: 1, isActive: 1 }); // For supplier products
+productSchema.index({ categoryId: 1, isActive: 1, isApproved: 1 }); // For category products
+productSchema.index({ isApproved: 1, isRejected: 1, createdAt: -1 }); // For admin review
+productSchema.index({ supplierId: 1, isApproved: 1, createdAt: -1 }); // For supplier approved products
+productSchema.index({ name: 'text', description: 'text' }); // Text search index
 
 
 

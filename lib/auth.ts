@@ -1,8 +1,38 @@
 import jwt from 'jsonwebtoken';
 import { NextRequest, NextResponse } from 'next/server';
 import { User, UserRole } from '@/types/index';
+import { logger } from './logger';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-jwt-key-for-ribh-platform-development-only-please-change-in-production';
+// Validate JWT_SECRET - must be set in production
+const getJWTSecret = (): string => {
+  const secret = process.env.JWT_SECRET;
+  
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(
+        '❌ JWT_SECRET environment variable is required in production. ' +
+        'Please set it in your environment variables.'
+      );
+    }
+    // Only allow default secret in development
+    console.warn(
+      '⚠️ WARNING: Using default JWT_SECRET. This is insecure and should only be used in development. ' +
+      'Please set JWT_SECRET environment variable in production.'
+    );
+    return 'super-secret-jwt-key-for-ribh-platform-development-only-please-change-in-production';
+  }
+  
+  // Validate secret strength in production
+  if (process.env.NODE_ENV === 'production' && secret.length < 32) {
+    throw new Error(
+      '❌ JWT_SECRET must be at least 32 characters long in production for security.'
+    );
+  }
+  
+  return secret;
+};
+
+const JWT_SECRET = getJWTSecret();
 const JWT_EXPIRES_IN = '7d';
 
 export interface JWTPayload {
@@ -56,31 +86,30 @@ export function clearAuthCookie(res: NextResponse): NextResponse {
 
 export async function getCurrentUser(req: NextRequest): Promise<User | null> {
   try {
-    console.log('=== getCurrentUser Debug ===');
-    console.log('Request URL:', req.url);
-    console.log('Request method:', req.method);
+    logger.debug('Getting current user from request', { url: req.url, method: req.method });
     
     const token = getTokenFromRequest(req);
     if (!token) {
-      console.log('No token found in request');
-      console.log('Cookies:', req.cookies.getAll());
-      console.log('Authorization header:', req.headers.get('authorization'));
+      logger.debug('No token found in request', {
+        hasCookies: req.cookies.has('ribh-token'),
+        hasAuthHeader: !!req.headers.get('authorization')
+      });
       return null;
     }
     
-    console.log('Token found, length:', token.length);
-    console.log('Token preview:', token.substring(0, 20) + '...');
+    logger.debug('Token found in request', { tokenLength: token.length });
 
     const payload = verifyToken(token);
     if (!payload) {
-      console.log('Invalid token payload - token verification failed');
+      logger.warn('Invalid token payload - token verification failed');
       return null;
     }
     
-    console.log('Token verified successfully');
-    console.log('Payload userId:', payload.userId);
-    console.log('Payload email:', payload.email);
-    console.log('Payload role:', payload.role);
+    logger.debug('Token verified successfully', {
+      userId: payload.userId,
+      email: payload.email,
+      role: payload.role
+    });
 
     // Import here to avoid circular dependency
     const connectDB = (await import('@/lib/database')).default;
@@ -88,43 +117,44 @@ export async function getCurrentUser(req: NextRequest): Promise<User | null> {
     
     // Ensure database connection
     await connectDB();
-    console.log('Database connected');
+    logger.debug('Database connected');
     
-    const user = await User.findById(payload.userId).select('-password');
+    const user = await User.findById(payload.userId).select('-password').lean();
     
     if (!user) {
-      console.log('User not found in database:', payload.userId);
+      logger.warn('User not found in database', { userId: payload.userId });
       return null;
     }
     
-    console.log('User found in database:', user.email);
-    console.log('=== End getCurrentUser Debug ===');
-    return user;
+    logger.debug('User found in database', { userId: (user as any)._id, email: (user as any).email });
+    return user as unknown as User;
   } catch (error) {
-    console.error('Error getting current user:', error);
+    logger.error('Error getting current user', error);
     return null;
   }
 }
 
-export function requireAuth(handler: Function) {
-  return async (req: NextRequest, ...args: any[]) => {
+type AuthHandler = (req: NextRequest, user: User, ...args: unknown[]) => Promise<NextResponse>;
+
+export function requireAuth(handler: AuthHandler) {
+  return async (req: NextRequest, ...args: unknown[]): Promise<NextResponse> => {
     try {
-      console.log('Auth check for:', req.method, req.url);
+      logger.debug('Auth check for request', { method: req.method, url: req.url });
       
       const user = await getCurrentUser(req);
       if (!user) {
-        console.log('Authentication failed - no user found');
+        logger.warn('Authentication failed - no user found', { url: req.url });
         return NextResponse.json(
           { success: false, message: 'غير مصرح لك بالوصول. يرجى تسجيل الدخول' },
           { status: 401 }
         );
       }
       
-      console.log('Authentication successful for user:', user.email);
+      logger.debug('Authentication successful', { userId: user._id, email: user.email });
       // Pass user directly as second parameter, keeping original args structure
       return handler(req, user, ...args);
     } catch (error) {
-      console.error('Auth middleware error:', error);
+      logger.error('Auth middleware error', error);
       return NextResponse.json(
         { success: false, message: 'خطأ في التحقق من المصادقة' },
         { status: 500 }
@@ -134,9 +164,14 @@ export function requireAuth(handler: Function) {
 }
 
 export function requireRole(allowedRoles: UserRole[]) {
-  return (handler: Function) => {
-    return async (req: NextRequest, user: User, ...args: any[]) => {
+  return (handler: AuthHandler) => {
+    return async (req: NextRequest, user: User, ...args: unknown[]): Promise<NextResponse> => {
       if (!allowedRoles.includes(user.role)) {
+        logger.warn('Role check failed', { 
+          userRole: user.role, 
+          allowedRoles, 
+          userId: user._id 
+        });
         return NextResponse.json(
           { success: false, error: 'ليس لديك صلاحية للوصول لهذا المورد' },
           { status: 403 }
@@ -148,59 +183,59 @@ export function requireRole(allowedRoles: UserRole[]) {
   };
 }
 
-export function requireAdmin(handler: Function) {
+export function requireAdmin(handler: AuthHandler) {
   return requireRole(['admin'])(handler);
 }
 
-export function requireSupplier(handler: Function) {
+export function requireSupplier(handler: AuthHandler) {
   return requireRole(['supplier'])(handler);
 }
 
-export function requireMarketer(handler: Function) {
+export function requireMarketer(handler: AuthHandler) {
   return requireRole(['marketer'])(handler);
 }
 
-export function requireWholesaler(handler: Function) {
+export function requireWholesaler(handler: AuthHandler) {
   return requireRole(['wholesaler'])(handler);
 }
 
-export function requireCustomer(handler: Function) {
+export function requireCustomer(handler: AuthHandler) {
   return requireRole(['marketer', 'wholesaler'])(handler);
 }
 
-export function requireSupplierOrAdmin(handler: Function) {
+export function requireSupplierOrAdmin(handler: AuthHandler) {
   return requireRole(['supplier', 'admin'])(handler);
 }
 
 // Middleware for API routes
-export function withAuth(handler: Function) {
+export function withAuth(handler: AuthHandler) {
   return requireAuth(handler);
 }
 
 export function withRole(allowedRoles: UserRole[]) {
-  return (handler: Function) => requireAuth(requireRole(allowedRoles)(handler));
+  return (handler: AuthHandler) => requireAuth(requireRole(allowedRoles)(handler));
 }
 
-export function withAdmin(handler: Function) {
+export function withAdmin(handler: AuthHandler) {
   return withRole(['admin'])(handler);
 }
 
-export function withSupplier(handler: Function) {
+export function withSupplier(handler: AuthHandler) {
   return withRole(['supplier'])(handler);
 }
 
-export function withMarketer(handler: Function) {
+export function withMarketer(handler: AuthHandler) {
   return withRole(['marketer'])(handler);
 }
 
-export function withWholesaler(handler: Function) {
+export function withWholesaler(handler: AuthHandler) {
   return withRole(['wholesaler'])(handler);
 }
 
-export function withCustomer(handler: Function) {
+export function withCustomer(handler: AuthHandler) {
   return withRole(['marketer', 'wholesaler'])(handler);
 }
 
-export function withSupplierOrAdmin(handler: Function) {
+export function withSupplierOrAdmin(handler: AuthHandler) {
   return withRole(['supplier', 'admin'])(handler);
 } 

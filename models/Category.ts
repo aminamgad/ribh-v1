@@ -24,6 +24,14 @@ const categorySchema = new Schema<CategoryDocument>({
     type: String,
     trim: true
   },
+  images: {
+    type: [String],
+    default: []
+  },
+  icon: {
+    type: String,
+    trim: true
+  },
   isActive: {
     type: Boolean,
     default: true
@@ -59,6 +67,26 @@ const categorySchema = new Schema<CategoryDocument>({
   productCount: {
     type: Number,
     default: 0
+  },
+  level: {
+    type: Number,
+    default: 0
+  },
+  path: {
+    type: [Schema.Types.ObjectId],
+    default: []
+  },
+  seoKeywords: {
+    type: [String],
+    default: []
+  },
+  showInMenu: {
+    type: Boolean,
+    default: true
+  },
+  showInHome: {
+    type: Boolean,
+    default: false
   }
 } as any, {
   timestamps: true,
@@ -72,6 +100,11 @@ categorySchema.index({ parentId: 1 });
 categorySchema.index({ isActive: 1 });
 categorySchema.index({ order: 1 });
 categorySchema.index({ featured: 1 });
+categorySchema.index({ slug: 1 });
+categorySchema.index({ level: 1 });
+categorySchema.index({ showInMenu: 1, isActive: 1 });
+categorySchema.index({ showInHome: 1, isActive: 1 });
+categorySchema.index({ 'name': 'text', 'description': 'text' }); // Text search
 
 // Virtual for subcategories
 categorySchema.virtual('subcategories', {
@@ -88,8 +121,9 @@ categorySchema.virtual('fullPath').get(function() {
   return this.name;
 });
 
-// Pre-save middleware to generate slug
-categorySchema.pre('save', function(next) {
+// Pre-save middleware to generate slug and calculate level/path
+categorySchema.pre('save', async function(next) {
+  // Generate slug if not exists
   if (!(this as any).slug) {
     (this as any).slug = this.name
       .toLowerCase()
@@ -97,7 +131,30 @@ categorySchema.pre('save', function(next) {
       .replace(/[\s_-]+/g, '-')
       .replace(/^-+|-+$/g, '');
   }
+  
+  // Calculate level and path
+  if (this.parentId) {
+    const parent = await mongoose.model('Category').findById(this.parentId);
+    if (parent) {
+      (this as any).level = (parent as any).level + 1;
+      (this as any).path = [...(parent as any).path || [], this.parentId];
+    } else {
+      (this as any).level = 1;
+      (this as any).path = [this.parentId];
+    }
+  } else {
+    (this as any).level = 0;
+    (this as any).path = [];
+  }
+  
   next();
+});
+
+// Post-save middleware to update product count
+categorySchema.post('save', async function() {
+  const Product = mongoose.model('Product');
+  const count = await Product.countDocuments({ categoryId: this._id, isActive: true, isApproved: true });
+  await mongoose.model('Category').updateOne({ _id: this._id }, { productCount: count });
 });
 
 // Static method to find active categories
@@ -132,8 +189,63 @@ categorySchema.statics.getCategoryTree = function() {
         as: 'subcategories'
       }
     },
+    {
+      $lookup: {
+        from: 'products',
+        localField: '_id',
+        foreignField: 'categoryId',
+        pipeline: [
+          { $match: { isActive: true, isApproved: true } },
+          { $count: 'count' }
+        ],
+        as: 'productStats'
+      }
+    },
+    {
+      $addFields: {
+        productCount: { $ifNull: [{ $arrayElemAt: ['$productStats.count', 0] }, 0] }
+      }
+    },
     { $sort: { order: 1, name: 1 } }
   ]);
+};
+
+// Static method to get category breadcrumb
+categorySchema.statics.getBreadcrumb = async function(categoryId: string) {
+  const category = await this.findById(categoryId).populate('parentId');
+  if (!category) return [];
+  
+  const breadcrumb: any[] = [category];
+  let current = category;
+  
+  while (current.parentId) {
+    current = await this.findById(current.parentId);
+    if (current) {
+      breadcrumb.unshift(current);
+    } else {
+      break;
+    }
+  }
+  
+  return breadcrumb;
+};
+
+// Static method to get category with all descendants
+categorySchema.statics.getCategoryWithDescendants = async function(categoryId: string) {
+  const category = await this.findById(categoryId);
+  if (!category) return null;
+  
+  const descendants: any[] = [];
+  const getDescendants = async (parentId: string) => {
+    const children = await this.find({ parentId, isActive: true }).sort({ order: 1, name: 1 });
+    for (const child of children) {
+      descendants.push(child);
+      await getDescendants(child._id);
+    }
+  };
+  
+  await getDescendants(categoryId);
+  return { category, descendants };
 };
 
 export default mongoose.models.Category || mongoose.model<CategoryDocument>('Category', categorySchema); 
