@@ -86,7 +86,9 @@ export default function OrdersPage() {
   const { user } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searching, setSearching] = useState(false); // Loading state for search
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(''); // Debounced search term
   const [filterStatus, setFilterStatus] = useState('all');
   const [updatingOrder, setUpdatingOrder] = useState<string | null>(null);
   const router = useRouter();
@@ -143,20 +145,37 @@ export default function OrdersPage() {
     router.push(`/dashboard/orders/${order._id}?print=true`);
   };
 
+  // Debounce search term - wait 500ms after user stops typing
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500); // 500ms delay
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Fetch orders when debounced search term or filter status changes
   useEffect(() => {
     fetchOrders();
-  }, [filterStatus, searchTerm]);
+  }, [filterStatus, debouncedSearchTerm]);
 
   const fetchOrders = async () => {
     try {
-      setLoading(true);
+      // Show initial loading only on first load
+      if (orders.length === 0) {
+        setLoading(true);
+      } else {
+        // Show searching indicator when filtering/searching
+        setSearching(true);
+      }
+      
       // Build query params
       const params = new URLSearchParams();
       if (filterStatus !== 'all') {
         params.append('status', filterStatus);
       }
-      if (searchTerm.trim()) {
-        params.append('search', searchTerm.trim());
+      if (debouncedSearchTerm.trim()) {
+        params.append('search', debouncedSearchTerm.trim());
       }
       
       const response = await fetch(`/api/orders?${params.toString()}`);
@@ -171,6 +190,7 @@ export default function OrdersPage() {
       toast.error('حدث خطأ أثناء جلب الطلبات');
     } finally {
       setLoading(false);
+      setSearching(false);
     }
   };
 
@@ -241,15 +261,6 @@ export default function OrdersPage() {
     return matchesStatus;
   });
 
-  if (loading) {
-    return (
-      <div className="mobile-loading">
-        <div className="mobile-loading-spinner"></div>
-        <p className="text-gray-600 dark:text-gray-400 mt-4">جاري تحميل الطلبات...</p>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Header */}
@@ -292,15 +303,21 @@ export default function OrdersPage() {
       {/* Filters */}
       <div className="mobile-filters">
         <div className="mobile-filter-group">
-          <div className="mobile-search">
+          <div className="mobile-search relative">
             <Search className="mobile-search-icon" />
             <input
               type="text"
-              placeholder="البحث في الطلبات..."
+              placeholder="البحث في الطلبات (رقم الطلب، اسم العميل، رقم الهاتف...)"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="mobile-search-input"
+              disabled={loading}
             />
+            {searching && (
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                <div className="w-4 h-4 border-2 border-[#FF9800] border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            )}
           </div>
         </div>
         <div className="mobile-filter-group">
@@ -322,12 +339,22 @@ export default function OrdersPage() {
       </div>
 
       {/* Orders List */}
-      {filteredOrders.length === 0 ? (
+      {loading ? (
+        <div className="mobile-loading">
+          <div className="mobile-loading-spinner"></div>
+          <p className="text-gray-600 dark:text-gray-400 mt-4">جاري تحميل الطلبات...</p>
+        </div>
+      ) : searching ? (
+        <div className="mobile-loading">
+          <div className="mobile-loading-spinner"></div>
+          <p className="text-gray-600 dark:text-gray-400 mt-4">جاري البحث...</p>
+        </div>
+      ) : filteredOrders.length === 0 ? (
         <div className="mobile-empty">
           <Package className="mobile-empty-icon" />
           <h3 className="mobile-empty-title">لا توجد طلبات</h3>
           <p className="mobile-empty-description">
-            {searchTerm || filterStatus !== 'all' 
+            {debouncedSearchTerm || filterStatus !== 'all' 
               ? 'لا توجد طلبات تطابق معايير البحث المحددة'
               : 'لم يتم العثور على أي طلبات بعد'
             }
