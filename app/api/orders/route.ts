@@ -367,8 +367,9 @@ async function getOrdersHandler(req: NextRequest, user: any) {
     
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status');
+    const search = searchParams.get('search'); // Search term
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
+    const limit = parseInt(searchParams.get('limit') || '100'); // Increased limit for better search
     const skip = (page - 1) * limit;
     
     // Build query based on role
@@ -385,14 +386,85 @@ async function getOrdersHandler(req: NextRequest, user: any) {
       query.status = status;
     }
     
+    // Add search functionality
+    if (search && search.trim()) {
+      const searchRegex = { $regex: search.trim(), $options: 'i' };
+      const searchConditions: any[] = [
+        { orderNumber: searchRegex },
+        { 'shippingAddress.fullName': searchRegex },
+        { 'shippingAddress.phone': searchRegex },
+        { 'shippingAddress.email': searchRegex },
+        { 'shippingAddress.street': searchRegex },
+        { 'shippingAddress.city': searchRegex },
+        { 'shippingAddress.governorate': searchRegex },
+        { trackingNumber: searchRegex },
+        { shippingCompany: searchRegex }
+      ];
+      
+      // If search is a number, also search by order number exactly
+      if (!isNaN(Number(search.trim()))) {
+        searchConditions.push({ orderNumber: search.trim() });
+      }
+      
+      query.$or = searchConditions;
+    }
+    
     // Get orders with pagination
-    const orders = await Order.find(query)
+    let ordersQuery = Order.find(query)
       .populate('items.productId', 'name images marketerPrice wholesalerPrice')
       .populate('supplierId', 'name companyName')
-      .populate('customerId', 'name email')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
+      .populate('customerId', 'name email phone')
+      .sort({ createdAt: -1 });
+    
+    // If search is provided, we need to also search in populated fields
+    // So we'll fetch all matching orders first, then filter by populated fields
+    let orders = await ordersQuery.skip(skip).limit(limit).lean();
+    
+    // Additional client-side filtering for populated fields if search is provided
+    if (search && search.trim()) {
+      const searchLower = search.trim().toLowerCase();
+      orders = orders.filter((order: any) => {
+        // Check order number
+        if (order.orderNumber?.toLowerCase().includes(searchLower)) return true;
+        
+        // Check customer name (from populated customerId)
+        if (order.customerId && typeof order.customerId === 'object') {
+          if (order.customerId.name?.toLowerCase().includes(searchLower)) return true;
+          if (order.customerId.email?.toLowerCase().includes(searchLower)) return true;
+          if (order.customerId.phone?.toLowerCase().includes(searchLower)) return true;
+        }
+        
+        // Check supplier name (from populated supplierId)
+        if (order.supplierId && typeof order.supplierId === 'object') {
+          if (order.supplierId.name?.toLowerCase().includes(searchLower)) return true;
+          if (order.supplierId.companyName?.toLowerCase().includes(searchLower)) return true;
+        }
+        
+        // Check shipping address
+        if (order.shippingAddress) {
+          if (order.shippingAddress.fullName?.toLowerCase().includes(searchLower)) return true;
+          if (order.shippingAddress.phone?.toLowerCase().includes(searchLower)) return true;
+          if (order.shippingAddress.email?.toLowerCase().includes(searchLower)) return true;
+          if (order.shippingAddress.street?.toLowerCase().includes(searchLower)) return true;
+          if (order.shippingAddress.city?.toLowerCase().includes(searchLower)) return true;
+          if (order.shippingAddress.governorate?.toLowerCase().includes(searchLower)) return true;
+        }
+        
+        // Check product names in items
+        if (order.items && Array.isArray(order.items)) {
+          for (const item of order.items) {
+            if (item.productName?.toLowerCase().includes(searchLower)) return true;
+            if (item.productId && typeof item.productId === 'object' && item.productId.name?.toLowerCase().includes(searchLower)) return true;
+          }
+        }
+        
+        // Check tracking number
+        if (order.trackingNumber?.toLowerCase().includes(searchLower)) return true;
+        if (order.shippingCompany?.toLowerCase().includes(searchLower)) return true;
+        
+        return false;
+      });
+    }
     
     // Get total count
     const total = await Order.countDocuments(query);

@@ -180,9 +180,27 @@ export async function createPackageFromOrder(orderId: string): Promise<number | 
       return null;
     }
 
-    // Use order number as barcode
-    const orderNumber = order.orderNumber || `ORD-${order._id.toString().slice(-8)}`;
-    const barcode = orderNumber; // Use order number directly as barcode
+    // Get order number
+    const orderNumber = (order as any).orderNumber || `ORD-${order._id.toString().slice(-8)}`;
+    
+    // Get marketer/customer name
+    let marketerName = 'غير محدد';
+    if ((order as any).customerId) {
+      try {
+        const User = (await import('@/models/User')).default;
+        const customer = await User.findById((order as any).customerId).select('name').lean();
+        if (customer) {
+          marketerName = (customer as any).name || 'غير محدد';
+        }
+      } catch (error) {
+        logger.warn('Error fetching customer name for barcode', { error, orderId: order._id.toString() });
+      }
+    }
+    
+    // Create barcode with order number, marketer name, and platform name
+    // Format: "ربح - ribh | رقم الطلب | اسم المسوق"
+    const platformName = 'ربح - ribh';
+    const barcode = `${platformName} | ${orderNumber} | ${marketerName}`;
 
     // Create package description from order items
     const items = order.items || [];

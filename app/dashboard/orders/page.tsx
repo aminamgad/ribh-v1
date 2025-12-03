@@ -16,11 +16,20 @@ import { OrderItem } from '@/types';
 interface Order {
   _id: string;
   orderNumber: string;
-  customerId: string;
-  customerName: string;
+  customerId: string | {
+    _id: string;
+    name: string;
+    email: string;
+    phone?: string;
+  };
+  customerName?: string; // For backward compatibility
   customerRole: string;
-  supplierId: string;
-  supplierName?: string;
+  supplierId: string | {
+    _id: string;
+    name: string;
+    companyName?: string;
+  };
+  supplierName?: string; // For backward compatibility
   items: OrderItem[];
   subtotal: number;
   commission: number;
@@ -35,7 +44,12 @@ interface Order {
     fullName: string;
     phone: string;
     email?: string;
+    street?: string;
+    city?: string;
+    governorate?: string;
   };
+  trackingNumber?: string;
+  shippingCompany?: string;
 }
 
 const statusIcons = {
@@ -131,15 +145,24 @@ export default function OrdersPage() {
 
   useEffect(() => {
     fetchOrders();
-  }, []);
+  }, [filterStatus, searchTerm]);
 
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/orders');
+      // Build query params
+      const params = new URLSearchParams();
+      if (filterStatus !== 'all') {
+        params.append('status', filterStatus);
+      }
+      if (searchTerm.trim()) {
+        params.append('search', searchTerm.trim());
+      }
+      
+      const response = await fetch(`/api/orders?${params.toString()}`);
       if (response.ok) {
         const data = await response.json();
-        setOrders(data.orders);
+        setOrders(data.orders || []);
       } else {
         toast.error('حدث خطأ أثناء جلب الطلبات');
       }
@@ -210,12 +233,12 @@ export default function OrdersPage() {
     }
   };
 
+  // Filter orders locally (additional filtering if needed)
+  // Main filtering is done on the server side
   const filteredOrders = orders.filter(order => {
-    const matchesSearch = order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         order.items.some(item => item.productName.toLowerCase().includes(searchTerm.toLowerCase()));
+    // Status filter (if not already filtered on server)
     const matchesStatus = filterStatus === 'all' || order.status === filterStatus;
-    return matchesSearch && matchesStatus;
+    return matchesStatus;
   });
 
   if (loading) {
@@ -339,10 +362,13 @@ export default function OrdersPage() {
                       <td className="table-cell">
                         <div>
                           <div className="font-medium text-gray-900 dark:text-gray-100">
-                            {order.shippingAddress?.fullName || order.customerName}
+                            {order.shippingAddress?.fullName || 
+                             (typeof order.customerId === 'object' ? order.customerId.name : order.customerName) || 
+                             'غير محدد'}
                           </div>
                           <div className="text-sm text-gray-500 dark:text-gray-400">
-                            {order.shippingAddress?.phone}
+                            {order.shippingAddress?.phone || 
+                             (typeof order.customerId === 'object' ? order.customerId.phone : '')}
                           </div>
                         </div>
                       </td>
@@ -454,15 +480,20 @@ export default function OrdersPage() {
                     <div className="flex items-center space-x-3 space-x-reverse">
                       <div className="w-10 h-10 bg-[#FF9800]/20 dark:bg-[#FF9800]/30 rounded-full flex items-center justify-center">
                         <span className="text-[#FF9800] dark:text-[#FF9800] font-semibold text-sm">
-                          {order.shippingAddress?.fullName?.charAt(0) || order.customerName.charAt(0)}
+                          {(order.shippingAddress?.fullName || 
+                            (typeof order.customerId === 'object' ? order.customerId.name : order.customerName) || 
+                            'غير محدد').charAt(0)}
                         </span>
                       </div>
                       <div>
                         <div className="font-medium text-gray-900 dark:text-gray-100">
-                          {order.shippingAddress?.fullName || order.customerName}
+                          {order.shippingAddress?.fullName || 
+                           (typeof order.customerId === 'object' ? order.customerId.name : order.customerName) || 
+                           'غير محدد'}
                         </div>
                         <div className="text-sm text-gray-500 dark:text-gray-400">
-                          {order.shippingAddress?.phone}
+                          {order.shippingAddress?.phone || 
+                           (typeof order.customerId === 'object' ? order.customerId.phone : '')}
                         </div>
                       </div>
                     </div>
