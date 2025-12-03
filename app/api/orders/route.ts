@@ -105,8 +105,10 @@ async function createOrderHandler(req: NextRequest, user: any) {
         const totalPrice = unitPrice * item.quantity;
         subtotal += totalPrice;
         
-        // marketer profit based on custom selling price minus base price (marketerPrice)
-        const basePrice = variantPrice;
+        // marketer profit based on custom selling price minus base price (marketerPrice of variant or product)
+        // Use variant's marketerPrice if available, otherwise use product's marketerPrice
+        const variantMarketerPrice = variantOption.price || (product as any).marketerPrice || 0;
+        const basePrice = variantMarketerPrice;
         const itemMarketerProfit = Math.max(unitPrice - basePrice, 0) * item.quantity;
         marketerProfitTotal += itemMarketerProfit;
         
@@ -236,6 +238,47 @@ async function createOrderHandler(req: NextRequest, user: any) {
       shippingAddress: orderData.shippingAddress,
       deliveryNotes: orderData.notes
     });
+    
+    // Automatically create package for shipping company if enabled
+    // This sends the order to shipping company immediately upon creation
+    if (systemSettings?.autoCreatePackages !== false) {
+      try {
+        const { createPackageFromOrder } = await import('@/lib/order-to-package');
+        const packageId = await createPackageFromOrder(order._id.toString());
+        if (packageId) {
+          // Update order with packageId
+          await Order.findByIdAndUpdate(order._id, { packageId: packageId });
+          logger.business('✅ ORDER SENT TO SHIPPING COMPANY IMMEDIATELY - Package created automatically upon order creation', {
+            orderId: order._id.toString(),
+            orderNumber: order.orderNumber,
+            packageId: packageId,
+            orderStatus: order.status,
+            timestamp: new Date().toISOString(),
+            note: 'Order was sent to shipping company immediately upon creation'
+          });
+          
+          logger.info('✅ Package created automatically and sent to shipping company upon order creation', {
+            orderId: order._id.toString(),
+            orderNumber: order.orderNumber,
+            packageId: packageId
+          });
+        } else {
+          logger.warn('⚠️ FAILED TO SEND ORDER TO SHIPPING COMPANY - Failed to create package automatically upon order creation', {
+            orderId: order._id.toString(),
+            orderNumber: order.orderNumber,
+            orderStatus: order.status,
+            timestamp: new Date().toISOString(),
+            note: 'Package will be created when order status changes to ready_for_shipping',
+            reason: 'Check if external company exists and is active, or if order has valid shipping address with villageId'
+          });
+        }
+      } catch (error) {
+        logger.error('Error creating package automatically upon order creation', error, {
+          orderId: order._id.toString()
+        });
+        // Continue with order creation even if package creation fails
+      }
+    }
     
     // Update product stock quantities and variant stocks
     for (const item of orderItems) {

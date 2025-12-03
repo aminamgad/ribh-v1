@@ -19,7 +19,10 @@ const adminProfitMarginSchema = z.object({
   minPrice: z.number().min(0, 'الحد الأدنى يجب أن يكون 0 أو أكثر'),
   maxPrice: z.number().min(0, 'الحد الأقصى يجب أن يكون 0 أو أكثر'),
   margin: z.number().min(0, 'الهامش يجب أن يكون 0 أو أكثر').max(100, 'الهامش لا يمكن أن يتجاوز 100%')
-});
+}).refine(
+  (data) => data.minPrice <= data.maxPrice,
+  { message: 'الحد الأدنى يجب أن يكون أقل من أو يساوي الحد الأقصى', path: ['maxPrice'] }
+);
 
 const withdrawalSettingsSchema = z.object({
   minimumWithdrawal: z.number().min(0, 'الحد الأدنى للسحب يجب أن يكون 0 أو أكثر'),
@@ -29,8 +32,34 @@ const withdrawalSettingsSchema = z.object({
 
 const financialSettingsSchema = z.object({
   withdrawalSettings: withdrawalSettingsSchema,
-  commissionRates: z.array(commissionRateSchema).min(1, 'يجب إضافة نسبة عمولة واحدة على الأقل'),
-  adminProfitMargins: z.array(adminProfitMarginSchema).min(1, 'يجب إضافة هامش ربح واحد على الأقل').optional()
+  adminProfitMargins: z.array(adminProfitMarginSchema)
+    .min(1, 'يجب إضافة هامش ربح واحد على الأقل')
+    .refine(
+      (margins) => {
+        // Check for overlapping ranges
+        const sortedMargins = [...margins].sort((a, b) => a.minPrice - b.minPrice);
+        
+        // Check for overlaps
+        for (let i = 0; i < sortedMargins.length; i++) {
+          for (let j = i + 1; j < sortedMargins.length; j++) {
+            const m1 = sortedMargins[i];
+            const m2 = sortedMargins[j];
+            
+            // Check if ranges overlap
+            if (m1.minPrice < m2.maxPrice && m1.maxPrice > m2.minPrice) {
+              return false; // Overlapping ranges found
+            }
+          }
+        }
+        
+        return true;
+      },
+      { 
+        message: 'هناك تداخل في نطاقات هامش الربح. يجب أن تكون النطاقات غير متداخلة',
+        path: ['adminProfitMargins']
+      }
+    )
+  // commissionRates removed - using adminProfitMargins only
 });
 
 const generalSettingsSchema = z.object({
@@ -59,7 +88,31 @@ const shippingSettingsSchema = z.object({
   shippingEnabled: z.boolean(),
   defaultShippingCost: z.number().min(0, 'التكلفة الافتراضية يجب أن تكون أكبر من أو تساوي صفر'),
   defaultFreeShippingThreshold: z.number().min(0, 'حد الشحن المجاني يجب أن يكون أكبر من أو تساوي صفر'),
-  governorates: z.array(governorateSchema).min(0, 'يمكن أن تكون قائمة المحافظات فارغة')
+  governorates: z.array(governorateSchema)
+    .min(0, 'يمكن أن تكون قائمة المحافظات فارغة')
+    .refine(
+      (governorates) => {
+        // Check for duplicate governorate names
+        const names = governorates.map(g => g.name.toLowerCase().trim());
+        const uniqueNames = new Set(names);
+        return names.length === uniqueNames.size;
+      },
+      { message: 'يوجد تكرار في أسماء المحافظات', path: ['governorates'] }
+    )
+    .refine(
+      (governorates) => {
+        // Check for duplicate cities within same governorate
+        for (const gov of governorates) {
+          const cityNames = gov.cities.map(c => c.toLowerCase().trim());
+          const uniqueCities = new Set(cityNames);
+          if (cityNames.length !== uniqueCities.size) {
+            return false;
+          }
+        }
+        return true;
+      },
+      { message: 'يوجد تكرار في أسماء المدن داخل نفس المحافظة', path: ['governorates'] }
+    )
 });
 
 const productSettingsSchema = z.object({
@@ -89,6 +142,11 @@ const legalSettingsSchema = z.object({
 const analyticsSettingsSchema = z.object({
   googleAnalyticsId: z.string(),
   facebookPixelId: z.string()
+});
+
+const maintenanceSettingsSchema = z.object({
+  maintenanceMode: z.boolean(),
+  maintenanceMessage: z.string().max(500, 'رسالة الصيانة لا يمكن أن تتجاوز 500 حرف')
 });
 
 // GET /api/admin/settings - Get system settings
@@ -153,9 +211,6 @@ async function updateAdminSettingsHandler(req: NextRequest, user: any) {
           maximumWithdrawal: 50000,
           withdrawalFees: 0
         },
-        commissionRates: [
-          { minPrice: 0, maxPrice: 1000, rate: 10 }
-        ],
         adminProfitMargins: [
           { minPrice: 1, maxPrice: 100, margin: 10 },
           { minPrice: 101, maxPrice: 500, margin: 8 },
@@ -214,13 +269,6 @@ async function updateAdminSettingsHandler(req: NextRequest, user: any) {
           withdrawalFees: financialData.withdrawalSettings.withdrawalFees
         };
         
-        // Update commission rates
-        settings.commissionRates = financialData.commissionRates.map((rate: any) => ({
-          minPrice: rate.minPrice,
-          maxPrice: rate.maxPrice,
-          rate: rate.rate
-        }));
-        
         // Update admin profit margins - always update if provided
         if (financialData.adminProfitMargins !== undefined && financialData.adminProfitMargins.length > 0) {
           logger.debug('Updating admin profit margins', { margins: financialData.adminProfitMargins });
@@ -267,7 +315,6 @@ async function updateAdminSettingsHandler(req: NextRequest, user: any) {
         
         logger.debug('Financial settings updated', {
           withdrawalSettings: settings.withdrawalSettings,
-          commissionRatesCount: settings.commissionRates?.length || 0,
           adminProfitMarginsCount: settings.adminProfitMargins?.length || 0
         });
         
@@ -351,6 +398,13 @@ async function updateAdminSettingsHandler(req: NextRequest, user: any) {
         settings.googleAnalyticsId = analyticsData.googleAnalyticsId;
         settings.facebookPixelId = analyticsData.facebookPixelId;
         logger.business('Analytics settings updated', { userId: user._id });
+        break;
+        
+      case 'maintenance':
+        const maintenanceData = maintenanceSettingsSchema.parse(data);
+        (settings as any).maintenanceMode = maintenanceData.maintenanceMode;
+        (settings as any).maintenanceMessage = maintenanceData.maintenanceMessage;
+        logger.business('Maintenance settings updated', { userId: user._id, maintenanceMode: maintenanceData.maintenanceMode });
         break;
         
       default:

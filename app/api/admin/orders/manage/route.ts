@@ -5,6 +5,7 @@ import Order from '@/models/Order';
 import Product from '@/models/Product';
 import { z } from 'zod';
 import { logger } from '@/lib/logger';
+import { distributeOrderProfits, reverseOrderProfits } from '@/lib/wallet-helpers';
 
 const orderUpdateSchema = z.object({
   orderIds: z.array(z.string()).min(1, 'يجب اختيار طلب واحد على الأقل'),
@@ -97,17 +98,54 @@ async function manageOrders(req: NextRequest, user: any) {
           updateData.shippedBy = user._id;
           updateData.trackingNumber = validatedData.trackingNumber;
           updateData.shippingCompany = validatedData.shippingCompany;
+          // Ensure package exists before shipping
+          if (!order.packageId) {
+            try {
+              const { createPackageFromOrder } = await import('@/lib/order-to-package');
+              const packageId = await createPackageFromOrder(order._id.toString());
+              if (packageId) {
+                updateData.packageId = packageId;
+                logger.info('Package created automatically before bulk shipping', {
+                  orderId: order._id.toString(),
+                  orderNumber: order.orderNumber,
+                  packageId: packageId
+                });
+              }
+            } catch (error) {
+              logger.error('Error creating package before bulk shipping', error, {
+                orderId: order._id.toString()
+              });
+            }
+          }
           break;
           
         case 'deliver':
           updateData.deliveredAt = new Date();
           updateData.deliveredBy = user._id;
+          // Distribute profits when order is delivered
+          // This will be handled after order update to ensure order is saved with delivered status
           break;
           
         case 'cancel':
           updateData.cancelledAt = new Date();
           updateData.cancelledBy = user._id;
           updateData.cancellationReason = validatedData.cancellationReason;
+          
+          // Reverse profits if order was already delivered and profits were distributed
+          if (order.profitsDistributed && (currentStatus === 'delivered' || currentStatus === 'shipped')) {
+            try {
+              await reverseOrderProfits(order);
+              logger.business('Profits reversed for cancelled delivered order', {
+                orderId: order._id.toString(),
+                orderNumber: order.orderNumber
+              });
+            } catch (error) {
+              logger.error('Error reversing profits for cancelled order', error, {
+                orderId: order._id.toString()
+              });
+              // Continue with cancellation even if profit reversal fails
+            }
+          }
           
           // Restore product stock if cancelling
           if (currentStatus === 'confirmed' || currentStatus === 'processing') {
@@ -166,6 +204,22 @@ async function manageOrders(req: NextRequest, user: any) {
           updateData.returnedBy = user._id;
           updateData.returnReason = validatedData.returnReason;
           
+          // Reverse profits if order was delivered and profits were distributed
+          if (order.profitsDistributed) {
+            try {
+              await reverseOrderProfits(order);
+              logger.business('Profits reversed for returned order', {
+                orderId: order._id.toString(),
+                orderNumber: order.orderNumber
+              });
+            } catch (error) {
+              logger.error('Error reversing profits for returned order', error, {
+                orderId: order._id.toString()
+              });
+              // Continue with return even if profit reversal fails
+            }
+          }
+          
           // Restore product stock for returns
           for (const item of order.items) {
             const product = await Product.findById(item.productId);
@@ -217,7 +271,25 @@ async function manageOrders(req: NextRequest, user: any) {
           break;
       }
       
-      return Order.findByIdAndUpdate(order._id, updateData, { new: true });
+      const updatedOrder = await Order.findByIdAndUpdate(order._id, updateData, { new: true });
+      
+      // Distribute profits if order was delivered
+      if (validatedData.action === 'deliver' && updatedOrder) {
+        try {
+          await distributeOrderProfits(updatedOrder);
+          logger.business('Profits distributed for delivered order', {
+            orderId: updatedOrder._id.toString(),
+            orderNumber: updatedOrder.orderNumber
+          });
+        } catch (error) {
+          logger.error('Error distributing profits for delivered order', error, {
+            orderId: updatedOrder._id.toString()
+          });
+          // Continue even if profit distribution fails - order is already updated
+        }
+      }
+      
+      return updatedOrder;
     });
     
     const updatedOrders = await Promise.all(updatePromises);

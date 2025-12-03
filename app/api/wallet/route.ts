@@ -28,9 +28,10 @@ async function getWallet(req: NextRequest, user: any) {
     
     // Get system settings for withdrawal limits
     const settings = await SystemSettings.findOne().sort({ updatedAt: -1 });
-    const minimumWithdrawal = settings?.minimumWithdrawal || 100;
-    const maximumWithdrawal = settings?.maximumWithdrawal || 10000;
-    const withdrawalFee = settings?.withdrawalFee || 0;
+    const withdrawalSettings = (settings as any)?.withdrawalSettings;
+    const minimumWithdrawal = withdrawalSettings?.minimumWithdrawal || (settings as any)?.minimumWithdrawal || 100;
+    const maximumWithdrawal = withdrawalSettings?.maximumWithdrawal || (settings as any)?.maximumWithdrawal || 10000;
+    const withdrawalFee = withdrawalSettings?.withdrawalFees || (settings as any)?.withdrawalFee || 0;
     
     // Calculate available balance (balance minus pending withdrawals)
     const pendingWithdrawals = wallet.pendingWithdrawals || 0;
@@ -91,9 +92,10 @@ async function requestWithdrawal(req: NextRequest, user: any) {
     
     // Get system settings
     const settings = await SystemSettings.findOne().sort({ updatedAt: -1 });
-    const minimumWithdrawal = settings?.minimumWithdrawal || 100;
-    const maximumWithdrawal = settings?.maximumWithdrawal || 10000;
-    const withdrawalFee = settings?.withdrawalFee || 0;
+    const withdrawalSettings = (settings as any)?.withdrawalSettings;
+    const minimumWithdrawal = withdrawalSettings?.minimumWithdrawal || (settings as any)?.minimumWithdrawal || 100;
+    const maximumWithdrawal = withdrawalSettings?.maximumWithdrawal || (settings as any)?.maximumWithdrawal || 10000;
+    const withdrawalFee = withdrawalSettings?.withdrawalFees || (settings as any)?.withdrawalFee || 0;
     
     // Get user wallet
     let wallet = await Wallet.findOne({ userId: user._id });
@@ -105,7 +107,8 @@ async function requestWithdrawal(req: NextRequest, user: any) {
     }
     
     // Validate withdrawal amount
-    const availableBalance = Math.max(0, wallet.balance - wallet.totalWithdrawals);
+    // Available balance = total balance - pending withdrawals (not total withdrawals)
+    const availableBalance = Math.max(0, (wallet.balance || 0) - (wallet.pendingWithdrawals || 0));
     
     if (amount < minimumWithdrawal) {
       return NextResponse.json(

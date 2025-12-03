@@ -64,11 +64,44 @@ export const GET = withRole(['admin'])(async (req: NextRequest, user: any) => {
     const totalMarketerProfit = orders.reduce((sum, order) => sum + (order.marketerProfit || 0), 0);
     const totalSupplierRevenue = totalRevenue - totalCommission;
     
-    // Get wallet statistics
+    // Get wallet statistics (actual balances from wallets)
     const wallets = await Wallet.find();
-    const totalWalletBalance = wallets.reduce((sum, wallet) => sum + wallet.balance, 0);
-    const totalEarnings = wallets.reduce((sum, wallet) => sum + wallet.totalEarnings, 0);
-    const totalWithdrawals = wallets.reduce((sum, wallet) => sum + wallet.totalWithdrawals, 0);
+    const totalWalletBalance = wallets.reduce((sum, wallet) => sum + (wallet.balance || 0), 0);
+    const totalEarnings = wallets.reduce((sum, wallet) => sum + (wallet.totalEarnings || 0), 0);
+    const totalWithdrawals = wallets.reduce((sum, wallet) => sum + (wallet.totalWithdrawals || 0), 0);
+    const totalPendingWithdrawals = wallets.reduce((sum, wallet) => sum + (wallet.pendingWithdrawals || 0), 0);
+    
+    // Get actual distributed profits from orders (only delivered orders with profitsDistributed = true)
+    const distributedOrders = await Order.find({
+      ...dateFilter,
+      status: 'delivered',
+      profitsDistributed: true
+    });
+    
+    const actualDistributedMarketerProfit = distributedOrders.reduce(
+      (sum, order) => sum + (order.marketerProfit || 0), 
+      0
+    );
+    const actualDistributedAdminCommission = distributedOrders.reduce(
+      (sum, order) => sum + (order.commission || 0), 
+      0
+    );
+    
+    // Get pending profits (delivered but not distributed)
+    const pendingProfitOrders = await Order.find({
+      ...dateFilter,
+      status: 'delivered',
+      profitsDistributed: { $ne: true }
+    });
+    
+    const pendingMarketerProfit = pendingProfitOrders.reduce(
+      (sum, order) => sum + (order.marketerProfit || 0), 
+      0
+    );
+    const pendingAdminCommission = pendingProfitOrders.reduce(
+      (sum, order) => sum + (order.commission || 0), 
+      0
+    );
     
     // Get earnings by role
     const earningsByRole = await Order.aggregate([
@@ -114,9 +147,18 @@ export const GET = withRole(['admin'])(async (req: NextRequest, user: any) => {
         totalCommission,
         totalMarketerProfit,
         totalSupplierRevenue,
+        // Wallet statistics (actual balances)
         totalWalletBalance,
         totalEarnings,
-        totalWithdrawals
+        totalWithdrawals,
+        totalPendingWithdrawals,
+        // Actual distributed profits
+        actualDistributedMarketerProfit,
+        actualDistributedAdminCommission,
+        // Pending profits (not yet distributed)
+        pendingMarketerProfit,
+        pendingAdminCommission,
+        pendingProfitOrdersCount: pendingProfitOrders.length
       },
       earningsByRole,
       topEarners,
@@ -134,45 +176,59 @@ export const GET = withRole(['admin'])(async (req: NextRequest, user: any) => {
   }
 });
 
-// POST /api/admin/earnings - Update commission settings
+// POST /api/admin/earnings - Update admin profit margins (replaces old commission rates)
 export const POST = withRole(['admin'])(async (req: NextRequest, user: any) => {
   try {
     await connectDB();
     
     const body = await req.json();
-    const { commissionRates } = body;
+    const { adminProfitMargins } = body;
     
-    // Validate commission rates
-    if (!commissionRates || !Array.isArray(commissionRates)) {
+    // Validate admin profit margins
+    if (!adminProfitMargins || !Array.isArray(adminProfitMargins)) {
       return NextResponse.json(
-        { success: false, message: 'نسب العمولة مطلوبة' },
+        { success: false, message: 'هوامش ربح الإدارة مطلوبة' },
         { status: 400 }
       );
     }
     
-    // Validate each rate
-    for (const rate of commissionRates) {
-      if (!rate.minPrice || !rate.maxPrice || !rate.rate) {
+    // Validate each margin
+    for (const margin of adminProfitMargins) {
+      if (margin.minPrice === undefined || margin.maxPrice === undefined || margin.margin === undefined) {
         return NextResponse.json(
-          { success: false, message: 'جميع حقول نسبة العمولة مطلوبة' },
+          { success: false, message: 'جميع حقول هامش الربح مطلوبة' },
           { status: 400 }
         );
       }
       
-      if (rate.rate < 0 || rate.rate > 100) {
+      if (margin.margin < 0 || margin.margin > 100) {
         return NextResponse.json(
-          { success: false, message: 'نسبة العمولة يجب أن تكون بين 0 و 100' },
+          { success: false, message: 'هامش الربح يجب أن يكون بين 0 و 100' },
+          { status: 400 }
+        );
+      }
+      
+      if (margin.minPrice < 0 || margin.maxPrice < 0) {
+        return NextResponse.json(
+          { success: false, message: 'الأسعار يجب أن تكون أكبر من أو تساوي صفر' },
+          { status: 400 }
+        );
+      }
+      
+      if (margin.minPrice > margin.maxPrice) {
+        return NextResponse.json(
+          { success: false, message: 'الحد الأدنى يجب أن يكون أقل من أو يساوي الحد الأقصى' },
           { status: 400 }
         );
       }
     }
     
     // Check for overlapping ranges
-    const sortedRates = [...commissionRates].sort((a, b) => a.minPrice - b.minPrice);
-    for (let i = 0; i < sortedRates.length - 1; i++) {
-      if (sortedRates[i].maxPrice >= sortedRates[i + 1].minPrice) {
+    const sortedMargins = [...adminProfitMargins].sort((a, b) => a.minPrice - b.minPrice);
+    for (let i = 0; i < sortedMargins.length - 1; i++) {
+      if (sortedMargins[i].maxPrice >= sortedMargins[i + 1].minPrice) {
         return NextResponse.json(
-          { success: false, message: 'نطاقات العمولة متداخلة' },
+          { success: false, message: 'نطاقات هوامش الربح متداخلة' },
           { status: 400 }
         );
       }
@@ -182,7 +238,7 @@ export const POST = withRole(['admin'])(async (req: NextRequest, user: any) => {
     const settings = await SystemSettings.findOneAndUpdate(
       {},
       { 
-        commissionRates,
+        adminProfitMargins,
         updatedBy: user._id
       },
       { new: true, upsert: true }
@@ -190,16 +246,16 @@ export const POST = withRole(['admin'])(async (req: NextRequest, user: any) => {
     
     return NextResponse.json({
       success: true,
-      message: 'تم تحديث نسب العمولة بنجاح',
+      message: 'تم تحديث هوامش ربح الإدارة بنجاح',
       settings: {
-        commissionRates: settings.commissionRates
+        adminProfitMargins: settings.adminProfitMargins
       }
     });
     
-    logger.business('Commission settings updated', { adminId: user._id });
+    logger.business('Admin profit margins updated', { adminId: user._id });
     logger.apiResponse('POST', '/api/admin/earnings', 200);
   } catch (error) {
-    logger.error('Error updating commission settings', error, { userId: user._id });
-    return handleApiError(error, 'حدث خطأ أثناء تحديث نسب العمولة');
+    logger.error('Error updating admin profit margins', error, { userId: user._id });
+    return handleApiError(error, 'حدث خطأ أثناء تحديث هوامش ربح الإدارة');
   }
 }); 

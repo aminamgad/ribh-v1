@@ -227,6 +227,26 @@ body::after {
     min-height: 44px;
   }
 
+  /* Exception for checkboxes - they should be square and responsive, not tall */
+  input[type="checkbox"] {
+    min-height: auto !important;
+    /* Responsive square checkbox */
+    height: 1rem; /* 16px on mobile */
+    width: 1rem;  /* 16px on mobile */
+    min-width: 1rem;
+    /* Make it square */
+    aspect-ratio: 1;
+    /* Responsive sizing */
+  }
+  
+  @media (min-width: 640px) {
+    input[type="checkbox"] {
+      height: 1.25rem; /* 20px on larger screens */
+      width: 1.25rem;  /* 20px on larger screens */
+      min-width: 1.25rem;
+    }
+  }
+
   /* تحسين الخطوط للجداول */
   table {
     font-family: 'Cairo', 'IBM Plex Sans Arabic', 'Tajawal', Arial, sans-serif;
@@ -688,6 +708,68 @@ body::after {
 
   .form-help {
     @apply text-sm text-gray-500 dark:text-slate-400 mt-1;
+  }
+
+  /* Global Responsive Checkbox Styles - Apply to all checkboxes site-wide */
+  input[type="checkbox"] {
+    /* Base responsive square size */
+    @apply h-4 w-4 sm:h-5 sm:w-5 shrink-0 rounded border-2 border-gray-300 dark:border-gray-600;
+    /* Ensure square aspect ratio */
+    aspect-ratio: 1;
+    /* Remove default appearance */
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    /* Cursor */
+    cursor: pointer;
+    /* Transitions */
+    @apply transition-all duration-200 ease-in-out;
+    /* Focus styles */
+    @apply focus:outline-none focus:ring-2 focus:ring-[#FF9800] focus:ring-offset-2;
+    /* Checked state */
+    @apply checked:bg-[#FF9800] checked:border-[#FF9800];
+    /* Hover state */
+    @apply hover:border-[#F57C00] dark:hover:border-[#F57C00];
+    /* Disabled state */
+    @apply disabled:cursor-not-allowed disabled:opacity-50;
+    /* Background for checked state with checkmark */
+    background-image: none;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+    /* Override min-height from input styles */
+    min-height: auto !important;
+  }
+
+  /* Checkmark icon for checked state - using CSS pseudo-element */
+  input[type="checkbox"] {
+    position: relative;
+  }
+  
+  input[type="checkbox"]:checked::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -60%) rotate(45deg);
+    width: 4px;
+    height: 8px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+  }
+  
+  @media (min-width: 640px) {
+    input[type="checkbox"]:checked::after {
+      width: 5px;
+      height: 10px;
+      border-width: 0 2.5px 2.5px 0;
+    }
+  }
+
+  /* Dark mode checkbox adjustments */
+  .dark input[type="checkbox"] {
+    @apply border-gray-600;
+    @apply checked:bg-[#FF9800] checked:border-[#FF9800];
   }
   
   /* Enhanced Mobile-First Badge System */

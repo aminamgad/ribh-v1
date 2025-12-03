@@ -7,7 +7,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string; maintenance?: boolean }>;
   register: (userData: any) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   updateUser: (userData: Partial<User>) => void;
@@ -61,6 +61,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(data.user);
         return { success: true };
       } else {
+        // Check if it's a maintenance mode response
+        if (data.maintenance || response.status === 503) {
+          return { 
+            success: false, 
+            error: data.message || data.error || 'المنصة تحت الصيانة. يرجى المحاولة لاحقاً.',
+            maintenance: true 
+          };
+        }
         return { success: false, error: data.error || 'فشل تسجيل الدخول' };
       }
     } catch (error) {

@@ -72,6 +72,15 @@ export interface SystemSettings {
   googleAnalyticsId: string;
   facebookPixelId: string;
   
+  // Maintenance Settings
+  maintenanceMode?: boolean;
+  maintenanceMessage?: string;
+  
+  // External Company Integration Settings
+  defaultExternalCompanyId?: mongoose.Types.ObjectId;
+  autoCreatePackages?: boolean;
+  createPackageOnOrderCreate?: boolean;
+  
   createdAt: Date;
   updatedAt: Date;
 }
@@ -149,14 +158,10 @@ const systemSettingsSchema = new Schema<SystemSettingsDocument>({
       withdrawalFees: 0
     })
   },
+  // commissionRates deprecated - using adminProfitMargins only
   commissionRates: {
     type: [commissionRateSchema],
-    default: [
-      { minPrice: 0, maxPrice: 1000, rate: 10 },
-      { minPrice: 1001, maxPrice: 5000, rate: 8 },
-      { minPrice: 5001, maxPrice: 10000, rate: 6 },
-      { minPrice: 10001, maxPrice: 999999, rate: 5 }
-    ]
+    default: [] // Empty - not used anymore
   },
   adminProfitMargins: {
     type: [adminProfitMarginSchema],
@@ -210,7 +215,7 @@ const systemSettingsSchema = new Schema<SystemSettingsDocument>({
     type: Number,
     required: true,
     min: 0,
-    default: 20
+    default: 50
   },
   defaultFreeShippingThreshold: {
     type: Number,
@@ -316,6 +321,35 @@ const systemSettingsSchema = new Schema<SystemSettingsDocument>({
   facebookPixelId: {
     type: String,
     default: ''
+  },
+  
+  // Maintenance Settings
+  maintenanceMode: {
+    type: Boolean,
+    default: false
+  },
+  maintenanceMessage: {
+    type: String,
+    default: 'المنصة تحت الصيانة. يرجى المحاولة لاحقاً.'
+  },
+  
+  // External Company Integration Settings
+  defaultExternalCompanyId: {
+    type: Schema.Types.ObjectId,
+    ref: 'ExternalCompany',
+    index: true
+  },
+  autoCreatePackages: {
+    type: Boolean,
+    default: true,
+    // If true: Package is created immediately when order is created
+    // If false: Package is created only when order status changes to ready_for_shipping
+  },
+  createPackageOnOrderCreate: {
+    type: Boolean,
+    default: true,
+    // Alias for autoCreatePackages - for backward compatibility
+    // If true: Order is sent to shipping company immediately upon creation
   }
 }, {
   timestamps: true,
@@ -396,4 +430,13 @@ systemSettingsSchema.methods.calculateWithdrawalFees = function(amount: number):
   return (amount * this.withdrawalSettings.withdrawalFees) / 100;
 };
 
-export default mongoose.models.SystemSettings || mongoose.model<SystemSettingsDocument>('SystemSettings', systemSettingsSchema); 
+// Export model with proper handling for Next.js hot reloading
+let SystemSettingsModel: mongoose.Model<SystemSettingsDocument>;
+
+if (mongoose.models && mongoose.models.SystemSettings) {
+  SystemSettingsModel = mongoose.models.SystemSettings as mongoose.Model<SystemSettingsDocument>;
+} else {
+  SystemSettingsModel = mongoose.model<SystemSettingsDocument>('SystemSettings', systemSettingsSchema);
+}
+
+export default SystemSettingsModel; 

@@ -3,6 +3,8 @@ import SystemSettings from '@/models/SystemSettings';
 import { settingsCache, generateCacheKey } from './cache';
 import { logger } from './logger';
 
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 export async function getSystemSettings() {
   try {
     const cacheKey = generateCacheKey('system', 'settings');
@@ -10,7 +12,17 @@ export async function getSystemSettings() {
     // Try to get from cache
     const cached = settingsCache.get(cacheKey);
     if (cached) {
-      return cached;
+      // Check if cache is still valid (TTL check)
+      const cacheTime = (cached as any).__cacheTime || 0;
+      const now = Date.now();
+      if (now - cacheTime < CACHE_TTL) {
+        // Remove cache metadata before returning
+        const { __cacheTime, ...cleanCached } = cached as any;
+        return cleanCached;
+      } else {
+        // Cache expired, remove it
+        settingsCache.delete(cacheKey);
+      }
     }
     
     await connectDB();
@@ -24,12 +36,8 @@ export async function getSystemSettings() {
           maximumWithdrawal: 50000,
           withdrawalFees: 0
         },
-        commissionRates: [
-          { minPrice: 0, maxPrice: 1000, rate: 10 },
-          { minPrice: 1001, maxPrice: 5000, rate: 8 },
-          { minPrice: 5001, maxPrice: 10000, rate: 6 },
-          { minPrice: 10001, maxPrice: 999999, rate: 5 }
-        ],
+        // commissionRates deprecated - using adminProfitMargins only
+        commissionRates: [],
         adminProfitMargins: [
           { minPrice: 1, maxPrice: 100, margin: 10 },
           { minPrice: 101, maxPrice: 500, margin: 8 },
@@ -70,14 +78,22 @@ export async function getSystemSettings() {
         facebookPixelId: ''
       };
       
-      // Cache default settings
-      settingsCache.set(cacheKey, defaultSettings);
+      // Cache default settings with TTL metadata
+      const cachedDefault = {
+        ...defaultSettings,
+        __cacheTime: Date.now()
+      };
+      settingsCache.set(cacheKey, cachedDefault);
       return defaultSettings;
     }
     
-    // Cache the settings
+    // Cache the settings with TTL metadata
     const settingsObject = settings.toObject();
-    settingsCache.set(cacheKey, settingsObject);
+    const cachedObject = {
+      ...settingsObject,
+      __cacheTime: Date.now()
+    };
+    settingsCache.set(cacheKey, cachedObject);
     
     return settingsObject;
   } catch (error) {
@@ -113,7 +129,14 @@ export async function validateOrderValue(orderTotal: number) {
   return { valid: true };
 }
 
-export async function calculateShippingCost(orderTotal: number, governorateName?: string) {
+/**
+ * Calculate shipping cost based on order total and village ID
+ * Uses Village model for accurate delivery costs
+ * @param orderTotal - Total order amount
+ * @param villageId - Optional village ID for specific delivery cost
+ * @returns Shipping cost (0 if free shipping threshold is met)
+ */
+export async function calculateShippingCost(orderTotal: number, villageId?: number) {
   const settings = await getSystemSettings();
   if (!settings) return 0;
   
@@ -122,7 +145,42 @@ export async function calculateShippingCost(orderTotal: number, governorateName?
     return 0; // Free shipping
   }
   
-  // If governorate is specified, get shipping cost for that governorate
+  // If villageId is specified, get shipping cost from Village model
+  if (villageId) {
+    try {
+      const Village = (await import('@/models/Village')).default;
+      const village = await Village.findOne({ 
+        villageId: villageId,
+        isActive: true 
+      }).lean();
+      
+      if (village) {
+        return (village as any).deliveryCost || settings.defaultShippingCost;
+      }
+    } catch (error) {
+      logger.warn('Error fetching village for shipping cost', { villageId, error });
+      // Fallback to default if village lookup fails
+    }
+  }
+  
+  // Fallback to default shipping cost
+  return settings.defaultShippingCost;
+}
+
+/**
+ * @deprecated Use calculateShippingCost with villageId instead
+ * Legacy function for backward compatibility with governorate-based system
+ */
+export async function calculateShippingCostLegacy(orderTotal: number, governorateName?: string) {
+  const settings = await getSystemSettings();
+  if (!settings) return 0;
+  
+  // Check for free shipping threshold
+  if (orderTotal >= settings.defaultFreeShippingThreshold) {
+    return 0; // Free shipping
+  }
+  
+  // If governorate is specified, get shipping cost for that governorate (legacy)
   if (governorateName && settings.governorates) {
     const governorate = settings.governorates.find((g: any) => g.name === governorateName && g.isActive);
     if (governorate) {
@@ -134,15 +192,13 @@ export async function calculateShippingCost(orderTotal: number, governorateName?
   return settings.defaultShippingCost;
 }
 
+// Deprecated: calculateCommission - use calculateAdminProfitForOrder instead
+// This function is kept for backward compatibility only
 export async function calculateCommission(orderTotal: number) {
-  const settings = await getSystemSettings();
-  if (!settings) return 0;
-  
-  const rate = settings.commissionRates.find(
-    (rate: { minPrice: number; maxPrice: number; rate: number }) => orderTotal >= rate.minPrice && orderTotal <= rate.maxPrice
-  );
-  
-  return rate ? (orderTotal * rate.rate / 100) : 0;
+  // This function is deprecated - commission is now calculated using adminProfitMargins
+  // Return 0 to avoid incorrect calculations
+  logger.warn('calculateCommission is deprecated - use calculateAdminProfitForOrder instead', { orderTotal });
+  return 0;
 }
 
 // Calculate admin profit margin for a product based on its price

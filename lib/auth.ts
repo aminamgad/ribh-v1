@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import { NextRequest, NextResponse } from 'next/server';
 import { User, UserRole } from '@/types/index';
 import { logger } from './logger';
@@ -33,7 +33,29 @@ const getJWTSecret = (): string => {
 };
 
 const JWT_SECRET = getJWTSecret();
-const JWT_EXPIRES_IN = '7d';
+
+// Get JWT expiration from system settings
+async function getJWTExpiration(): Promise<string> {
+  try {
+    const { settingsManager } = await import('@/lib/settings-manager');
+    const settings = await settingsManager.getSettings();
+    const sessionTimeout = settings?.sessionTimeout || 60; // Default 60 minutes
+    
+    // Convert minutes to JWT expiration format
+    if (sessionTimeout < 60) {
+      return `${sessionTimeout}m`; // minutes
+    } else if (sessionTimeout < 1440) {
+      const hours = Math.floor(sessionTimeout / 60);
+      return `${hours}h`; // hours
+    } else {
+      const days = Math.floor(sessionTimeout / 1440);
+      return `${days}d`; // days
+    }
+  } catch (error) {
+    // Fallback to default
+    return '7d';
+  }
+}
 
 export interface JWTPayload {
   userId: string;
@@ -42,8 +64,15 @@ export interface JWTPayload {
   name: string;
 }
 
-export function generateToken(payload: JWTPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+export async function generateToken(payload: JWTPayload): Promise<string> {
+  const expiresIn = await getJWTExpiration();
+  const options: SignOptions = { expiresIn: expiresIn as any };
+  return jwt.sign(payload, JWT_SECRET, options);
+}
+
+// Synchronous version for backward compatibility (uses default expiration)
+export function generateTokenSync(payload: JWTPayload): string {
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
 }
 
 export function verifyToken(token: string): JWTPayload | null {
@@ -141,6 +170,23 @@ export function requireAuth(handler: AuthHandler) {
     try {
       logger.debug('Auth check for request', { method: req.method, url: req.url });
       
+      // Check maintenance mode first (skip for admin routes, auth routes, and external company routes)
+      if (!req.nextUrl.pathname.startsWith('/api/admin') && 
+          !req.nextUrl.pathname.startsWith('/api/auth/login') &&
+          !req.nextUrl.pathname.startsWith('/api/auth/register') &&
+          !req.nextUrl.pathname.startsWith('/api/external_company')) {
+        try {
+          const { checkMaintenanceMode } = await import('@/lib/maintenance');
+          const maintenanceResponse = await checkMaintenanceMode(req);
+          if (maintenanceResponse) {
+            return maintenanceResponse;
+          }
+        } catch (error) {
+          // If maintenance check fails, continue with auth
+          logger.debug('Maintenance check failed, continuing with auth', { error });
+        }
+      }
+      
       const user = await getCurrentUser(req);
       if (!user) {
         logger.warn('Authentication failed - no user found', { url: req.url });
@@ -148,6 +194,25 @@ export function requireAuth(handler: AuthHandler) {
           { success: false, message: 'غير مصرح لك بالوصول. يرجى تسجيل الدخول' },
           { status: 401 }
         );
+      }
+      
+      // If user is admin, they can bypass maintenance mode (already checked above)
+      // For non-admin users, check maintenance mode again after auth
+      if (user.role !== 'admin' && 
+          !req.nextUrl.pathname.startsWith('/api/admin') && 
+          !req.nextUrl.pathname.startsWith('/api/auth/login') &&
+          !req.nextUrl.pathname.startsWith('/api/auth/register') &&
+          !req.nextUrl.pathname.startsWith('/api/external_company')) {
+        try {
+          const { checkMaintenanceMode } = await import('@/lib/maintenance');
+          const maintenanceResponse = await checkMaintenanceMode(req);
+          if (maintenanceResponse) {
+            return maintenanceResponse;
+          }
+        } catch (error) {
+          // If maintenance check fails, continue
+          logger.debug('Maintenance check failed after auth, continuing', { error });
+        }
       }
       
       logger.debug('Authentication successful', { userId: user._id, email: user.email });

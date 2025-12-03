@@ -11,6 +11,7 @@ import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { ChatProvider } from '@/components/providers/ChatProvider';
 import { SettingsProvider } from '@/components/providers/SettingsProvider';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { Analytics } from '@/components/Analytics';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -116,6 +117,7 @@ export default function RootLayout({
                          }}
                       />
                       <ErrorBoundary>
+                        <Analytics />
                         {children}
                       </ErrorBoundary>
                     </ChatProvider>

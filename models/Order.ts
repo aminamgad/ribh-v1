@@ -191,6 +191,10 @@ const orderSchema = new Schema<OrderDocument>({
     type: String,
     trim: true
   },
+  packageId: {
+    type: Number,
+    index: true
+  },
   cancellationReason: {
     type: String,
     trim: true,
@@ -257,6 +261,14 @@ const orderSchema = new Schema<OrderDocument>({
     type: Schema.Types.ObjectId,
     ref: 'FulfillmentRequest',
     default: null
+  },
+  // Profit distribution tracking
+  profitsDistributed: {
+    type: Boolean,
+    default: false
+  },
+  profitsDistributedAt: {
+    type: Date
   }
 } as any, {
   timestamps: true,
@@ -284,15 +296,17 @@ orderSchema.index({ status: 1, paymentStatus: 1, createdAt: -1 }); // For order 
 orderSchema.index({ customerRole: 1, status: 1 }); // For role-based order filtering
 orderSchema.index({ 'items.productId': 1 }); // For product order history
 orderSchema.index({ fulfillmentRequestId: 1 }); // For orders by fulfillment request
+orderSchema.index({ status: 1, profitsDistributed: 1 }); // For profit distribution queries
+orderSchema.index({ profitsDistributed: 1, deliveredAt: -1 }); // For pending profits queries
 
 // Virtual for order summary
 orderSchema.virtual('itemCount').get(function() {
   return this.items.reduce((total, item) => total + item.quantity, 0);
 });
 
-// Virtual for profit calculation
+// Virtual for profit calculation (supplier profit = subtotal - commission - marketerProfit)
 orderSchema.virtual('supplierProfit').get(function() {
-  return this.subtotal - this.commission;
+  return this.subtotal - this.commission - (this.marketerProfit || 0);
 });
 
 // Pre-save middleware to generate sequential order numbers

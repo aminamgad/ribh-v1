@@ -8,57 +8,63 @@ import { sanitizeString, sanitizeEmail, sanitizePhone, sanitizeUrl } from '@/lib
 import { logger } from '@/lib/logger';
 import { handleApiError } from '@/lib/error-handler';
 import { authRateLimit } from '@/lib/rate-limiter';
-
-const registerSchema = z.object({
-  name: z.string().min(2, 'الاسم يجب أن يكون حرفين على الأقل').max(100, 'الاسم لا يمكن أن يتجاوز 100 حرف'),
-  email: z.string().email('البريد الإلكتروني غير صحيح'),
-  phone: z.string().regex(/^[\+]?[0-9\s\-\(\)]{7,20}$/, 'رقم الهاتف غير صحيح'),
-  password: z.string().min(8, 'كلمة المرور يجب أن تكون 8 أحرف على الأقل'),
-  confirmPassword: z.string(),
-  role: z.enum(['supplier', 'marketer']),
-  // Marketing account fields
-  country: z.string().optional(),
-  dateOfBirth: z.string().optional(),
-  gender: z.enum(['male', 'female']).optional().or(z.literal('')),
-  websiteLink: z.string().url('رابط الموقع غير صحيح').optional().or(z.literal('')),
-  // Supplier account fields
-  companyName: z.string().optional(),
-  commercialRegisterNumber: z.string().optional(),
-  address: z.string().optional(),
-  // Legacy field
-  taxId: z.string().optional(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: 'كلمات المرور غير متطابقة',
-  path: ['confirmPassword'],
-}).refine((data) => {
-  // Marketing account validation
-  if (data.role === 'marketer') {
-    if (!data.country) return false;
-    if (!data.dateOfBirth) return false;
-    if (!data.gender) return false;
-  }
-  return true;
-}, {
-  message: 'جميع الحقول مطلوبة لحساب المسوق',
-  path: ['role'],
-}).refine((data) => {
-  // Supplier account validation
-  if (data.role === 'supplier') {
-    if (!data.companyName) return false;
-    if (!data.commercialRegisterNumber) return false;
-    if (!data.address) return false;
-  }
-  return true;
-}, {
-  message: 'جميع الحقول مطلوبة لحساب المورد',
-  path: ['role'],
-});
+import { settingsManager } from '@/lib/settings-manager';
 
 async function registerHandler(req: NextRequest) {
   try {
     await connectDB();
 
     const body = await req.json();
+    
+    // Get system settings for password validation
+    const settings = await settingsManager.getSettings();
+    const minPasswordLength = settings?.passwordMinLength || 8;
+    
+    // Create dynamic schema with system settings
+    const registerSchema = z.object({
+      name: z.string().min(2, 'الاسم يجب أن يكون حرفين على الأقل').max(100, 'الاسم لا يمكن أن يتجاوز 100 حرف'),
+      email: z.string().email('البريد الإلكتروني غير صحيح'),
+      phone: z.string().regex(/^[\+]?[0-9\s\-\(\)]{7,20}$/, 'رقم الهاتف غير صحيح'),
+      password: z.string().min(minPasswordLength, `كلمة المرور يجب أن تكون ${minPasswordLength} أحرف على الأقل`),
+      confirmPassword: z.string(),
+      role: z.enum(['supplier', 'marketer']),
+      // Marketing account fields
+      country: z.string().optional(),
+      dateOfBirth: z.string().optional(),
+      gender: z.enum(['male', 'female']).optional().or(z.literal('')),
+      websiteLink: z.string().url('رابط الموقع غير صحيح').optional().or(z.literal('')),
+      // Supplier account fields
+      companyName: z.string().optional(),
+      commercialRegisterNumber: z.string().optional(),
+      address: z.string().optional(),
+      // Legacy field
+      taxId: z.string().optional(),
+    }).refine((data) => data.password === data.confirmPassword, {
+      message: 'كلمات المرور غير متطابقة',
+      path: ['confirmPassword'],
+    }).refine((data) => {
+      // Marketing account validation
+      if (data.role === 'marketer') {
+        if (!data.country) return false;
+        if (!data.dateOfBirth) return false;
+        if (!data.gender) return false;
+      }
+      return true;
+    }, {
+      message: 'جميع الحقول مطلوبة لحساب المسوق',
+      path: ['role'],
+    }).refine((data) => {
+      // Supplier account validation
+      if (data.role === 'supplier') {
+        if (!data.companyName) return false;
+        if (!data.commercialRegisterNumber) return false;
+        if (!data.address) return false;
+      }
+      return true;
+    }, {
+      message: 'جميع الحقول مطلوبة لحساب المورد',
+      path: ['role'],
+    });
     
     // Sanitize input before validation
     const sanitizedBody = {
@@ -133,7 +139,7 @@ async function registerHandler(req: NextRequest) {
     await wallet.save();
 
     // Generate token
-    const token = generateToken({
+    const token = await generateToken({
       userId: user._id.toString(),
       email: user.email,
       role: user.role,

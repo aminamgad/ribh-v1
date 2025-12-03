@@ -9,6 +9,9 @@ export interface ExternalCompanyDocument extends Document {
   createdAt: Date;
   updatedAt: Date;
   lastUsed?: Date;
+  // API endpoint for calling external shipping company
+  apiEndpointUrl?: string; // URL of external shipping company API (e.g., https://shipping-company.com/api/create-package)
+  apiToken?: string; // Bearer token for authenticating with external shipping company API
   generateApiKey(): string;
   generateApiSecret(): string;
   verifyApiKey(apiKey: string): boolean;
@@ -38,6 +41,29 @@ const externalCompanySchema = new Schema<ExternalCompanyDocument>({
   },
   lastUsed: {
     type: Date
+  },
+  // API endpoint for calling external shipping company
+  apiEndpointUrl: {
+    type: String,
+    required: false,
+    trim: true,
+    validate: {
+      validator: function(v: string | undefined) {
+        if (!v) return true; // Optional field
+        try {
+          new URL(v);
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      message: 'apiEndpointUrl must be a valid URL'
+    }
+  },
+  apiToken: {
+    type: String,
+    required: false,
+    trim: true
   }
 }, {
   timestamps: true

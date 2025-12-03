@@ -62,28 +62,22 @@ export const GET = async (req: NextRequest) => {
       googleAnalyticsId: settings.googleAnalyticsId,
       facebookPixelId: settings.facebookPixelId,
       
-      // Legacy fields for backward compatibility
+      // Maintenance settings
+      maintenanceMode: settings.maintenanceMode || false,
+      maintenanceMessage: settings.maintenanceMessage || '',
+      
+      // Financial settings (public info only)
+      withdrawalSettings: {
+        minimumWithdrawal: settings.withdrawalSettings?.minimumWithdrawal || 100,
+        maximumWithdrawal: settings.withdrawalSettings?.maximumWithdrawal || 50000,
+        withdrawalFees: settings.withdrawalSettings?.withdrawalFees || 0
+      },
+      
+      // Legacy fields for backward compatibility (deprecated - use new fields)
       freeShippingThreshold: settings.defaultFreeShippingThreshold,
       shippingCost: settings.defaultShippingCost,
       maxProductDescription: settings.maxProductDescriptionLength,
       whatsappNotifications: settings.smsNotifications,
-      requireProductImages: true,
-      requireAdminApproval: !settings.autoApproveProducts,
-      autoApproveOrders: false,
-      maintenanceMode: false,
-      maintenanceMessage: '',
-      facebookUrl: '',
-      instagramUrl: '',
-      twitterUrl: '',
-      linkedinUrl: '',
-      minimumWithdrawal: 100,
-      maximumWithdrawal: 10000,
-      withdrawalFee: 2.5,
-      currency: '₪',
-      shippingCompanies: ['شركة الشحن السريع', 'شركة الشحن الموثوقة'],
-      requireTwoFactor: false,
-      commissionRates: settings.commissionRates,
-      withdrawalSettings: settings.withdrawalSettings,
       supportWhatsApp: settings.contactPhone
     };
     

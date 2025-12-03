@@ -35,7 +35,21 @@ export default function LoginPage() {
         toast.success('تم تسجيل الدخول بنجاح');
         router.push('/dashboard');
       } else {
-        toast.error(result.error || 'فشل تسجيل الدخول');
+        // Check if it's a maintenance mode error
+        if (result.maintenance) {
+          toast.error(result.error || 'المنصة تحت الصيانة. يرجى المحاولة لاحقاً.', {
+            duration: 6000,
+            icon: '🔧',
+            style: {
+              background: '#FF9800',
+              color: '#fff',
+              padding: '16px',
+              borderRadius: '8px',
+            }
+          });
+        } else {
+          toast.error(result.error || 'فشل تسجيل الدخول');
+        }
       }
     } catch (error) {
       toast.error('حدث خطأ في الاتصال');
@@ -171,15 +185,15 @@ export default function LoginPage() {
             </div>
 
             {/* Remember Me & Forgot Password */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center">
                 <input
                   id="remember-me"
                   name="remember-me"
                   type="checkbox"
-                  className="h-4 w-4 text-[#FF9800] focus:ring-[#FF9800] border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800"
+                  className="relative"
                 />
-                <label htmlFor="remember-me" className="mr-2 block text-sm text-gray-700 dark:text-gray-300">
+                <label htmlFor="remember-me" className="mr-2 block text-xs sm:text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
                   تذكرني
                 </label>
               </div>

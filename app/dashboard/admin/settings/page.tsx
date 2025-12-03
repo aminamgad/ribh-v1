@@ -26,12 +26,7 @@ import {
   Truck,
   MapPin
 } from 'lucide-react';
-
-interface CommissionRate {
-  minPrice: number;
-  maxPrice: number;
-  rate: number;
-}
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface AdminProfitMargin {
   minPrice: number;
@@ -48,7 +43,7 @@ interface WithdrawalSettings {
 interface SystemSettings {
   financial: {
     withdrawalSettings: WithdrawalSettings;
-    commissionRates: CommissionRate[];
+    adminProfitMargins: AdminProfitMargin[];
   };
   general: {
     platformName: string;
@@ -113,12 +108,6 @@ export default function SettingsPage() {
       maximumWithdrawal: 50000,
       withdrawalFees: 0
     },
-    commissionRates: [
-      { minPrice: 0, maxPrice: 1000, rate: 10 },
-      { minPrice: 1001, maxPrice: 5000, rate: 8 },
-      { minPrice: 5001, maxPrice: 10000, rate: 6 },
-      { minPrice: 10001, maxPrice: 999999, rate: 5 }
-    ],
     adminProfitMargins: [
       { minPrice: 1, maxPrice: 100, margin: 10 },
       { minPrice: 101, maxPrice: 500, margin: 8 },
@@ -195,9 +184,6 @@ export default function SettingsPage() {
               maximumWithdrawal: data.settings.withdrawalSettings?.maximumWithdrawal || 50000,
               withdrawalFees: data.settings.withdrawalSettings?.withdrawalFees || 0
             },
-            commissionRates: data.settings.commissionRates || [
-              { minPrice: 0, maxPrice: 1000, rate: 10 }
-            ],
             adminProfitMargins: data.settings.adminProfitMargins || [
               { minPrice: 1, maxPrice: 100, margin: 10 },
               { minPrice: 101, maxPrice: 500, margin: 8 },
@@ -260,6 +246,12 @@ export default function SettingsPage() {
             defaultShippingCost: data.settings.defaultShippingCost || 50,
             defaultFreeShippingThreshold: data.settings.defaultFreeShippingThreshold || 500,
             governorates: data.settings.governorates || []
+          });
+
+          // Maintenance settings
+          setMaintenanceData({
+            maintenanceMode: data.settings.maintenanceMode !== undefined ? data.settings.maintenanceMode : false,
+            maintenanceMessage: data.settings.maintenanceMessage || 'المنصة تحت الصيانة. يرجى المحاولة لاحقاً.'
           });
         }
       } else {
@@ -340,30 +332,6 @@ export default function SettingsPage() {
     }
   };
 
-  // Commission rate handlers
-  const addCommissionRate = () => {
-    setFinancialData(prev => ({
-      ...prev,
-      commissionRates: [...(prev.commissionRates || []), { minPrice: 0, maxPrice: 0, rate: 0 }]
-    }));
-  };
-
-  const updateCommissionRate = (index: number, field: keyof CommissionRate, value: number) => {
-    setFinancialData(prev => ({
-      ...prev,
-      commissionRates: (prev.commissionRates || []).map((rate, i) => 
-        i === index ? { ...rate, [field]: value } : rate
-      )
-    }));
-  };
-
-  const removeCommissionRate = (index: number) => {
-    setFinancialData(prev => ({
-      ...prev,
-      commissionRates: (prev.commissionRates || []).filter((_, i) => i !== index)
-    }));
-  };
-
   // Admin profit margin handlers
   const addAdminProfitMargin = () => {
     setFinancialData(prev => ({
@@ -388,6 +356,12 @@ export default function SettingsPage() {
     }));
   };
 
+  // Maintenance settings state
+  const [maintenanceData, setMaintenanceData] = useState({
+    maintenanceMode: false,
+    maintenanceMessage: 'المنصة تحت الصيانة. يرجى المحاولة لاحقاً.'
+  });
+
   // Tab configuration
   const tabs = [
     { id: 'general', label: 'عام', icon: Settings },
@@ -398,7 +372,8 @@ export default function SettingsPage() {
     { id: 'security', label: 'الأمان', icon: Shield },
     { id: 'legal', label: 'قانوني', icon: FileText },
     { id: 'analytics', label: 'التحليلات', icon: BarChart3 },
-    { id: 'shipping', label: 'الشحن', icon: Truck }
+    { id: 'shipping', label: 'الشحن', icon: Truck },
+    { id: 'maintenance', label: 'الصيانة', icon: AlertCircle }
   ];
 
   if (loading) {
@@ -413,7 +388,7 @@ export default function SettingsPage() {
   }
 
   // Ensure data is loaded
-  if (!financialData?.withdrawalSettings || !financialData?.commissionRates) {
+  if (!financialData?.withdrawalSettings || !financialData?.adminProfitMargins) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center">
@@ -817,6 +792,16 @@ export default function SettingsPage() {
         {/* Shipping Settings */}
         {activeTab === 'shipping' && (
           <div className="space-y-6">
+            {/* Important Notice */}
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-2">ملاحظة مهمة:</h4>
+              <p className="text-sm text-blue-800 dark:text-blue-200">
+                النظام يستخدم <strong>نموذج القرى (Village Model)</strong> لتحديد تكاليف الشحن بناءً على <code>village_id</code> من ملف القرى.
+                إعدادات المحافظات (governorates) أدناه هي للتوافق مع الأنظمة القديمة فقط.
+                للتحديث الفعلي لتكاليف الشحن، يرجى استخدام <code>node scripts/import-villages.js</code> لاستيراد/تحديث القرى من ملف villages.json.
+              </p>
+            </div>
+            
             {/* General Shipping Settings */}
             <Card className="border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
               <CardHeader>
@@ -827,15 +812,13 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex items-center space-x-2 space-x-reverse">
-                    <input
-                      type="checkbox"
+                  <div>
+                    <Checkbox
                       id="shippingEnabled"
                       checked={shippingData.shippingEnabled}
                       onChange={(e) => setShippingData({ ...shippingData, shippingEnabled: e.target.checked })}
-                      className="rounded border-gray-300 text-[#FF9800] focus:ring-[#FF9800]"
+                      label="تفعيل الشحن"
                     />
-                    <Label htmlFor="shippingEnabled" className="text-gray-700 dark:text-gray-200">تفعيل الشحن</Label>
                   </div>
                   <div>
                     <Label htmlFor="defaultShippingCost" className="text-gray-700 dark:text-gray-200">تكلفة الشحن الافتراضية</Label>
@@ -901,9 +884,8 @@ export default function SettingsPage() {
                           className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                         />
                       </div>
-                      <div className="flex items-center space-x-2 space-x-reverse pt-6">
-                        <input
-                          type="checkbox"
+                      <div className="pt-6">
+                        <Checkbox
                           id={`zoneActive-${zoneIndex}`}
                           checked={(zone as any).isActive}
                           onChange={(e) => {
@@ -911,9 +893,8 @@ export default function SettingsPage() {
                             (newZones[zoneIndex] as any).isActive = e.target.checked;
                             setShippingData({ ...shippingData, governorates: newZones });
                           }}
-                          className="rounded border-gray-300 text-[#FF9800] focus:ring-[#FF9800]"
+                          label="نشط"
                         />
-                        <Label htmlFor={`zoneActive-${zoneIndex}`} className="text-gray-700 dark:text-gray-200 font-medium">نشط</Label>
                       </div>
                     </div>
 
@@ -1076,15 +1057,13 @@ export default function SettingsPage() {
                     className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
                 </div>
-                <div className="flex items-center space-x-2 space-x-reverse">
-                  <input
-                    type="checkbox"
+                <div>
+                  <Checkbox
                     id="autoApproveProducts"
                     checked={productData.autoApproveProducts}
                     onChange={(e) => setProductData({ ...productData, autoApproveProducts: e.target.checked })}
-                    className="rounded border-gray-300 text-[#FF9800] focus:ring-[#FF9800]"
+                    label="تفعيل الموافقة التلقائية على المنتجات"
                   />
-                  <Label htmlFor="autoApproveProducts" className="text-gray-700 dark:text-gray-200">تفعيل الموافقة التلقائية على المنتجات</Label>
                 </div>
               </div>
               
@@ -1111,35 +1090,29 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-center space-x-2 space-x-reverse">
-                  <input
-                    type="checkbox"
+                <div>
+                  <Checkbox
                     id="emailNotifications"
                     checked={notificationData.emailNotifications}
                     onChange={(e) => setNotificationData({ ...notificationData, emailNotifications: e.target.checked })}
-                    className="rounded border-gray-300 text-[#FF9800] focus:ring-[#FF9800]"
+                    label="الإشعارات البريدية"
                   />
-                  <Label htmlFor="emailNotifications" className="text-gray-700 dark:text-gray-200">الإشعارات البريدية</Label>
                 </div>
-                <div className="flex items-center space-x-2 space-x-reverse">
-                  <input
-                    type="checkbox"
+                <div>
+                  <Checkbox
                     id="smsNotifications"
                     checked={notificationData.smsNotifications}
                     onChange={(e) => setNotificationData({ ...notificationData, smsNotifications: e.target.checked })}
-                    className="rounded border-gray-300 text-[#FF9800] focus:ring-[#FF9800]"
+                    label="الإشعارات النصية"
                   />
-                  <Label htmlFor="smsNotifications" className="text-gray-700 dark:text-gray-200">الإشعارات النصية</Label>
                 </div>
-                <div className="flex items-center space-x-2 space-x-reverse">
-                  <input
-                    type="checkbox"
+                <div>
+                  <Checkbox
                     id="pushNotifications"
                     checked={notificationData.pushNotifications}
                     onChange={(e) => setNotificationData({ ...notificationData, pushNotifications: e.target.checked })}
-                    className="rounded border-gray-300 text-[#FF9800] focus:ring-[#FF9800]"
+                    label="الإشعارات الصوتية"
                   />
-                  <Label htmlFor="pushNotifications" className="text-gray-700 dark:text-gray-200">الإشعارات الصوتية</Label>
                 </div>
               </div>
               
@@ -1306,8 +1279,57 @@ export default function SettingsPage() {
           </Card>
         )}
 
+        {/* Maintenance Settings */}
+        {activeTab === 'maintenance' && (
+          <Card className="border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+            <CardHeader>
+              <CardTitle className="flex items-center text-gray-900 dark:text-white">
+                <AlertCircle className="w-5 h-5 ml-2 text-yellow-600 dark:text-yellow-400" />
+                إعدادات الصيانة
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                  <strong>تحذير:</strong> عند تفعيل وضع الصيانة، سيتم حظر جميع المستخدمين من الوصول إلى المنصة باستثناء الأدمن.
+                </p>
+              </div>
+              
+              <div>
+                <Checkbox
+                  id="maintenanceMode"
+                  checked={maintenanceData.maintenanceMode}
+                  onChange={(e) => setMaintenanceData({ ...maintenanceData, maintenanceMode: e.target.checked })}
+                  label="تفعيل وضع الصيانة"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="maintenanceMessage" className="text-gray-700 dark:text-gray-200">رسالة الصيانة</Label>
+                <Textarea
+                  id="maintenanceMessage"
+                  value={maintenanceData.maintenanceMessage}
+                  onChange={(e) => setMaintenanceData({ ...maintenanceData, maintenanceMessage: e.target.value })}
+                  rows={4}
+                  className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  placeholder="المنصة تحت الصيانة. يرجى المحاولة لاحقاً."
+                />
+              </div>
+              
+              <Button 
+                onClick={() => saveSettings('maintenance', maintenanceData)}
+                disabled={saving}
+                className="bg-[#FF9800] hover:bg-[#F57C00] dark:bg-[#FF9800] dark:hover:bg-[#F57C00]"
+              >
+                <Save className="w-4 h-4 ml-2" />
+                {saving ? 'جاري الحفظ...' : 'حفظ الإعدادات'}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Other tabs can be implemented similarly */}
-        {activeTab !== 'general' && activeTab !== 'financial' && activeTab !== 'orders' && activeTab !== 'products' && activeTab !== 'notifications' && activeTab !== 'security' && activeTab !== 'legal' && activeTab !== 'analytics' && activeTab !== 'shipping' && (
+        {activeTab !== 'general' && activeTab !== 'financial' && activeTab !== 'orders' && activeTab !== 'products' && activeTab !== 'notifications' && activeTab !== 'security' && activeTab !== 'legal' && activeTab !== 'analytics' && activeTab !== 'shipping' && activeTab !== 'maintenance' && (
           <Card className="border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
             <CardHeader>
               <CardTitle className="flex items-center text-gray-900 dark:text-white">

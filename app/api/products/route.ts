@@ -29,8 +29,8 @@ async function getProductSchema() {
   
   const currentSettings = settings || defaultSettings;
   const maxProductImages = currentSettings.maxProductImages || 10;
-  const maxProductDescription = currentSettings.maxProductDescription || 2000;
-  const requireProductImages = currentSettings.requireProductImages !== false; // Default true
+  const maxProductDescription = (currentSettings as any).maxProductDescription || (currentSettings as any).maxProductDescriptionLength || 2000;
+  const requireProductImages = (currentSettings as any).requireProductImages !== false; // Default true
   
   return z.object({
     name: z.string().min(3, 'اسم المنتج يجب أن يكون 3 أحرف على الأقل'),

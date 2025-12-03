@@ -213,6 +213,9 @@ export interface Order {
   refundedAt?: Date;
   refundedBy?: string;
   fulfillmentRequestId?: string; // Link to fulfillment request
+  // Profit distribution tracking
+  profitsDistributed?: boolean;
+  profitsDistributedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }

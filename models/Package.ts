@@ -4,6 +4,7 @@ import Counter from './Counter';
 export interface PackageDocument extends Document {
   packageId: number; // Auto-incremented ID for external reference
   externalCompanyId: mongoose.Types.ObjectId;
+  orderId?: mongoose.Types.ObjectId; // Optional reference to Order (if created from order)
   toName: string;
   toPhone: string;
   alterPhone: string;
@@ -23,13 +24,17 @@ const packageSchema = new Schema<PackageDocument>({
   packageId: {
     type: Number,
     unique: true,
-    index: true
+    sparse: true // Allow multiple null values, but enforce uniqueness for non-null values
   },
   externalCompanyId: {
     type: Schema.Types.ObjectId,
     ref: 'ExternalCompany',
     required: [true, 'معرف الشركة الخارجية مطلوب'],
     index: true
+  },
+  orderId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Order'
   },
   toName: {
     type: String,
@@ -86,7 +91,6 @@ const packageSchema = new Schema<PackageDocument>({
     required: [true, 'الباركود مطلوب'],
     unique: true,
     trim: true,
-    index: true,
     maxlength: [100, 'الباركود لا يمكن أن يتجاوز 100 حرف']
   },
   status: {
@@ -105,10 +109,10 @@ packageSchema.pre('save', async function(next) {
     try {
       const counter = await Counter.findByIdAndUpdate(
         { _id: 'packageId' },
-        { $inc: { sequence: 1 } },
+        { $inc: { sequence_value: 1 } },
         { new: true, upsert: true }
       );
-      this.packageId = counter.sequence;
+      this.packageId = counter.sequence_value;
       next();
     } catch (error: unknown) {
       next(error as Error);
@@ -119,10 +123,11 @@ packageSchema.pre('save', async function(next) {
 });
 
 // Indexes
-packageSchema.index({ packageId: 1 });
+packageSchema.index({ packageId: 1 }, { unique: true, sparse: true }); // Sparse index allows multiple null values
 packageSchema.index({ barcode: 1 });
 packageSchema.index({ externalCompanyId: 1, status: 1 });
 packageSchema.index({ villageId: 1, status: 1 });
+packageSchema.index({ orderId: 1 });
 packageSchema.index({ createdAt: -1 });
 
 const Package = mongoose.models.Package || mongoose.model<PackageDocument>('Package', packageSchema);

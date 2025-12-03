@@ -31,7 +31,20 @@ export async function sendNotificationToUser(
   notificationData: NotificationData,
   options: SendNotificationOptions = {}
 ): Promise<void> {
+  // Get system settings for notification preferences
+  const { settingsManager } = await import('@/lib/settings-manager');
+  const settings = await settingsManager.getSettings();
+  
+  // Check if notifications are enabled in system settings
+  const systemEmailEnabled = settings?.emailNotifications !== false;
+  const systemSmsEnabled = settings?.smsNotifications !== false;
+  const systemPushEnabled = settings?.pushNotifications !== false;
+  
   const { sendEmail = false, sendSocket = true } = options;
+  
+  // Override sendEmail if system email notifications are disabled
+  const shouldSendEmail = sendEmail && systemEmailEnabled;
+  const shouldSendSocket = sendSocket && systemPushEnabled;
 
   try {
     // Always save to database FIRST (this is the most important)
@@ -53,7 +66,7 @@ export async function sendNotificationToUser(
     });
 
     // Try to send via Socket.io if available (for real-time updates)
-    if (sendSocket) {
+    if (shouldSendSocket) {
       try {
         const { getSocketIO } = await import('@/lib/socket');
         const io = getSocketIO();
@@ -75,8 +88,8 @@ export async function sendNotificationToUser(
       }
     }
 
-    // Send email notification if requested and user has email notifications enabled
-    if (sendEmail) {
+    // Send email notification if requested and system/user email notifications are enabled
+    if (shouldSendEmail) {
       try {
         const User = (await import('@/models/User')).default;
         const user = await User.findById(userId).select('email emailNotifications').lean();

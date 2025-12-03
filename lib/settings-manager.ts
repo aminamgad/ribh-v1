@@ -1,4 +1,5 @@
 import { getSystemSettings, clearSettingsCache, validateOrderValue, calculateShippingCost, calculateCommission, validateWithdrawalAmount, calculateWithdrawalFees, getAdminProfitMargin, calculateAdminProfitForProduct, calculateAdminProfitForOrder } from './settings';
+import { logger } from './logger';
 
 // Settings Manager class to provide a consistent interface
 class SettingsManager {
@@ -25,11 +26,19 @@ class SettingsManager {
     return await validateOrderValue(orderTotal);
   }
 
-  async calculateShipping(orderTotal: number) {
-    return await calculateShippingCost(orderTotal);
+  async calculateShipping(orderTotal: number, villageId?: number) {
+    return await calculateShippingCost(orderTotal, villageId);
+  }
+  
+  // Legacy method for backward compatibility
+  async calculateShippingLegacy(orderTotal: number, governorateName?: string) {
+    const { calculateShippingCostLegacy } = await import('./settings');
+    return await calculateShippingCostLegacy(orderTotal, governorateName);
   }
 
+  // Deprecated: calculateCommission - use calculateAdminProfitForOrder instead
   async calculateCommission(orderTotal: number) {
+    logger.warn('calculateCommission is deprecated - use calculateAdminProfitForOrder instead', { orderTotal });
     return await calculateCommission(orderTotal);
   }
 

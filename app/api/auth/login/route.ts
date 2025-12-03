@@ -5,6 +5,7 @@ import { generateToken } from '@/lib/auth';
 import { z } from 'zod';
 import { authRateLimit } from '@/lib/rate-limiter';
 import { handleApiError, safeLogError } from '@/lib/error-handler';
+import { settingsManager } from '@/lib/settings-manager';
 
 const loginSchema = z.object({
   email: z.string().email('البريد الإلكتروني غير صحيح'),
@@ -20,6 +21,11 @@ async function loginHandler(req: NextRequest) {
     // Validate input
     const validatedData = loginSchema.parse(body);
 
+    // Get system settings for max login attempts
+    const settings = await settingsManager.getSettings();
+    const maxLoginAttempts = settings?.maxLoginAttempts || 5;
+    const lockoutDuration = 30 * 60 * 1000; // 30 minutes in milliseconds
+
     // Find user by email
     const user = await User.findOne({ email: validatedData.email.toLowerCase() });
     
@@ -28,6 +34,25 @@ async function loginHandler(req: NextRequest) {
         { success: false, error: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' },
         { status: 401 }
       );
+    }
+
+    // Check if account is locked
+    if (user.lockUntil && user.lockUntil > new Date()) {
+      const remainingMinutes = Math.ceil((user.lockUntil.getTime() - Date.now()) / 60000);
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: `تم حظر الحساب بسبب محاولات تسجيل دخول خاطئة متعددة. يرجى المحاولة بعد ${remainingMinutes} دقيقة` 
+        },
+        { status: 423 } // 423 Locked
+      );
+    }
+
+    // Reset lock if lockout period has passed
+    if (user.lockUntil && user.lockUntil <= new Date()) {
+      user.loginAttempts = 0;
+      user.lockUntil = undefined;
+      await user.save();
     }
 
     // Check if user is active
@@ -50,8 +75,29 @@ async function loginHandler(req: NextRequest) {
     const isPasswordValid = await user.comparePassword(validatedData.password);
     
     if (!isPasswordValid) {
+      // Increment login attempts
+      const attempts = (user.loginAttempts || 0) + 1;
+      user.loginAttempts = attempts;
+
+      // Lock account if max attempts reached
+      if (attempts >= maxLoginAttempts) {
+        user.lockUntil = new Date(Date.now() + lockoutDuration);
+        await user.save();
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: `تم حظر الحساب بسبب ${maxLoginAttempts} محاولات تسجيل دخول خاطئة. يرجى المحاولة بعد 30 دقيقة` 
+          },
+          { status: 423 } // 423 Locked
+        );
+      }
+
+      await user.save();
       return NextResponse.json(
-        { success: false, error: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' },
+        { 
+          success: false, 
+          error: `البريد الإلكتروني أو كلمة المرور غير صحيحة. المحاولات المتبقية: ${maxLoginAttempts - attempts}` 
+        },
         { status: 401 }
       );
     }
@@ -62,8 +108,25 @@ async function loginHandler(req: NextRequest) {
     user.lockUntil = undefined;
     await user.save();
 
+    // Check maintenance mode - if enabled and user is not admin, return maintenance message
+    if (user.role !== 'admin') {
+      const maintenanceStatus = await settingsManager.getSettings();
+      if (maintenanceStatus?.maintenanceMode) {
+        const maintenanceMessage = maintenanceStatus.maintenanceMessage || 'المنصة تحت الصيانة. يرجى المحاولة لاحقاً.';
+        return NextResponse.json(
+          {
+            success: false,
+            maintenance: true,
+            error: maintenanceMessage,
+            message: maintenanceMessage
+          },
+          { status: 503 }
+        );
+      }
+    }
+
     // Generate token
-    const token = generateToken({
+    const token = await generateToken({
       userId: user._id.toString(),
       email: user.email,
       role: user.role,

@@ -20,11 +20,12 @@ export const POST = withAuth(async (req: NextRequest, user: any) => {
       itemsCount: items?.length
     });
     
-    // Calculate commission based on product prices (new system)
+    // Calculate commission based on product prices (using adminProfitMargins only)
     let commission = 0;
     let commissionRate = 0;
+    
     if (items && Array.isArray(items) && items.length > 0) {
-      // Use new system: calculate profit based on individual product prices
+      // Use adminProfitMargins: calculate profit based on individual product prices
       commission = await settingsManager.calculateAdminProfitForOrder(
         items.map((item: any) => ({
           unitPrice: item.unitPrice || item.price || 0,
@@ -36,22 +37,13 @@ export const POST = withAuth(async (req: NextRequest, user: any) => {
         commissionRate = (commission / orderTotal) * 100;
       }
     } else {
-      // Fallback to old system if items not provided
-      const settings = await (await import('@/models/SystemSettings')).default.findOne();
-      const commissionRates = settings?.commissionRates || [
-        { minPrice: 0, maxPrice: 1000, rate: 10 },
-        { minPrice: 1001, maxPrice: 5000, rate: 8 },
-        { minPrice: 5001, maxPrice: 10000, rate: 6 },
-        { minPrice: 10001, maxPrice: 999999, rate: 5 }
-      ];
-      
-      commissionRate = 5;
-      for (const rate of commissionRates) {
-        if (orderTotal >= rate.minPrice && orderTotal <= rate.maxPrice) {
-          commissionRate = rate.rate;
-          break;
-        }
-      }
+      // If items not provided, estimate using average margin (5% default)
+      // This is a fallback only - should not happen in normal flow
+      logger.warn('calculate-profits called without items, using default margin', {
+        orderTotal,
+        customerRole
+      });
+      commissionRate = 5; // Default margin
       commission = (orderTotal * commissionRate) / 100;
     }
     
@@ -60,14 +52,15 @@ export const POST = withAuth(async (req: NextRequest, user: any) => {
     let supplierProfit = 0;
     
     if (customerRole === 'marketer') {
-      // For marketers: 10% of order total
+      // For marketers: profit is calculated based on price difference (handled in order creation)
+      // Here we calculate estimated profit (10% of order total as fallback)
       marketerProfit = (orderTotal * 10) / 100;
-      // Supplier gets the rest minus commission
+      // Supplier gets: subtotal - commission - marketerProfit
       supplierProfit = orderTotal - marketerProfit - commission;
     } else if (customerRole === 'wholesaler') {
       // For wholesalers: no marketer profit
       marketerProfit = 0;
-      // Supplier gets the rest minus commission
+      // Supplier gets: subtotal - commission
       supplierProfit = orderTotal - commission;
     }
     

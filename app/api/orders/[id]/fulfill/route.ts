@@ -6,82 +6,7 @@ import Product from '@/models/Product';
 import Wallet from '@/models/Wallet';
 import { logger } from '@/lib/logger';
 import { handleApiError } from '@/lib/error-handler';
-
-// Helper function to add profit to marketer's wallet
-async function addProfitToWallet(userId: string, profit: number, orderId: string, orderNumber: string) {
-  try {
-    let wallet = await Wallet.findOne({ userId });
-    
-    if (!wallet) {
-      wallet = await Wallet.create({
-        userId,
-        balance: 0,
-        totalEarnings: 0,
-        totalWithdrawals: 0
-      });
-    }
-    
-    if (profit > 0) {
-      await wallet.addTransaction(
-        'credit',
-        profit,
-        `ربح من الطلب رقم ${orderNumber}`,
-        `order_profit_${orderId}`,
-        {
-          orderId,
-          type: 'marketer_profit',
-          source: 'order_completion'
-        }
-      );
-    }
-    
-    return wallet;
-  } catch (error) {
-    logger.error('Error adding profit to wallet', error, { userId, orderId, orderNumber });
-    throw error;
-  }
-}
-
-// Helper function to add profit to admin wallet
-async function addAdminProfit(profit: number, orderId: string, orderNumber: string) {
-  try {
-    const adminUser = await (await import('@/models/User')).default.findOne({ role: 'admin' });
-    if (!adminUser) {
-      logger.warn('No admin user found for profit distribution', { orderId, orderNumber });
-      return;
-    }
-
-    let wallet = await Wallet.findOne({ userId: adminUser._id });
-    
-    if (!wallet) {
-      wallet = await Wallet.create({
-        userId: adminUser._id,
-        balance: 0,
-        totalEarnings: 0,
-        totalWithdrawals: 0
-      });
-    }
-    
-    if (profit > 0) {
-      await wallet.addTransaction(
-        'credit',
-        profit,
-        `ربح إداري من الطلب رقم ${orderNumber}`,
-        `admin_profit_${orderId}`,
-        {
-          orderId,
-          type: 'admin_profit',
-          source: 'order_completion'
-        }
-      );
-    }
-    
-    return wallet;
-  } catch (error) {
-    logger.error('Error adding admin profit to wallet', error, { orderId, orderNumber });
-    throw error;
-  }
-}
+import { distributeOrderProfits, reverseOrderProfits } from '@/lib/wallet-helpers';
 
 // POST /api/orders/[id]/fulfill - Fulfill order (for suppliers)
 export const POST = withAuth(async (req: NextRequest, user: any, ...args: unknown[]) => {
@@ -168,6 +93,26 @@ export const POST = withAuth(async (req: NextRequest, user: any, ...args: unknow
           shippingCompany,
           updatedAt: new Date()
         };
+        // Ensure package exists before shipping
+        if (!order.packageId) {
+          try {
+            const { createPackageFromOrder } = await import('@/lib/order-to-package');
+            const packageId = await createPackageFromOrder(order._id.toString());
+            if (packageId) {
+              updateData.packageId = packageId;
+              logger.info('Package created automatically before shipping order', {
+                orderId: order._id.toString(),
+                orderNumber: order.orderNumber,
+                packageId: packageId
+              });
+            }
+          } catch (error) {
+            logger.error('Error creating package before shipping order', error, {
+              orderId: order._id.toString()
+            });
+            // Continue with shipping even if package creation fails
+          }
+        }
         break;
 
       case 'deliver':
@@ -189,6 +134,21 @@ export const POST = withAuth(async (req: NextRequest, user: any, ...args: unknow
           cancelledBy: user._id,
           updatedAt: new Date()
         };
+        // Reverse profits if order was already delivered and profits were distributed
+        if (order.profitsDistributed && (currentStatus === 'delivered' || currentStatus === 'shipped')) {
+          try {
+            await reverseOrderProfits(order);
+            logger.business('Profits reversed for cancelled delivered order', {
+              orderId: order._id.toString(),
+              orderNumber: order.orderNumber
+            });
+          } catch (error) {
+            logger.error('Error reversing profits for cancelled order', error, {
+              orderId: order._id.toString()
+            });
+            // Continue with cancellation even if profit reversal fails
+          }
+        }
         // Restore product stock if cancelling (only if order was confirmed or processing)
         if (currentStatus === 'confirmed' || currentStatus === 'processing') {
           for (const item of order.items) {
@@ -249,6 +209,21 @@ export const POST = withAuth(async (req: NextRequest, user: any, ...args: unknow
           returnedBy: user._id,
           updatedAt: new Date()
         };
+        // Reverse profits if order was delivered and profits were distributed
+        if (order.profitsDistributed) {
+          try {
+            await reverseOrderProfits(order);
+            logger.business('Profits reversed for returned order', {
+              orderId: order._id.toString(),
+              orderNumber: order.orderNumber
+            });
+          } catch (error) {
+            logger.error('Error reversing profits for returned order', error, {
+              orderId: order._id.toString()
+            });
+            // Continue with return even if profit reversal fails
+          }
+        }
         // Restore product stock for returns
         for (const item of order.items) {
           const product = await Product.findById(item.productId);
@@ -313,31 +288,15 @@ export const POST = withAuth(async (req: NextRequest, user: any, ...args: unknow
     );
 
     // Handle profit distribution when order is delivered
-    if (action === 'deliver') {
+    if (action === 'deliver' && updatedOrder) {
       try {
-        // Add marketer profit if applicable
-        if (order.marketerProfit > 0 && order.customerRole === 'marketer') {
-          await addProfitToWallet(
-            order.customerId._id || order.customerId,
-            order.marketerProfit,
-            order._id,
-            order.orderNumber
-          );
-        }
-
-        // Add admin profit (commission)
-        if (order.commission > 0) {
-          await addAdminProfit(order.commission, order._id, order.orderNumber);
-        }
-
+        await distributeOrderProfits(updatedOrder);
         logger.business('Profits distributed successfully', {
-          orderId: order._id.toString(),
-          marketerProfit: order.marketerProfit,
-          adminCommission: order.commission,
-          customerRole: order.customerRole
+          orderId: updatedOrder._id.toString(),
+          orderNumber: updatedOrder.orderNumber
         });
       } catch (error) {
-        logger.error('Error distributing profits', error, { orderId: order._id });
+        logger.error('Error distributing profits', error, { orderId: updatedOrder._id });
         // Continue with order update even if profit distribution fails
       }
     }
