@@ -682,11 +682,6 @@ export default function ProductsPage() {
             <p className={`mt-2 ${user?.role === 'marketer' ? 'text-white/90' : 'text-gray-600 dark:text-slate-400'}`}>
               {getRoleDescription()}
             </p>
-            {user?.role === 'marketer' && products.length > 0 && (
-              <p className="mt-2 text-sm text-white/80">
-                {pagination.total} منتج متاح للطلب
-              </p>
-            )}
           </div>
 
           {(user?.role === 'supplier' || user?.role === 'admin') && (
@@ -854,7 +849,7 @@ export default function ProductsPage() {
                       e.stopPropagation();
                       handleToggleFavorite(product);
                     }}
-                    className="absolute top-2 left-2 p-2 bg-white dark:bg-slate-800 rounded-full shadow-sm hover:shadow-md transition-shadow z-10"
+                    className="absolute top-2 left-2 p-2 bg-white dark:bg-slate-800 rounded-full shadow-sm hover:shadow-md transition-shadow z-10 flex items-center justify-center"
                   >
                     <Heart 
                       className={`w-5 h-5 ${
@@ -937,6 +932,11 @@ export default function ProductsPage() {
 
                      <div className="flex items-center space-x-1 space-x-reverse">
                        {(() => {
+                         // لا تظهر شارة "معتمد" للمسوق
+                         if (user?.role === 'marketer') {
+                           return null;
+                         }
+                         
                          console.log('🎯 Product status check:', {
                            id: product._id,
                            name: product.name,
@@ -1152,65 +1152,68 @@ export default function ProductsPage() {
         </>
       )}
 
-                           {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          {/* إجمالي المنتجات المعتمدة */}
-          <div className="card p-6">
-            <div className="flex items-center">
-              <div className="bg-primary-100 dark:bg-primary-900/30 p-4 rounded-2xl mr-5">
-                <Package className="w-7 h-7 text-primary-600 dark:text-primary-400" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-3">إجمالي المنتجات</p>
-                <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">{pagination.total || products.length}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* المنتجات المتوفرة */}
-          <div className="card p-6">
-            <div className="flex items-center">
-              <div className="bg-success-100 dark:bg-success-900/30 p-4 rounded-2xl mr-5">
-                <Package className="w-7 h-7 text-success-600 dark:text-success-400" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-3">متوفر</p>
-                <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">
-                  {products.filter(p => p.stockQuantity > 0).length}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* المنتجات غير المتوفرة */}
-          <div className="card p-6">
-            <div className="flex items-center">
-              <div className="bg-warning-100 dark:bg-warning-900/30 p-4 rounded-2xl mr-5">
-                <Package className="w-7 h-7 text-warning-600 dark:text-warning-400" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-3">غير متوفر</p>
-                <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">
-                  {products.filter(p => p.stockQuantity <= 0).length}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* إحصائيات إضافية للمسوق فقط */}
-          {(user?.role === 'marketer' || user?.role === 'wholesaler') && (
-            <div className="card p-6">
-              <div className="flex items-center">
-                <div className="bg-info-100 dark:bg-info-900/30 p-4 rounded-2xl mr-5">
-                  <Package className="w-7 h-7 text-info-600 dark:text-info-400" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-3">المفضلة</p>
-                  <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">
-                    {products.filter(p => isFavorite(p._id)).length}
-                  </p>
+                           {/* Stats - لا تظهر للمسوق */}
+          {user?.role !== 'marketer' && (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+              {/* إجمالي المنتجات المعتمدة */}
+              <div className="card p-6">
+                <div className="flex items-center">
+                  <div className="bg-primary-100 dark:bg-primary-900/30 p-4 rounded-2xl mr-5">
+                    <Package className="w-7 h-7 text-primary-600 dark:text-primary-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-3">إجمالي المنتجات</p>
+                    <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">{pagination.total || products.length}</p>
+                  </div>
                 </div>
               </div>
+
+              {/* المنتجات المتوفرة */}
+              <div className="card p-6">
+                <div className="flex items-center">
+                  <div className="bg-success-100 dark:bg-success-900/30 p-4 rounded-2xl mr-5">
+                    <Package className="w-7 h-7 text-success-600 dark:text-success-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-3">متوفر</p>
+                    <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">
+                      {products.filter(p => p.stockQuantity > 0).length}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* المنتجات غير المتوفرة */}
+              <div className="card p-6">
+                <div className="flex items-center">
+                  <div className="bg-warning-100 dark:bg-warning-900/30 p-4 rounded-2xl mr-5">
+                    <Package className="w-7 h-7 text-warning-600 dark:text-warning-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-3">غير متوفر</p>
+                    <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">
+                      {products.filter(p => p.stockQuantity <= 0).length}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* إحصائيات إضافية لتاجر الجملة فقط */}
+              {user?.role === 'wholesaler' && (
+                <div className="card p-6">
+                  <div className="flex items-center">
+                    <div className="bg-info-100 dark:bg-info-900/30 p-4 rounded-2xl mr-5">
+                      <Package className="w-7 h-7 text-info-600 dark:text-info-400" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-3">المفضلة</p>
+                      <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">
+                        {products.filter(p => isFavorite(p._id)).length}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1260,7 +1263,6 @@ export default function ProductsPage() {
               </div>
             </>
           )}
-        </div>
 
       {/* Resubmit Modal */}
       {showResubmitModal && selectedProduct && (

@@ -32,7 +32,18 @@ async function registerHandler(req: NextRequest) {
       country: z.string().optional(),
       dateOfBirth: z.string().optional(),
       gender: z.enum(['male', 'female']).optional().or(z.literal('')),
-      websiteLink: z.string().url('رابط الموقع غير صحيح').optional().or(z.literal('')),
+      websiteLink: z.string().optional().or(z.literal('')).refine((val) => {
+        if (!val || val.trim() === '') return true;
+        const normalized = val.startsWith('http://') || val.startsWith('https://') 
+          ? val 
+          : 'https://' + val;
+        try {
+          new URL(normalized);
+          return true;
+        } catch {
+          return false;
+        }
+      }, { message: 'رابط الموقع غير صحيح' }),
       // Supplier account fields
       companyName: z.string().optional(),
       commercialRegisterNumber: z.string().optional(),

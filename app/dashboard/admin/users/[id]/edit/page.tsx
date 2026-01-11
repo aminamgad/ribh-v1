@@ -28,7 +28,18 @@ const userSchema = z.object({
   country: z.string().optional(),
   dateOfBirth: z.string().optional(),
   gender: z.enum(['male', 'female']).optional().or(z.literal('')),
-  websiteLink: z.string().url('رابط الموقع غير صحيح').optional().or(z.literal('')),
+  websiteLink: z.string().optional().or(z.literal('')).refine((val) => {
+    if (!val || val.trim() === '') return true;
+    const normalized = val.startsWith('http://') || val.startsWith('https://') 
+      ? val 
+      : 'https://' + val;
+    try {
+      new URL(normalized);
+      return true;
+    } catch {
+      return false;
+    }
+  }, { message: 'رابط الموقع غير صحيح' }),
   // Supplier account fields
   companyName: z.string().optional(),
   commercialRegisterNumber: z.string().optional(),
@@ -176,16 +187,36 @@ export default function EditUserPage() {
     }
   };
 
+  const normalizeUrl = (url: string | undefined): string => {
+    if (!url || url.trim() === '') return '';
+    
+    const trimmed = url.trim();
+    
+    // If URL already has protocol, return as is
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed;
+    }
+    
+    // Add https:// if missing
+    return 'https://' + trimmed;
+  };
+
   const onSubmit = async (data: any) => {
     setSaving(true);
 
     try {
+      // Normalize website URL before submission
+      const normalizedData = {
+        ...data,
+        websiteLink: data.websiteLink ? normalizeUrl(data.websiteLink) : ''
+      };
+
       const response = await fetch(`/api/admin/users/${params.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(normalizedData),
       });
 
       if (response.ok) {
@@ -375,10 +406,10 @@ export default function EditUserPage() {
                     رابط الموقع/الصفحة (اختياري)
                   </label>
                   <input
-                    type="url"
+                    type="text"
                     {...register('websiteLink')}
                     className="input-field"
-                    placeholder="https://example.com"
+                    placeholder="www.example.com أو https://example.com"
                   />
                   {errors.websiteLink && (
                     <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.websiteLink.message}</p>

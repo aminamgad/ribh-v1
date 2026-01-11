@@ -33,7 +33,12 @@ export default function LoginPage() {
       
       if (result.success) {
         toast.success('تم تسجيل الدخول بنجاح');
-        router.push('/dashboard');
+        // توجيه المسوق لصفحة المنتجات مباشرة
+        if (result.user?.role === 'marketer') {
+          router.push('/dashboard/products');
+        } else {
+          router.push('/dashboard');
+        }
       } else {
         // Check if it's a maintenance mode error
         if (result.maintenance) {
@@ -166,13 +171,13 @@ export default function LoginPage() {
                   required
                   value={formData.password}
                   onChange={handleChange}
-                  className="input-field pr-10 focus:ring-[#FF9800] focus:border-[#FF9800]"
+                  className="input-field pl-12 focus:ring-[#FF9800] focus:border-[#FF9800]"
                   placeholder="أدخل كلمة المرور"
                   dir="ltr"
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 left-0 pr-3 flex items-center text-gray-400 hover:text-[#FF9800] dark:hover:text-[#FFB74D] transition-colors duration-200"
+                  className="absolute inset-y-0 left-0 pl-3 flex items-center justify-center w-10 text-gray-400 hover:text-[#FF9800] dark:hover:text-[#FFB74D] transition-colors duration-200 z-10"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (

@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "export:db": "node scripts/export-database.js",
+    "export:db:single": "node scripts/export-database.js --single-file",
+    "import:db": "node scripts/import-database.js",
+    "deploy:prepare": "node scripts/deploy-to-cpanel.js"
   },
   "keywords": [
     "ecommerce",

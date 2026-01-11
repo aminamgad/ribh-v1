@@ -120,7 +120,7 @@ export default function FavoritesPage() {
                 e.stopPropagation();
                 removeFromFavorites(product._id);
               }}
-              className="absolute top-2 left-2 p-2 bg-white rounded-full shadow-sm hover:shadow-md transition-shadow z-10"
+              className="absolute top-2 left-2 p-2 bg-white rounded-full shadow-sm hover:shadow-md transition-shadow z-10 flex items-center justify-center"
             >
               <Heart className="w-5 h-5 text-danger-600 fill-current" />
             </button>

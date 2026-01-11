@@ -681,7 +681,7 @@ export default function ProductDetailPage() {
 
             <button 
               onClick={handleToggleFavorite}
-              className={`p-2 rounded-full border ${
+              className={`p-2 rounded-full border flex items-center justify-center ${
                 isFavorite(product._id) 
                   ? 'bg-danger-50 dark:bg-danger-900/30 border-danger-200 dark:border-danger-700 text-danger-600 dark:text-danger-400' 
                   : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-400 dark:text-slate-500 hover:text-danger-600 dark:hover:text-danger-400'
@@ -819,6 +819,11 @@ export default function ProductDetailPage() {
                  </div>
                 <div className="flex items-center space-x-2 space-x-reverse">
                   {(() => {
+                    // لا تظهر شارة "معتمد" للمسوق
+                    if (user?.role === 'marketer') {
+                      return null;
+                    }
+                    
                     console.log('🎯 Product status check:', {
                       id: product._id,
                       name: product.name,

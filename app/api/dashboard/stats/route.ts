@@ -311,17 +311,17 @@ async function handler(req: NextRequest, user: any) {
             .lean(),
           // إحصائيات المفضلة للمسوق
           user.role === 'marketer' ? 
-            Favorite.countDocuments({ userId: user._id }) : 0,
+            Favorite.countDocuments({ userId: user._id }) : Promise.resolve(0),
           user.role === 'marketer' ? 
             Favorite.countDocuments({
               userId: user._id,
               addedAt: { $gte: currentMonthStart, $lte: currentMonthEnd }
-            }) : 0,
+            }) : Promise.resolve(0),
           user.role === 'marketer' ? 
             Favorite.countDocuments({
               userId: user._id,
               addedAt: { $gte: previousMonthStart, $lte: previousMonthEnd }
-            }) : 0
+            }) : Promise.resolve(0)
         ]);
 
         // Calculate percentages for customer

@@ -173,9 +173,11 @@ export default function DashboardHeader() {
                   <p className="text-sm font-semibold text-gray-700 dark:text-slate-200 group-hover:text-[#FF9800] dark:group-hover:text-[#FF9800] transition-colors duration-300">
                     {user?.name}
                   </p>
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${roleColors[user?.role || 'marketer']}`}>
-                    {roleLabels[user?.role || 'marketer']}
-                  </span>
+                  {user?.role !== 'marketer' && (
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${roleColors[user?.role || 'marketer']}`}>
+                      {roleLabels[user?.role || 'marketer']}
+                    </span>
+                  )}
                 </div>
                 <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-gradient-to-br from-[#FF9800] via-[#F57C00] to-[#E65100] flex items-center justify-center mr-2 sm:mr-3 group-hover:scale-110 transition-transform duration-300 shadow-lg">
                   <User className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
@@ -189,11 +191,13 @@ export default function DashboardHeader() {
                   <div className="px-4 py-3 border-b border-gray-100 dark:border-slate-700">
                     <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">{user?.name}</p>
                     <p className="text-xs text-gray-500 dark:text-slate-300">{user?.email}</p>
-                    <div className="mt-2">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${roleColors[user?.role || 'marketer']}`}>
-                        {roleLabels[user?.role || 'marketer']}
-                      </span>
-                    </div>
+                    {user?.role !== 'marketer' && (
+                      <div className="mt-2">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${roleColors[user?.role || 'marketer']}`}>
+                          {roleLabels[user?.role || 'marketer']}
+                        </span>
+                      </div>
+                    )}
                   </div>
                   <div className="py-1">
                     <Link

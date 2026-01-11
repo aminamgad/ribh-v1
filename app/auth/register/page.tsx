@@ -36,16 +36,41 @@ export default function RegisterPage() {
   const { register } = useAuth();
   const router = useRouter();
 
+  const normalizeUrl = (url: string): string => {
+    if (!url || url.trim() === '') return '';
+    
+    const trimmed = url.trim();
+    
+    // If URL already has protocol, return as is
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed;
+    }
+    
+    // Add https:// if missing
+    return 'https://' + trimmed;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const result = await register(formData);
+      // Normalize website URL before submission
+      const normalizedFormData = {
+        ...formData,
+        websiteLink: formData.websiteLink ? normalizeUrl(formData.websiteLink) : ''
+      };
+      
+      const result = await register(normalizedFormData);
       
       if (result.success) {
         toast.success('تم إنشاء الحساب بنجاح');
-        router.push('/dashboard');
+        // توجيه المسوق لصفحة المنتجات مباشرة
+        if (result.user?.role === 'marketer') {
+          router.push('/dashboard/products');
+        } else {
+          router.push('/dashboard');
+        }
       } else {
         toast.error(result.error || 'فشل إنشاء الحساب');
       }
@@ -249,13 +274,13 @@ export default function RegisterPage() {
                     required
                     value={formData.password}
                     onChange={handleChange}
-                    className="input-field pr-10 focus:ring-[#FF9800] focus:border-[#FF9800]"
+                    className="input-field pl-12 focus:ring-[#FF9800] focus:border-[#FF9800]"
                     placeholder="أدخل كلمة المرور"
                     dir="ltr"
                   />
                   <button
                     type="button"
-                    className="absolute inset-y-0 left-0 pr-3 flex items-center text-gray-400 hover:text-[#FF9800] dark:hover:text-[#FFB74D] transition-colors duration-200"
+                    className="absolute inset-y-0 left-0 pl-3 flex items-center justify-center w-10 text-gray-400 hover:text-[#FF9800] dark:hover:text-[#FFB74D] transition-colors duration-200 z-10"
                     onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? (
@@ -281,13 +306,13 @@ export default function RegisterPage() {
                     required
                     value={formData.confirmPassword}
                     onChange={handleChange}
-                    className="input-field pr-10 focus:ring-[#FF9800] focus:border-[#FF9800]"
+                    className="input-field pl-12 focus:ring-[#FF9800] focus:border-[#FF9800]"
                     placeholder="أعد إدخال كلمة المرور"
                     dir="ltr"
                   />
                   <button
                     type="button"
-                    className="absolute inset-y-0 left-0 pr-3 flex items-center text-gray-400 hover:text-[#FF9800] dark:hover:text-[#FFB74D] transition-colors duration-200"
+                    className="absolute inset-y-0 left-0 pl-3 flex items-center justify-center w-10 text-gray-400 hover:text-[#FF9800] dark:hover:text-[#FFB74D] transition-colors duration-200 z-10"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   >
                     {showConfirmPassword ? (
@@ -337,18 +362,23 @@ export default function RegisterPage() {
                 <div>
                   <label htmlFor="websiteLink" className="form-label flex items-center">
                     <Globe className="w-4 h-4 ml-2 text-[#4CAF50] dark:text-[#81C784]" />
-                    رابط الموقع
+                    رابط صفحة الفيسبوك/ انستغرام/ الموقع الإلكتروني (اختياري)
                   </label>
                   <input
                     id="websiteLink"
                     name="websiteLink"
-                    type="url"
+                    type="text"
                     value={formData.websiteLink}
                     onChange={handleChange}
                     className="input-field focus:ring-[#4CAF50] focus:border-[#4CAF50]"
-                    placeholder="https://example.com"
+                    placeholder="www.example.com أو https://example.com"
                     dir="ltr"
                   />
+                  {formData.websiteLink && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      سيتم إضافة https:// تلقائياً إذا لم يكن موجوداً
+                    </p>
+                  )}
                 </div>
               </div>
             )}

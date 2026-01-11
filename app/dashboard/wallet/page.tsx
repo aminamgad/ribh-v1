@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { DollarSign, TrendingUp, Clock, CheckCircle, ArrowUpRight, ArrowDownLeft, Wallet as WalletIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { Badge } from '@/components/ui/badge';
 
 interface WalletData {
   balance: number;
@@ -30,16 +31,46 @@ interface Transaction {
   createdAt: string;
 }
 
+interface WithdrawalRequest {
+  _id: string;
+  walletNumber: string;
+  amount: number;
+  fees: number;
+  totalAmount: number;
+  status: 'pending' | 'approved' | 'completed' | 'rejected';
+  createdAt: string;
+  notes?: string;
+}
+
+interface SystemSettings {
+  withdrawalSettings: {
+    minimumWithdrawal: number;
+    maximumWithdrawal: number;
+    withdrawalFees: number;
+  };
+}
+
 export default function WalletPage() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [wallet, setWallet] = useState<WalletData | null>(null);
   const [earnings, setEarnings] = useState<EarningsData | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  // Withdrawal states for marketer
+  const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRequest[]>([]);
+  const [systemSettings, setSystemSettings] = useState<SystemSettings | null>(null);
+  const [walletNumber, setWalletNumber] = useState('');
+  const [amount, setAmount] = useState(0);
+  const [notes, setNotes] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetchWalletStatus();
-  }, []);
+    if (user?.role === 'marketer') {
+      fetchWithdrawalRequests();
+      fetchSystemSettings();
+    }
+  }, [user]);
 
   const fetchWalletStatus = async () => {
     try {
@@ -76,6 +107,118 @@ export default function WalletPage() {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const fetchWithdrawalRequests = async () => {
+    try {
+      const response = await fetch('/api/withdrawals');
+      const data = await response.json();
+      
+      if (data.success) {
+        setWithdrawalRequests(data.withdrawalRequests);
+      }
+    } catch (error) {
+      console.error('خطأ في جلب طلبات السحب:', error);
+    }
+  };
+
+  const fetchSystemSettings = async () => {
+    try {
+      const response = await fetch('/api/settings');
+      const data = await response.json();
+      
+      if (data.success) {
+        setSystemSettings(data.settings);
+      }
+    } catch (error) {
+      console.error('خطأ في جلب إعدادات النظام:', error);
+    }
+  };
+
+  const handleSubmitWithdrawal = async () => {
+    try {
+      setIsSubmitting(true);
+      
+      // Validate form data
+      if (!walletNumber.trim()) {
+        toast.error('رقم المحفظة مطلوب');
+        return;
+      }
+      
+      if (!amount || amount <= 0) {
+        toast.error('المبلغ مطلوب ويجب أن يكون أكبر من صفر');
+        return;
+      }
+      
+      // Apply system settings validation
+      if (systemSettings) {
+        if (amount < systemSettings.withdrawalSettings.minimumWithdrawal) {
+          toast.error(`الحد الأدنى للسحب هو ${systemSettings.withdrawalSettings.minimumWithdrawal}₪`);
+          return;
+        }
+        
+        if (amount > systemSettings.withdrawalSettings.maximumWithdrawal) {
+          toast.error(`الحد الأقصى للسحب هو ${systemSettings.withdrawalSettings.maximumWithdrawal}₪`);
+          return;
+        }
+      }
+      
+      // Calculate fees
+      let fees = 0;
+      if (systemSettings) {
+        fees = (amount * systemSettings.withdrawalSettings.withdrawalFees) / 100;
+      }
+      const totalAmount = amount + fees;
+      
+      // Check if user has sufficient balance
+      if (wallet && wallet.balance < totalAmount) {
+        toast.error(`الرصيد غير كافي (المطلوب: ${totalAmount}₪ مع الرسوم)`);
+        return;
+      }
+      
+      // Create withdrawal request
+      const response = await fetch('/api/withdrawals', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          walletNumber,
+          amount,
+          notes: notes
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        toast.success('تم إرسال طلب السحب بنجاح');
+        setWalletNumber('');
+        setAmount(0);
+        setNotes('');
+        fetchWalletStatus();
+        fetchWithdrawalRequests();
+      } else {
+        toast.error(data.message || 'حدث خطأ في إرسال طلب السحب');
+      }
+    } catch (error) {
+      console.error('خطأ في إرسال طلب السحب:', error);
+      toast.error('حدث خطأ في إرسال طلب السحب');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    const statusConfig = {
+      pending: { text: 'قيد الانتظار', className: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' },
+      approved: { text: 'تمت الموافقة', className: 'bg-[#4CAF50]/20 text-[#4CAF50] dark:bg-[#4CAF50]/30 dark:text-[#4CAF50]' },
+      completed: { text: 'مكتمل', className: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' },
+      rejected: { text: 'مرفوض', className: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' }
+    };
+    
+    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
+    return <Badge className={config.className}>{config.text}</Badge>;
   };
 
   const getRoleTitle = () => {
@@ -320,6 +463,139 @@ export default function WalletPage() {
             )}
           </div>
         </div>
+      )}
+
+      {/* Withdrawal Section for Marketer */}
+      {user?.role === 'marketer' && (
+        <>
+          {/* New Withdrawal Request */}
+          <div className="card">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4 flex items-center">
+              <DollarSign className="w-5 h-5 ml-2" />
+              طلب سحب جديد
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                  رقم المحفظة
+                </label>
+                <input
+                  type="text"
+                  value={walletNumber}
+                  onChange={(e) => setWalletNumber(e.target.value)}
+                  className="input-field"
+                  placeholder="أدخل رقم المحفظة"
+                  dir="ltr"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                  المبلغ
+                </label>
+                <input
+                  type="number"
+                  value={amount}
+                  onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
+                  className="input-field"
+                  placeholder="أدخل المبلغ"
+                  dir="ltr"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                  ملاحظات (اختياري)
+                </label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="input-field"
+                  placeholder="ملاحظات إضافية"
+                  rows={3}
+                />
+              </div>
+              
+              {systemSettings && amount > 0 && (
+                <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                  <h4 className="font-semibold mb-2 text-gray-900 dark:text-slate-100">تفاصيل السحب:</h4>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 dark:text-gray-400">المبلغ المطلوب:</span>
+                      <span className="text-gray-900 dark:text-slate-100">{amount}₪</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 dark:text-gray-400">الرسوم ({systemSettings.withdrawalSettings.withdrawalFees}%):</span>
+                      <span className="text-gray-900 dark:text-slate-100">{(amount * systemSettings.withdrawalSettings.withdrawalFees / 100)}₪</span>
+                    </div>
+                    <div className="flex justify-between font-bold">
+                      <span className="text-gray-900 dark:text-slate-100">الإجمالي:</span>
+                      <span className="text-gray-900 dark:text-slate-100">{amount + (amount * systemSettings.withdrawalSettings.withdrawalFees / 100)}₪</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              <button 
+                onClick={handleSubmitWithdrawal}
+                disabled={isSubmitting || !wallet?.canWithdraw}
+                className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? 'جاري إرسال الطلب...' : 'إرسال طلب السحب'}
+              </button>
+            </div>
+          </div>
+
+          {/* Withdrawal Requests History */}
+          <div className="card">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4 flex items-center">
+              <Clock className="w-5 h-5 ml-2" />
+              سجل طلبات السحب
+            </h3>
+            {withdrawalRequests.length === 0 ? (
+              <div className="text-center py-8">
+                <DollarSign className="w-16 h-16 text-gray-400 dark:text-slate-500 mx-auto mb-4" />
+                <p className="text-gray-600 dark:text-slate-400">لا توجد طلبات سحب</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {withdrawalRequests.map((request) => (
+                  <div key={request._id} className="border border-gray-200 dark:border-slate-700 rounded-lg p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <p className="font-semibold text-gray-900 dark:text-slate-100">رقم المحفظة: {request.walletNumber}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          {new Date(request.createdAt).toLocaleDateString('ar-SA')}
+                        </p>
+                      </div>
+                      {getStatusBadge(request.status)}
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 text-sm mt-3">
+                      <div>
+                        <span className="text-gray-600 dark:text-gray-400">المبلغ:</span>
+                        <span className="mr-2 font-medium text-gray-900 dark:text-slate-100">{request.amount}₪</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600 dark:text-gray-400">الرسوم:</span>
+                        <span className="mr-2 font-medium text-gray-900 dark:text-slate-100">{request.fees}₪</span>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-gray-600 dark:text-gray-400">الإجمالي:</span>
+                        <span className="mr-2 font-semibold text-gray-900 dark:text-slate-100">{request.totalAmount}₪</span>
+                      </div>
+                    </div>
+                    {request.notes && (
+                      <div className="mt-2 pt-2 border-t border-gray-200 dark:border-slate-700">
+                        <span className="text-gray-600 dark:text-gray-400 text-sm">ملاحظات:</span>
+                        <p className="text-sm mt-1 text-gray-900 dark:text-slate-100">{request.notes}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
       )}
     </div>
   );

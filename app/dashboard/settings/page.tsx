@@ -400,13 +400,14 @@ export default function SettingsPage() {
                 type={showPassword ? 'text' : 'password'}
                 value={settings.currentPassword}
                 onChange={(e) => handleInputChange('currentPassword', e.target.value)}
-                className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder-slate-400"
+                className="w-full px-3 py-2 pl-12 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder-slate-400"
                 placeholder="كلمة المرور الحالية"
+                dir="ltr"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-slate-300"
+                className="absolute inset-y-0 left-0 pl-3 flex items-center justify-center w-10 text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 z-10"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>

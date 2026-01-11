@@ -78,7 +78,7 @@ export default function ProductSection({
                 e.stopPropagation();
                 onToggleFavorite(product);
               }}
-              className="absolute top-2 left-2 p-1.5 bg-white dark:bg-slate-800 rounded-full shadow-sm hover:shadow-md transition-shadow z-10 opacity-0 group-hover:opacity-100"
+              className="absolute top-2 left-2 p-1.5 bg-white dark:bg-slate-800 rounded-full shadow-sm hover:shadow-md transition-shadow z-10 opacity-0 group-hover:opacity-100 flex items-center justify-center"
             >
               <Heart
                 className={`w-4 h-4 ${

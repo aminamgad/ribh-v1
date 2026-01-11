@@ -132,6 +132,10 @@ coverage/
 # Local development
 .local
 
+# Database exports
+database-export/
+*.backup.json
+
 # Old files
 # Keep important files
 !server.js

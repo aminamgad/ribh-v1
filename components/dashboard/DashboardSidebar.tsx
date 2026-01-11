@@ -21,7 +21,6 @@ import {
   Shield,
   Bell,
   ChevronRight,
-  ShoppingCart,
   CheckCircle,
   Clock,
   UserCheck,
@@ -296,16 +295,6 @@ export default function DashboardSidebar({ onClose }: DashboardSidebarProps) {
             hoverTextColor: 'group-hover:text-[#2E7D32] dark:group-hover:text-[#81C784]',
           },
           {
-            href: '/dashboard/cart',
-            label: 'سلة المشتريات',
-            icon: ShoppingCart,
-            gradient: 'from-[#FF9800] to-[#F57C00]',
-            bgGradient: 'from-[#FF9800]/10 to-[#F57C00]/10 dark:from-[#FF9800]/20 dark:to-[#F57C00]/20',
-            borderColor: 'border-[#FF9800]/20 dark:border-[#FF9800]/30',
-            textColor: 'text-[#E65100] dark:text-[#FFB74D]',
-            hoverTextColor: 'group-hover:text-[#E65100] dark:group-hover:text-[#FFB74D]',
-          },
-          {
             href: '/dashboard/favorites',
             label: 'المفضلة',
             icon: Sparkles,
@@ -317,23 +306,13 @@ export default function DashboardSidebar({ onClose }: DashboardSidebarProps) {
           },
           {
             href: '/dashboard/wallet',
-            label: 'المحفظة',
+            label: 'المحفظة والسحوبات',
             icon: Wallet,
             gradient: 'from-[#FF9800] to-[#F57C00]',
             bgGradient: 'from-[#FF9800]/10 to-[#F57C00]/10 dark:from-[#FF9800]/20 dark:to-[#F57C00]/20',
             borderColor: 'border-[#FF9800]/20 dark:border-[#FF9800]/30',
             textColor: 'text-[#E65100] dark:text-[#FFB74D]',
             hoverTextColor: 'group-hover:text-[#E65100] dark:group-hover:text-[#FFB74D]',
-          },
-          {
-            href: '/dashboard/withdrawals',
-            label: 'السحوبات',
-            icon: DollarSign,
-            gradient: 'from-[#4CAF50] to-[#388E3C]',
-            bgGradient: 'from-[#4CAF50]/10 to-[#388E3C]/10 dark:from-[#4CAF50]/20 dark:to-[#388E3C]/20',
-            borderColor: 'border-[#4CAF50]/20 dark:border-[#4CAF50]/30',
-            textColor: 'text-[#2E7D32] dark:text-[#81C784]',
-            hoverTextColor: 'group-hover:text-[#2E7D32] dark:group-hover:text-[#81C784]',
           },
           {
             href: '/dashboard/chat',
@@ -412,11 +391,12 @@ export default function DashboardSidebar({ onClose }: DashboardSidebarProps) {
               <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 truncate">
                 {user?.name || 'المستخدم'}
               </p>
-              <p className="text-xs text-gray-600 dark:text-slate-400 truncate">
-                {user?.role === 'admin' && 'مدير النظام'}
-                {user?.role === 'supplier' && 'المورد'}
-                {user?.role === 'marketer' && 'المسوق'}
-              </p>
+              {user?.role !== 'marketer' && (
+                <p className="text-xs text-gray-600 dark:text-slate-400 truncate">
+                  {user?.role === 'admin' && 'مدير النظام'}
+                  {user?.role === 'supplier' && 'المورد'}
+                </p>
+              )}
             </div>
           )}
         </div>

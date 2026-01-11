@@ -85,12 +85,6 @@ export default function DashboardPage() {
       return;
     }
     
-    // Redirect marketer to products page directly
-    if (user.role === 'marketer') {
-      router.push('/dashboard/products');
-      return;
-    }
-    
     fetchDashboardStats(true);
     
     // Auto-refresh interval (default: 30 seconds, admin can set to faster)
@@ -358,7 +352,9 @@ export default function DashboardPage() {
             <div className="flex items-center gap-3">
               <div className="text-right">
                 <p className="text-lg font-semibold text-gray-900 dark:text-slate-100">{user?.name}</p>
-                <p className="text-sm text-gray-500 dark:text-slate-400">{getRoleLabel()}</p>
+                {user?.role !== 'marketer' && (
+                  <p className="text-sm text-gray-500 dark:text-slate-400">{getRoleLabel()}</p>
+                )}
               </div>
               <div className="w-12 h-12 bg-gradient-to-br from-[#FF9800] to-[#F57C00] rounded-xl flex items-center justify-center shadow-lg">
                 <span className="text-white text-lg font-bold">
@@ -760,9 +756,11 @@ export default function DashboardPage() {
                     </div>
                     <div className="text-left ml-6">
                       <p className="font-semibold text-gray-900 dark:text-slate-100 mb-2">{formatCurrency(product.marketerPrice)}</p>
-                      <span className={`badge ${product.isApproved ? 'badge-success' : 'badge-warning'}`}>
-                        {product.isApproved ? 'معتمد' : 'قيد المراجعة'}
-                      </span>
+                      {user?.role !== 'marketer' && (
+                        <span className={`badge ${product.isApproved ? 'badge-success' : 'badge-warning'}`}>
+                          {product.isApproved ? 'معتمد' : 'قيد المراجعة'}
+                        </span>
+                      )}
                     </div>
                   </div>
                 ))

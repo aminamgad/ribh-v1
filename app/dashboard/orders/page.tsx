@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { Search, Plus, Eye, CheckCircle, Truck, Package, Clock, DollarSign, Edit, X, RotateCcw, Download, Upload, Phone, Mail, MessageCircle, Printer } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import React from 'react'; // Added for React.createElement
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import OrderExportModal from '@/components/ui/OrderExportModal';
 import OrderImportModal from '@/components/ui/OrderImportModal';
 import { OrderItem } from '@/types';
@@ -84,14 +84,21 @@ const statusLabels = {
 
 export default function OrdersPage() {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const router = useRouter();
+  // Initialize search term from URL on component mount
+  const initialSearchFromUrl = searchParams.get('search') || '';
+  
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false); // Loading state for search
-  const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(''); // Debounced search term
+  const [searchTerm, setSearchTerm] = useState(initialSearchFromUrl);
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(initialSearchFromUrl); // Debounced search term
   const [filterStatus, setFilterStatus] = useState('all');
   const [updatingOrder, setUpdatingOrder] = useState<string | null>(null);
-  const router = useRouter();
+  const isUpdatingUrlRef = useRef(false); // Track if we're updating URL to prevent loops
+  const searchInputRef = useRef<HTMLInputElement>(null); // Ref for search input
 
   // Export/Import modal states
   const [showExportModal, setShowExportModal] = useState(false);
@@ -145,6 +152,22 @@ export default function OrdersPage() {
     router.push(`/dashboard/orders/${order._id}?print=true`);
   };
 
+  // Get search value from URL
+  const searchFromUrl = useMemo(() => searchParams.get('search') || '', [searchParams]);
+
+  // Initialize search term from URL on mount and when URL changes (e.g., new tab, navigation back)
+  useEffect(() => {
+    // Only update from URL if we're not currently updating the URL ourselves
+    if (!isUpdatingUrlRef.current) {
+      // Only update if different from current searchTerm to avoid unnecessary updates
+      if (searchFromUrl !== searchTerm) {
+        setSearchTerm(searchFromUrl);
+        setDebouncedSearchTerm(searchFromUrl);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchFromUrl]); // Run when searchFromUrl changes (this will trigger when navigating back to the page)
+
   // Debounce search term - wait 500ms after user stops typing
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -153,6 +176,36 @@ export default function OrdersPage() {
 
     return () => clearTimeout(timer);
   }, [searchTerm]);
+
+  // Get current search from URL to avoid unnecessary updates
+  const currentSearchFromUrl = useMemo(() => searchParams.get('search') || '', [searchParams]);
+
+  // Update URL when debounced search term changes
+  useEffect(() => {
+    const newSearch = debouncedSearchTerm.trim();
+    
+    // Only update URL if search term actually changed
+    if (currentSearchFromUrl !== newSearch) {
+      isUpdatingUrlRef.current = true; // Mark that we're updating URL
+      
+      const params = new URLSearchParams(searchParams.toString());
+      
+      if (newSearch) {
+        params.set('search', newSearch);
+      } else {
+        params.delete('search');
+      }
+      
+      const queryString = params.toString();
+      const newUrl = queryString ? `${pathname}?${queryString}` : pathname;
+      router.replace(newUrl, { scroll: false });
+      
+      // Reset flag after a short delay to allow URL to update
+      setTimeout(() => {
+        isUpdatingUrlRef.current = false;
+      }, 100);
+    }
+  }, [debouncedSearchTerm, pathname, router, currentSearchFromUrl, searchParams]);
 
   // Fetch orders when debounced search term or filter status changes
   useEffect(() => {
@@ -306,10 +359,14 @@ export default function OrdersPage() {
           <div className="mobile-search relative">
             <Search className="mobile-search-icon" />
             <input
+              ref={searchInputRef}
               type="text"
               placeholder="البحث في الطلبات (رقم الطلب، اسم العميل، رقم الهاتف...)"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                const newValue = e.target.value;
+                setSearchTerm(newValue);
+              }}
               className="mobile-search-input"
               disabled={loading}
             />

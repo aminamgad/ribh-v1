@@ -1,7 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone', // Enable standalone build for cPanel deployment
   images: {
-    domains: ['res.cloudinary.com', 'localhost', 'via.placeholder.com'],
+    domains: ['res.cloudinary.com', 'localhost', 'via.placeholder.com', 'portfolio.roeia.com'],
     formats: ['image/webp', 'image/avif'],
   },
   experimental: {
