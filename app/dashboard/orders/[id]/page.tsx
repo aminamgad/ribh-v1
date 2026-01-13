@@ -354,14 +354,14 @@ export default function OrderDetailPage() {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('ar-IL', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'ILS'
     }).format(amount);
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('ar-IL', {
+    return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',

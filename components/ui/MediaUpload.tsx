@@ -150,7 +150,7 @@ export default function MediaUpload({
         name: file.name,
         type: file.type,
         size: file.size,
-        sizeMB: (file.size / (1024 * 1024)).toFixed(2) + 'MB'
+        sizeMB: new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(file.size / (1024 * 1024)) + 'MB'
       });
       
       const validation = validateMediaFile(file, accept, maxSize);
@@ -180,7 +180,7 @@ export default function MediaUpload({
       for (const file of validFiles) {
         // Use direct Cloudinary upload for files larger than 4MB
         const isLargeFile = file.size > 4 * 1024 * 1024; // 4MB threshold
-        console.log(`Processing file: ${file.name}, isLargeFile: ${isLargeFile}, size: ${(file.size / (1024 * 1024)).toFixed(2)}MB`);
+        console.log(`Processing file: ${file.name}, isLargeFile: ${isLargeFile}, size: ${new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(file.size / (1024 * 1024))}MB`);
         
         if (isLargeFile) {
           console.log(`Using direct Cloudinary upload for: ${file.name}`);

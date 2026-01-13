@@ -362,7 +362,7 @@ export default function RegisterPage() {
                 <div>
                   <label htmlFor="websiteLink" className="form-label flex items-center">
                     <Globe className="w-4 h-4 ml-2 text-[#4CAF50] dark:text-[#81C784]" />
-                    رابط صفحة الفيسبوك/ انستغرام/ الموقع الإلكتروني (اختياري)
+                    الفيسبوك/ انستغرام/ الموقع الإلكتروني
                   </label>
                   <input
                     id="websiteLink"

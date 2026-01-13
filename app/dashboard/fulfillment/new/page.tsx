@@ -280,13 +280,13 @@ export default function NewFulfillmentPage() {
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex-1">
                 <div className="relative">
-                  <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none z-10" />
                   <input
                     type="text"
                     placeholder="البحث في المنتجات..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-3 pr-10 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    className="w-full pr-11 pl-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   />
                 </div>
               </div>
@@ -296,7 +296,7 @@ export default function NewFulfillmentPage() {
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  className="input-field"
                 >
                   <option value="all">جميع الفئات</option>
                   {categories.map(category => (
@@ -487,7 +487,7 @@ export default function NewFulfillmentPage() {
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-600 dark:text-slate-400 font-medium">القيمة الإجمالية:</span>
                           <span className="font-bold text-primary-600 dark:text-primary-400">
-                            {(product.costPrice * item.quantity).toFixed(2)} ₪
+                            {new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(product.costPrice * item.quantity)} ₪
                           </span>
                         </div>
                       </div>
@@ -518,7 +518,7 @@ export default function NewFulfillmentPage() {
                   <div className="flex justify-between">
                     <span className="text-gray-600 dark:text-slate-400">القيمة الإجمالية:</span>
                     <span className="font-bold text-primary-600 dark:text-primary-400">
-                      {calculateTotalValue().toFixed(2)} ₪
+                      {new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(calculateTotalValue())} ₪
                     </span>
                   </div>
                 </div>
@@ -606,7 +606,7 @@ export default function NewFulfillmentPage() {
 تفاصيل الطلب:
 • عدد المنتجات: ${selectedProducts.length}
 • إجمالي القطع: ${calculateTotalItems()}
-• القيمة الإجمالية: ${calculateTotalValue().toFixed(2)} ₪`}
+• القيمة الإجمالية: ${new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(calculateTotalValue())} ₪`}
         confirmText="إنشاء الطلب"
         cancelText="إلغاء"
         type="success"

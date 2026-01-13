@@ -130,7 +130,7 @@ export default function AnalyticsPage() {
           <p className="text-gray-600 dark:text-gray-400 mt-2">تحليل شامل لأداء المنصة</p>
           {customDateRange && startDate && endDate && (
                           <p className="text-sm text-[#FF9800] dark:text-[#FF9800] mt-1">
-              الفترة المحددة: من {new Date(startDate).toLocaleDateString('ar-SA')} إلى {new Date(endDate).toLocaleDateString('ar-SA')}
+              الفترة المحددة: من {new Date(startDate).toLocaleDateString('en-US')} إلى {new Date(endDate).toLocaleDateString('en-US')}
             </p>
           )}
         </div>
@@ -238,7 +238,7 @@ export default function AnalyticsPage() {
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">إجمالي الإيرادات</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                {analytics?.revenue.total.toLocaleString()} ₪
+                {analytics?.revenue.total ? new Intl.NumberFormat('en-US').format(analytics.revenue.total) : '0'} ₪
               </p>
               <div className={`flex items-center text-sm mt-1 ${(analytics?.revenue.growth ?? 0) >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
                 {(analytics?.revenue.growth ?? 0) >= 0 ? <ArrowUp className="w-4 h-4 ml-1" /> : <ArrowDown className="w-4 h-4 ml-1" />}
@@ -256,7 +256,7 @@ export default function AnalyticsPage() {
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">إجمالي الطلبات</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                {analytics?.orders.total.toLocaleString()}
+                {analytics?.orders.total ? new Intl.NumberFormat('en-US').format(analytics.orders.total) : '0'}
               </p>
               <div className={`flex items-center text-sm mt-1 ${(analytics?.orders.growth ?? 0) >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
                 {(analytics?.orders.growth ?? 0) >= 0 ? <ArrowUp className="w-4 h-4 ml-1" /> : <ArrowDown className="w-4 h-4 ml-1" />}
@@ -274,7 +274,7 @@ export default function AnalyticsPage() {
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">إجمالي المنتجات</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                {analytics?.products.total.toLocaleString()}
+                {analytics?.products.total ? new Intl.NumberFormat('en-US').format(analytics.products.total) : '0'}
               </p>
               <div className={`flex items-center text-sm mt-1 ${(analytics?.products.growth ?? 0) >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
                 {(analytics?.products.growth ?? 0) >= 0 ? <ArrowUp className="w-4 h-4 ml-1" /> : <ArrowDown className="w-4 h-4 ml-1" />}
@@ -292,7 +292,7 @@ export default function AnalyticsPage() {
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">إجمالي المستخدمين</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                {analytics?.users.total.toLocaleString()}
+                {analytics?.users.total ? new Intl.NumberFormat('en-US').format(analytics.users.total) : '0'}
               </p>
               <div className={`flex items-center text-sm mt-1 ${(analytics?.users.growth ?? 0) >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
                 {(analytics?.users.growth ?? 0) >= 0 ? <ArrowUp className="w-4 h-4 ml-1" /> : <ArrowDown className="w-4 h-4 ml-1" />}
@@ -433,7 +433,7 @@ export default function AnalyticsPage() {
                     {product.sales}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                    {product.revenue.toLocaleString()} ₪
+                    {product.revenue ? new Intl.NumberFormat('en-US').format(product.revenue) : '0'} ₪
                   </td>
                 </tr>
               ))}

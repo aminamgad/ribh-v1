@@ -223,7 +223,7 @@ export default function OrderInvoice({ order, isVisible, onClose }: OrderInvoice
 
   const formatDate = (dateString: string) => {
     try {
-      return new Date(dateString).toLocaleDateString('ar-EG', {
+      return new Date(dateString).toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric'
@@ -234,7 +234,7 @@ export default function OrderInvoice({ order, isVisible, onClose }: OrderInvoice
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('ar-IL', {
+    return new Intl.NumberFormat('en-US', {
       style: 'decimal',
       minimumFractionDigits: 2,
       maximumFractionDigits: 2

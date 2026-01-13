@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useSettings } from '@/components/providers/SettingsProvider';
 import {
@@ -29,6 +29,7 @@ import {
   DollarSign,
   X,
   MapPin,
+  LogOut,
 } from 'lucide-react';
 
 interface DashboardSidebarProps {
@@ -36,9 +37,10 @@ interface DashboardSidebarProps {
 }
 
 export default function DashboardSidebar({ onClose }: DashboardSidebarProps) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { settings } = useSettings();
   const pathname = usePathname();
+  const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -353,7 +355,36 @@ export default function DashboardSidebar({ onClose }: DashboardSidebarProps) {
 
   const navigationItems = getNavigationItems();
 
-  const handleLinkClick = () => {
+  const handleLinkClick = (href: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    
+    // Pages that should preserve their query params
+    const pagesWithFilters = [
+      '/dashboard/orders',
+      '/dashboard/products',
+      '/dashboard/users',
+      '/dashboard/admin/users'
+    ];
+    
+    // Check if this page should preserve filters
+    const shouldPreserve = pagesWithFilters.some(page => href.startsWith(page));
+    
+    if (shouldPreserve) {
+      // Try to get saved params from sessionStorage
+      try {
+        const savedParams = sessionStorage.getItem(`filters_${href}`);
+        if (savedParams) {
+          router.push(`${href}?${savedParams}`);
+        } else {
+          router.push(href);
+        }
+      } catch (e) {
+        router.push(href);
+      }
+    } else {
+      router.push(href);
+    }
+    
     // Close mobile sidebar when link is clicked
     if (onClose) {
       onClose();
@@ -413,7 +444,7 @@ export default function DashboardSidebar({ onClose }: DashboardSidebarProps) {
               <Link
                 key={item.href}
                 href={item.href}
-                onClick={handleLinkClick}
+                onClick={(e) => handleLinkClick(item.href, e)}
                 className={`sidebar-link group relative ${
                   isActive ? 'active' : ''
                 } ${collapsed && !onClose ? 'justify-center' : ''}`}
@@ -447,12 +478,30 @@ export default function DashboardSidebar({ onClose }: DashboardSidebarProps) {
         </div>
       </nav>
 
+      {/* Logout Button */}
+      <div className="p-4 border-t border-gray-200 dark:border-slate-700">
+        <button
+          onClick={() => {
+            if (onClose) {
+              onClose();
+            }
+            logout();
+          }}
+          className={`w-full flex items-center space-x-3 space-x-reverse px-4 py-3 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors duration-200 rounded-lg ${collapsed && !onClose ? 'justify-center' : ''}`}
+        >
+          <LogOut className="w-5 h-5" />
+          {(!collapsed || onClose) && (
+            <span>تسجيل الخروج</span>
+          )}
+        </button>
+      </div>
+
       {/* Footer */}
       {(!collapsed || onClose) && (
-        <div className="p-4 border-t border-gray-200 dark:border-slate-700">
-                  <div className="text-xs text-gray-600 dark:text-slate-400 text-center">
-          <span className="text-[#FF9800] dark:text-[#FFB74D] font-semibold">ربح</span> v1.0.0
-        </div>
+        <div className="px-4 pb-4 border-t border-gray-200 dark:border-slate-700 pt-4">
+          <div className="text-xs text-gray-600 dark:text-slate-400 text-center">
+            <span className="text-[#FF9800] dark:text-[#FFB74D] font-semibold">ربح</span> v1.0.0
+          </div>
         </div>
       )}
     </div>

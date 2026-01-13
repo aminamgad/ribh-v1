@@ -124,7 +124,7 @@ export default function ProductVariantSelector({
             <div className="text-right">
               {selectedOption.price && selectedOption.price > 0 && (
                 <p className="text-sm text-green-600 dark:text-green-400">
-                  +{selectedOption.price.toFixed(2)} ₪
+                  +{new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(selectedOption.price)} ₪
                 </p>
               )}
               <p className="text-sm text-gray-500">

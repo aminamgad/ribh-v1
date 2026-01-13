@@ -86,12 +86,12 @@ withdrawalRequestSchema.virtual('formattedAmount').get(function() {
 
 // Virtual for formatted request date
 withdrawalRequestSchema.virtual('formattedRequestDate').get(function() {
-  return this.requestDate.toLocaleDateString('ar-SA');
+  return this.requestDate.toLocaleDateString('en-US');
 });
 
 // Virtual for formatted processed date
 withdrawalRequestSchema.virtual('formattedProcessedDate').get(function() {
-  return this.processedDate ? this.processedDate.toLocaleDateString('ar-SA') : '';
+  return this.processedDate ? this.processedDate.toLocaleDateString('en-US') : '';
 });
 
 // Pre-save middleware to validate amount against wallet balance

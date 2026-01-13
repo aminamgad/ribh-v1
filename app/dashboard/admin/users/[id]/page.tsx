@@ -318,7 +318,7 @@ export default function UserDetailPage() {
                   <Calendar className="w-4 h-4 text-gray-400 dark:text-slate-500 ml-2" />
                   <span className="text-sm text-gray-600 dark:text-slate-400">تاريخ التسجيل:</span>
                   <span className="text-sm font-medium text-gray-900 dark:text-slate-100 mr-2">
-                    {new Date(userDetail.createdAt).toLocaleDateString('ar-SA')}
+                    {new Date(userDetail.createdAt).toLocaleDateString('en-US')}
                   </span>
                 </div>
 
@@ -327,7 +327,7 @@ export default function UserDetailPage() {
                     <Activity className="w-4 h-4 text-gray-400 dark:text-slate-500 ml-2" />
                     <span className="text-sm text-gray-600 dark:text-slate-400">آخر تسجيل دخول:</span>
                     <span className="text-sm font-medium text-gray-900 dark:text-slate-100 mr-2">
-                      {new Date(userDetail.lastLogin).toLocaleDateString('ar-SA')}
+                      {new Date(userDetail.lastLogin).toLocaleDateString('en-US')}
                     </span>
                   </div>
                 )}
@@ -351,7 +351,7 @@ export default function UserDetailPage() {
               {userDetail.totalRevenue && (
                 <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-gray-200 dark:border-slate-700 text-center">
                   <DollarSign className="w-8 h-8 text-purple-600 dark:text-purple-400 mx-auto mb-2" />
-                  <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">{userDetail.totalRevenue.toLocaleString()} ₪</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">{userDetail.totalRevenue ? new Intl.NumberFormat('en-US').format(userDetail.totalRevenue) : '0'} ₪</p>
                   <p className="text-sm text-gray-600 dark:text-slate-400">إجمالي المبيعات</p>
                 </div>
               )}
@@ -459,14 +459,14 @@ export default function UserDetailPage() {
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600 dark:text-slate-400">تاريخ التسجيل:</span>
                   <span className="text-sm font-medium text-gray-900 dark:text-slate-100">
-                    {new Date(userDetail.createdAt).toLocaleDateString('ar-SA')}
+                    {new Date(userDetail.createdAt).toLocaleDateString('en-US')}
                   </span>
                 </div>
                 {userDetail.lastLogin && (
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600 dark:text-slate-400">آخر دخول:</span>
                     <span className="text-sm font-medium text-gray-900 dark:text-slate-100">
-                      {new Date(userDetail.lastLogin).toLocaleDateString('ar-SA')}
+                      {new Date(userDetail.lastLogin).toLocaleDateString('en-US')}
                     </span>
                   </div>
                 )}

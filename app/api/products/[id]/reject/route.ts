@@ -49,7 +49,7 @@ async function rejectProductHandler(
       rejectionReason: rejectionReason.trim(),
       rejectedAt: new Date(),
       rejectedBy: user._id,
-      adminNotes: `تم رفض المنتج بواسطة ${user.name} في ${new Date().toLocaleString('ar-SA')}. السبب: ${rejectionReason.trim()}`
+      adminNotes: `تم رفض المنتج بواسطة ${user.name} في ${new Date().toLocaleString('en-US')}. السبب: ${rejectionReason.trim()}`
     };
 
     const updatedProduct = await Product.findByIdAndUpdate(

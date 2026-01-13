@@ -188,10 +188,10 @@ function generateCSV(data: any): string {
   // Header
   csv += 'التقرير التحليلي المتقدم\n';
   csv += `الفترة: ${range}\n`;
-  csv += `من: ${new Date(dateRange.start).toLocaleDateString('ar-SA')}\n`;
-  csv += `إلى: ${new Date(dateRange.end).toLocaleDateString('ar-SA')}\n`;
+  csv += `من: ${new Date(dateRange.start).toLocaleDateString('en-US')}\n`;
+  csv += `إلى: ${new Date(dateRange.end).toLocaleDateString('en-US')}\n`;
   csv += `دور المستخدم: ${userRole}\n`;
-  csv += `تاريخ التصدير: ${new Date().toLocaleDateString('ar-SA')}\n\n`;
+  csv += `تاريخ التصدير: ${new Date().toLocaleDateString('en-US')}\n\n`;
   
   // Summary Statistics
   csv += 'الإحصائيات العامة\n';
@@ -236,7 +236,7 @@ function generateCSV(data: any): string {
   csv += 'تفاصيل الطلبات\n';
   csv += 'رقم الطلب,اسم العميل,دور العميل,إجمالي الطلب,الحالة,تاريخ الطلب\n';
   orders.forEach((order: any) => {
-    csv += `${order._id},${order.customerId?.name || 'غير محدد'},${order.customerId?.role || 'غير محدد'},${order.total},${order.status},${new Date(order.createdAt).toLocaleDateString('ar-SA')}\n`;
+    csv += `${order._id},${order.customerId?.name || 'غير محدد'},${order.customerId?.role || 'غير محدد'},${order.total},${order.status},${new Date(order.createdAt).toLocaleDateString('en-US')}\n`;
   });
   csv += '\n';
   
@@ -244,7 +244,7 @@ function generateCSV(data: any): string {
   csv += 'قائمة المنتجات\n';
   csv += 'اسم المنتج,السعر,الحالة,تاريخ الإنشاء\n';
   products.forEach((product: any) => {
-    csv += `${product.name},${product.price},${product.isActive ? 'نشط' : 'غير نشط'},${new Date(product.createdAt).toLocaleDateString('ar-SA')}\n`;
+    csv += `${product.name},${product.price},${product.isActive ? 'نشط' : 'غير نشط'},${new Date(product.createdAt).toLocaleDateString('en-US')}\n`;
   });
   
   return csv;

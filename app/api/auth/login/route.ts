@@ -13,10 +13,12 @@ const loginSchema = z.object({
 });
 
 async function loginHandler(req: NextRequest) {
+  let email = '';
   try {
     await connectDB();
 
     const body = await req.json();
+    email = body.email || '';
     
     // Validate input
     const validatedData = loginSchema.parse(body);
@@ -166,7 +168,7 @@ async function loginHandler(req: NextRequest) {
     return response;
 
   } catch (error) {
-    safeLogError(error, 'Login', { email: (await req.json().catch(() => ({}))).email });
+    safeLogError(error, 'Login', { email });
     return handleApiError(error, 'حدث خطأ أثناء تسجيل الدخول');
   }
 }

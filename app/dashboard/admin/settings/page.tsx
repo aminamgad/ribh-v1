@@ -621,7 +621,7 @@ export default function SettingsPage() {
                           <span>من {margin.minPrice}₪ إلى {margin.maxPrice}₪:</span>
                           <span className="font-semibold">{margin.margin}%</span>
                           <span className="text-blue-600 dark:text-blue-300">
-                            (مثال: منتج بسعر {Math.floor((margin.minPrice + margin.maxPrice) / 2)}₪ = {((Math.floor((margin.minPrice + margin.maxPrice) / 2)) * margin.margin / 100).toFixed(2)}₪ ربح)
+                            (مثال: منتج بسعر {Math.floor((margin.minPrice + margin.maxPrice) / 2)}₪ = {new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format((Math.floor((margin.minPrice + margin.maxPrice) / 2)) * margin.margin / 100)}₪ ربح)
                           </span>
                         </div>
                       ))}
@@ -679,7 +679,7 @@ export default function SettingsPage() {
                         />
                         {margin.margin > 0 && margin.minPrice > 0 && (
                           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                            مثال: منتج {margin.minPrice}₪ = {(margin.minPrice * margin.margin / 100).toFixed(2)}₪ ربح
+                            مثال: منتج {margin.minPrice}₪ = {new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(margin.minPrice * margin.margin / 100)}₪ ربح
                           </p>
                         )}
                       </div>

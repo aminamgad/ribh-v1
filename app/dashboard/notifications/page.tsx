@@ -5,7 +5,7 @@ import { Bell, Check, CheckCheck, ExternalLink, Info, CheckCircle, AlertTriangle
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { formatDistanceToNow } from 'date-fns';
-import { ar } from 'date-fns/locale';
+import { enUS } from 'date-fns/locale';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 
@@ -184,7 +184,7 @@ export default function NotificationsPage() {
                         <span>
                           {formatDistanceToNow(new Date(notification.createdAt), {
                             addSuffix: true,
-                            locale: ar
+                            locale: enUS
                           })}
                         </span>
                         
@@ -239,7 +239,7 @@ export default function NotificationsPage() {
                       <p className="text-sm text-gray-500 dark:text-slate-400">
                         {formatDistanceToNow(new Date(selectedNotification.createdAt), {
                           addSuffix: true,
-                          locale: ar
+                          locale: enUS
                         })}
                       </p>
                     </div>

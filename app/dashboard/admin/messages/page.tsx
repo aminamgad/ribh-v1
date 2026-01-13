@@ -208,7 +208,7 @@ export default function AdminMessagesPage() {
               <select
                 value={filter}
                 onChange={(e) => setFilter(e.target.value as any)}
-                className="px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-[#FF9800] focus:border-transparent dark:bg-slate-700 dark:text-slate-100"
+                className="input-field"
               >
                 <option value="all">جميع الرسائل</option>
                 <option value="pending">قيد المراجعة</option>
@@ -220,13 +220,13 @@ export default function AdminMessagesPage() {
             {/* Search */}
             <div className="flex items-center flex-1">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none z-10" />
                 <input
                   type="text"
                   placeholder="البحث في الرسائل..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-[#FF9800] focus:border-transparent dark:bg-slate-700 dark:text-slate-100"
+                  className="w-full pr-11 pl-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-[#FF9800] focus:border-transparent dark:bg-slate-700 dark:text-slate-100"
                 />
               </div>
             </div>
@@ -286,7 +286,7 @@ export default function AdminMessagesPage() {
                       
                       <div className="flex items-center justify-between text-sm text-gray-500 dark:text-slate-400">
                         <span>
-                          {new Date(message.createdAt).toLocaleDateString('ar-SA', {
+                          {new Date(message.createdAt).toLocaleDateString('en-US', {
                             year: 'numeric',
                             month: 'long',
                             day: 'numeric',

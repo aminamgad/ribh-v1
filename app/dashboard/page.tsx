@@ -187,7 +187,7 @@ export default function DashboardPage() {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('ar-IL', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'ILS'
     }).format(amount);
@@ -330,7 +330,7 @@ export default function DashboardPage() {
                 <div className="flex items-center gap-2 px-4 py-2 bg-[#FF9800]/20 dark:bg-[#FF9800]/30 rounded-full">
                   <Clock className="w-4 h-4 text-[#FF9800] dark:text-[#FF9800]" />
                   <span className="text-sm font-medium text-[#F57C00] dark:text-[#F57C00]">
-                    آخر تحديث: {lastUpdate.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                    آخر تحديث: {lastUpdate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                   </span>
                 </div>
               )}
@@ -669,7 +669,7 @@ export default function DashboardPage() {
                       <p className="font-semibold text-gray-900 dark:text-slate-100 mb-1">{product.sales || 0} مبيعات</p>
                       <div className="flex items-center">
                         <Star className="w-4 h-4 text-amber-400 fill-current" />
-                        <span className="text-sm text-gray-600 dark:text-slate-400 mr-1">{product.rating?.toFixed(1) || '0.0'}</span>
+                        <span className="text-sm text-gray-600 dark:text-slate-400 mr-1">{product.rating ? new Intl.NumberFormat('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(product.rating) : '0.0'}</span>
                       </div>
                     </div>
                   </div>
@@ -1006,26 +1006,28 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 
-                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl">
-                  <div className="flex items-center">
-                    <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center mr-5">
-                      <Heart className="w-6 h-6 text-white" />
+                {user?.role === 'marketer' && (
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl">
+                    <div className="flex items-center">
+                      <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center mr-5">
+                        <Heart className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-600 dark:text-slate-400 p-4">المنتجات المفضلة</p>
+                        <p className="text-2xl font-bold text-gray-900 dark:text-slate-100 p-4">
+                          {stats?.favoritesCount || 0}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-600 dark:text-slate-400 p-4">المنتجات المفضلة</p>
-                      <p className="text-2xl font-bold text-gray-900 dark:text-slate-100 p-4">
-                        {stats?.favoritesCount || 0}
-                      </p>
+                    <div className="text-left">
+                      <div className="flex items-center text-sm font-medium text-purple-600 dark:text-purple-400">
+                        <ArrowUpRight className="w-4 h-4 ml-1" />
+                        +15.2%
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-slate-400">من الشهر الماضي</p>
                     </div>
                   </div>
-                  <div className="text-left">
-                    <div className="flex items-center text-sm font-medium text-purple-600 dark:text-purple-400">
-                      <ArrowUpRight className="w-4 h-4 ml-1" />
-                      +15.2%
-                    </div>
-                    <p className="text-xs text-gray-500 dark:text-slate-400">من الشهر الماضي</p>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
 
@@ -1077,22 +1079,24 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 
-                <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl border border-green-200 dark:border-green-700">
-                  <div className="flex items-start">
-                    <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center mr-4 flex-shrink-0">
-                      <Package className="w-4 h-4 text-white" />
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-gray-900 dark:text-slate-100 mb-2">مخزون محدود</h4>
-                      <p className="text-sm text-gray-600 dark:text-slate-400 mb-3">
-                        3 منتجات في قائمة المفضلة تنفد من المخزون قريباً
-                      </p>
-                      <Link href="/dashboard/favorites" className="text-sm text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 font-medium">
-                        مراجعة المفضلة →
-                      </Link>
+                {user?.role === 'marketer' && (
+                  <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl border border-green-200 dark:border-green-700">
+                    <div className="flex items-start">
+                      <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center mr-4 flex-shrink-0">
+                        <Package className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-gray-900 dark:text-slate-100 mb-2">مخزون محدود</h4>
+                        <p className="text-sm text-gray-600 dark:text-slate-400 mb-3">
+                          3 منتجات في قائمة المفضلة تنفد من المخزون قريباً
+                        </p>
+                        <Link href="/dashboard/favorites" className="text-sm text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 font-medium">
+                          مراجعة المفضلة →
+                        </Link>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           </div>
@@ -1199,7 +1203,7 @@ export default function DashboardPage() {
             <div>
               <p className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-2">آخر تسجيل دخول</p>
               <p className="text-xl font-semibold text-gray-900 dark:text-slate-100">
-                {new Date().toLocaleDateString('ar-SA')}
+                {new Date().toLocaleDateString('en-US')}
               </p>
             </div>
                             <div className="bg-[#FF9800]/20 dark:bg-[#FF9800]/30 p-4 rounded-xl">
@@ -1367,13 +1371,13 @@ export default function DashboardPage() {
                 <div>
                   <span className="text-gray-600 dark:text-slate-400">الفرق بين الأسعار:</span>
                   <span className="block font-medium text-green-600 dark:text-green-400 mt-1">
-                    {(quickEditData.marketerPrice - quickEditData.wholesalerPrice).toFixed(2)} ₪
+                    {new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(quickEditData.marketerPrice - quickEditData.wholesalerPrice)} ₪
                   </span>
                 </div>
                 <div>
                   <span className="text-gray-600 dark:text-slate-400">نسبة الربح:</span>
                                       <span className="block font-medium text-[#FF9800] dark:text-[#FF9800] mt-1">
-                    {((quickEditData.marketerPrice - quickEditData.wholesalerPrice) / quickEditData.marketerPrice * 100).toFixed(1)}%
+                    {new Intl.NumberFormat('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format((quickEditData.marketerPrice - quickEditData.wholesalerPrice) / quickEditData.marketerPrice * 100)}%
                   </span>
                 </div>
               </div>

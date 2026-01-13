@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
-import { Eye, EyeOff, ArrowLeft, Mail, Lock, User, Shield } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft, Mail, Lock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Image from 'next/image';
 
@@ -247,24 +247,6 @@ export default function LoginPage() {
               إنشاء حساب جديد
             </Link>
           </p>
-        </div>
-
-        {/* Demo Credentials */}
-        <div className="card-glass">
-          <div className="flex items-center mb-3">
-            <Shield className="w-5 h-5 text-[#4CAF50] dark:text-[#81C784] ml-2" />
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">بيانات تجريبية</h3>
-          </div>
-          <div className="space-y-2 text-xs text-gray-600 dark:text-gray-400">
-            <div className="flex items-center">
-              <User className="w-3 h-3 ml-1" />
-              <span className="font-mono">admin@ribh.com</span>
-            </div>
-            <div className="flex items-center">
-              <Lock className="w-3 h-3 ml-1" />
-              <span className="font-mono">Admin123!</span>
-            </div>
-          </div>
         </div>
       </div>
     </div>

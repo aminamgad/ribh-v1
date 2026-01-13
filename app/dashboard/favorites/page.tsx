@@ -174,7 +174,7 @@ export default function FavoritesPage() {
 
               {/* Added date */}
               <p className="text-xs text-gray-400 dark:text-gray-500 text-center">
-                أضيف في {new Date(product.addedAt).toLocaleDateString('ar-EG')}
+                أضيف في {new Date(product.addedAt).toLocaleDateString('en-US')}
               </p>
             </div>
           </div>

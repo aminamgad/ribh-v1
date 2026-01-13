@@ -5,7 +5,7 @@ import { useAuth } from '@/components/providers/AuthProvider';
 import { MessageSquare, Send, Reply, Edit2, Trash2, MoreVertical, Lock, Unlock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
-import { ar } from 'date-fns/locale';
+import { enUS } from 'date-fns/locale';
 
 interface Comment {
   _id: string;
@@ -349,7 +349,7 @@ function CommentItem({
                 </span>
               </div>
               <p className="text-xs text-gray-500 dark:text-slate-400">
-                {format(new Date(comment.createdAt), 'dd MMMM yyyy HH:mm', { locale: ar })}
+                {format(new Date(comment.createdAt), 'dd MMMM yyyy HH:mm', { locale: enUS })}
               </p>
             </div>
             
@@ -502,7 +502,7 @@ function CommentItem({
                         )}
                       </div>
                       <p className="text-xs text-gray-500 dark:text-slate-400">
-                        {format(new Date(reply.createdAt), 'dd MMMM yyyy HH:mm', { locale: ar })}
+                        {format(new Date(reply.createdAt), 'dd MMMM yyyy HH:mm', { locale: enUS })}
                       </p>
                     </div>
                     

@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { Search, Filter, Eye, Edit, Shield, UserCheck, UserX, Mail, Phone, UserPlus } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { useRouter } from 'next/navigation';
 
 interface User {
   _id: string;
@@ -38,24 +38,89 @@ const roleColors = {
 
 export default function AdminUsersPage() {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const router = useRouter();
+  
+  // Initialize filters from URL
+  const initialSearch = searchParams.get('search') || '';
+  const initialRole = searchParams.get('role') || 'all';
+  const initialStatus = searchParams.get('status') || 'all';
+  
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterRole, setFilterRole] = useState('all');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const router = useRouter();
+  const [searchTerm, setSearchTerm] = useState(initialSearch);
+  const [filterRole, setFilterRole] = useState(initialRole);
+  const [filterStatus, setFilterStatus] = useState(initialStatus);
+
+  // Update URL when filters change
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    
+    if (searchTerm.trim()) {
+      params.set('search', searchTerm.trim());
+    } else {
+      params.delete('search');
+    }
+    
+    if (filterRole && filterRole !== 'all') {
+      params.set('role', filterRole);
+    } else {
+      params.delete('role');
+    }
+    
+    if (filterStatus && filterStatus !== 'all') {
+      params.set('status', filterStatus);
+    } else {
+      params.delete('status');
+    }
+    
+    const queryString = params.toString();
+    const newUrl = queryString ? `${pathname}?${queryString}` : pathname;
+    router.replace(newUrl, { scroll: false });
+    
+    // Save filters to sessionStorage
+    try {
+      if (queryString) {
+        sessionStorage.setItem('filters_/dashboard/admin/users', queryString);
+      } else {
+        sessionStorage.removeItem('filters_/dashboard/admin/users');
+      }
+    } catch (e) {
+      // Ignore errors
+    }
+  }, [searchTerm, filterRole, filterStatus, pathname, router, searchParams]);
+
+  // Fetch users when filters change
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      fetchUsers();
+    }
+  }, [searchTerm, filterRole, filterStatus, user]);
 
   useEffect(() => {
     if (user?.role !== 'admin') {
       toast.error('غير مصرح لك بالوصول لهذه الصفحة');
       return;
     }
-    fetchUsers();
   }, [user]);
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch('/api/admin/users');
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (searchTerm.trim()) {
+        params.append('search', searchTerm.trim());
+      }
+      if (filterRole && filterRole !== 'all') {
+        params.append('role', filterRole);
+      }
+      if (filterStatus && filterStatus !== 'all') {
+        params.append('status', filterStatus);
+      }
+      
+      const queryString = params.toString();
+      const response = await fetch(`/api/admin/users?${queryString}`);
       if (response.ok) {
         const data = await response.json();
         setUsers(data.users);
@@ -105,17 +170,8 @@ export default function AdminUsersPage() {
     }
   };
 
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.phone.includes(searchTerm);
-    const matchesRole = filterRole === 'all' || user.role === filterRole;
-    const matchesStatus = filterStatus === 'all' || 
-                         (filterStatus === 'active' && user.isActive) ||
-                         (filterStatus === 'inactive' && !user.isActive);
-    
-    return matchesSearch && matchesRole && matchesStatus;
-  });
+  // Filtering is now done on server side
+  const filteredUsers = users;
 
   const getStats = () => {
     const total = users.length;
@@ -247,13 +303,13 @@ export default function AdminUsersPage() {
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
             <div className="relative">
-              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none z-10" />
               <input
                 type="text"
                 placeholder="البحث في المستخدمين..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="input-field pr-10"
+                className="input-field pr-11"
               />
             </div>
           </div>
@@ -351,7 +407,7 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="table-cell">
                       <div className="text-sm text-gray-500">
-                        {new Date(userItem.createdAt).toLocaleDateString('ar-EG')}
+                        {new Date(userItem.createdAt).toLocaleDateString('en-US')}
                       </div>
                     </td>
                     <td className="table-cell">

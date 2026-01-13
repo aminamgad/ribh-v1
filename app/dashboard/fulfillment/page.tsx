@@ -434,7 +434,7 @@ export default function FulfillmentPage() {
             <div className="mr-3">
               <p className="text-sm text-gray-600 dark:text-slate-400">قيد الانتظار</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">{stats.pending}</p>
-              <p className="text-xs text-gray-500 dark:text-slate-400">{stats.pendingValue.toFixed(0)} ₪</p>
+              <p className="text-xs text-gray-500 dark:text-slate-400">{new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(stats.pendingValue)} ₪</p>
             </div>
           </div>
         </div>
@@ -447,7 +447,7 @@ export default function FulfillmentPage() {
             <div className="mr-3">
               <p className="text-sm text-gray-600 dark:text-slate-400">معتمد</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">{stats.approved}</p>
-              <p className="text-xs text-gray-500 dark:text-slate-400">{stats.approvedValue.toFixed(0)} ₪</p>
+              <p className="text-xs text-gray-500 dark:text-slate-400">{new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(stats.approvedValue)} ₪</p>
             </div>
           </div>
         </div>
@@ -459,7 +459,7 @@ export default function FulfillmentPage() {
             </div>
             <div className="mr-3">
               <p className="text-sm text-gray-600 dark:text-slate-400">إجمالي القيمة</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">{stats.totalValue.toFixed(0)} ₪</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">{new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(stats.totalValue)} ₪</p>
               <p className="text-xs text-gray-500 dark:text-slate-400">جميع الطلبات</p>
             </div>
           </div>
@@ -580,7 +580,7 @@ export default function FulfillmentPage() {
                         <div>
                           <p className="font-medium text-gray-900 dark:text-slate-100">{request.supplierName}</p>
                           <p className="text-sm text-gray-500 dark:text-slate-400">
-                            {new Date(request.createdAt).toLocaleDateString('ar-EG')}
+                            {new Date(request.createdAt).toLocaleDateString('en-US')}
                           </p>
                         </div>
                       </td>
@@ -614,7 +614,7 @@ export default function FulfillmentPage() {
                       </td>
                       <td className="table-cell">
                         <div className="text-sm text-gray-500 dark:text-slate-400">
-                          {new Date(request.createdAt).toLocaleDateString('ar-EG')}
+                          {new Date(request.createdAt).toLocaleDateString('en-US')}
                         </div>
                       </td>
                       <td className="table-cell">

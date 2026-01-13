@@ -93,14 +93,14 @@ export default function WalletPage() {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('ar-IL', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'ILS'
     }).format(amount);
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('ar-IL', {
+    return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -565,7 +565,7 @@ export default function WalletPage() {
                       <div>
                         <p className="font-semibold text-gray-900 dark:text-slate-100">رقم المحفظة: {request.walletNumber}</p>
                         <p className="text-sm text-gray-600 dark:text-gray-400">
-                          {new Date(request.createdAt).toLocaleDateString('ar-SA')}
+                          {new Date(request.createdAt).toLocaleDateString('en-US')}
                         </p>
                       </div>
                       {getStatusBadge(request.status)}

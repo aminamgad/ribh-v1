@@ -296,7 +296,7 @@ export default function MessagesPage() {
                       {conversation.lastMessage.content}
                     </p>
                     <p className="text-xs text-gray-400 dark:text-slate-500 mt-2">
-                      {new Date(conversation.lastMessage.createdAt).toLocaleDateString('ar-SA')}
+                      {new Date(conversation.lastMessage.createdAt).toLocaleDateString('en-US')}
                     </p>
                   </div>
                 ))

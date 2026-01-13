@@ -247,13 +247,13 @@ export default function AdminUsersPage() {
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
             <div className="relative">
-              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-300 w-4 h-4" />
+              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-300 w-4 h-4 pointer-events-none z-10" />
               <input
                 type="text"
                 placeholder="البحث بالاسم، البريد الإلكتروني، أو الهاتف..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="input-field pr-10"
+                className="input-field pr-11"
               />
             </div>
           </div>
@@ -351,7 +351,7 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="table-cell">
                       <div className="text-sm text-gray-500">
-                        {new Date(userItem.createdAt).toLocaleDateString('ar-EG')}
+                        {new Date(userItem.createdAt).toLocaleDateString('en-US')}
                       </div>
                     </td>
                     <td className="table-cell">

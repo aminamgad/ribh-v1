@@ -156,9 +156,9 @@ function generateCSV(data: any): string {
   // Header
   csv += 'تقرير الأرباح والعمولات\n';
   csv += `الفترة: ${period}\n`;
-  csv += `من: ${new Date(dateRange.start).toLocaleDateString('ar-SA')}\n`;
-  csv += `إلى: ${new Date(dateRange.end).toLocaleDateString('ar-SA')}\n`;
-  csv += `تاريخ التصدير: ${new Date().toLocaleDateString('ar-SA')}\n\n`;
+  csv += `من: ${new Date(dateRange.start).toLocaleDateString('en-US')}\n`;
+  csv += `إلى: ${new Date(dateRange.end).toLocaleDateString('en-US')}\n`;
+  csv += `تاريخ التصدير: ${new Date().toLocaleDateString('en-US')}\n\n`;
   
   // Summary Statistics
   csv += 'الإحصائيات العامة\n';
@@ -185,7 +185,7 @@ function generateCSV(data: any): string {
   csv += 'تفاصيل الطلبات\n';
   csv += 'رقم الطلب,اسم العميل,دور العميل,إجمالي الطلب,عمولة المنصة,ربح المسوق,تاريخ الطلب\n';
   orders.forEach((order: any) => {
-    csv += `${order._id},${order.customerId?.name || 'غير محدد'},${order.customerId?.role || 'غير محدد'},${order.total},${order.commission},${order.marketerProfit || 0},${new Date(order.createdAt).toLocaleDateString('ar-SA')}\n`;
+    csv += `${order._id},${order.customerId?.name || 'غير محدد'},${order.customerId?.role || 'غير محدد'},${order.total},${order.commission},${order.marketerProfit || 0},${new Date(order.createdAt).toLocaleDateString('en-US')}\n`;
   });
   
   return csv;

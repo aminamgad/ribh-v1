@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useChat } from '@/components/providers/ChatProvider';
 import { format } from 'date-fns';
-import { ar } from 'date-fns/locale';
+import { enUS } from 'date-fns/locale';
 import {
   MessageSquare,
   Send,
@@ -292,13 +292,13 @@ export default function ChatPage() {
 
           {/* Search */}
           <div className="relative mb-3">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-400" />
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-400 pointer-events-none z-10" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="بحث في المحادثات..."
-              className="input-field pr-10 text-sm"
+              className="input-field pr-11 text-sm"
             />
           </div>
 
@@ -384,7 +384,7 @@ export default function ChatPage() {
                           </p>
                         )}
                         <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
-                          {chat.updatedAt ? format(new Date(chat.updatedAt), 'dd/MM/yyyy HH:mm', { locale: ar }) : 'غير محدد'}
+                          {chat.updatedAt ? format(new Date(chat.updatedAt), 'dd/MM/yyyy HH:mm', { locale: enUS }) : 'غير محدد'}
                         </p>
                       </div>
                     </div>
@@ -466,7 +466,7 @@ export default function ChatPage() {
                       {showDate && (
                         <div className="text-center mb-4">
                           <span className="text-xs text-gray-500 dark:text-slate-400 bg-gray-100 dark:bg-slate-700 px-3 py-1 rounded-full">
-                            {message.createdAt ? format(new Date(message.createdAt), 'dd MMMM yyyy', { locale: ar }) : 'غير محدد'}
+                            {message.createdAt ? format(new Date(message.createdAt), 'dd MMMM yyyy', { locale: enUS }) : 'غير محدد'}
                           </span>
                         </div>
                       )}
@@ -512,7 +512,7 @@ export default function ChatPage() {
                             {!isMe && (
                               <>
                                 <span>
-                                  {message.createdAt ? format(new Date(message.createdAt), 'HH:mm', { locale: ar }) : '--:--'}
+                                  {message.createdAt ? format(new Date(message.createdAt), 'HH:mm', { locale: enUS }) : '--:--'}
                                 </span>
                                 {getMessageStatus(message)}
                               </>
@@ -521,7 +521,7 @@ export default function ChatPage() {
                               <>
                                 {getMessageStatus(message)}
                                 <span>
-                                  {message.createdAt ? format(new Date(message.createdAt), 'HH:mm', { locale: ar }) : '--:--'}
+                                  {message.createdAt ? format(new Date(message.createdAt), 'HH:mm', { locale: enUS }) : '--:--'}
                                 </span>
                               </>
                             )}

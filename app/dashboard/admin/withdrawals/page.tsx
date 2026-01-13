@@ -123,7 +123,7 @@ export default function AdminWithdrawalsPage() {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('ar-SA', {
+    return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -133,7 +133,7 @@ export default function AdminWithdrawalsPage() {
   };
 
   const formatAmount = (amount: number) => {
-    return `${amount.toFixed(2)}₪`;
+    return `${new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)}₪`;
   };
 
   const getStatusCount = (status: string) => {
@@ -227,7 +227,7 @@ export default function AdminWithdrawalsPage() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              className="input-field"
             >
               <option value="all">جميع الطلبات</option>
               <option value="pending">معلق</option>

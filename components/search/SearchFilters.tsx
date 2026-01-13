@@ -62,6 +62,17 @@ export default function SearchFilters({ onSearch }: SearchFiltersProps) {
     const queryString = params.toString();
     router.push(`/dashboard/products${queryString ? `?${queryString}` : ''}`);
     
+    // Save filters to sessionStorage
+    try {
+      if (queryString) {
+        sessionStorage.setItem('filters_/dashboard/products', queryString);
+      } else {
+        sessionStorage.removeItem('filters_/dashboard/products');
+      }
+    } catch (e) {
+      // Ignore errors
+    }
+    
     if (onSearch) {
       onSearch({
         q: searchQuery,

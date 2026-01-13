@@ -56,9 +56,9 @@ async function registerHandler(req: NextRequest) {
     }).refine((data) => {
       // Marketing account validation
       if (data.role === 'marketer') {
-        if (!data.country) return false;
-        if (!data.dateOfBirth) return false;
-        if (!data.gender) return false;
+        if (!data.country || data.country.trim() === '') return false;
+        if (!data.dateOfBirth || data.dateOfBirth.trim() === '') return false;
+        if (!data.gender || data.gender.trim() === '') return false;
       }
       return true;
     }, {
@@ -67,9 +67,9 @@ async function registerHandler(req: NextRequest) {
     }).refine((data) => {
       // Supplier account validation
       if (data.role === 'supplier') {
-        if (!data.companyName) return false;
-        if (!data.commercialRegisterNumber) return false;
-        if (!data.address) return false;
+        if (!data.companyName || data.companyName.trim() === '') return false;
+        if (!data.commercialRegisterNumber || data.commercialRegisterNumber.trim() === '') return false;
+        if (!data.address || data.address.trim() === '') return false;
       }
       return true;
     }, {
@@ -78,17 +78,20 @@ async function registerHandler(req: NextRequest) {
     });
     
     // Sanitize input before validation
+    // Convert empty strings to undefined for optional fields
     const sanitizedBody = {
       ...body,
       name: sanitizeString(body.name, 100),
       email: sanitizeEmail(body.email),
       phone: sanitizePhone(body.phone),
-      country: body.country ? sanitizeString(body.country, 100) : body.country,
-      websiteLink: body.websiteLink ? sanitizeUrl(body.websiteLink) : body.websiteLink,
-      companyName: body.companyName ? sanitizeString(body.companyName, 200) : body.companyName,
-      address: body.address ? sanitizeString(body.address, 500) : body.address,
-      commercialRegisterNumber: body.commercialRegisterNumber ? sanitizeString(body.commercialRegisterNumber, 50) : body.commercialRegisterNumber,
-      taxId: body.taxId ? sanitizeString(body.taxId, 50) : body.taxId,
+      country: body.country && body.country.trim() !== '' ? sanitizeString(body.country, 100) : undefined,
+      websiteLink: body.websiteLink && body.websiteLink.trim() !== '' ? sanitizeUrl(body.websiteLink) : undefined,
+      dateOfBirth: body.dateOfBirth && body.dateOfBirth.trim() !== '' ? body.dateOfBirth : undefined,
+      gender: body.gender && body.gender.trim() !== '' ? body.gender : undefined,
+      companyName: body.companyName && body.companyName.trim() !== '' ? sanitizeString(body.companyName, 200) : undefined,
+      address: body.address && body.address.trim() !== '' ? sanitizeString(body.address, 500) : undefined,
+      commercialRegisterNumber: body.commercialRegisterNumber && body.commercialRegisterNumber.trim() !== '' ? sanitizeString(body.commercialRegisterNumber, 50) : undefined,
+      taxId: body.taxId && body.taxId.trim() !== '' ? sanitizeString(body.taxId, 50) : undefined,
     };
     
     // Validate input

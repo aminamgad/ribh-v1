@@ -86,14 +86,14 @@ export default function AdminEarningsPage() {
 
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('ar-IL', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'ILS'
     }).format(amount);
   };
 
   const formatPercentage = (value: number) => {
-    return `${value.toFixed(1)}%`;
+    return `${new Intl.NumberFormat('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value)}%`;
   };
 
   const exportEarningsReport = async () => {
@@ -157,7 +157,7 @@ export default function AdminEarningsPage() {
           <p className="text-gray-600 dark:text-slate-400 mt-2">إحصائيات الأرباح والعمولات</p>
           {customDateRange && startDate && endDate && (
             <p className="text-sm text-blue-600 dark:text-blue-400 mt-1">
-              الفترة المحددة: من {new Date(startDate).toLocaleDateString('ar-SA')} إلى {new Date(endDate).toLocaleDateString('ar-SA')}
+              الفترة المحددة: من {new Date(startDate).toLocaleDateString('en-US')} إلى {new Date(endDate).toLocaleDateString('en-US')}
             </p>
           )}
         </div>
@@ -174,7 +174,7 @@ export default function AdminEarningsPage() {
                   setPeriod(e.target.value);
                 }
               }}
-                             className="px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-[#FF9800] focus:border-[#FF9800]"
+              className="input-field"
             >
               <option value="week">آخر أسبوع</option>
               <option value="month">آخر شهر</option>

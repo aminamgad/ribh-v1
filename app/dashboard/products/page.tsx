@@ -35,6 +35,7 @@ import { useSearchParams } from 'next/navigation';
 import MediaThumbnail from '@/components/ui/MediaThumbnail';
 import { useRouter } from 'next/navigation';
 import ProductSection from '@/components/products/ProductSection';
+import AdminProductFilters from '@/components/products/AdminProductFilters';
 
 interface Product {
   _id: string;
@@ -248,7 +249,17 @@ export default function ProductsPage() {
     try {
       setLoading(true);
       const queryString = searchParams.toString();
-      const endpoint = queryString ? `/api/search?${queryString}` : '/api/products';
+      // Use /api/products for admin filters (stockStatus, suppliers, startDate, endDate)
+      // or when user is admin, otherwise use /api/search for regular search
+      const hasAdminFilters = searchParams.has('stockStatus') || 
+                              searchParams.has('suppliers') || 
+                              searchParams.has('startDate') || 
+                              searchParams.has('endDate');
+      const endpoint = (hasAdminFilters || user?.role === 'admin') 
+        ? `/api/products?${queryString}` 
+        : queryString 
+          ? `/api/search?${queryString}` 
+          : '/api/products';
       
       console.log('🔄 Fetching products from:', endpoint);
       
@@ -708,6 +719,11 @@ export default function ProductsPage() {
 
       {/* Search and Filters */}
       <SearchFilters onSearch={() => setLoading(true)} />
+      
+      {/* Admin Product Filters */}
+      {user?.role === 'admin' && (
+        <AdminProductFilters onFiltersChange={() => fetchProducts()} />
+      )}
 
       {/* Product Sections for Marketer - Only show when no filters/search */}
       {user?.role === 'marketer' && !searchParams.toString() && (
@@ -1663,13 +1679,13 @@ export default function ProductsPage() {
                  <div>
                    <span className="text-gray-600 dark:text-slate-400">الفرق بين الأسعار:</span>
                    <span className="block font-medium text-green-600 dark:text-green-400">
-                     {(quickEditData.marketerPrice - quickEditData.wholesalerPrice).toFixed(2)} ₪
+                     {new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(quickEditData.marketerPrice - quickEditData.wholesalerPrice)} ₪
                    </span>
                  </div>
                  <div>
                    <span className="text-gray-600 dark:text-slate-400">نسبة الربح:</span>
                    <span className="block font-medium text-[#FF9800] dark:text-[#FF9800]">
-                     {((quickEditData.marketerPrice - quickEditData.wholesalerPrice) / quickEditData.marketerPrice * 100).toFixed(1)}%
+                     {new Intl.NumberFormat('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format((quickEditData.marketerPrice - quickEditData.wholesalerPrice) / quickEditData.marketerPrice * 100)}%
                    </span>
                  </div>
                </div>

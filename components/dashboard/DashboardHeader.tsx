@@ -6,13 +6,13 @@ import { useCart } from '@/components/providers/CartProvider';
 import { useNotifications } from '@/components/providers/NotificationProvider';
 import { useChat } from '@/components/providers/ChatProvider';
 import { useSettings } from '@/components/providers/SettingsProvider';
-import { Bell, ChevronDown, LogOut, Settings, User, ShoppingCart, MessageSquare, Menu, Search } from 'lucide-react';
+import { Bell, ChevronDown, User, ShoppingCart, MessageSquare, Menu, Search } from 'lucide-react';
 import Link from 'next/link';
 import ThemeToggle from '@/components/ui/ThemeToggle';
 import { useRouter } from 'next/navigation';
 
 export default function DashboardHeader() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
   const { totalItems } = useCart();
   const { unreadCount } = useNotifications();
@@ -200,24 +200,6 @@ export default function DashboardHeader() {
                     )}
                   </div>
                   <div className="py-1">
-                    <Link
-                      href="/dashboard/settings"
-                      className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors duration-200"
-                      onClick={() => setShowUserMenu(false)}
-                    >
-                      <Settings className="w-4 h-4 ml-3" />
-                      الإعدادات
-                    </Link>
-                    <button
-                      onClick={() => {
-                        setShowUserMenu(false);
-                        logout();
-                      }}
-                      className="flex items-center w-full text-right px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors duration-200"
-                    >
-                      <LogOut className="w-4 h-4 ml-3" />
-                      تسجيل الخروج
-                    </button>
                   </div>
                 </div>
               )}

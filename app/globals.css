@@ -76,10 +76,13 @@ body::after {
   html {
     direction: rtl;
     font-family: 'Cairo', 'IBM Plex Sans Arabic', 'Tajawal', Arial, sans-serif;
-    font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Force English numerals (0-9) instead of Arabic numerals (٠-٩) */
+    font-variant-numeric: lining-nums;
+    -webkit-font-feature-settings: "kern" 1, "liga" 1, "calt" 1, "lnum" 1;
+    font-feature-settings: "kern" 1, "liga" 1, "calt" 1, "lnum" 1;
     /* Mobile-first viewport */
     font-size: 14px; /* Base font size for mobile */
   }
@@ -110,6 +113,10 @@ body::after {
     line-height: 1.6;
     letter-spacing: 0.01em;
     background-color: #f8f9fa;
+    /* Force English numerals (0-9) instead of Arabic numerals (٠-٩) */
+    font-variant-numeric: lining-nums;
+    -webkit-font-feature-settings: "lnum";
+    font-feature-settings: "lnum";
   }
 
   body.dark {
@@ -696,6 +703,25 @@ body::after {
 
   .input-field:focus {
     @apply shadow-xl shadow-[#FF9800]/20 dark:shadow-[#FF9800]/10;
+  }
+
+  /* Fix for select fields - add extra padding to prevent arrow from covering text in RTL */
+  select.input-field {
+    padding-left: 2.5rem !important;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: left 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+  }
+  
+  @media (min-width: 640px) {
+    select.input-field {
+      padding-left: 2.75rem !important;
+      background-position: left 0.75rem center;
+    }
   }
   
   .form-label {

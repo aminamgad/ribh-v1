@@ -165,8 +165,8 @@ export default function OrderImportModal({ isOpen, onClose, onImportSuccess }: O
 
           {/* Template Download */}
           <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+              <div className="flex-1">
                 <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-1">
                   قالب الاستيراد
                 </h4>
@@ -179,7 +179,7 @@ export default function OrderImportModal({ isOpen, onClose, onImportSuccess }: O
               </div>
               <button
                 onClick={downloadTemplate}
-                className="btn-secondary flex items-center"
+                className="btn-secondary flex items-center flex-shrink-0"
               >
                 <Download className="w-4 h-4 ml-2" />
                 تحميل القالب
@@ -241,7 +241,7 @@ export default function OrderImportModal({ isOpen, onClose, onImportSuccess }: O
                     {file.name}
                   </p>
                   <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">
-                    {(file.size / 1024 / 1024).toFixed(2)} MB
+                    {new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(file.size / 1024 / 1024)} MB
                   </p>
                   <button
                     onClick={() => fileInputRef.current?.click()}

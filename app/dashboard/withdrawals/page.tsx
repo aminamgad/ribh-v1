@@ -346,7 +346,7 @@ export default function WithdrawalsPage() {
                     <div>
                       <p className="font-semibold">رقم المحفظة: {request.walletNumber}</p>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {new Date(request.createdAt).toLocaleDateString('ar-SA')}
+                        {new Date(request.createdAt).toLocaleDateString('en-US')}
                       </p>
                     </div>
                     {getStatusBadge(request.status)}

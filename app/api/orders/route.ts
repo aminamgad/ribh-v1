@@ -367,7 +367,20 @@ async function getOrdersHandler(req: NextRequest, user: any) {
     
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status');
-    const search = searchParams.get('search'); // Search term
+    const search = searchParams.get('search'); // Legacy search (backward compatibility)
+    
+    // New separate search fields
+    const customerSearch = searchParams.get('customerSearch');
+    const orderNumberSearch = searchParams.get('orderNumberSearch');
+    const productSearch = searchParams.get('productSearch');
+    
+    // Date range filters
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
+    
+    // Country filter
+    const country = searchParams.get('country');
+    
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '100'); // Increased limit for better search
     const skip = (page - 1) * limit;
@@ -386,10 +399,37 @@ async function getOrdersHandler(req: NextRequest, user: any) {
       query.status = status;
     }
     
-    // Add search functionality
+    // Date range filter
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) {
+        query.createdAt.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        query.createdAt.$lte = new Date(endDate + 'T23:59:59.999Z');
+      }
+    }
+    
+    // Country filter (using shippingZone or governorate)
+    const countryConditions: any[] = [];
+    if (country && country !== 'all') {
+      countryConditions.push(
+        { shippingZone: country },
+        { 'shippingAddress.governorate': country }
+      );
+      if (countryConditions.length > 0) {
+        query.$and = query.$and || [];
+        query.$and.push({ $or: countryConditions });
+      }
+    }
+    
+    // Build search conditions array
+    const searchConditions: any[] = [];
+    
+    // Legacy search (backward compatibility)
     if (search && search.trim()) {
       const searchRegex = { $regex: search.trim(), $options: 'i' };
-      const searchConditions: any[] = [
+      searchConditions.push(
         { orderNumber: searchRegex },
         { 'shippingAddress.fullName': searchRegex },
         { 'shippingAddress.phone': searchRegex },
@@ -399,19 +439,43 @@ async function getOrdersHandler(req: NextRequest, user: any) {
         { 'shippingAddress.governorate': searchRegex },
         { trackingNumber: searchRegex },
         { shippingCompany: searchRegex }
-      ];
+      );
       
       // If search is a number, also search by order number exactly
       if (!isNaN(Number(search.trim()))) {
         searchConditions.push({ orderNumber: search.trim() });
       }
+    }
+    
+    // Customer search (name/phone)
+    if (customerSearch && customerSearch.trim()) {
+      const customerRegex = { $regex: customerSearch.trim(), $options: 'i' };
+      searchConditions.push(
+        { 'shippingAddress.fullName': customerRegex },
+        { 'shippingAddress.phone': customerRegex }
+      );
+    }
+    
+    // Order number search
+    if (orderNumberSearch && orderNumberSearch.trim()) {
+      const orderRegex = { $regex: orderNumberSearch.trim(), $options: 'i' };
+      searchConditions.push({ orderNumber: orderRegex });
       
-      query.$or = searchConditions;
+      // If it's a number, also search exactly
+      if (!isNaN(Number(orderNumberSearch.trim()))) {
+        searchConditions.push({ orderNumber: orderNumberSearch.trim() });
+      }
+    }
+    
+    // Combine search conditions
+    if (searchConditions.length > 0) {
+      query.$and = query.$and || [];
+      query.$and.push({ $or: searchConditions });
     }
     
     // Get orders with pagination
     let ordersQuery = Order.find(query)
-      .populate('items.productId', 'name images marketerPrice wholesalerPrice')
+      .populate('items.productId', 'name images marketerPrice wholesalerPrice sku')
       .populate('supplierId', 'name companyName')
       .populate('customerId', 'name email phone')
       .sort({ createdAt: -1 });
@@ -420,7 +484,25 @@ async function getOrdersHandler(req: NextRequest, user: any) {
     // So we'll fetch all matching orders first, then filter by populated fields
     let orders = await ordersQuery.skip(skip).limit(limit).lean();
     
-    // Additional client-side filtering for populated fields if search is provided
+    // Filter by product search (productSearch)
+    if (productSearch && productSearch.trim()) {
+      const productSearchLower = productSearch.trim().toLowerCase();
+      orders = orders.filter((order: any) => {
+        if (order.items && Array.isArray(order.items)) {
+          for (const item of order.items) {
+            // Check product name
+            if (item.productName?.toLowerCase().includes(productSearchLower)) return true;
+            // Check populated product name
+            if (item.productId && typeof item.productId === 'object' && item.productId.name?.toLowerCase().includes(productSearchLower)) return true;
+            // Check SKU
+            if (item.productId && typeof item.productId === 'object' && item.productId.sku?.toLowerCase().includes(productSearchLower)) return true;
+          }
+        }
+        return false;
+      });
+    }
+    
+    // Additional client-side filtering for populated fields if search is provided (legacy)
     if (search && search.trim()) {
       const searchLower = search.trim().toLowerCase();
       orders = orders.filter((order: any) => {

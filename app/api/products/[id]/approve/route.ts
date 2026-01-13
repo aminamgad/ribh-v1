@@ -41,7 +41,7 @@ async function approveProductHandler(
       rejectionReason: null,
       approvedAt: new Date(),
       approvedBy: user._id,
-      adminNotes: `تمت الموافقة بواسطة ${user.name} في ${new Date().toLocaleString('ar-SA')}`
+      adminNotes: `تمت الموافقة بواسطة ${user.name} في ${new Date().toLocaleString('en-US')}`
     };
 
     const updatedProduct = await Product.findByIdAndUpdate(

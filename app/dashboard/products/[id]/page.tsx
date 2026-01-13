@@ -496,8 +496,8 @@ export default function ProductDetailPage() {
           isRejected: false,
           rejectionReason: null,
           adminNotes: reviewAction === 'approve' 
-            ? `تم إلغاء الموافقة بواسطة ${user?.name} في ${new Date().toLocaleString('ar-SA')}`
-            : `تم إعادة النظر في المنتج بواسطة ${user?.name} في ${new Date().toLocaleString('ar-SA')}`
+            ? `تم إلغاء الموافقة بواسطة ${user?.name} في ${new Date().toLocaleString('en-US')}`
+            : `تم إعادة النظر في المنتج بواسطة ${user?.name} في ${new Date().toLocaleString('en-US')}`
         }),
       });
 
@@ -679,16 +679,18 @@ export default function ProductDetailPage() {
               </button>
             )}
 
-            <button 
-              onClick={handleToggleFavorite}
-              className={`p-2 rounded-full border flex items-center justify-center ${
-                isFavorite(product._id) 
-                  ? 'bg-danger-50 dark:bg-danger-900/30 border-danger-200 dark:border-danger-700 text-danger-600 dark:text-danger-400' 
-                  : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-400 dark:text-slate-500 hover:text-danger-600 dark:hover:text-danger-400'
-              }`}
-            >
-              <Heart className={`w-5 h-5 ${isFavorite(product._id) ? 'fill-current' : ''}`} />
-            </button>
+            {(user?.role === 'marketer' || user?.role === 'wholesaler') && (
+              <button 
+                onClick={handleToggleFavorite}
+                className={`p-2 rounded-full border flex items-center justify-center ${
+                  isFavorite(product._id) 
+                    ? 'bg-danger-50 dark:bg-danger-900/30 border-danger-200 dark:border-danger-700 text-danger-600 dark:text-danger-400' 
+                    : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-400 dark:text-slate-500 hover:text-danger-600 dark:hover:text-danger-400'
+                }`}
+              >
+                <Heart className={`w-5 h-5 ${isFavorite(product._id) ? 'fill-current' : ''}`} />
+              </button>
+            )}
 
             {(user?.role === 'supplier' || user?.role === 'admin') && (
               <>
@@ -908,13 +910,13 @@ export default function ProductDetailPage() {
                 // Marketer sees only marketer price
                               <div className="text-center p-3 bg-[#FF9800]/10 dark:bg-[#FF9800]/20 rounded-lg">
                 <p className="text-sm text-[#FF9800] dark:text-[#FF9800]">سعر المسوق (الأساسي)</p>
-                <p className="text-lg font-bold text-[#F57C00] dark:text-[#F57C00]">{product.marketerPrice} ₪</p>
+                <p className="text-lg font-bold text-[#F57C00] dark:text-[#F57C00]">{new Intl.NumberFormat('en-US').format(product.marketerPrice)} ₪</p>
                 </div>
               ) : user?.role === 'wholesaler' ? (
                 // Wholesaler sees only wholesaler price
                 <div className="text-center p-3 bg-green-50 dark:bg-green-900/30 rounded-lg">
                   <p className="text-sm text-green-600 dark:text-green-400">سعر الجملة (للتجار)</p>
-                  <p className="text-lg font-bold text-green-700 dark:text-green-300">{product.wholesalerPrice} ₪</p>
+                  <p className="text-lg font-bold text-green-700 dark:text-green-300">{new Intl.NumberFormat('en-US').format(product.wholesalerPrice)} ₪</p>
                   <p className="text-xs text-green-600 dark:text-green-400">السعر الثابت للتجار</p>
                 </div>
               ) : (
@@ -923,17 +925,17 @@ export default function ProductDetailPage() {
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div className="text-center p-3 bg-gray-50 dark:bg-slate-700 rounded-lg">
                       <p className="text-sm text-gray-600 dark:text-slate-400">سعر المسوق (الأساسي)</p>
-                      <p className="text-xl font-bold text-primary-600 dark:text-primary-400">{product.marketerPrice} ₪</p>
+                      <p className="text-xl font-bold text-primary-600 dark:text-primary-400">{new Intl.NumberFormat('en-US').format(product.marketerPrice)} ₪</p>
                     </div>
                     <div className="text-center p-3 bg-gray-50 dark:bg-slate-700 rounded-lg">
                       <p className="text-sm text-gray-600 dark:text-slate-400">سعر الجملة (للتجار)</p>
-                      <p className="text-xl font-bold text-primary-600 dark:text-primary-400">{product.wholesalerPrice} ₪</p>
+                      <p className="text-xl font-bold text-primary-600 dark:text-primary-400">{new Intl.NumberFormat('en-US').format(product.wholesalerPrice)} ₪</p>
                     </div>
                   </div>
                   
                                 <div className="text-center p-3 bg-[#FF9800]/10 dark:bg-[#FF9800]/20 rounded-lg">
                 <p className="text-sm text-[#FF9800] dark:text-[#FF9800]">السعر الأساسي للمسوق</p>
-                <p className="text-lg font-bold text-[#F57C00] dark:text-[#F57C00]">{product.marketerPrice} ₪</p>
+                <p className="text-lg font-bold text-[#F57C00] dark:text-[#F57C00]">{new Intl.NumberFormat('en-US').format(product.marketerPrice)} ₪</p>
                   </div>
                 </>
               )}
@@ -1056,7 +1058,7 @@ export default function ProductDetailPage() {
                 <div className="text-center p-3 bg-gray-100 dark:bg-slate-700 rounded-lg">
                   <p className="text-sm text-gray-600 dark:text-slate-400">الكمية المتوفرة</p>
                   <p className={`text-xl font-bold ${product.stockQuantity > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                    {product.stockQuantity}
+                    {new Intl.NumberFormat('en-US').format(product.stockQuantity)}
                   </p>
                 </div>
                 <div className="text-center p-3 bg-gray-100 dark:bg-slate-700 rounded-lg">
@@ -1127,7 +1129,7 @@ export default function ProductDetailPage() {
                   <Calendar className="w-4 h-4 text-gray-400 dark:text-slate-500 ml-2" />
                   <span className="text-sm text-gray-600 dark:text-slate-400">تاريخ الإضافة:</span>
                   <span className="text-sm font-medium text-gray-900 dark:text-slate-100 mr-2">
-                    {new Date(product.createdAt).toLocaleDateString('ar-SA')}
+                    {new Date(product.createdAt).toLocaleDateString('en-US')}
                   </span>
                 </div>
               </div>

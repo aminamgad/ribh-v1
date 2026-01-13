@@ -98,6 +98,12 @@ async function getProducts(req: NextRequest, user: any) {
     const search = searchParams.get('search');
     const status = searchParams.get('status');
     
+    // Admin-specific filters
+    const stockStatus = searchParams.get('stockStatus'); // Comma-separated: in_stock,low_stock,out_of_stock
+    const suppliers = searchParams.get('suppliers'); // Comma-separated supplier IDs
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
+    
     let query: any = {};
     
     // Role-based filtering
@@ -108,6 +114,47 @@ async function getProducts(req: NextRequest, user: any) {
     // Additional filters
     if (category) {
       query.categoryId = category;
+    }
+    
+    // Admin filters: Stock Status (multi-select)
+    if (user.role === 'admin' && stockStatus) {
+      const stockStatuses = stockStatus.split(',');
+      const stockConditions: any[] = [];
+      
+      if (stockStatuses.includes('in_stock')) {
+        stockConditions.push({ stockQuantity: { $gt: 10 } });
+      }
+      if (stockStatuses.includes('low_stock')) {
+        stockConditions.push({ stockQuantity: { $gte: 1, $lte: 10 } });
+      }
+      if (stockStatuses.includes('out_of_stock')) {
+        stockConditions.push({ stockQuantity: { $eq: 0 } });
+      }
+      
+      if (stockConditions.length > 0) {
+        if (stockConditions.length === 1) {
+          query.stockQuantity = stockConditions[0].stockQuantity;
+        } else {
+          query.$or = stockConditions;
+        }
+      }
+    }
+    
+    // Admin filters: Suppliers (multi-select)
+    if (user.role === 'admin' && suppliers) {
+      const supplierIds = suppliers.split(',');
+      query.supplierId = { $in: supplierIds };
+    }
+    
+    // Admin filters: Date Range
+    if (user.role === 'admin' && (startDate || endDate)) {
+      query.createdAt = {};
+      if (startDate) {
+        query.createdAt.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        query.createdAt.$lte = new Date(endDate + 'T23:59:59.999Z');
+      }
     }
     
     // Build search conditions
@@ -146,8 +193,17 @@ async function getProducts(req: NextRequest, user: any) {
     }
     
     // Combine search conditions with main query
+    // Handle case where we have both stock status $or and search $or
     if (searchConditions.length > 0) {
-      query.$or = searchConditions;
+      if (query.$or && Array.isArray(query.$or)) {
+        // We have stock status $or, so we need to use $and to combine both
+        query.$and = query.$and || [];
+        query.$and.push({ $or: searchConditions });
+        query.$and.push({ $or: query.$or });
+        delete query.$or;
+      } else {
+        query.$or = searchConditions;
+      }
     }
     
     logger.debug('Products query', { query, userRole: user.role, userId: user._id });
@@ -160,7 +216,7 @@ async function getProducts(req: NextRequest, user: any) {
     
     const skip = (page - 1) * limit;
     
-    // Generate cache key
+    // Generate cache key (include admin filters)
     const cacheKey = generateCacheKey(
       'products',
       user.role,
@@ -169,7 +225,11 @@ async function getProducts(req: NextRequest, user: any) {
       limit,
       category || '',
       search || '',
-      status || ''
+      status || '',
+      stockStatus || '',
+      suppliers || '',
+      startDate || '',
+      endDate || ''
     );
     
     // Try to get from cache

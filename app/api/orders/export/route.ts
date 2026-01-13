@@ -65,8 +65,8 @@ async function exportOrders(req: NextRequest, user: any) {
     // Transform data for Excel
     const excelData = orders.map((order: any) => ({
       'رقم الطلب': order.orderNumber || order._id,
-      'تاريخ الطلب': new Date(order.createdAt).toLocaleDateString('ar-SA'),
-      'وقت الطلب': new Date(order.createdAt).toLocaleTimeString('ar-SA'),
+      'تاريخ الطلب': new Date(order.createdAt).toLocaleDateString('en-US'),
+      'وقت الطلب': new Date(order.createdAt).toLocaleTimeString('en-US'),
       'حالة الطلب': getStatusInArabic(order.status),
       'اسم العميل': order.customerId?.name || 'غير محدد',
       'بريد العميل': order.customerId?.email || 'غير محدد',
@@ -83,13 +83,13 @@ async function exportOrders(req: NextRequest, user: any) {
       'حالة الدفع': order.paymentStatus === 'paid' ? 'مدفوع' : 'غير مدفوع',
       'ملاحظات الطلب': order.deliveryNotes || '',
       'ملاحظات الإدارة': order.adminNotes || '',
-      'تاريخ التأكيد': order.confirmedAt ? new Date(order.confirmedAt).toLocaleDateString('ar-SA') : '',
-      'تاريخ المعالجة': order.processingAt ? new Date(order.processingAt).toLocaleDateString('ar-SA') : '',
-      'تاريخ الشحن': order.shippedAt ? new Date(order.shippedAt).toLocaleDateString('ar-SA') : '',
-      'تاريخ التسليم': order.deliveredAt ? new Date(order.deliveredAt).toLocaleDateString('ar-SA') : '',
-      'تاريخ الإلغاء': order.cancelledAt ? new Date(order.cancelledAt).toLocaleDateString('ar-SA') : '',
-      'تاريخ الإرجاع': order.returnedAt ? new Date(order.returnedAt).toLocaleDateString('ar-SA') : '',
-      'تاريخ الاسترداد': order.refundedAt ? new Date(order.refundedAt).toLocaleDateString('ar-SA') : '',
+      'تاريخ التأكيد': order.confirmedAt ? new Date(order.confirmedAt).toLocaleDateString('en-US') : '',
+      'تاريخ المعالجة': order.processingAt ? new Date(order.processingAt).toLocaleDateString('en-US') : '',
+      'تاريخ الشحن': order.shippedAt ? new Date(order.shippedAt).toLocaleDateString('en-US') : '',
+      'تاريخ التسليم': order.deliveredAt ? new Date(order.deliveredAt).toLocaleDateString('en-US') : '',
+      'تاريخ الإلغاء': order.cancelledAt ? new Date(order.cancelledAt).toLocaleDateString('en-US') : '',
+      'تاريخ الإرجاع': order.returnedAt ? new Date(order.returnedAt).toLocaleDateString('en-US') : '',
+      'تاريخ الاسترداد': order.refundedAt ? new Date(order.refundedAt).toLocaleDateString('en-US') : '',
     }));
     
     // Add items details

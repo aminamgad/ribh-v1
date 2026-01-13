@@ -429,7 +429,7 @@ export default function ProductStatsPage() {
               <DollarSign className="w-6 h-6 text-green-600 dark:text-green-400" />
             </div>
             <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-              ₪{stats.statistics.totalRevenue.toFixed(2)}
+              ₪{new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(stats.statistics.totalRevenue)}
             </p>
             <p className="text-sm text-gray-600 dark:text-gray-400">إجمالي الإيرادات</p>
           </div>
@@ -439,7 +439,7 @@ export default function ProductStatsPage() {
               <TrendingUp className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
             </div>
             <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-              ₪{stats.statistics.totalProfit.toFixed(2)}
+              ₪{new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(stats.statistics.totalProfit)}
             </p>
             <p className="text-sm text-gray-600 dark:text-gray-400">إجمالي الربح</p>
           </div>
@@ -468,7 +468,7 @@ export default function ProductStatsPage() {
             </p>
             {stats && (
               <p className="text-xs text-primary-600 dark:text-primary-400 mt-1">
-                الفترة المحددة: {new Date(stats.dateRange.start).toLocaleDateString('ar-EG')} - {new Date(stats.dateRange.end).toLocaleDateString('ar-EG')}
+                الفترة المحددة: {new Date(stats.dateRange.start).toLocaleDateString('en-US')} - {new Date(stats.dateRange.end).toLocaleDateString('en-US')}
               </p>
             )}
           </div>
@@ -549,7 +549,7 @@ export default function ProductStatsPage() {
                   لا توجد طلبات لهذا المنتج
                 </p>
                 <p className="text-sm text-gray-500 dark:text-gray-500">
-                  في الفترة المحددة ({new Date(stats.dateRange.start).toLocaleDateString('ar-EG')} - {new Date(stats.dateRange.end).toLocaleDateString('ar-EG')})
+                  في الفترة المحددة ({new Date(stats.dateRange.start).toLocaleDateString('en-US')} - {new Date(stats.dateRange.end).toLocaleDateString('en-US')})
                 </p>
               </div>
             </div>
@@ -560,7 +560,7 @@ export default function ProductStatsPage() {
                 <XAxis 
                   dataKey="date" 
                   stroke="#6B7280"
-                  tickFormatter={(value) => new Date(value).toLocaleDateString('ar-EG')}
+                  tickFormatter={(value) => new Date(value).toLocaleDateString('en-US')}
                 />
                 <YAxis stroke="#6B7280" />
                 <Tooltip
@@ -570,7 +570,7 @@ export default function ProductStatsPage() {
                     borderRadius: '0.5rem',
                     color: '#F3F4F6'
                   }}
-                  labelFormatter={(value) => new Date(value).toLocaleDateString('ar-EG')}
+                  labelFormatter={(value) => new Date(value).toLocaleDateString('en-US')}
                 />
                 <Area 
                   type="monotone" 
@@ -677,7 +677,7 @@ export default function ProductStatsPage() {
                       {customer.quantity}
                     </td>
                     <td className="table-cell text-primary-600 dark:text-primary-400 font-medium">
-                      ₪{customer.revenue.toFixed(2)}
+                      ₪{new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(customer.revenue)}
                     </td>
                   </tr>
                 ))}

@@ -296,7 +296,7 @@ export default function FulfillmentDetailPage({ params }: { params: { id: string
                           <div>
                             <span className="text-gray-600 dark:text-slate-400">القيمة الإجمالية:</span>
                             <span className="font-medium text-primary-600 dark:text-primary-400 mr-2">
-                              {(product.costPrice * product.quantity).toFixed(2)} ₪
+                              {new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(product.costPrice * product.quantity)} ₪
                             </span>
                           </div>
                         </div>
@@ -327,7 +327,7 @@ export default function FulfillmentDetailPage({ params }: { params: { id: string
                   <div>
                     <span className="text-gray-600 dark:text-slate-400">القيمة الإجمالية:</span>
                     <span className="font-medium text-primary-600 dark:text-primary-400 mr-2">
-                      {request.totalValue.toFixed(2)} ₪
+                      {new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(request.totalValue)} ₪
                     </span>
                   </div>
                 </div>
@@ -424,14 +424,14 @@ export default function FulfillmentDetailPage({ params }: { params: { id: string
               <div>
                 <span className="text-gray-600 dark:text-slate-400">تاريخ الإنشاء:</span>
                 <span className="font-medium text-gray-900 dark:text-slate-100 mr-2">
-                  {new Date(request.createdAt).toLocaleDateString('ar-EG')}
+                  {new Date(request.createdAt).toLocaleDateString('en-US')}
                 </span>
               </div>
               {request.expectedDeliveryDate && (
                 <div>
                   <span className="text-gray-600 dark:text-slate-400">تاريخ التسليم المتوقع:</span>
                   <span className="font-medium text-gray-900 dark:text-slate-100 mr-2">
-                    {new Date(request.expectedDeliveryDate).toLocaleDateString('ar-EG')}
+                    {new Date(request.expectedDeliveryDate).toLocaleDateString('en-US')}
                   </span>
                 </div>
               )}
@@ -447,7 +447,7 @@ export default function FulfillmentDetailPage({ params }: { params: { id: string
                 <div>
                   <span className="text-gray-600 dark:text-slate-400">تاريخ الموافقة:</span>
                   <span className="font-medium text-gray-900 dark:text-slate-100 mr-2">
-                    {new Date(request.approvedAt).toLocaleDateString('ar-EG')}
+                    {new Date(request.approvedAt).toLocaleDateString('en-US')}
                   </span>
                 </div>
               )}
@@ -455,7 +455,7 @@ export default function FulfillmentDetailPage({ params }: { params: { id: string
                 <div>
                   <span className="text-gray-600 dark:text-slate-400">تاريخ الرفض:</span>
                   <span className="font-medium text-gray-900 dark:text-slate-100 mr-2">
-                    {new Date(request.rejectedAt).toLocaleDateString('ar-EG')}
+                    {new Date(request.rejectedAt).toLocaleDateString('en-US')}
                   </span>
                 </div>
               )}

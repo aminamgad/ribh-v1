@@ -540,7 +540,7 @@ export default function SettingsPage() {
             <select
               value={settings.language}
               onChange={(e) => handleInputChange('language', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-slate-700 dark:text-slate-100"
+              className="input-field"
             >
               <option value="ar">العربية</option>
               <option value="en">English</option>
@@ -554,7 +554,7 @@ export default function SettingsPage() {
             <select
               value={settings.profileVisibility}
               onChange={(e) => handleInputChange('profileVisibility', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-slate-700 dark:text-slate-100"
+              className="input-field"
             >
               <option value="public">عام</option>
               <option value="private">خاص</option>

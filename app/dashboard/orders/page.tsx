@@ -1,14 +1,15 @@
 'use client';
 
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { Search, Plus, Eye, CheckCircle, Truck, Package, Clock, DollarSign, Edit, X, RotateCcw, Download, Upload, Phone, Mail, MessageCircle, Printer } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import React from 'react'; // Added for React.createElement
-import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import OrderExportModal from '@/components/ui/OrderExportModal';
 import OrderImportModal from '@/components/ui/OrderImportModal';
+import OrdersFilters from '@/components/orders/OrdersFilters';
 import { OrderItem } from '@/types';
 
 // Using the global OrderItem interface from types/index.ts
@@ -85,20 +86,12 @@ const statusLabels = {
 export default function OrdersPage() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
-  const pathname = usePathname();
   const router = useRouter();
-  // Initialize search term from URL on component mount
-  const initialSearchFromUrl = searchParams.get('search') || '';
   
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false); // Loading state for search
-  const [searchTerm, setSearchTerm] = useState(initialSearchFromUrl);
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(initialSearchFromUrl); // Debounced search term
-  const [filterStatus, setFilterStatus] = useState('all');
   const [updatingOrder, setUpdatingOrder] = useState<string | null>(null);
-  const isUpdatingUrlRef = useRef(false); // Track if we're updating URL to prevent loops
-  const searchInputRef = useRef<HTMLInputElement>(null); // Ref for search input
 
   // Export/Import modal states
   const [showExportModal, setShowExportModal] = useState(false);
@@ -152,65 +145,11 @@ export default function OrdersPage() {
     router.push(`/dashboard/orders/${order._id}?print=true`);
   };
 
-  // Get search value from URL
-  const searchFromUrl = useMemo(() => searchParams.get('search') || '', [searchParams]);
-
-  // Initialize search term from URL on mount and when URL changes (e.g., new tab, navigation back)
-  useEffect(() => {
-    // Only update from URL if we're not currently updating the URL ourselves
-    if (!isUpdatingUrlRef.current) {
-      // Only update if different from current searchTerm to avoid unnecessary updates
-      if (searchFromUrl !== searchTerm) {
-        setSearchTerm(searchFromUrl);
-        setDebouncedSearchTerm(searchFromUrl);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchFromUrl]); // Run when searchFromUrl changes (this will trigger when navigating back to the page)
-
-  // Debounce search term - wait 500ms after user stops typing
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-    }, 500); // 500ms delay
-
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
-
-  // Get current search from URL to avoid unnecessary updates
-  const currentSearchFromUrl = useMemo(() => searchParams.get('search') || '', [searchParams]);
-
-  // Update URL when debounced search term changes
-  useEffect(() => {
-    const newSearch = debouncedSearchTerm.trim();
-    
-    // Only update URL if search term actually changed
-    if (currentSearchFromUrl !== newSearch) {
-      isUpdatingUrlRef.current = true; // Mark that we're updating URL
-      
-      const params = new URLSearchParams(searchParams.toString());
-      
-      if (newSearch) {
-        params.set('search', newSearch);
-      } else {
-        params.delete('search');
-      }
-      
-      const queryString = params.toString();
-      const newUrl = queryString ? `${pathname}?${queryString}` : pathname;
-      router.replace(newUrl, { scroll: false });
-      
-      // Reset flag after a short delay to allow URL to update
-      setTimeout(() => {
-        isUpdatingUrlRef.current = false;
-      }, 100);
-    }
-  }, [debouncedSearchTerm, pathname, router, currentSearchFromUrl, searchParams]);
-
-  // Fetch orders when debounced search term or filter status changes
+  // Fetch orders when searchParams change (triggered by OrdersFilters)
   useEffect(() => {
     fetchOrders();
-  }, [filterStatus, debouncedSearchTerm]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const fetchOrders = async () => {
     try {
@@ -222,16 +161,10 @@ export default function OrdersPage() {
         setSearching(true);
       }
       
-      // Build query params
-      const params = new URLSearchParams();
-      if (filterStatus !== 'all') {
-        params.append('status', filterStatus);
-      }
-      if (debouncedSearchTerm.trim()) {
-        params.append('search', debouncedSearchTerm.trim());
-      }
+      // Build query params from URL searchParams (the OrdersFilters component updates the URL)
+      const queryString = searchParams.toString();
       
-      const response = await fetch(`/api/orders?${params.toString()}`);
+      const response = await fetch(`/api/orders?${queryString}`);
       if (response.ok) {
         const data = await response.json();
         setOrders(data.orders || []);
@@ -306,13 +239,8 @@ export default function OrdersPage() {
     }
   };
 
-  // Filter orders locally (additional filtering if needed)
-  // Main filtering is done on the server side
-  const filteredOrders = orders.filter(order => {
-    // Status filter (if not already filtered on server)
-    const matchesStatus = filterStatus === 'all' || order.status === filterStatus;
-    return matchesStatus;
-  });
+  // Orders are already filtered on the server side
+  const filteredOrders = orders;
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -354,46 +282,7 @@ export default function OrdersPage() {
       </div>
 
       {/* Filters */}
-      <div className="mobile-filters">
-        <div className="mobile-filter-group">
-          <div className="mobile-search relative">
-            <Search className="mobile-search-icon" />
-            <input
-              ref={searchInputRef}
-              type="text"
-              placeholder="البحث في الطلبات (رقم الطلب، اسم العميل، رقم الهاتف...)"
-              value={searchTerm}
-              onChange={(e) => {
-                const newValue = e.target.value;
-                setSearchTerm(newValue);
-              }}
-              className="mobile-search-input"
-              disabled={loading}
-            />
-            {searching && (
-              <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                <div className="w-4 h-4 border-2 border-[#FF9800] border-t-transparent rounded-full animate-spin"></div>
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="mobile-filter-group">
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="input-field"
-          >
-            <option value="all">جميع الحالات</option>
-            <option value="pending">معلق</option>
-            <option value="confirmed">مؤكد</option>
-            <option value="processing">قيد المعالجة</option>
-            <option value="shipped">تم الشحن</option>
-            <option value="delivered">تم التسليم</option>
-            <option value="cancelled">ملغي</option>
-            <option value="returned">مرتجع</option>
-          </select>
-        </div>
-      </div>
+      <OrdersFilters onFiltersChange={fetchOrders} />
 
       {/* Orders List */}
       {loading ? (
@@ -411,7 +300,7 @@ export default function OrdersPage() {
           <Package className="mobile-empty-icon" />
           <h3 className="mobile-empty-title">لا توجد طلبات</h3>
           <p className="mobile-empty-description">
-            {debouncedSearchTerm || filterStatus !== 'all' 
+            {searchParams.toString()
               ? 'لا توجد طلبات تطابق معايير البحث المحددة'
               : 'لم يتم العثور على أي طلبات بعد'
             }
@@ -495,7 +384,7 @@ export default function OrdersPage() {
                         </span>
                       </td>
                       <td className="table-cell text-sm text-gray-500 dark:text-gray-400">
-                        {new Date(order.createdAt).toLocaleDateString('ar-EG')}
+                        {new Date(order.createdAt).toLocaleDateString('en-US')}
                       </td>
                       <td className="table-cell">
                         <div className="flex items-center space-x-2 space-x-reverse">
@@ -550,7 +439,7 @@ export default function OrdersPage() {
                         {order.orderNumber}
                       </h3>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {new Date(order.createdAt).toLocaleDateString('ar-EG')}
+                        {new Date(order.createdAt).toLocaleDateString('en-US')}
                       </p>
                     </div>
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[order.status as keyof typeof statusColors]}`}>
