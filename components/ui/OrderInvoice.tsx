@@ -47,10 +47,13 @@ interface Order {
     governorate: string;
     postalCode?: string;
     notes?: string;
+    manualVillageName?: string;
+    villageName?: string;
   };
   customerName?: string;
   customerPhone?: string;
   notes?: string;
+  deliveryNotes?: string;
   createdAt: string;
   updatedAt: string;
   actualDelivery?: string;
@@ -69,176 +72,249 @@ export default function OrderInvoice({ order, isVisible, onClose }: OrderInvoice
   const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (isVisible && order && printRef.current) {
-      // Wait for DOM to be ready
-      const timeoutId = setTimeout(() => {
-        // Find the invoice content element inside the modal
-        const invoiceContentEl = printRef.current?.querySelector('.invoice-content');
-        
-        if (invoiceContentEl) {
-          // Remove any existing print version
-          const existingPrint = document.getElementById('invoice-print-version');
-          if (existingPrint) existingPrint.remove();
-          
-          // Create print container
-          const printContainer = document.createElement('div');
-          printContainer.id = 'invoice-print-version';
-          printContainer.className = 'invoice-content';
-          
-          // Clone the invoice content (deep clone to preserve structure)
-          const clonedContent = invoiceContentEl.cloneNode(true) as HTMLElement;
-          printContainer.appendChild(clonedContent);
-          
-          // Add to body (off-screen initially)
-          printContainer.style.position = 'fixed';
-          printContainer.style.top = '-9999px';
-          printContainer.style.left = '-9999px';
-          printContainer.style.width = '210mm'; // A4 width
-          printContainer.style.background = 'white';
-          document.body.appendChild(printContainer);
-          
-          // Remove any existing print styles
-          const existingStyle = document.getElementById('invoice-print-styles');
-          if (existingStyle) existingStyle.remove();
-          
-          // Add comprehensive print styles
-          const printStyle = document.createElement('style');
-          printStyle.id = 'invoice-print-styles';
-          printStyle.innerHTML = `
-            @media print {
-              @page {
-                size: A4 portrait;
-                margin: 0.8cm;
-              }
-              
-              * {
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-                color-adjust: exact !important;
-              }
-              
-              html, body {
-                width: 100% !important;
-                height: auto !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                background: white !important;
-                overflow: visible !important;
-              }
-              
-              /* Hide everything except invoice print version */
-              body > *:not(#invoice-print-version) {
-                display: none !important;
-                visibility: hidden !important;
-              }
-              
-              /* Show invoice print version */
-              #invoice-print-version {
-                display: block !important;
-                visibility: visible !important;
-                position: relative !important;
-                top: 0 !important;
-                left: 0 !important;
-                width: 100% !important;
-                max-width: 100% !important;
-                height: auto !important;
-                margin: 0 !important;
-                padding: 10px !important;
-                background: white !important;
-                page-break-inside: avoid !important;
-              }
-              
-              /* Ensure all invoice content is visible */
-              #invoice-print-version,
-              #invoice-print-version * {
-                visibility: visible !important;
-                display: revert !important;
-                opacity: 1 !important;
-                color: #000 !important;
-                background: transparent !important;
-              }
-              
-              #invoice-print-version table {
-                width: 100% !important;
-                border-collapse: collapse !important;
-                font-size: 11px !important;
-                margin: 5px 0 !important;
-              }
-              
-              #invoice-print-version table,
-              #invoice-print-version th,
-              #invoice-print-version td {
-                border: 1px solid #000 !important;
-                padding: 4px !important;
-              }
-              
-              #invoice-print-version th {
-                background: #f5f5f5 !important;
-                font-weight: bold !important;
-              }
-              
-              /* Hide print-hidden elements */
-              .print\\:hidden,
-              [class*="print:hidden"] {
-                display: none !important;
-              }
-            }
-          `;
-          document.head.appendChild(printStyle);
-          
-          // Trigger print after a short delay to ensure styles are applied
-          setTimeout(() => {
-            window.print();
-            
-            // Cleanup function
-            const cleanup = () => {
-              const container = document.getElementById('invoice-print-version');
-              if (container) {
-                container.remove();
-              }
-              const style = document.getElementById('invoice-print-styles');
-              if (style) {
-                style.remove();
-              }
-              // Don't close modal automatically - let user close it
-            };
-            
-            // Handle both afterprint event and timeout
-            const handleAfterPrint = () => {
-              cleanup();
-            };
-            
-            window.addEventListener('afterprint', handleAfterPrint, { once: true });
-            // Fallback cleanup after 2 seconds
-            setTimeout(cleanup, 2000);
-          }, 300);
-        }
-      }, 300);
-      
-      return () => clearTimeout(timeoutId);
+    if (!isVisible || !order || !printRef.current) {
+      return;
     }
+
+    // Wait for DOM to be ready
+    const timeoutId = setTimeout(() => {
+      // Find the invoice content element inside the modal
+      const invoiceContentEl = printRef.current?.querySelector('.invoice-content');
+      
+      if (!invoiceContentEl) {
+        return;
+      }
+
+      // Remove any existing print version
+      const existingPrint = document.getElementById('invoice-print-version');
+      if (existingPrint) existingPrint.remove();
+      
+      // Create print container
+      const printContainer = document.createElement('div');
+      printContainer.id = 'invoice-print-version';
+      printContainer.className = 'invoice-content';
+      
+      // Clone the invoice content (deep clone to preserve structure)
+      const clonedContent = invoiceContentEl.cloneNode(true) as HTMLElement;
+      printContainer.appendChild(clonedContent);
+      
+      // Add to body (off-screen initially)
+      printContainer.style.position = 'fixed';
+      printContainer.style.top = '-9999px';
+      printContainer.style.left = '-9999px';
+      printContainer.style.width = '210mm'; // A4 width
+      printContainer.style.background = 'white';
+      document.body.appendChild(printContainer);
+      
+      // Remove any existing print styles
+      const existingStyle = document.getElementById('invoice-print-styles');
+      if (existingStyle) existingStyle.remove();
+      
+      // Add comprehensive print styles
+      const printStyle = document.createElement('style');
+      printStyle.id = 'invoice-print-styles';
+      printStyle.innerHTML = `
+        @media print {
+          @page {
+            size: A4 portrait;
+            margin: 0.8cm;
+          }
+          
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+          
+          html, body {
+            width: 100% !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+            overflow: visible !important;
+          }
+          
+          /* Hide everything except invoice print version */
+          body > *:not(#invoice-print-version) {
+            display: none !important;
+            visibility: hidden !important;
+          }
+          
+          /* Show invoice print version */
+          #invoice-print-version {
+            display: block !important;
+            visibility: visible !important;
+            position: relative !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 10px !important;
+            background: white !important;
+            page-break-inside: avoid !important;
+          }
+          
+          /* Ensure all invoice content is visible */
+          #invoice-print-version,
+          #invoice-print-version * {
+            visibility: visible !important;
+            display: revert !important;
+            opacity: 1 !important;
+            color: #000 !important;
+            background: transparent !important;
+          }
+          
+          #invoice-print-version table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            font-size: 11px !important;
+            margin: 5px 0 !important;
+          }
+          
+          #invoice-print-version table,
+          #invoice-print-version th,
+          #invoice-print-version td {
+            border: 1px solid #000 !important;
+            padding: 4px !important;
+          }
+          
+          #invoice-print-version th {
+            background: #f5f5f5 !important;
+            font-weight: bold !important;
+          }
+          
+          /* Hide print-hidden elements */
+          .print\\:hidden,
+          [class*="print:hidden"] {
+            display: none !important;
+          }
+        }
+      `;
+      document.head.appendChild(printStyle);
+      
+      // Trigger print after a short delay to ensure styles are applied
+      const printTimeoutId = setTimeout(() => {
+        try {
+          window.print();
+        } catch (error) {
+          console.error('Error triggering print:', error);
+        }
+        
+        // Cleanup function
+        const cleanup = () => {
+          const container = document.getElementById('invoice-print-version');
+          if (container && container.parentNode) {
+            container.parentNode.removeChild(container);
+          }
+          const style = document.getElementById('invoice-print-styles');
+          if (style && style.parentNode) {
+            style.parentNode.removeChild(style);
+          }
+        };
+        
+        // Handle both afterprint event and timeout
+        const handleAfterPrint = () => {
+          cleanup();
+        };
+        
+        window.addEventListener('afterprint', handleAfterPrint, { once: true });
+        // Fallback cleanup after 2 seconds
+        setTimeout(cleanup, 2000);
+      }, 300);
+
+      // Store printTimeoutId for cleanup
+      (printContainer as any)._printTimeoutId = printTimeoutId;
+    }, 300);
+    
+    return () => {
+      clearTimeout(timeoutId);
+      // Cleanup any remaining print elements
+      const container = document.getElementById('invoice-print-version');
+      if (container && container.parentNode) {
+        const printTimeoutId = (container as any)._printTimeoutId;
+        if (printTimeoutId) {
+          clearTimeout(printTimeoutId);
+        }
+        container.parentNode.removeChild(container);
+      }
+      const style = document.getElementById('invoice-print-styles');
+      if (style && style.parentNode) {
+        style.parentNode.removeChild(style);
+      }
+    };
   }, [isVisible, order]);
 
   if (!isVisible || !order) return null;
 
   const formatDate = (dateString: string) => {
     try {
-      return new Date(dateString).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        return dateString;
+      }
+      // Try Arabic locale first, fallback to English if not available
+      try {
+        return new Intl.DateTimeFormat('ar-PS', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        }).format(date);
+      } catch {
+        return new Intl.DateTimeFormat('ar', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        }).format(date);
+      }
     } catch (e) {
-      return dateString;
+      // Final fallback to English
+      try {
+        return new Date(dateString).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+      } catch {
+        return dateString;
+      }
     }
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'decimal',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(amount || 0);
+    try {
+      const numAmount = Number(amount);
+      if (isNaN(numAmount)) {
+        return '0.00';
+      }
+      // Try Arabic locale first, fallback to English if not available
+      try {
+        return new Intl.NumberFormat('ar-PS', {
+          style: 'decimal',
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        }).format(numAmount);
+      } catch {
+        try {
+          return new Intl.NumberFormat('ar', {
+            style: 'decimal',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+          }).format(numAmount);
+        } catch {
+          // Final fallback to English
+          return new Intl.NumberFormat('en-US', {
+            style: 'decimal',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+          }).format(numAmount);
+        }
+      }
+    } catch {
+      return '0.00';
+    }
   };
 
   return (
@@ -283,7 +359,16 @@ export default function OrderInvoice({ order, isVisible, onClose }: OrderInvoice
                 <div className="col-span-2">
                   <span className="font-semibold">العنوان: </span>
                   <span>
-                    {order.shippingAddress?.street || ''}، {order.shippingAddress?.city || ''}، {order.shippingAddress?.governorate || ''}
+                    {(() => {
+                      const address = order.shippingAddress || {};
+                      const parts = [];
+                      if (address.street) parts.push(address.street);
+                      if (address.manualVillageName) parts.push(address.manualVillageName);
+                      else if (address.villageName) parts.push(address.villageName);
+                      else if (address.city) parts.push(address.city);
+                      if (address.governorate) parts.push(address.governorate);
+                      return parts.length > 0 ? parts.join('، ') : 'غير محدد';
+                    })()}
                   </span>
                 </div>
               </div>
@@ -322,6 +407,30 @@ export default function OrderInvoice({ order, isVisible, onClose }: OrderInvoice
                 </tbody>
               </table>
             </div>
+
+            {/* Notes and Delivery Notes */}
+            {(order.notes || order.deliveryNotes || order.shippingAddress?.notes) && (
+              <div className="mt-3 pt-3 border-t border-gray-300">
+                {order.notes && (
+                  <div className="mb-2 text-xs">
+                    <span className="font-semibold text-gray-900">ملاحظات الطلب: </span>
+                    <span className="text-gray-700">{order.notes}</span>
+                  </div>
+                )}
+                {order.deliveryNotes && (
+                  <div className="mb-2 text-xs">
+                    <span className="font-semibold text-gray-900">ملاحظات التوصيل: </span>
+                    <span className="text-gray-700">{order.deliveryNotes}</span>
+                  </div>
+                )}
+                {order.shippingAddress?.notes && (
+                  <div className="text-xs">
+                    <span className="font-semibold text-gray-900">ملاحظات العنوان: </span>
+                    <span className="text-gray-700">{order.shippingAddress.notes}</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

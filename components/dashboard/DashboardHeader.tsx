@@ -10,6 +10,7 @@ import { Bell, ChevronDown, User, ShoppingCart, MessageSquare, Menu, Search } fr
 import Link from 'next/link';
 import ThemeToggle from '@/components/ui/ThemeToggle';
 import { useRouter } from 'next/navigation';
+import { OptimizedImage } from '@/components/ui/LazyImage';
 
 export default function DashboardHeader() {
   const { user } = useAuth();
@@ -90,10 +91,13 @@ export default function DashboardHeader() {
           <div className="flex items-center">
             <Link href="/dashboard" className="flex items-center group">
               <div className="w-8 h-8 sm:w-10 sm:h-10 mr-2 sm:mr-3 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                <img 
-                  src="/logo.png" 
-                  alt="ربح" 
+                <OptimizedImage
+                  src="/logo.png"
+                  alt="ربح"
+                  width={40}
+                  height={40}
                   className="w-full h-full object-contain rounded-xl sm:rounded-2xl"
+                  priority={true}
                 />
               </div>
               <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-[#FF9800] group-hover:scale-105 transition-transform duration-300">

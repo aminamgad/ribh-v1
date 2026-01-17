@@ -25,6 +25,19 @@ export interface Governorate {
   isActive: boolean;
 }
 
+export interface ShippingRegion {
+  _id?: mongoose.Types.ObjectId;
+  regionName: string;
+  regionCode: string;
+  description?: string;
+  shippingCost: number;
+  freeShippingThreshold?: number | null;
+  isActive: boolean;
+  villageIds?: number[];
+  governorateName?: string;
+  cityNames?: string[];
+}
+
 export interface SystemSettings {
   _id?: string;
   // Financial Settings
@@ -47,6 +60,7 @@ export interface SystemSettings {
   defaultShippingCost: number;
   defaultFreeShippingThreshold: number;
   governorates: Governorate[];
+  shippingRegions?: ShippingRegion[];
   
   // Product Settings
   maxProductImages: number;
@@ -240,6 +254,25 @@ const systemSettingsSchema = new Schema<SystemSettingsDocument>({
         isActive: true
       }
     ]
+  },
+  // Shipping regions/prices for marketers (managed by admin)
+  shippingRegions: {
+    type: [
+      {
+        regionName: { type: String, required: true },
+        regionCode: { type: String, required: true, unique: true },
+        description: { type: String },
+        shippingCost: { type: Number, required: true, min: 0 },
+        freeShippingThreshold: { type: Number, min: 0, default: null }, // null means use default
+        isActive: { type: Boolean, default: true },
+        // Optional: link to village IDs for automatic mapping
+        villageIds: [{ type: Number }],
+        // Optional: link to governorate/city names for mapping
+        governorateName: { type: String },
+        cityNames: [{ type: String }]
+      }
+    ],
+    default: []
   },
   
   // Product Settings

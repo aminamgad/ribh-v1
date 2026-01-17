@@ -1,8 +1,10 @@
 'use client';
 
+import { useEffect } from 'react';
 import { Package, ShoppingCart, Heart, ArrowLeft } from 'lucide-react';
 import MediaThumbnail from '@/components/ui/MediaThumbnail';
-import LazyImage from '@/components/ui/LazyImage';
+import { OptimizedImage } from '@/components/ui/LazyImage';
+import { getCloudinaryThumbnailUrl, isCloudinaryUrl } from '@/lib/mediaUtils';
 
 interface Product {
   _id: string;
@@ -37,7 +39,36 @@ export default function ProductSection({
   onToggleFavorite,
   isFavorite
 }: ProductSectionProps) {
-  // Always show section, even if empty (with empty state)
+  // Prefetch critical images (first 6 products - visible on most screens)
+  useEffect(() => {
+    const criticalProducts = products.slice(0, 6);
+    
+    criticalProducts.forEach((product) => {
+      if (product.images && product.images.length > 0) {
+        const imageUrl = product.images[0];
+        const thumbnailUrl = isCloudinaryUrl(imageUrl)
+          ? getCloudinaryThumbnailUrl(imageUrl, { width: 256, height: 256, crop: 'fill', quality: 'auto' })
+          : imageUrl;
+        
+        // Prefetch using link preload
+        const link = document.createElement('link');
+        link.rel = 'preload';
+        link.as = 'image';
+        link.href = thumbnailUrl;
+        document.head.appendChild(link);
+      }
+    });
+    
+    // Cleanup
+    return () => {
+      const prefetchLinks = document.querySelectorAll('link[rel="preload"][as="image"]');
+      prefetchLinks.forEach(link => {
+        if (criticalProducts.some(p => p.images?.[0] && link.getAttribute('href')?.includes(p.images[0]))) {
+          link.remove();
+        }
+      });
+    };
+  }, [products]);
 
   return (
     <div className="space-y-4">
@@ -92,9 +123,12 @@ export default function ProductSection({
             {/* Product Image */}
             <div className="relative mb-3 aspect-square">
               {product.images && product.images.length > 0 ? (
-                <LazyImage
+                <OptimizedImage
                   src={product.images[0]}
                   alt={product.name}
+                  width={256}
+                  height={256}
+                  sizes="(max-width: 768px) 50vw, (max-width: 1200px) 25vw, 16vw"
                   className="w-full h-full object-cover rounded-lg"
                 />
               ) : (

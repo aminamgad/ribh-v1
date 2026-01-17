@@ -8,6 +8,31 @@ export const getMediaType = (url: string): 'image' | 'video' => {
   return videoExtensions.includes(extension || '') ? 'video' : 'image';
 };
 
+export const isCloudinaryUrl = (url: string): boolean => {
+  return typeof url === 'string' && url.includes('res.cloudinary.com') && url.includes('/upload/');
+};
+
+/**
+ * Returns a Cloudinary URL resized/cropped for thumbnails.
+ * This avoids downloading the original large image before showing it in tables/lists.
+ */
+export const getCloudinaryThumbnailUrl = (
+  url: string,
+  opts: { width: number; height: number; crop?: 'fill' | 'fit' | 'limit'; quality?: 'auto' | number }
+): string => {
+  if (!isCloudinaryUrl(url)) return url;
+  const { width, height, crop = 'fill', quality = 'auto' } = opts;
+
+  const [prefix, suffix] = url.split('/upload/');
+  if (!prefix || !suffix) return url;
+
+  const q = quality === 'auto' ? 'q_auto' : `q_${quality}`;
+  // g_auto helps crop to the subject automatically, good for product thumbnails
+  const transform = `f_auto,${q},w_${width},h_${height},c_${crop},g_auto`;
+
+  return `${prefix}/upload/${transform}/${suffix}`;
+};
+
 export const getFirstImage = (media: string[]): string | null => {
   if (!media || media.length === 0) return null;
   

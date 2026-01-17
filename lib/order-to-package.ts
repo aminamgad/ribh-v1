@@ -29,8 +29,16 @@ async function callExternalShippingCompanyAPI(
   }
 ): Promise<{ success: boolean; packageId?: number; error?: string }> {
   try {
-    // Handle token with or without "Bearer" prefix
+    // Handle token with or without "Bearer" prefix (same as test script)
     const token = apiToken.startsWith('Bearer ') ? apiToken : `Bearer ${apiToken}`;
+    
+    // Log request details (for debugging - matches test script format)
+    logger.info('📤 Sending request to shipping company API', {
+      url: apiEndpointUrl,
+      method: 'POST',
+      tokenPrefix: token.substring(0, 20) + '...',
+      packageData: packageData
+    });
     
     const response = await fetch(apiEndpointUrl, {
       method: 'POST',
@@ -41,7 +49,33 @@ async function callExternalShippingCompanyAPI(
       body: JSON.stringify(packageData)
     });
 
-    const responseData = await response.json();
+    // Get response text first to handle both JSON and HTML responses
+    const responseText = await response.text();
+    let responseData: any;
+    
+    try {
+      responseData = JSON.parse(responseText);
+    } catch (e) {
+      // If response is not JSON (e.g., HTML error page like 503 Service Unavailable)
+      logger.warn('⚠️ API returned non-JSON response (likely HTML error page)', {
+        status: response.status,
+        statusText: response.statusText,
+        responsePreview: responseText.substring(0, 200),
+        apiEndpoint: apiEndpointUrl,
+        note: 'API server may be temporarily unavailable'
+      });
+      
+      return {
+        success: false,
+        error: `API returned non-JSON response: ${response.status} ${response.statusText}`
+      };
+    }
+    
+    // Log response details (for debugging - matches test script format)
+    logger.info('📥 Response from shipping company API', {
+      status: `${response.status} ${response.statusText}`,
+      responseData: responseData
+    });
 
     if (response.ok && responseData.code === 200 && responseData.state === 'success') {
       return {
@@ -88,62 +122,173 @@ export async function createPackageFromOrder(orderId: string): Promise<number | 
   try {
     await connectDB();
 
-    // Get order
+    // Get order from database (using .lean() to get plain object)
     const order = await Order.findById(orderId).lean() as any;
     if (!order) {
       logger.warn('Order not found for package creation', { orderId });
       return null;
     }
+    
+    // Log order data for debugging
+    logger.info('📦 Creating package from order', {
+      orderId: order._id.toString(),
+      orderNumber: order.orderNumber,
+      orderStatus: order.status,
+      shippingCompany: order.shippingCompany || 'NOT SET',
+      shippingAddress: {
+        villageId: order.shippingAddress?.villageId || 'NOT SET',
+        villageName: order.shippingAddress?.villageName || 'NOT SET',
+        city: order.shippingAddress?.city || 'NOT SET',
+        fullName: order.shippingAddress?.fullName || 'NOT SET',
+        phone: order.shippingAddress?.phone || 'NOT SET',
+        street: order.shippingAddress?.street || 'NOT SET'
+      }
+    });
 
     // Check if package already exists for this order
     const existingPackage = await Package.findOne({ orderId: order._id }).lean() as any;
     if (existingPackage) {
+      // If package exists but packageId is not generated yet, reload it
+      if (!existingPackage.packageId) {
+        logger.warn('Package exists but packageId is not generated, reloading...', {
+          packageId: existingPackage._id.toString(),
+          orderId: order._id.toString()
+        });
+        const reloadedPackage = await Package.findById(existingPackage._id);
+        if (reloadedPackage && reloadedPackage.packageId) {
+          logger.info('Package reloaded, packageId found', {
+            orderId: order._id.toString(),
+            packageId: reloadedPackage.packageId
+          });
+          return reloadedPackage.packageId;
+        }
+      }
+      
       logger.info('Package already exists for order', {
         orderId: order._id.toString(),
         orderNumber: order.orderNumber,
         packageId: existingPackage.packageId
       });
-      return existingPackage.packageId;
+      
+      // Ensure packageId is a Number, not ObjectId string
+      if (existingPackage.packageId && typeof existingPackage.packageId === 'number') {
+        return existingPackage.packageId;
+      }
+      
+      // If packageId is missing or invalid, delete the old package and create a new one
+      logger.warn('Package exists but packageId is invalid or missing, will delete and recreate', {
+        orderId: order._id.toString(),
+        packageId: existingPackage.packageId,
+        packageIdType: typeof existingPackage.packageId,
+        packageMongoId: existingPackage._id.toString()
+      });
+      
+      // Delete the invalid package
+      await Package.findByIdAndDelete(existingPackage._id);
+      logger.info('Deleted invalid package, will create new one', {
+        orderId: order._id.toString(),
+        deletedPackageId: existingPackage._id.toString()
+      });
+      
+      // Continue to create new package below
     }
 
-    // Get default external company from system settings
-    const settings = await SystemSettings.findOne().sort({ updatedAt: -1 }).lean() as any;
+    // Get external company from order's shippingCompany if specified, otherwise use default
     let externalCompanyId = null;
+    let externalCompany = null;
 
-    if (settings && settings.defaultExternalCompanyId) {
-      externalCompanyId = settings.defaultExternalCompanyId;
-      logger.debug('Using default external company from settings', {
-        companyId: externalCompanyId.toString(),
+    // First, try to find company by order.shippingCompany (if specified)
+    if (order.shippingCompany) {
+      logger.info('🔍 Looking for shipping company by name', {
+        orderShippingCompany: order.shippingCompany,
         orderId: order._id.toString()
       });
-    } else {
-      // Get first active external company as fallback
-      const firstCompany = await ExternalCompany.findOne({ isActive: true }).lean() as any;
-      if (firstCompany) {
-        externalCompanyId = firstCompany._id;
-        logger.info('Using first active external company as default', {
+      
+      externalCompany = await ExternalCompany.findOne({ 
+        companyName: order.shippingCompany,
+        isActive: true 
+      }).lean() as any;
+      
+      if (externalCompany) {
+        externalCompanyId = externalCompany._id;
+        logger.info('✅ Found shipping company specified in order', {
           companyId: externalCompanyId.toString(),
-          companyName: firstCompany.companyName,
+          companyName: externalCompany.companyName,
+          orderId: order._id.toString(),
+          orderShippingCompany: order.shippingCompany,
+          hasApiEndpoint: !!externalCompany.apiEndpointUrl,
+          hasApiToken: !!externalCompany.apiToken,
+          apiEndpoint: externalCompany.apiEndpointUrl || 'NOT SET'
+        });
+      } else {
+        logger.warn('⚠️ Order specifies shipping company but it was not found or is inactive', {
+          orderId: order._id.toString(),
+          orderShippingCompany: order.shippingCompany,
+          note: 'Falling back to default external company'
+        });
+      }
+    } else {
+      logger.warn('⚠️ Order does not have shippingCompany set', {
+        orderId: order._id.toString(),
+        orderNumber: order.orderNumber,
+        note: 'Will use default external company'
+      });
+    }
+
+    // If no company found from order, use default from system settings
+    if (!externalCompanyId) {
+      const settings = await SystemSettings.findOne().sort({ updatedAt: -1 }).lean() as any;
+      
+      if (settings && settings.defaultExternalCompanyId) {
+        externalCompanyId = settings.defaultExternalCompanyId;
+        logger.debug('Using default external company from settings', {
+          companyId: externalCompanyId.toString(),
           orderId: order._id.toString()
         });
       } else {
-        logger.error('No external company found. Please create an external company first.', {
-          orderId: order._id.toString(),
-          orderNumber: order.orderNumber,
-          note: 'Run: node scripts/create-external-company.js "Company Name"'
-        });
-        return null;
+        // Get first active external company as fallback
+        const firstCompany = await ExternalCompany.findOne({ isActive: true }).lean() as any;
+        if (firstCompany) {
+          externalCompanyId = firstCompany._id;
+          logger.info('Using first active external company as default', {
+            companyId: externalCompanyId.toString(),
+            companyName: firstCompany.companyName,
+            orderId: order._id.toString()
+          });
+        } else {
+          logger.error('No external company found. Please create an external company first.', {
+            orderId: order._id.toString(),
+            orderNumber: order.orderNumber,
+            note: 'Run: node scripts/create-external-company.js "Company Name"'
+          });
+          return null;
+        }
       }
     }
 
-    // Verify external company exists and is active
-    const externalCompany = await ExternalCompany.findById(externalCompanyId).lean() as any;
+    // Verify external company exists and is active (if not already loaded)
+    if (!externalCompany) {
+      externalCompany = await ExternalCompany.findById(externalCompanyId).lean() as any;
+    }
+    
     if (!externalCompany || !externalCompany.isActive) {
       logger.error('External company not found or inactive', {
         externalCompanyId: externalCompanyId?.toString(),
         orderId: order._id.toString()
       });
       return null;
+    }
+
+    // Verify external company has API integration configured
+    if (!externalCompany.apiEndpointUrl || !externalCompany.apiToken) {
+      logger.warn('External company does not have API integration configured', {
+        companyId: externalCompanyId?.toString(),
+        companyName: externalCompany.companyName,
+        orderId: order._id.toString(),
+        hasApiEndpoint: !!externalCompany.apiEndpointUrl,
+        hasApiToken: !!externalCompany.apiToken,
+        note: 'Package will be created in database only, not sent to external API'
+      });
     }
 
     // Validate order has required shipping address data
@@ -157,12 +302,25 @@ export async function createPackageFromOrder(orderId: string): Promise<number | 
     }
 
     if (!shippingAddress.villageId) {
-      logger.error('Order missing villageId in shipping address', {
+      logger.error('❌ Order missing villageId in shipping address', {
         orderId: order._id.toString(),
-        orderNumber: order.orderNumber
+        orderNumber: order.orderNumber,
+        shippingAddress: {
+          manualVillageName: shippingAddress.manualVillageName,
+          villageId: shippingAddress.villageId,
+          villageName: shippingAddress.villageName,
+          city: shippingAddress.city
+        },
+        note: 'Admin must select village from list before shipping'
       });
       return null;
     }
+    
+    logger.info('✅ Order has valid villageId', {
+      orderId: order._id.toString(),
+      villageId: shippingAddress.villageId,
+      villageName: shippingAddress.villageName || 'NOT SET'
+    });
 
     // Verify village exists and is active
     const Village = (await import('@/models/Village')).default;
@@ -231,36 +389,74 @@ export async function createPackageFromOrder(orderId: string): Promise<number | 
 
     await newPackage.save();
 
-    // Update order with packageId
+    // Reload package to get the generated packageId (from pre-save middleware)
+    const savedPackage = await Package.findById(newPackage._id);
+    if (!savedPackage || !savedPackage.packageId) {
+      logger.error('Package created but packageId was not generated', {
+        packageId: newPackage._id.toString(),
+        orderId: order._id.toString()
+      });
+      return null;
+    }
+
+    const packageIdNumber = savedPackage.packageId; // This is a Number
+
+    // Update order with packageId (must be Number, not ObjectId)
     await Order.findByIdAndUpdate(order._id, {
-      packageId: newPackage.packageId
+      packageId: packageIdNumber
     });
 
     // Call external shipping company API if endpoint URL is configured
+    // NOTE: apiEndpointUrl should match the test script URL: 'https://ultra-pal.net/api/external_company/create-package'
     if (externalCompany.apiEndpointUrl && externalCompany.apiToken) {
       try {
+        // Log API endpoint being used (should match test script)
+        logger.info('🔗 Using shipping company API endpoint', {
+          apiEndpoint: externalCompany.apiEndpointUrl,
+          companyName: externalCompany.companyName,
+          expectedUrl: 'https://ultra-pal.net/api/external_company/create-package',
+          match: externalCompany.apiEndpointUrl === 'https://ultra-pal.net/api/external_company/create-package'
+        });
+        
+        // Prepare package data exactly as in test script
+        const packageData = {
+          to_name: shippingAddress.fullName || 'غير محدد',
+          to_phone: shippingAddress.phone || '',
+          alter_phone: shippingAddress.phone || '',
+          description: description,
+          package_type: packageType,
+          village_id: shippingAddress.villageId.toString(), // Must be string
+          street: shippingAddress.street || '',
+          total_cost: (order.total || 0).toString(), // Must be string
+          note: order.deliveryNotes || shippingAddress.notes || `طلب رقم ${orderNumber}`,
+          barcode: barcode
+        };
+        
+        // Log package data being sent (for debugging)
+        logger.info('📤 Sending package to shipping company API', {
+          orderId: order._id.toString(),
+          orderNumber: orderNumber,
+          apiEndpoint: externalCompany.apiEndpointUrl,
+          packageData: packageData,
+          companyName: externalCompany.companyName
+        });
+        
         const apiResponse = await callExternalShippingCompanyAPI(
           externalCompany.apiEndpointUrl,
           externalCompany.apiToken,
-          {
-            to_name: shippingAddress.fullName || 'غير محدد',
-            to_phone: shippingAddress.phone || '',
-            alter_phone: shippingAddress.phone || '',
-            description: description,
-            package_type: packageType,
-            village_id: shippingAddress.villageId.toString(),
-            street: shippingAddress.street || '',
-            total_cost: (order.total || 0).toString(),
-            note: order.deliveryNotes || shippingAddress.notes || `طلب رقم ${orderNumber}`,
-            barcode: barcode
-          }
+          packageData
         );
 
         if (apiResponse.success) {
+          // Update package status to 'confirmed' when successfully sent to API
+          await Package.findByIdAndUpdate(savedPackage._id, {
+            status: 'confirmed'
+          });
+          
           logger.business('✅ ORDER SENT TO SHIPPING COMPANY API - Package sent successfully via external API', {
             orderId: order._id.toString(),
             orderNumber: orderNumber,
-            packageId: newPackage.packageId,
+            packageId: packageIdNumber,
             externalPackageId: apiResponse.packageId,
             externalCompanyId: externalCompanyId.toString(),
         externalCompanyName: externalCompany.companyName,
@@ -269,22 +465,25 @@ export async function createPackageFromOrder(orderId: string): Promise<number | 
         timestamp: new Date().toISOString()
       });
     } else {
+      // Keep package status as 'pending' when API call fails (so we can retry later)
+      // Package status remains 'pending' - indicating it hasn't been sent to shipping company yet
+      
       logger.warn('⚠️ FAILED TO SEND ORDER TO SHIPPING COMPANY API - API call failed', {
         orderId: order._id.toString(),
         orderNumber: orderNumber,
-        packageId: newPackage.packageId,
+        packageId: packageIdNumber,
         externalCompanyName: externalCompany.companyName,
         apiEndpoint: externalCompany.apiEndpointUrl,
             error: apiResponse.error,
             timestamp: new Date().toISOString(),
-            note: 'Package was created in database but API call to shipping company failed'
+            note: 'Package was created in database but API call to shipping company failed. Package status is "pending" - can be resent when API is available.'
           });
         }
       } catch (error) {
         logger.error('Error calling external shipping company API', error, {
           orderId: order._id.toString(),
           orderNumber: orderNumber,
-          packageId: newPackage.packageId,
+          packageId: packageIdNumber,
           externalCompanyName: externalCompany.companyName,
           apiEndpoint: externalCompany.apiEndpointUrl
         });
@@ -295,7 +494,7 @@ export async function createPackageFromOrder(orderId: string): Promise<number | 
       logger.business('✅ ORDER SENT TO SHIPPING COMPANY - Package created in database (no external API configured)', {
         orderId: order._id.toString(),
         orderNumber: orderNumber,
-        packageId: newPackage.packageId,
+        packageId: packageIdNumber,
         externalCompanyId: externalCompanyId.toString(),
         externalCompanyName: externalCompany.companyName,
         barcode: barcode,
@@ -313,12 +512,12 @@ export async function createPackageFromOrder(orderId: string): Promise<number | 
     logger.info('✅ Package created successfully and sent to shipping company', {
       orderId: order._id.toString(),
       orderNumber: orderNumber,
-      packageId: newPackage.packageId,
+      packageId: packageIdNumber,
       companyName: externalCompany.companyName,
       barcode: barcode
     });
 
-    return newPackage.packageId;
+    return packageIdNumber;
   } catch (error) {
     logger.error('Error creating package from order', error, {
       orderId: orderId

@@ -15,7 +15,6 @@ import { Badge } from '@/components/ui/badge';
 import MediaThumbnail from '@/components/ui/MediaThumbnail';
 import { Trash2, ShoppingCart, Truck, MapPin, Package, Calculator } from 'lucide-react';
 import { ProductVariant, ProductVariantOption } from '@/types';
-import VillageSelect from '@/components/ui/VillageSelect';
 
 interface CartItem {
   product: {
@@ -41,8 +40,9 @@ interface ShippingAddress {
   fullName: string;
   phone: string;
   street: string;
-  villageId?: number;
-  villageName?: string;
+  manualVillageName?: string; // Village name entered manually by marketer (for admin review)
+  villageId?: number; // Will be set by admin after review
+  villageName?: string; // Will be set by admin after review
   deliveryCost?: number;
   postalCode?: string;
 }
@@ -59,9 +59,8 @@ export default function CartPage() {
   
   // Shipping address fields (includes customer info)
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress>({
-    fullName: '', phone: '', street: '', postalCode: ''
+    fullName: '', phone: '', street: '', postalCode: '', manualVillageName: ''
   });
-  const [shippingCalculation, setShippingCalculation] = useState<any>(null);
 
   useEffect(() => {
     if (user) {
@@ -83,31 +82,6 @@ export default function CartPage() {
     setMarketerPrices(initialPrices);
   }, [items]);
 
-  // Calculate shipping cost when village or subtotal changes
-  useEffect(() => {
-    if (shippingAddress.villageId && shippingAddress.deliveryCost !== undefined) {
-      const subtotal = items.reduce((total, item) => {
-        const marketerPrice = marketerPrices[item.product._id] ?? item.price;
-        return total + (marketerPrice * item.quantity);
-      }, 0);
-
-      // Use delivery cost from selected village
-      const villageDeliveryCost = shippingAddress.deliveryCost || 0;
-      const finalShippingCost = subtotal >= (settings?.defaultFreeShippingThreshold || 0) 
-        ? 0 
-        : villageDeliveryCost;
-
-      setShippingCalculation({
-        shippingCost: finalShippingCost,
-        shippingMethod: 'الشحن الأساسي',
-        shippingZone: shippingAddress.villageName || 'غير محدد',
-        villageId: shippingAddress.villageId,
-        villageName: shippingAddress.villageName
-      });
-    } else {
-      setShippingCalculation(null);
-    }
-  }, [items, marketerPrices, shippingAddress, settings]);
 
   // Calculate totals and profits
   const subtotal = items.reduce((total, item) => {
@@ -115,7 +89,8 @@ export default function CartPage() {
     return total + (marketerPrice * item.quantity);
   }, 0);
 
-  const shippingCost = shippingCalculation?.shippingCost || 0;
+  // Shipping cost will be calculated by admin after selecting actual village
+  const shippingCost = 0;
   const total = subtotal + shippingCost;
 
   // Calculate total marketer profit
@@ -125,13 +100,11 @@ export default function CartPage() {
     return profit + ((marketerPrice - basePrice) * item.quantity);
   }, 0);
 
-  // Handle village selection
-  const handleVillageChange = (villageId: number, villageName: string, deliveryCost: number) => {
+  // Handle manual village name input (marketer enters village name manually)
+  const handleManualVillageNameChange = (villageName: string) => {
     setShippingAddress(prev => ({
       ...prev,
-      villageId,
-      villageName,
-      deliveryCost
+      manualVillageName: villageName // Store manual village name for admin review
     }));
   };
 
@@ -162,7 +135,10 @@ export default function CartPage() {
       
       // Validate shipping address
       if (!shippingAddress.street.trim()) { toast.error('عنوان الشارع مطلوب'); return; }
-      if (!shippingAddress.villageId) { toast.error('القرية مطلوبة'); return; }
+      if (!shippingAddress.manualVillageName || !shippingAddress.manualVillageName.trim()) { 
+        toast.error('اسم القرية مطلوب'); 
+        return; 
+      }
 
       // Validate minimum selling prices
       for (const item of items) {
@@ -208,15 +184,14 @@ export default function CartPage() {
           customerPhone: shippingAddress.phone, // Use from shipping address
           shippingAddress: {
             ...shippingAddress,
-            villageId: shippingAddress.villageId,
-            villageName: shippingAddress.villageName,
-            deliveryCost: shippingAddress.deliveryCost
+            manualVillageName: shippingAddress.manualVillageName, // Manual village name for admin review
+            // villageId and villageName will be set by admin after review
           },
           items: orderItems,
           notes: orderNotes, // Unified notes field
-          shippingCost,
-          shippingMethod: shippingCalculation?.shippingMethod || 'الشحن الأساسي',
-          shippingZone: shippingCalculation?.villageName || shippingCalculation?.shippingZone || 'المنطقة الافتراضية',
+          shippingCost: 0, // Will be calculated by admin after selecting actual village
+          shippingMethod: 'الشحن الأساسي', // Will be set by admin
+          shippingZone: shippingAddress.manualVillageName || 'في انتظار مراجعة الإدارة',
           orderTotal: total
         })
       });
@@ -272,6 +247,8 @@ export default function CartPage() {
                       media={item.product.images} 
                       alt={item.product.name}
                       className="w-16 h-16 rounded-lg object-cover"
+                      width={64}
+                      height={64}
                     />
                   </div>
                   
@@ -398,12 +375,20 @@ export default function CartPage() {
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <VillageSelect
-                    value={shippingAddress.villageId}
-                    onChange={handleVillageChange}
+                  <Label htmlFor="manualVillageName">
+                    القرية * 
+                    <span className="text-xs text-gray-500 mr-2">(سيتم مراجعة القرية من قبل الإدارة)</span>
+                  </Label>
+                  <Input
+                    id="manualVillageName"
+                    value={shippingAddress.manualVillageName || ''}
+                    onChange={(e) => handleManualVillageNameChange(e.target.value)}
+                    placeholder="اكتب اسم القرية (مثال: الخليل - البقعة)"
                     required
-                    disabled={!settings?.shippingEnabled}
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    يرجى كتابة اسم القرية يدوياً. سيتم مراجعة العنوان واختيار القرية الصحيحة من قبل الإدارة.
+                  </p>
                 </div>
                 <div>
                   <Label htmlFor="postalCode">الرمز البريدي (اختياري)</Label>
@@ -428,36 +413,20 @@ export default function CartPage() {
             </CardContent>
           </Card>
 
-          {/* Shipping Cost Display */}
-          {settings?.shippingEnabled && shippingCalculation && (
+          {/* Shipping Cost Notice */}
+          {settings?.shippingEnabled && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Truck className="w-5 h-5 ml-2" />
-                  تكلفة الشحن
+                  معلومات الشحن
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span>تكلفة الشحن:</span>
-                    <span className={shippingCalculation.shippingCost === 0 ? 'text-green-600' : ''}>
-                      {shippingCalculation.shippingCost === 0 ? 'مجاني' : `${shippingCalculation.shippingCost}₪`}
-                    </span>
-                  </div>
-                  {shippingCalculation.shippingCost === 0 && (
-                    <div className="text-xs text-green-600 bg-green-50 dark:bg-green-900/20 p-2 rounded">
-                      ✓ الشحن مجاني للطلبات التي تتجاوز {settings.defaultFreeShippingThreshold}₪
-                    </div>
-                  )}
-                  <div className="text-xs text-gray-500">
-                    القرية: {shippingCalculation.villageName || shippingCalculation.shippingZone}
-                  </div>
-                  {shippingCalculation.villageId && (
-                    <div className="text-xs text-gray-400">
-                      معرف القرية: {shippingCalculation.villageId}
-                    </div>
-                  )}
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                    ⓘ سيتم حساب تكلفة الشحن بعد مراجعة الإدارة للقرية المحددة
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -480,24 +449,10 @@ export default function CartPage() {
                   <span>{subtotal}₪</span>
                 </div>
                 
-                {shippingCalculation && (
-                  <>
-                    <div className="flex justify-between">
-                      <span>الشحن ({shippingCalculation.shippingMethod}):</span>
-                      <span className={shippingCalculation.isFreeShipping ? 'text-green-600' : ''}>
-                        {shippingCalculation.isFreeShipping ? 'مجاني' : `${shippingCalculation.shippingCost}₪`}
-                      </span>
-                    </div>
-                    {shippingCalculation.isFreeShipping && (
-                      <div className="text-xs text-green-600 bg-green-50 dark:bg-green-900/20 p-2 rounded">
-                        ✓ الشحن مجاني للطلبات التي تتجاوز {shippingCalculation.breakdown.freeShippingDiscount > 0 ? 'الحد المطلوب' : 'الحد المطلوب'}
-                      </div>
-                    )}
-                    <div className="text-xs text-gray-500">
-                      المنطقة: {shippingCalculation.shippingZone} | الوقت المتوقع: {shippingCalculation.estimatedDays}
-                    </div>
-                  </>
-                )}
+                <div className="flex justify-between text-gray-500">
+                  <span>الشحن:</span>
+                  <span className="text-xs">سيتم الحساب بعد مراجعة الإدارة</span>
+                </div>
                 
                 <div className="border-t pt-2">
                   <div className="flex justify-between font-bold text-lg">

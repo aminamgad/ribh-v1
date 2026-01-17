@@ -2,7 +2,7 @@
 
 import { Play, Image as ImageIcon } from 'lucide-react';
 import { getMediaType } from '@/lib/mediaUtils';
-import LazyImage from './LazyImage';
+import LazyImage, { OptimizedImage } from './LazyImage';
 
 interface MediaThumbnailProps {
   media: string[];
@@ -10,6 +10,16 @@ interface MediaThumbnailProps {
   className?: string;
   showTypeBadge?: boolean;
   fallbackIcon?: React.ReactNode;
+  /**
+   * Use only for above-the-fold/hero images. Avoid enabling in lists/tables.
+   */
+  priority?: boolean;
+  /**
+   * If provided, we'll use Next.js Image optimization with fixed dimensions.
+   * Ideal for table/list thumbnails.
+   */
+  width?: number;
+  height?: number;
 }
 
 export default function MediaThumbnail({
@@ -17,7 +27,10 @@ export default function MediaThumbnail({
   alt = 'وسائط',
   className = '',
   showTypeBadge = false,
-  fallbackIcon
+  fallbackIcon,
+  priority = false,
+  width,
+  height
 }: MediaThumbnailProps) {
   if (!media || media.length === 0) {
     return (
@@ -33,18 +46,31 @@ export default function MediaThumbnail({
   return (
     <div className={`aspect-square bg-gray-100 dark:bg-slate-800 rounded-lg overflow-hidden relative ${className}`}>
       {mediaType === 'image' ? (
-        <LazyImage
-          src={firstMedia}
-          alt={alt}
-          className="w-full h-full object-cover"
-          priority={true}
-        />
+        width && height ? (
+          <OptimizedImage
+            src={firstMedia}
+            alt={alt}
+            width={width}
+            height={height}
+            className="w-full h-full object-cover"
+            priority={priority}
+          />
+        ) : (
+          <LazyImage
+            src={firstMedia}
+            alt={alt}
+            className="w-full h-full object-cover"
+            priority={priority}
+          />
+        )
       ) : (
         <div className="w-full h-full flex items-center justify-center relative">
           <video
             src={firstMedia}
             className="w-full h-full object-cover"
             muted
+            preload="metadata"
+            playsInline
             onMouseEnter={(e) => (e.target as HTMLVideoElement).play()}
             onMouseLeave={(e) => {
               const video = e.target as HTMLVideoElement;

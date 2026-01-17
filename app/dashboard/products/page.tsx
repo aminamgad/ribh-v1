@@ -26,7 +26,9 @@ import {
   Heart as HeartIcon,
   Zap,
   Gamepad2,
-  ArrowLeft
+  ArrowLeft,
+  Clock,
+  Inbox
 } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -35,7 +37,7 @@ import { useSearchParams } from 'next/navigation';
 import MediaThumbnail from '@/components/ui/MediaThumbnail';
 import { useRouter } from 'next/navigation';
 import ProductSection from '@/components/products/ProductSection';
-import AdminProductFilters from '@/components/products/AdminProductFilters';
+import AdminProductsTableView from '@/components/products/AdminProductsTableView';
 
 interface Product {
   _id: string;
@@ -68,6 +70,7 @@ export default function ProductsPage() {
   const { addToCart } = useCart();
   const { addToFavorites, removeFromFavorites, isFavorite } = useFavorites();
   const searchParams = useSearchParams();
+  const queryString = searchParams.toString();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({
@@ -103,6 +106,9 @@ export default function ProductsPage() {
     isMinimumPriceMandatory: false
   });
 
+  // View mode for admin (list/grid)
+  const [adminViewMode, setAdminViewMode] = useState<'list' | 'grid'>('list');
+
   const router = useRouter();
 
   // Product sections state
@@ -126,10 +132,10 @@ export default function ProductsPage() {
   useEffect(() => {
     fetchProducts();
     // Only fetch sections if no search/filters are active and user is marketer
-    if (user?.role === 'marketer' && !searchParams.toString()) {
+    if (user?.role === 'marketer' && !queryString) {
       fetchProductSections();
     }
-  }, [searchParams, user]);
+  }, [queryString, user?.role]);
 
   const fetchProductSections = async () => {
     try {
@@ -245,21 +251,24 @@ export default function ProductsPage() {
     }
   };
 
-  const fetchProducts = async () => {
+  const fetchProducts = async (overrideQueryString?: string) => {
     try {
       setLoading(true);
-      const queryString = searchParams.toString();
+      const queryString = overrideQueryString ?? searchParams.toString();
+      const params = new URLSearchParams(queryString);
       // Use /api/products for admin filters (stockStatus, suppliers, startDate, endDate)
       // or when user is admin, otherwise use /api/search for regular search
-      const hasAdminFilters = searchParams.has('stockStatus') || 
-                              searchParams.has('suppliers') || 
-                              searchParams.has('startDate') || 
-                              searchParams.has('endDate');
-      const endpoint = (hasAdminFilters || user?.role === 'admin') 
-        ? `/api/products?${queryString}` 
-        : queryString 
-          ? `/api/search?${queryString}` 
-          : '/api/products';
+      const hasAdminFilters =
+        params.has('stockStatus') ||
+        params.has('suppliers') ||
+        params.has('startDate') ||
+        params.has('endDate');
+      const endpoint =
+        (hasAdminFilters || user?.role === 'admin')
+          ? (queryString ? `/api/products?${queryString}` : '/api/products')
+          : queryString
+            ? `/api/search?${queryString}`
+            : '/api/products';
       
       console.log('🔄 Fetching products from:', endpoint);
       
@@ -719,11 +728,6 @@ export default function ProductsPage() {
 
       {/* Search and Filters */}
       <SearchFilters onSearch={() => setLoading(true)} />
-      
-      {/* Admin Product Filters */}
-      {user?.role === 'admin' && (
-        <AdminProductFilters onFiltersChange={() => fetchProducts()} />
-      )}
 
       {/* Product Sections for Marketer - Only show when no filters/search */}
       {user?.role === 'marketer' && !searchParams.toString() && (
@@ -827,7 +831,7 @@ export default function ProductsPage() {
         </div>
       )}
 
-      {/* Products Grid - Show when filters/search are active or for other roles */}
+      {/* Products Display - Admin uses table/list view, others use grid */}
       {products.length === 0 ? (
         <div className="card text-center py-12">
           <Package className="w-16 h-16 text-gray-400 dark:text-slate-500 mx-auto mb-4" />
@@ -849,6 +853,15 @@ export default function ProductsPage() {
             </Link>
           )}
         </div>
+      ) : user?.role === 'admin' ? (
+        // Admin Table/List View
+        <AdminProductsTableView
+          products={products}
+          onApprove={handleApproveProduct}
+          onReject={handleRejectProduct}
+          viewMode={adminViewMode}
+          onViewModeChange={setAdminViewMode}
+        />
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -1173,8 +1186,8 @@ export default function ProductsPage() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
               {/* إجمالي المنتجات المعتمدة */}
               <div className="card p-6">
-                <div className="flex items-center">
-                  <div className="bg-primary-100 dark:bg-primary-900/30 p-4 rounded-2xl mr-5">
+                <div className="flex items-center gap-5">
+                  <div className="bg-primary-100 dark:bg-primary-900/30 p-4 rounded-2xl shrink-0">
                     <Package className="w-7 h-7 text-primary-600 dark:text-primary-400" />
                   </div>
                   <div className="flex-1">
@@ -1186,8 +1199,8 @@ export default function ProductsPage() {
 
               {/* المنتجات المتوفرة */}
               <div className="card p-6">
-                <div className="flex items-center">
-                  <div className="bg-success-100 dark:bg-success-900/30 p-4 rounded-2xl mr-5">
+                <div className="flex items-center gap-5">
+                  <div className="bg-success-100 dark:bg-success-900/30 p-4 rounded-2xl shrink-0">
                     <Package className="w-7 h-7 text-success-600 dark:text-success-400" />
                   </div>
                   <div className="flex-1">
@@ -1201,8 +1214,8 @@ export default function ProductsPage() {
 
               {/* المنتجات غير المتوفرة */}
               <div className="card p-6">
-                <div className="flex items-center">
-                  <div className="bg-warning-100 dark:bg-warning-900/30 p-4 rounded-2xl mr-5">
+                <div className="flex items-center gap-5">
+                  <div className="bg-warning-100 dark:bg-warning-900/30 p-4 rounded-2xl shrink-0">
                     <Package className="w-7 h-7 text-warning-600 dark:text-warning-400" />
                   </div>
                   <div className="flex-1">
@@ -1217,8 +1230,8 @@ export default function ProductsPage() {
               {/* إحصائيات إضافية لتاجر الجملة فقط */}
               {user?.role === 'wholesaler' && (
                 <div className="card p-6">
-                  <div className="flex items-center">
-                    <div className="bg-info-100 dark:bg-info-900/30 p-4 rounded-2xl mr-5">
+                  <div className="flex items-center gap-5">
+                    <div className="bg-info-100 dark:bg-info-900/30 p-4 rounded-2xl shrink-0">
                       <Package className="w-7 h-7 text-info-600 dark:text-info-400" />
                     </div>
                     <div className="flex-1">
@@ -1237,8 +1250,8 @@ export default function ProductsPage() {
           {(user?.role === 'supplier' || user?.role === 'admin') && (
             <>
               <div className="card p-6">
-                <div className="flex items-center">
-                  <div className="bg-success-100 dark:bg-success-900/30 p-4 rounded-2xl mr-5">
+                <div className="flex items-center gap-5">
+                  <div className="bg-success-100 dark:bg-success-900/30 p-4 rounded-2xl shrink-0">
                     <Package className="w-7 h-7 text-success-600 dark:text-success-400" />
                   </div>
                   <div className="flex-1">
@@ -1251,8 +1264,8 @@ export default function ProductsPage() {
               </div>
 
               <div className="card p-6">
-                <div className="flex items-center">
-                  <div className="bg-warning-100 dark:bg-warning-900/30 p-4 rounded-2xl mr-5">
+                <div className="flex items-center gap-5">
+                  <div className="bg-warning-100 dark:bg-warning-900/30 p-4 rounded-2xl shrink-0">
                     <Package className="w-7 h-7 text-warning-600 dark:text-warning-400" />
                   </div>
                   <div className="flex-1">
@@ -1265,8 +1278,8 @@ export default function ProductsPage() {
               </div>
 
               <div className="card p-6">
-                <div className="flex items-center">
-                  <div className="bg-danger-100 dark:bg-danger-900/30 p-4 rounded-2xl mr-5">
+                <div className="flex items-center gap-5">
+                  <div className="bg-danger-100 dark:bg-danger-900/30 p-4 rounded-2xl shrink-0">
                     <Package className="w-7 h-7 text-danger-600 dark:text-danger-400" />
                   </div>
                   <div className="flex-1">
@@ -1555,10 +1568,13 @@ export default function ProductsPage() {
               {/* Product Image Preview */}
               {selectedProduct.images && selectedProduct.images.length > 0 && (
                 <div className="w-16 h-16 rounded-lg overflow-hidden">
-                  <img
-                    src={selectedProduct.images[0]}
+                  <MediaThumbnail
+                    media={selectedProduct.images}
                     alt={selectedProduct.name}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full"
+                    showTypeBadge={false}
+                    width={64}
+                    height={64}
                   />
                 </div>
               )}

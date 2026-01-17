@@ -1369,19 +1369,72 @@ body::after {
     overflow: visible !important;
   }
   
-  /* Hide everything except invoice print version */
-  body > *:not(#invoice-print-version) {
+  /* Hide everything except invoice print version or bulk print version */
+  /* Use same approach as invoice - bulk-print-version is created directly in body */
+  body > *:not(#invoice-print-version):not(#bulk-print-version):not(script):not(style):not(#bulk-print-styles):not(#invoice-print-styles) {
     display: none !important;
     visibility: hidden !important;
   }
   
+  /* Show bulk-print-version (same approach as invoice-print-version) */
+  #bulk-print-version {
+    display: block !important;
+    visibility: visible !important;
+    position: relative !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 10px !important;
+    background: white !important;
+  }
+  
+  /* Also support #bulk-print-page for compatibility (when inside #bulk-print-version) */
+  #bulk-print-version #bulk-print-page,
+  #bulk-print-page {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 100vh !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    position: relative !important;
+  }
+  
   /* Hide modal overlays and backdrops */
-  [class*="fixed"],
-  [class*="inset-0"],
-  [class*="bg-black"],
-  [class*="bg-opacity"] {
+  /* EXCEPT: Don't hide bulk-print-page or invoice-print-version */
+  [class*="fixed"]:not(#bulk-print-page):not(#bulk-print-page *):not(#invoice-print-version):not(#invoice-print-version *),
+  [class*="inset-0"]:not(#bulk-print-page):not(#bulk-print-page *):not(#invoice-print-version):not(#invoice-print-version *),
+  [class*="bg-black"]:not(#bulk-print-page):not(#bulk-print-page *):not(#invoice-print-version):not(#invoice-print-version *),
+  [class*="bg-opacity"]:not(#bulk-print-page):not(#bulk-print-page *):not(#invoice-print-version):not(#invoice-print-version *) {
     display: none !important;
     visibility: hidden !important;
+  }
+  
+  /* Ensure bulk-print-page is always visible even if it has classes that would normally hide it */
+  #bulk-print-page,
+  #bulk-print-page[class*="fixed"],
+  #bulk-print-page[class*="inset-0"],
+  #bulk-print-page[class*="bg-black"],
+  #bulk-print-page[class*="bg-opacity"] {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  
+  /* Ensure bulk-print-page children are visible */
+  #bulk-print-page *[class*="fixed"],
+  #bulk-print-page *[class*="inset-0"],
+  #bulk-print-page *[class*="bg-black"],
+  #bulk-print-page *[class*="bg-opacity"] {
+    display: revert !important;
+    visibility: visible !important;
+    opacity: 1 !important;
   }
   
   /* Show invoice print version */
@@ -1399,6 +1452,34 @@ body::after {
     background: white !important;
     page-break-inside: avoid !important;
   }
+
+  /* Show bulk print page - CRITICAL: Must override any hiding rules */
+  /* Use high specificity to ensure it's always visible */
+  #bulk-print-page,
+  body #bulk-print-page,
+  html body #bulk-print-page,
+  body > * #bulk-print-page,
+  [id*="__next"] #bulk-print-page,
+  main #bulk-print-page {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 100vh !important;
+    margin: 0 !important;
+    padding: 10px !important;
+    background: white !important;
+    position: relative !important;
+  }
+
+  /* Ensure all children are visible */
+  #bulk-print-page *,
+  body #bulk-print-page *,
+  html body #bulk-print-page * {
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
   
   /* Ensure all invoice content is visible */
   #invoice-print-version,
@@ -1413,6 +1494,132 @@ body::after {
   #invoice-print-version .invoice-content {
     display: block !important;
     visibility: visible !important;
+  }
+
+  /* Bulk print page invoice content styling - ULTRA HIGH PRIORITY */
+  #bulk-print-page {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 100vh !important;
+    margin: 0 !important;
+    padding: 10px !important;
+    background: white !important;
+    position: relative !important;
+    overflow: visible !important;
+  }
+
+  #bulk-print-page .invoice-content {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    page-break-inside: avoid !important;
+    page-break-after: always !important;
+    margin-bottom: 20px !important;
+    background: white !important;
+    position: relative !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 20px !important;
+    border: 1px solid #e5e7eb !important;
+  }
+
+  #bulk-print-page .invoice-content:last-child {
+    page-break-after: auto !important;
+  }
+
+  #bulk-print-page .invoice-content *,
+  #bulk-print-page .invoice-content *::before,
+  #bulk-print-page .invoice-content *::after {
+    visibility: visible !important;
+    opacity: 1 !important;
+    color: #000000 !important;
+    display: revert !important;
+  }
+  
+  /* Force specific display types for key elements */
+  #bulk-print-page div {
+    display: block !important;
+  }
+  #bulk-print-page table {
+    display: table !important;
+  }
+  #bulk-print-page tr {
+    display: table-row !important;
+  }
+  #bulk-print-page td,
+  #bulk-print-page th {
+    display: table-cell !important;
+  }
+  #bulk-print-page tbody {
+    display: table-row-group !important;
+  }
+  #bulk-print-page thead {
+    display: table-header-group !important;
+  }
+
+  /* Bulk print table styling - ensure tables are fully visible */
+  #bulk-print-page .invoice-content table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin: 10px 0 !important;
+    font-size: 12px !important;
+    display: table !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    border: 1px solid #000 !important;
+    background: white !important;
+  }
+
+  #bulk-print-page .invoice-content table thead {
+    display: table-header-group !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    background: #f5f5f5 !important;
+  }
+
+  #bulk-print-page .invoice-content table tbody {
+    display: table-row-group !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    background: white !important;
+  }
+
+  #bulk-print-page .invoice-content table tr {
+    display: table-row !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    background: white !important;
+  }
+
+  #bulk-print-page .invoice-content table th,
+  #bulk-print-page .invoice-content table td {
+    border: 1px solid #000 !important;
+    padding: 6px !important;
+    display: table-cell !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    color: #000 !important;
+    background: white !important;
+  }
+
+  #bulk-print-page .invoice-content table th {
+    background: #f5f5f5 !important;
+    font-weight: bold !important;
+    color: #000 !important;
+  }
+
+  #bulk-print-page .invoice-content table tbody td {
+    background: white !important;
+    color: #000 !important;
+  }
+
+  /* Hide print controls in bulk print */
+  #bulk-print-page .print\\:hidden {
+    display: none !important;
+    visibility: hidden !important;
   }
   
   /* Invoice content styling */
@@ -1491,5 +1698,43 @@ body::after {
   .invoice-content,
   .invoice-content * {
     color: #000 !important;
+  }
+  
+  /* CRITICAL OVERRIDE: Ensure #bulk-print-page is visible at the end of print styles */
+  /* This must come last to override any previous hiding rules */
+  body > main:has(#bulk-print-page),
+  body > div:has(#bulk-print-page),
+  body > [id]:has(#bulk-print-page) {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    background: white !important;
+  }
+  
+  /* Final override for #bulk-print-page itself */
+  #bulk-print-page,
+  body #bulk-print-page,
+  html body #bulk-print-page,
+  body > main #bulk-print-page,
+  body > div #bulk-print-page,
+  body > * #bulk-print-page {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 100vh !important;
+    margin: 0 !important;
+    padding: 10px !important;
+    background: white !important;
+    position: relative !important;
+  }
+  
+  /* Ensure all content inside is visible */
+  #bulk-print-page *,
+  #bulk-print-page *::before,
+  #bulk-print-page *::after {
+    visibility: visible !important;
+    opacity: 1 !important;
   }
 } 

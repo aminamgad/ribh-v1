@@ -24,7 +24,9 @@ import {
   Trash2,
   AlertCircle,
   Truck,
-  MapPin
+  MapPin,
+  Edit,
+  X
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 
@@ -165,6 +167,23 @@ export default function SettingsPage() {
     governorates: []
   });
 
+  // Shipping regions state
+  const [shippingRegions, setShippingRegions] = useState<any[]>([]);
+  const [loadingRegions, setLoadingRegions] = useState(false);
+  const [showRegionModal, setShowRegionModal] = useState(false);
+  const [editingRegion, setEditingRegion] = useState<any>(null);
+  const [regionForm, setRegionForm] = useState({
+    regionName: '',
+    regionCode: '',
+    description: '',
+    shippingCost: 50,
+    freeShippingThreshold: null as number | null,
+    isActive: true,
+    villageIds: [] as number[],
+    governorateName: '',
+    cityNames: [] as string[]
+  });
+
   // Fetch settings
   const fetchSettings = async () => {
     try {
@@ -268,6 +287,94 @@ export default function SettingsPage() {
   useEffect(() => {
     fetchSettings();
   }, []);
+
+  // Fetch shipping regions
+  const fetchShippingRegions = async () => {
+    try {
+      setLoadingRegions(true);
+      const response = await fetch('/api/admin/settings/shipping');
+      const data = await response.json();
+      if (data.success) {
+        setShippingRegions(data.regions || []);
+      }
+    } catch (error) {
+      console.error('Error fetching shipping regions:', error);
+    } finally {
+      setLoadingRegions(false);
+    }
+  };
+
+  // Handle region form submit
+  const handleRegionSubmit = async () => {
+    if (!regionForm.regionName.trim() || !regionForm.regionCode.trim()) {
+      toast.error('اسم المنطقة ورمز المنطقة مطلوبان');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const url = editingRegion 
+        ? '/api/admin/settings/shipping'
+        : '/api/admin/settings/shipping';
+      
+      const method = editingRegion ? 'PUT' : 'POST';
+      const body = editingRegion
+        ? { regionId: editingRegion._id, ...regionForm }
+        : regionForm;
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        toast.success(editingRegion ? 'تم تحديث المنطقة بنجاح' : 'تم إضافة المنطقة بنجاح');
+        setShowRegionModal(false);
+        setEditingRegion(null);
+        setRegionForm({
+          regionName: '',
+          regionCode: '',
+          description: '',
+          shippingCost: 50,
+          freeShippingThreshold: null,
+          isActive: true,
+          villageIds: [],
+          governorateName: '',
+          cityNames: []
+        });
+        fetchShippingRegions();
+      } else {
+        toast.error(result.message || 'حدث خطأ');
+      }
+    } catch (error) {
+      toast.error('حدث خطأ أثناء حفظ المنطقة');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Delete region
+  const handleDeleteRegion = async (regionId: string) => {
+    if (!confirm('هل أنت متأكد من حذف هذه المنطقة؟')) return;
+
+    try {
+      const response = await fetch(`/api/admin/settings/shipping?regionId=${regionId}`, {
+        method: 'DELETE'
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        toast.success('تم حذف المنطقة بنجاح');
+        fetchShippingRegions();
+      } else {
+        toast.error(result.message || 'حدث خطأ');
+      }
+    } catch (error) {
+      toast.error('حدث خطأ أثناء حذف المنطقة');
+    }
+  };
 
   // Save settings
   const saveSettings = async (section: string, data: any) => {
@@ -1015,6 +1122,128 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
+            {/* Shipping Regions for Marketers */}
+            <Card className="border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 mt-6">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center text-gray-900 dark:text-white">
+                    <Truck className="w-5 h-5 ml-2 text-blue-600 dark:text-blue-400" />
+                    مناطق التوصيل للمسوقين
+                  </CardTitle>
+                  <Button
+                    onClick={() => {
+                      setEditingRegion(null);
+                      setRegionForm({
+                        regionName: '',
+                        regionCode: '',
+                        description: '',
+                        shippingCost: 50,
+                        freeShippingThreshold: null,
+                        isActive: true,
+                        villageIds: [],
+                        governorateName: '',
+                        cityNames: []
+                      });
+                      setShowRegionModal(true);
+                    }}
+                    className="bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600"
+                  >
+                    <Plus className="w-4 h-4 ml-2" />
+                    إضافة منطقة جديدة
+                  </Button>
+                </div>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                  إدارة مناطق وأسعار التوصيل التي يراها المسوقون عند إنشاء الطلبات
+                </p>
+              </CardHeader>
+              <CardContent>
+                {loadingRegions ? (
+                  <div className="text-center py-8">
+                    <div className="loading-spinner w-8 h-8 mx-auto"></div>
+                    <p className="text-gray-600 dark:text-gray-400 mt-2">جاري التحميل...</p>
+                  </div>
+                ) : shippingRegions.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-dashed border-gray-300 dark:border-gray-600">
+                    <Truck className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p>لا توجد مناطق توصيل مضافة بعد</p>
+                    <p className="text-sm mt-1">انقر على "إضافة منطقة جديدة" لبدء الإضافة</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="bg-gray-100 dark:bg-gray-700 border-b-2 border-gray-300 dark:border-gray-600">
+                          <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 dark:text-slate-300 uppercase">المنطقة</th>
+                          <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 dark:text-slate-300 uppercase">الرمز</th>
+                          <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 dark:text-slate-300 uppercase">سعر التوصيل</th>
+                          <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 dark:text-slate-300 uppercase">الشحن المجاني</th>
+                          <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 dark:text-slate-300 uppercase">الحالة</th>
+                          <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 dark:text-slate-300 uppercase">الإجراءات</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
+                        {shippingRegions.map((region) => (
+                          <tr key={region._id || region.regionCode} className="hover:bg-gray-50 dark:hover:bg-slate-800">
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-slate-100">
+                              {region.regionName}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-600 dark:text-slate-400">
+                              <code className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-xs">{region.regionCode}</code>
+                            </td>
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-slate-100">
+                              {region.shippingCost} ₪
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-600 dark:text-slate-400">
+                              {region.freeShippingThreshold ? `${region.freeShippingThreshold} ₪` : 'لا يوجد'}
+                            </td>
+                            <td className="px-4 py-3">
+                              <Badge className={region.isActive ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-400'}>
+                                {region.isActive ? 'نشط' : 'غير نشط'}
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center space-x-2 space-x-reverse">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setEditingRegion(region);
+                                    setRegionForm({
+                                      regionName: region.regionName || '',
+                                      regionCode: region.regionCode || '',
+                                      description: region.description || '',
+                                      shippingCost: region.shippingCost || 50,
+                                      freeShippingThreshold: region.freeShippingThreshold || null,
+                                      isActive: region.isActive !== false,
+                                      villageIds: region.villageIds || [],
+                                      governorateName: region.governorateName || '',
+                                      cityNames: region.cityNames || []
+                                    });
+                                    setShowRegionModal(true);
+                                  }}
+                                >
+                                  <Edit className="w-3 h-3 ml-1" />
+                                  تعديل
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => handleDeleteRegion(region._id)}
+                                >
+                                  <Trash2 className="w-3 h-3 ml-1" />
+                                  حذف
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             <Button 
               onClick={() => saveSettings('shipping', shippingData)}
               disabled={saving}
@@ -1023,6 +1252,116 @@ export default function SettingsPage() {
               <Save className="w-4 h-4 ml-2" />
               {saving ? 'جاري الحفظ...' : 'حفظ إعدادات الشحن'}
             </Button>
+          </div>
+        )}
+
+        {/* Region Modal */}
+        {showRegionModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
+                    {editingRegion ? 'تعديل منطقة التوصيل' : 'إضافة منطقة توصيل جديدة'}
+                  </h3>
+                  <button
+                    onClick={() => {
+                      setShowRegionModal(false);
+                      setEditingRegion(null);
+                    }}
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label>اسم المنطقة <span className="text-red-500">*</span></Label>
+                      <Input
+                        value={regionForm.regionName}
+                        onChange={(e) => setRegionForm({ ...regionForm, regionName: e.target.value })}
+                        placeholder="مثال: الضفة الغربية"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label>رمز المنطقة <span className="text-red-500">*</span></Label>
+                      <Input
+                        value={regionForm.regionCode}
+                        onChange={(e) => setRegionForm({ ...regionForm, regionCode: e.target.value.toUpperCase() })}
+                        placeholder="مثال: WB-001"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>الوصف</Label>
+                    <Textarea
+                      value={regionForm.description}
+                      onChange={(e) => setRegionForm({ ...regionForm, description: e.target.value })}
+                      placeholder="وصف المنطقة (اختياري)"
+                      rows={2}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label>سعر التوصيل (₪) <span className="text-red-500">*</span></Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={regionForm.shippingCost}
+                        onChange={(e) => setRegionForm({ ...regionForm, shippingCost: parseFloat(e.target.value) || 0 })}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label>حد الشحن المجاني (₪)</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={regionForm.freeShippingThreshold || ''}
+                        onChange={(e) => setRegionForm({ ...regionForm, freeShippingThreshold: e.target.value ? parseFloat(e.target.value) : null })}
+                        placeholder="اتركه فارغاً للاستخدام الافتراضي"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-2 space-x-reverse">
+                    <Checkbox
+                      checked={regionForm.isActive}
+                      onChange={(e) => setRegionForm({ ...regionForm, isActive: e.target.checked })}
+                      label="منطقة نشطة"
+                    />
+                  </div>
+
+                  <div className="flex justify-end space-x-3 space-x-reverse pt-4 border-t border-gray-200 dark:border-slate-700">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowRegionModal(false);
+                        setEditingRegion(null);
+                      }}
+                      disabled={saving}
+                    >
+                      إلغاء
+                    </Button>
+                    <Button
+                      onClick={handleRegionSubmit}
+                      disabled={saving || !regionForm.regionName.trim() || !regionForm.regionCode.trim()}
+                      className="bg-[#FF9800] hover:bg-[#F57C00]"
+                    >
+                      {saving ? 'جاري الحفظ...' : editingRegion ? 'تحديث' : 'إضافة'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

@@ -348,26 +348,20 @@ export default function ProductStatsPage() {
             <div className="flex-shrink-0">
               {stats.product.images && stats.product.images.length > 0 ? (
                 <div className="relative group">
-                  <img
-                    src={stats.product.images[0]}
+                  <MediaThumbnail
+                    media={stats.product.images}
                     alt={stats.product.name}
-                    className="w-32 h-32 md:w-40 md:h-40 rounded-xl object-cover border-2 border-gray-200 dark:border-gray-600 shadow-lg hover:shadow-xl transition-shadow duration-200"
-                    onError={(e) => {
-                      console.log('❌ Image failed to load:', stats.product.images[0]);
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
-                      target.nextElementSibling?.classList.remove('hidden');
-                    }}
-                    onLoad={() => {
-                      console.log('✅ Image loaded successfully:', stats.product.images[0]);
-                    }}
+                    className="w-32 h-32 md:w-40 md:h-40 rounded-xl border-2 border-gray-200 dark:border-gray-600 shadow-lg hover:shadow-xl transition-shadow duration-200"
+                    showTypeBadge={false}
+                    width={160}
+                    height={160}
+                    fallbackIcon={
+                      <div className="text-center">
+                        <Package className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                        <p className="text-xs text-gray-500">صورة المنتج</p>
+                      </div>
+                    }
                   />
-                  <div className="w-32 h-32 md:w-40 md:h-40 bg-gray-200 dark:bg-gray-700 rounded-xl flex items-center justify-center border-2 border-gray-200 dark:border-gray-600 shadow-lg hidden">
-                    <div className="text-center">
-                      <Package className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                      <p className="text-xs text-gray-500">صورة المنتج</p>
-                    </div>
-                  </div>
                 </div>
               ) : (
                 <div className="w-32 h-32 md:w-40 md:h-40 bg-gray-200 dark:bg-gray-700 rounded-xl flex items-center justify-center border-2 border-gray-200 dark:border-gray-600 shadow-lg">

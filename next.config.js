@@ -4,6 +4,8 @@ const nextConfig = {
   images: {
     domains: ['res.cloudinary.com', 'localhost', 'via.placeholder.com', 'portfolio.roeia.com'],
     formats: ['image/webp', 'image/avif'],
+    // Cache optimized remote images for longer; images rarely change after upload
+    minimumCacheTTL: 86400,
   },
   experimental: {
     serverComponentsExternalPackages: ['cloudinary'],

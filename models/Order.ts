@@ -75,6 +75,10 @@ const addressSchema = new Schema({
     type: String,
     trim: true
   },
+  manualVillageName: {
+    type: String,
+    trim: true
+  },
   deliveryCost: {
     type: Number,
     min: [0, 'تكلفة التوصيل يجب أن تكون أكبر من أو تساوي صفر']

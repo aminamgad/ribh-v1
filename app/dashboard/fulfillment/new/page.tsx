@@ -6,6 +6,7 @@ import { Package, Plus, X, Upload, AlertCircle, CheckCircle, Search, Filter, Inf
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
+import { OptimizedImage } from '@/components/ui/LazyImage';
 
 interface Product {
   _id: string;
@@ -360,9 +361,11 @@ export default function NewFulfillmentPage() {
                       onClick={() => !isSelected && addProduct(product)}
                     >
                       {product.images && product.images.length > 0 ? (
-                        <img
+                        <OptimizedImage
                           src={product.images[0]}
                           alt={product.name}
+                          width={256}
+                          height={128}
                           className="w-full h-32 object-cover rounded-md mb-3"
                         />
                       ) : (
@@ -422,9 +425,11 @@ export default function NewFulfillmentPage() {
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex items-center space-x-3">
                           {product.images && product.images.length > 0 ? (
-                            <img
+                            <OptimizedImage
                               src={product.images[0]}
                               alt={product.name}
+                              width={64}
+                              height={64}
                               className="w-16 h-16 object-cover rounded-md"
                             />
                           ) : (

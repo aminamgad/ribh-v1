@@ -34,7 +34,21 @@ async function testShippingAPI() {
       body: JSON.stringify(testPackageData)
     });
 
-    const responseData = await response.json();
+    // Get response text first to handle both JSON and HTML responses
+    const responseText = await response.text();
+    let responseData;
+    
+    try {
+      responseData = JSON.parse(responseText);
+    } catch (e) {
+      // If response is not JSON (e.g., HTML error page)
+      console.log('\n⚠️  API returned non-JSON response (likely HTML error page)');
+      console.log(`   Status: ${response.status} ${response.statusText}`);
+      console.log(`   Response Preview: ${responseText.substring(0, 300)}`);
+      console.log('\n❌ FAILED! API server is unavailable or returning an error page.');
+      console.log('   Note: The request data format is correct, but the API server is not responding.');
+      return false;
+    }
 
     console.log('\n📥 Response:');
     console.log(`   Status: ${response.status} ${response.statusText}`);

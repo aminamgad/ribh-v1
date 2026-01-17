@@ -13,7 +13,7 @@ async function searchProducts(req: NextRequest, user: any) {
     
     const { searchParams } = new URL(req.url);
     const query = searchParams.get('q') || '';
-    const categoryId = searchParams.get('category');
+    const categoryParam = searchParams.get('category'); // can be comma-separated IDs
     const minPrice = searchParams.get('minPrice');
     const maxPrice = searchParams.get('maxPrice');
     const inStock = searchParams.get('inStock') === 'true';
@@ -69,19 +69,21 @@ async function searchProducts(req: NextRequest, user: any) {
       }
     }
     
-    // Category filter
-    if (categoryId) {
-      // Include subcategories
-      const category = await Category.findById(categoryId);
-      if (category) {
-        const subcategories = await Category.find({
-          $or: [
-            { _id: categoryId },
-            { parentId: categoryId }
-          ]
-        });
-        const categoryIds = subcategories.map(c => c._id);
-        searchQuery.categoryId = { $in: categoryIds };
+    // Category filter (supports multi-select; includes subcategories for each selected category)
+    if (categoryParam) {
+      const selectedCategoryIds = categoryParam.split(',').map((s) => s.trim()).filter(Boolean);
+      if (selectedCategoryIds.length > 0) {
+        const categories = await Category.find({ _id: { $in: selectedCategoryIds } }).select('_id');
+        if (categories.length > 0) {
+          const subcategories = await Category.find({
+            $or: [
+              { _id: { $in: selectedCategoryIds } },
+              { parentId: { $in: selectedCategoryIds } }
+            ]
+          }).select('_id');
+          const categoryIds = subcategories.map((c: any) => c._id);
+          searchQuery.categoryId = { $in: categoryIds };
+        }
       }
     }
     
@@ -119,7 +121,7 @@ async function searchProducts(req: NextRequest, user: any) {
     const skip = (page - 1) * limit;
     
     logger.apiRequest('GET', '/api/search', { userId: user._id, role: user.role });
-    logger.debug('Search query', { query, categoryId, hasPriceRange: !!(minPrice || maxPrice) });
+    logger.debug('Search query', { query, category: categoryParam, hasPriceRange: !!(minPrice || maxPrice) });
     
     // Execute search
     const [products, total] = await Promise.all([

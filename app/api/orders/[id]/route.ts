@@ -18,7 +18,7 @@ export const PUT = withAuth(async (req: NextRequest, user: any, ...args: unknown
     logger.apiRequest('PUT', `/api/orders/${params.id}`, { userId: user._id, role: user.role });
     
     const body = await req.json();
-    const { status, trackingNumber, shippingCompany, notes } = body;
+    const { status, trackingNumber, shippingCompany, shippingCity, notes, updateShippingOnly, villageId } = body;
     
     logger.debug('Updating order status', { orderId: params.id, status, userId: user._id });
     
@@ -28,6 +28,16 @@ export const PUT = withAuth(async (req: NextRequest, user: any, ...args: unknown
         { error: 'الطلب غير موجود' },
         { status: 404 }
       );
+    }
+
+    // Fix invalid packageId if it's an ObjectId string instead of Number
+    if (order.packageId && typeof order.packageId === 'string' && order.packageId.length === 24) {
+      logger.warn('⚠️ Order has invalid packageId (ObjectId string), clearing it', {
+        orderId: params.id,
+        invalidPackageId: order.packageId
+      });
+      order.packageId = undefined;
+      await Order.findByIdAndUpdate(params.id, { $unset: { packageId: 1 } });
     }
 
     logger.debug('Order details', {
@@ -40,6 +50,77 @@ export const PUT = withAuth(async (req: NextRequest, user: any, ...args: unknown
 
     // Check permissions
     const actualSupplierId = order.supplierId._id || order.supplierId;
+    
+    // Allow admin to update shipping only without changing status
+    if (updateShippingOnly) {
+      if (user.role !== 'admin') {
+        return NextResponse.json(
+          { error: 'غير مصرح لك بتحديث معلومات الشحن' },
+          { status: 403 }
+        );
+      }
+      // Update shipping info only
+      if (trackingNumber !== undefined) order.trackingNumber = trackingNumber;
+      if (shippingCompany !== undefined) order.shippingCompany = shippingCompany;
+      if (shippingCity !== undefined) {
+        if (!order.shippingAddress) {
+          order.shippingAddress = {};
+        }
+        order.shippingAddress.city = shippingCity;
+      }
+      // Update villageId if provided (admin selecting actual village)
+      if (body.villageId !== undefined && body.villageId) {
+        if (!order.shippingAddress) {
+          order.shippingAddress = {};
+        }
+        // Find village name from villageId
+        const Village = (await import('@/models/Village')).default;
+        const village = await Village.findOne({ villageId: body.villageId, isActive: true }).lean();
+        if (village) {
+          order.shippingAddress.villageId = body.villageId;
+          order.shippingAddress.villageName = (village as any).villageName;
+          // Also update city if not already set
+          if (!order.shippingAddress.city || !shippingCity) {
+            order.shippingAddress.city = shippingCity || (village as any).villageName;
+          }
+          logger.info('✅ Updated order shipping address with village', {
+            orderId: order._id.toString(),
+            villageId: body.villageId,
+            villageName: (village as any).villageName,
+            city: order.shippingAddress.city
+          });
+        } else {
+          logger.warn('⚠️ Village not found when updating shipping address', {
+            orderId: order._id.toString(),
+            villageId: body.villageId
+          });
+        }
+      }
+      order.updatedAt = new Date();
+      await order.save();
+      
+      // Log saved data for verification
+      logger.info('💾 Saved shipping info to database', {
+        orderId: order._id.toString(),
+        shippingCompany: order.shippingCompany,
+        villageId: order.shippingAddress?.villageId,
+        villageName: order.shippingAddress?.villageName,
+        city: order.shippingAddress?.city
+      });
+      
+      logger.apiResponse('PUT', `/api/orders/${params.id}`, 200);
+      return NextResponse.json({
+        success: true,
+        message: 'تم تحديث معلومات الشحن بنجاح',
+        order: {
+          _id: order._id,
+          orderNumber: order.orderNumber,
+          trackingNumber: order.trackingNumber,
+          shippingCompany: order.shippingCompany,
+          shippingAddress: order.shippingAddress
+        }
+      });
+    }
     
     if (
       user.role === 'supplier' && actualSupplierId.toString() !== user._id.toString()
@@ -92,6 +173,9 @@ export const PUT = withAuth(async (req: NextRequest, user: any, ...args: unknown
       }
     }
 
+    // Store previous status before updating
+    const previousStatus = order.status;
+    
     // Update order status and related fields
     order.status = status;
     order.updatedAt = new Date();
@@ -145,12 +229,197 @@ export const PUT = withAuth(async (req: NextRequest, user: any, ...args: unknown
           // Continue with order update even if package creation fails
         }
         break;
-      case 'shipped':
-        order.shippedAt = new Date();
-        order.shippedBy = user._id;
-        order.trackingNumber = trackingNumber;
-        order.shippingCompany = shippingCompany;
-        break;
+        case 'shipped':
+          order.shippedAt = new Date();
+          order.shippedBy = user._id;
+          if (trackingNumber) order.trackingNumber = trackingNumber;
+          if (shippingCompany) order.shippingCompany = shippingCompany;
+          if (shippingCity) {
+            if (!order.shippingAddress) {
+              order.shippingAddress = {};
+            }
+            order.shippingAddress.city = shippingCity;
+          }
+          
+          // Update villageId if provided (admin selecting actual village)
+          let villageData: any = {};
+          if (body.villageId !== undefined && body.villageId) {
+            if (!order.shippingAddress) {
+              order.shippingAddress = {};
+            }
+            // Find village name from villageId
+            const Village = (await import('@/models/Village')).default;
+            const village = await Village.findOne({ villageId: body.villageId, isActive: true }).lean();
+            if (village) {
+              villageData.villageId = body.villageId;
+              villageData.villageName = (village as any).villageName;
+              order.shippingAddress.villageId = body.villageId;
+              order.shippingAddress.villageName = (village as any).villageName;
+              // Also update city if not already set
+              if (!order.shippingAddress.city) {
+                order.shippingAddress.city = (village as any).villageName;
+              }
+            }
+          }
+          
+          // IMPORTANT: Save shippingCompany AND villageId to database FIRST before creating package
+          // This ensures createPackageFromOrder can find the correct shipping company and village
+          const shippingUpdateData: any = {};
+          if (shippingCompany) {
+            shippingUpdateData.shippingCompany = shippingCompany;
+            // Update order object in memory so createPackageFromOrder can read it
+            order.shippingCompany = shippingCompany;
+          }
+          if (villageData.villageId) {
+            // Update shippingAddress with village data
+            if (!order.shippingAddress) {
+              order.shippingAddress = {};
+            }
+            const updatedShippingAddress = {
+              ...order.shippingAddress.toObject ? order.shippingAddress.toObject() : order.shippingAddress,
+              villageId: villageData.villageId,
+              villageName: villageData.villageName
+            };
+            if (shippingCity || villageData.villageName) {
+              updatedShippingAddress.city = shippingCity || villageData.villageName;
+            }
+            shippingUpdateData.shippingAddress = updatedShippingAddress;
+            // Also update in memory
+            order.shippingAddress.villageId = villageData.villageId;
+            order.shippingAddress.villageName = villageData.villageName;
+            if (shippingCity || villageData.villageName) {
+              order.shippingAddress.city = shippingCity || villageData.villageName;
+            }
+          }
+          
+          if (Object.keys(shippingUpdateData).length > 0) {
+            await Order.findByIdAndUpdate(order._id, { $set: shippingUpdateData });
+            // Reload order from database to ensure we have the latest data
+            const refreshedOrder = await Order.findById(order._id).lean() as any;
+            if (refreshedOrder) {
+              // Preserve order.status that we set above (don't overwrite with old status)
+              const currentStatus = order.status;
+              Object.assign(order, refreshedOrder);
+              order.status = currentStatus; // Restore the new status
+            }
+          }
+          
+          // IMPORTANT: Reload order from database to ensure we have the latest data (including shippingCompany and villageId)
+          // before creating package, since createPackageFromOrder uses .lean() to read from database
+          const refreshedOrderForPackage = await Order.findById(order._id).lean() as any;
+          if (refreshedOrderForPackage) {
+            // Update order object in memory with refreshed data
+            const currentStatus = order.status; // Preserve status
+            if (refreshedOrderForPackage.shippingCompany) {
+              order.shippingCompany = refreshedOrderForPackage.shippingCompany;
+            }
+            if (refreshedOrderForPackage.shippingAddress?.villageId) {
+              if (!order.shippingAddress) order.shippingAddress = {};
+              order.shippingAddress.villageId = refreshedOrderForPackage.shippingAddress.villageId;
+              order.shippingAddress.villageName = refreshedOrderForPackage.shippingAddress.villageName;
+            }
+            order.status = currentStatus; // Restore the new status
+          }
+          
+          // Ensure package exists before shipping - create if doesn't exist
+          // Check if packageId is valid (must be Number, not ObjectId string)
+          const currentPackageId = order.packageId;
+          const hasValidPackageId = currentPackageId && typeof currentPackageId === 'number';
+          
+          if (!hasValidPackageId) {
+            try {
+              const { createPackageFromOrder } = await import('@/lib/order-to-package');
+              // Pass the refreshed order data - createPackageFromOrder will reload from DB anyway, but this ensures we have the ID
+              const packageId = await createPackageFromOrder(order._id.toString());
+              if (packageId && typeof packageId === 'number') {
+                order.packageId = packageId;
+                
+                // IMPORTANT: Save packageId to database before continuing
+                await Order.findByIdAndUpdate(order._id, {
+                  packageId: packageId
+                });
+                logger.business('✅ ORDER SENT TO SHIPPING COMPANY - Package created automatically when order status changed to shipped', {
+                  orderId: order._id.toString(),
+                  orderNumber: order.orderNumber,
+                  packageId: packageId,
+                  previousStatus: previousStatus,
+                  newStatus: 'shipped',
+                  timestamp: new Date().toISOString(),
+                  note: 'Package was created and sent to shipping company when order was marked as shipped'
+                });
+                
+                logger.info('✅ Package created automatically and sent to shipping company when order shipped', {
+                  orderId: order._id.toString(),
+                  orderNumber: order.orderNumber,
+                  packageId: packageId
+                });
+              } else {
+                logger.warn('⚠️ FAILED TO SEND ORDER TO SHIPPING COMPANY - Failed to create package automatically when shipping order', {
+                  orderId: order._id.toString(),
+                  orderNumber: order.orderNumber,
+                  orderStatus: order.status,
+                  timestamp: new Date().toISOString(),
+                  reason: 'Check if external company exists and is active, or if order has valid shipping address with villageId'
+                });
+              }
+            } catch (error) {
+              logger.error('Error creating package automatically when shipping order', error, {
+                orderId: order._id.toString()
+              });
+              // Continue with shipping even if package creation fails
+            }
+          } else {
+            // Package already exists - but check if packageId is valid
+            if (currentPackageId && typeof currentPackageId === 'number') {
+              logger.info('✅ Package already exists for order when shipping', {
+                orderId: order._id.toString(),
+                orderNumber: order.orderNumber,
+                packageId: currentPackageId,
+                note: 'Package was already created and sent to shipping company earlier'
+              });
+            } else {
+              // packageId is invalid (ObjectId string or undefined) - try to fix it
+              logger.warn('⚠️ Package exists but packageId is invalid, attempting to fix...', {
+                orderId: order._id.toString(),
+                orderNumber: order.orderNumber,
+                currentPackageId: currentPackageId,
+                packageIdType: typeof currentPackageId
+              });
+              
+              // Try to get correct packageId from Package document
+              try {
+                const Package = (await import('@/models/Package')).default;
+                const existingPackage = await Package.findOne({ orderId: order._id }).lean() as any;
+                if (existingPackage && existingPackage.packageId && typeof existingPackage.packageId === 'number') {
+                  order.packageId = existingPackage.packageId;
+                  await Order.findByIdAndUpdate(order._id, {
+                    packageId: existingPackage.packageId
+                  });
+                  logger.info('✅ Fixed packageId from existing Package document', {
+                    orderId: order._id.toString(),
+                    packageId: existingPackage.packageId
+                  });
+                } else {
+                  // Package exists but no valid packageId - recreate it
+                  logger.warn('⚠️ Package exists without valid packageId, will recreate', {
+                    orderId: order._id.toString()
+                  });
+                  // Continue to package creation logic above
+                  const { createPackageFromOrder } = await import('@/lib/order-to-package');
+                  const packageId = await createPackageFromOrder(order._id.toString());
+                  if (packageId && typeof packageId === 'number') {
+                    order.packageId = packageId;
+                    await Order.findByIdAndUpdate(order._id, { packageId: packageId });
+                  }
+                }
+              } catch (error) {
+                logger.error('Error fixing invalid packageId', error, {
+                  orderId: order._id.toString()
+                });
+              }
+            }
+          }
+          break;
       case 'out_for_delivery':
         order.outForDeliveryAt = new Date();
         order.outForDeliveryBy = user._id;

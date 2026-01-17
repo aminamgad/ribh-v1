@@ -12,6 +12,18 @@ export interface ExternalCompanyDocument extends Document {
   // API endpoint for calling external shipping company
   apiEndpointUrl?: string; // URL of external shipping company API (e.g., https://shipping-company.com/api/create-package)
   apiToken?: string; // Bearer token for authenticating with external shipping company API
+  // Shipping data specific to this company
+  shippingCities?: Array<{
+    cityName: string;
+    cityCode?: string;
+    isActive: boolean;
+  }>;
+  shippingRegions?: Array<{
+    regionName: string;
+    regionCode?: string;
+    cities: string[];
+    isActive: boolean;
+  }>;
   generateApiKey(): string;
   generateApiSecret(): string;
   verifyApiKey(apiKey: string): boolean;
@@ -64,6 +76,24 @@ const externalCompanySchema = new Schema<ExternalCompanyDocument>({
     type: String,
     required: false,
     trim: true
+  },
+  // Shipping cities/regions specific to this company
+  shippingCities: {
+    type: [{
+      cityName: { type: String, required: true },
+      cityCode: { type: String },
+      isActive: { type: Boolean, default: true }
+    }],
+    default: []
+  },
+  shippingRegions: {
+    type: [{
+      regionName: { type: String, required: true },
+      regionCode: { type: String },
+      cities: [{ type: String }],
+      isActive: { type: Boolean, default: true }
+    }],
+    default: []
   }
 }, {
   timestamps: true

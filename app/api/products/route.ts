@@ -94,12 +94,14 @@ async function getProducts(req: NextRequest, user: any) {
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
-    const category = searchParams.get('category');
+    const category = searchParams.get('category'); // can be comma-separated IDs
     const search = searchParams.get('search');
     const status = searchParams.get('status');
     
     // Admin-specific filters
-    const stockStatus = searchParams.get('stockStatus'); // Comma-separated: in_stock,low_stock,out_of_stock
+    const stockStatus = searchParams.get('stockStatus');
+    const minStock = searchParams.get('minStock');
+    const maxStock = searchParams.get('maxStock');
     const suppliers = searchParams.get('suppliers'); // Comma-separated supplier IDs
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
@@ -113,30 +115,35 @@ async function getProducts(req: NextRequest, user: any) {
     
     // Additional filters
     if (category) {
-      query.categoryId = category;
+      const categoryIds = category.split(',').map((s) => s.trim()).filter(Boolean);
+      if (categoryIds.length === 1) {
+        query.categoryId = categoryIds[0];
+      } else if (categoryIds.length > 1) {
+        query.categoryId = { $in: categoryIds };
+      }
     }
     
-    // Admin filters: Stock Status (multi-select)
-    if (user.role === 'admin' && stockStatus) {
-      const stockStatuses = stockStatus.split(',');
-      const stockConditions: any[] = [];
+    // Admin filters: Stock Quantity Range
+    if (user.role === 'admin' && (minStock || maxStock)) {
+      const stockQuantityFilter: any = {};
       
-      if (stockStatuses.includes('in_stock')) {
-        stockConditions.push({ stockQuantity: { $gt: 10 } });
-      }
-      if (stockStatuses.includes('low_stock')) {
-        stockConditions.push({ stockQuantity: { $gte: 1, $lte: 10 } });
-      }
-      if (stockStatuses.includes('out_of_stock')) {
-        stockConditions.push({ stockQuantity: { $eq: 0 } });
-      }
-      
-      if (stockConditions.length > 0) {
-        if (stockConditions.length === 1) {
-          query.stockQuantity = stockConditions[0].stockQuantity;
-        } else {
-          query.$or = stockConditions;
+      if (minStock) {
+        const min = parseInt(minStock, 10);
+        if (!isNaN(min)) {
+          stockQuantityFilter.$gte = min;
         }
+      }
+      
+      if (maxStock) {
+        const max = parseInt(maxStock, 10);
+        if (!isNaN(max)) {
+          stockQuantityFilter.$lte = max;
+        }
+      }
+      
+      // Only apply filter if at least one valid value was parsed
+      if (Object.keys(stockQuantityFilter).length > 0) {
+        query.stockQuantity = stockQuantityFilter;
       }
     }
     
@@ -166,14 +173,26 @@ async function getProducts(req: NextRequest, user: any) {
       );
     }
     
-    if (status === 'approved') {
-      query.isApproved = true;
-      query.isRejected = false;
-    } else if (status === 'pending') {
-      query.isApproved = false;
-      query.isRejected = false;
-    } else if (status === 'rejected') {
-      query.isRejected = true;
+    if (status) {
+      const statuses = status.split(',').map((s) => s.trim()).filter(Boolean);
+      const statusOr: any[] = [];
+
+      if (statuses.includes('approved')) {
+        statusOr.push({ isApproved: true, isRejected: false });
+      }
+      if (statuses.includes('pending')) {
+        statusOr.push({ isApproved: false, isRejected: false });
+      }
+      if (statuses.includes('rejected')) {
+        statusOr.push({ isRejected: true });
+      }
+
+      if (statusOr.length === 1) {
+        Object.assign(query, statusOr[0]);
+      } else if (statusOr.length > 1) {
+        query.$and = query.$and || [];
+        query.$and.push({ $or: statusOr });
+      }
     }
     
     // For marketers and wholesalers, only show approved products

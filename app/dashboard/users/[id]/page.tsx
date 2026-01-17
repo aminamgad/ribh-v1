@@ -25,6 +25,8 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import MediaThumbnail from '@/components/ui/MediaThumbnail';
+import { OptimizedImage } from '@/components/ui/LazyImage';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
 
 interface UserDetail {
@@ -238,7 +240,14 @@ export default function UserDetailPage() {
                 <div className="flex items-center space-x-4 space-x-reverse">
                   <div className="w-16 h-16 bg-primary-100 dark:bg-primary-900 rounded-full flex items-center justify-center">
                     {userDetail.avatar ? (
-                      <img src={userDetail.avatar} alt={userDetail.name} className="w-16 h-16 rounded-full" />
+                      <OptimizedImage
+                        src={userDetail.avatar}
+                        alt={userDetail.name}
+                        width={64}
+                        height={64}
+                        className="w-16 h-16 rounded-full object-cover"
+                        priority={true}
+                      />
                     ) : (
                       <User className="w-8 h-8 text-primary-600 dark:text-primary-400" />
                     )}
@@ -365,7 +374,15 @@ export default function UserDetailPage() {
                   {userDetail.recentProducts.map((product: any) => (
                     <div key={product._id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700 rounded-lg">
                       <div className="flex items-center space-x-3 space-x-reverse">
-                        <img src={product.images[0]} alt={product.name} className="w-10 h-10 rounded object-cover" />
+                        <MediaThumbnail
+                          media={product.images || []}
+                          alt={product.name}
+                          className="w-10 h-10 rounded object-cover"
+                          showTypeBadge={false}
+                          width={40}
+                          height={40}
+                          fallbackIcon={<Package className="w-6 h-6 text-gray-400 dark:text-slate-500" />}
+                        />
                         <div>
                           <p className="font-medium text-gray-900 dark:text-slate-100">{product.name}</p>
                           <p className="text-sm text-gray-600 dark:text-slate-400">{product.marketerPrice} ₪</p>

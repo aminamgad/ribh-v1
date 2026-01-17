@@ -1247,10 +1247,13 @@ export default function DashboardPage() {
               {/* Product Image Preview */}
               {selectedProduct.images && selectedProduct.images.length > 0 && (
                 <div className="w-16 h-16 rounded-lg overflow-hidden">
-                  <img
-                    src={selectedProduct.images[0]}
+                  <MediaThumbnail
+                    media={selectedProduct.images}
                     alt={selectedProduct.name}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full"
+                    showTypeBadge={false}
+                    width={64}
+                    height={64}
                   />
                 </div>
               )}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { ProductVariant, ProductVariantOption } from '@/types';
+import { OptimizedImage } from '@/components/ui/LazyImage';
 
 interface ProductVariantSelectorProps {
   variants: ProductVariant[];
@@ -138,10 +139,12 @@ export default function ProductVariantSelector({
             <div className="mt-3">
               <div className="flex space-x-2 space-x-reverse">
                 {selectedOption.images.map((image, index) => (
-                  <img
+                  <OptimizedImage
                     key={index}
                     src={image}
                     alt={`${selectedOption.variantName} - ${index + 1}`}
+                    width={64}
+                    height={64}
                     className="w-16 h-16 object-cover rounded-md border border-gray-200 dark:border-gray-600"
                   />
                 ))}

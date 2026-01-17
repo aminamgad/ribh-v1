@@ -6,6 +6,7 @@ import Product from '@/models/Product';
 import Village from '@/models/Village';
 import { z } from 'zod';
 import { settingsManager } from '@/lib/settings-manager';
+import { calculateShippingCost } from '@/lib/settings';
 import { logger, logOrderCreation } from '@/lib/logger';
 import { handleApiError } from '@/lib/error-handler';
 import { apiRateLimit } from '@/lib/rate-limiter';
@@ -25,15 +26,23 @@ const shippingAddressSchema = z.object({
   fullName: z.string().min(1, 'الاسم الكامل مطلوب'),
   phone: z.string().min(1, 'رقم الهاتف مطلوب'),
   street: z.string().min(1, 'عنوان الشارع مطلوب'),
-  villageId: z.number().int().positive('معرف القرية مطلوب'),
-  villageName: z.string().optional(),
+  manualVillageName: z.string().optional(), // Manual village name entered by marketer (for admin review)
+  villageId: z.number().int().positive().optional(), // Optional - set by admin after review
+  villageName: z.string().optional(), // Optional - set by admin after review
   deliveryCost: z.number().optional(),
   postalCode: z.string().optional(),
   notes: z.string().optional(),
+  shippingRegionCode: z.string().optional(), // New: Shipping region code from SystemSettings
   // Legacy fields for backward compatibility
   city: z.string().optional(),
   governorate: z.string().optional()
-});
+}).refine(
+  (data) => data.manualVillageName || data.villageId || data.shippingRegionCode || data.governorate,
+  {
+    message: 'يجب تحديد منطقة التوصيل: إما اسم القرية اليدوي (manualVillageName) أو معرف القرية (villageId) أو رمز منطقة التوصيل (shippingRegionCode) أو المحافظة (governorate)',
+    path: ['manualVillageName']
+  }
+);
 
 const orderSchema = z.object({
   customerName: z.string().min(1, 'اسم العميل مطلوب'),
@@ -173,43 +182,80 @@ async function createOrderHandler(req: NextRequest, user: any) {
       );
     }
     
-    // Calculate shipping cost using village-based system
-    let villageDeliveryCost = 0;
+    // Calculate shipping cost using new shipping regions system (priority: shippingRegionCode > villageId > governorate)
     let villageName = 'غير محدد';
+    let finalShippingCost = 0;
     
-    if (orderData.shippingAddress.villageId) {
-      // Get village delivery cost from database
+    // Validate shipping region or village is provided
+    // Allow manualVillageName from marketer (will be reviewed by admin)
+    if (!orderData.shippingAddress.manualVillageName && !orderData.shippingAddress.villageId && !orderData.shippingAddress.shippingRegionCode && !orderData.shippingAddress.governorate) {
+      return NextResponse.json(
+        { success: false, message: 'يجب تحديد منطقة التوصيل: إما اسم القرية اليدوي أو معرف القرية أو رمز منطقة التوصيل أو المحافظة' },
+        { status: 400 }
+      );
+    }
+    
+    // If manualVillageName is provided (marketer entered manually), use it and set shipping cost to 0
+    // Admin will review and set actual villageId later
+    if (orderData.shippingAddress.manualVillageName && !orderData.shippingAddress.villageId) {
+      finalShippingCost = 0; // Will be calculated by admin after selecting actual village
+      villageName = orderData.shippingAddress.manualVillageName;
+    }
+    // Priority 1: Use shippingRegionCode if provided (new system) - only if not using manualVillageName
+    else if (orderData.shippingAddress.shippingRegionCode) {
+      finalShippingCost = await calculateShippingCost(
+        subtotal,
+        undefined, // villageId not needed when using region code
+        orderData.shippingAddress.shippingRegionCode
+      );
+      
+      // Get region name for display
+      const region = systemSettings?.shippingRegions?.find(
+        (r: any) => r.regionCode === orderData.shippingAddress.shippingRegionCode && r.isActive
+      );
+      villageName = region?.regionName || orderData.shippingAddress.shippingRegionCode;
+    }
+    // Priority 2: Use villageId (existing system)
+    else if (orderData.shippingAddress.villageId) {
       const village = await Village.findOne({ 
         villageId: orderData.shippingAddress.villageId,
         isActive: true 
       }).lean();
       
-      if (village) {
-        villageDeliveryCost = (village as any).deliveryCost || 0;
-        villageName = (village as any).villageName || '';
-      } else {
-        logger.warn('Village not found, using default shipping cost', {
-          villageId: orderData.shippingAddress.villageId
-        });
-        villageDeliveryCost = orderData.shippingAddress.deliveryCost || systemSettings?.defaultShippingCost || 0;
-        villageName = orderData.shippingAddress.villageName || 'غير محدد';
+      if (!village) {
+        return NextResponse.json(
+          { success: false, message: `القرية المحددة (ID: ${orderData.shippingAddress.villageId}) غير موجودة أو غير نشطة` },
+          { status: 400 }
+        );
       }
-    } else {
-      // Fallback to legacy governorate-based system for backward compatibility
-      if (orderData.shippingAddress.governorate) {
-        if (!systemSettings?.governorates || systemSettings.governorates.length === 0) {
-          villageDeliveryCost = systemSettings?.defaultShippingCost || 0;
-        } else {
-          const governorate = systemSettings.governorates.find((g: any) => g.name === orderData.shippingAddress.governorate && g.isActive);
-          villageDeliveryCost = governorate ? governorate.shippingCost : (systemSettings.defaultShippingCost || 0);
+      
+      finalShippingCost = await calculateShippingCost(
+        subtotal,
+        orderData.shippingAddress.villageId,
+        undefined
+      );
+      villageName = (village as any).villageName || orderData.shippingAddress.villageName || 'غير محدد';
+    }
+    // Priority 3: Fallback to legacy governorate-based system
+    else if (orderData.shippingAddress.governorate) {
+      if (!systemSettings?.governorates || systemSettings.governorates.length === 0) {
+        finalShippingCost = systemSettings?.defaultShippingCost || 0;
+      } else {
+        const governorate = systemSettings.governorates.find((g: any) => g.name === orderData.shippingAddress.governorate && g.isActive);
+        if (!governorate) {
+          return NextResponse.json(
+            { success: false, message: `المحافظة المحددة (${orderData.shippingAddress.governorate}) غير موجودة أو غير نشطة` },
+            { status: 400 }
+          );
         }
-        villageName = orderData.shippingAddress.governorate;
-      } else {
-        villageDeliveryCost = systemSettings?.defaultShippingCost || 0;
+        finalShippingCost = governorate.shippingCost;
       }
+      villageName = orderData.shippingAddress.governorate;
+    } else {
+      // This should not happen due to validation, but keep as fallback
+      finalShippingCost = systemSettings?.defaultShippingCost || 0;
     }
 
-    const finalShippingCost = subtotal >= (systemSettings?.defaultFreeShippingThreshold || 0) ? 0 : villageDeliveryCost;
     const finalShippingMethod = 'الشحن الأساسي';
     const finalShippingZone = villageName;
     

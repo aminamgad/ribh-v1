@@ -9,12 +9,15 @@ import { distributeOrderProfits, reverseOrderProfits } from '@/lib/wallet-helper
 
 const orderUpdateSchema = z.object({
   orderIds: z.array(z.string()).min(1, 'يجب اختيار طلب واحد على الأقل'),
-  action: z.enum(['confirm', 'process', 'ship', 'deliver', 'cancel', 'return']),
+  action: z.enum(['confirm', 'process', 'ship', 'deliver', 'cancel', 'return', 'update-shipping']),
   adminNotes: z.string().optional(),
   trackingNumber: z.string().optional(),
   shippingCompany: z.string().optional(),
+  shippingCity: z.string().optional(),
+  villageId: z.number().int().positive().optional(),
   cancellationReason: z.string().optional(),
-  returnReason: z.string().optional()
+  returnReason: z.string().optional(),
+  updateShippingOnly: z.boolean().optional()
 });
 
 // POST /api/admin/orders/manage - Manage order statuses
@@ -40,12 +43,7 @@ async function manageOrders(req: NextRequest, user: any) {
       );
     }
     
-    if (validatedData.action === 'ship' && !validatedData.trackingNumber) {
-      return NextResponse.json(
-        { success: false, message: 'يجب إضافة رقم التتبع' },
-        { status: 400 }
-      );
-    }
+    // Tracking number is optional for shipping
     
     // Find orders
     const orders = await Order.find({
@@ -58,8 +56,49 @@ async function manageOrders(req: NextRequest, user: any) {
         { status: 404 }
       );
     }
+
+    // Handle update-shipping action separately (update shipping only without changing status)
+    if (validatedData.action === 'update-shipping') {
+      if (!validatedData.shippingCompany || !validatedData.shippingCity) {
+        return NextResponse.json(
+          { success: false, message: 'شركة الشحن والمدينة مطلوبان' },
+          { status: 400 }
+        );
+      }
+
+      const updatePromises = orders.map(async (order) => {
+        const updateData: any = {
+          trackingNumber: validatedData.trackingNumber || order.trackingNumber,
+          shippingCompany: validatedData.shippingCompany,
+        };
+
+        // Update shipping city in shippingAddress
+        if (validatedData.shippingCity) {
+          if (!order.shippingAddress) {
+            order.shippingAddress = {};
+          }
+          updateData.shippingAddress = {
+            ...order.shippingAddress.toObject(),
+            city: validatedData.shippingCity
+          };
+        }
+
+        await Order.findByIdAndUpdate(order._id, updateData, { new: true });
+        logger.info('Updated shipping info for order', {
+          orderId: order._id.toString(),
+          orderNumber: order.orderNumber
+        });
+      });
+
+      await Promise.all(updatePromises);
+
+      return NextResponse.json({
+        success: true,
+        message: `تم تحديث معلومات الشحن لـ ${orders.length} طلب بنجاح`
+      });
+    }
     
-    // Validate order status transitions
+    // Validate order status transitions for other actions
     for (const order of orders) {
       const currentStatus = order.status;
       const newStatus = getNewStatus(validatedData.action);
@@ -98,6 +137,48 @@ async function manageOrders(req: NextRequest, user: any) {
           updateData.shippedBy = user._id;
           updateData.trackingNumber = validatedData.trackingNumber;
           updateData.shippingCompany = validatedData.shippingCompany;
+          // Update shipping city if provided (save to shippingAddress.city)
+          if (validatedData.shippingCity) {
+            if (!order.shippingAddress) {
+              order.shippingAddress = {};
+            }
+            updateData.shippingAddress = {
+              ...order.shippingAddress.toObject(),
+              city: validatedData.shippingCity
+            };
+          }
+          
+          // Update villageId if provided (admin selecting actual village)
+          if (validatedData.villageId !== undefined && validatedData.villageId) {
+            if (!order.shippingAddress) {
+              order.shippingAddress = {};
+            }
+            // Find village name from villageId
+            const Village = (await import('@/models/Village')).default;
+            const village = await Village.findOne({ villageId: validatedData.villageId, isActive: true }).lean();
+            if (village) {
+              updateData.shippingAddress = {
+                ...order.shippingAddress.toObject(),
+                villageId: validatedData.villageId,
+                villageName: (village as any).villageName
+              };
+              // Also update city if not already set
+              if (!validatedData.shippingCity) {
+                updateData.shippingAddress.city = (village as any).villageName;
+              }
+            }
+          }
+          
+          // IMPORTANT: Save shippingCompany to order FIRST before creating package
+          // This ensures createPackageFromOrder can find the correct shipping company
+          if (validatedData.shippingCompany) {
+            await Order.findByIdAndUpdate(order._id, {
+              shippingCompany: validatedData.shippingCompany
+            });
+            // Update order object in memory so createPackageFromOrder can read it
+            order.shippingCompany = validatedData.shippingCompany;
+          }
+          
           // Ensure package exists before shipping
           if (!order.packageId) {
             try {
@@ -108,12 +189,21 @@ async function manageOrders(req: NextRequest, user: any) {
                 logger.info('Package created automatically before bulk shipping', {
                   orderId: order._id.toString(),
                   orderNumber: order.orderNumber,
-                  packageId: packageId
+                  packageId: packageId,
+                  shippingCompany: validatedData.shippingCompany
+                });
+              } else {
+                logger.warn('Failed to create package before shipping', {
+                  orderId: order._id.toString(),
+                  orderNumber: order.orderNumber,
+                  shippingCompany: validatedData.shippingCompany,
+                  note: 'Package creation failed - check logs for details'
                 });
               }
             } catch (error) {
               logger.error('Error creating package before bulk shipping', error, {
-                orderId: order._id.toString()
+                orderId: order._id.toString(),
+                shippingCompany: validatedData.shippingCompany
               });
             }
           }
@@ -342,12 +432,15 @@ function getNewStatus(action: string): string {
 function isValidStatusTransition(currentStatus: string, newStatus: string): boolean {
   const validTransitions: Record<string, string[]> = {
     'pending': ['confirmed', 'cancelled'],
-    'confirmed': ['processing', 'cancelled'],
-    'processing': ['shipped', 'cancelled'],
-    'shipped': ['delivered', 'returned'],
+    'confirmed': ['processing', 'ready_for_shipping', 'shipped', 'cancelled'], // Allow direct transition to shipped
+    'processing': ['ready_for_shipping', 'shipped', 'cancelled'],
+    'ready_for_shipping': ['shipped', 'cancelled'],
+    'shipped': ['out_for_delivery', 'delivered', 'returned'],
+    'out_for_delivery': ['delivered', 'returned'],
     'delivered': ['returned'],
     'cancelled': [],
-    'returned': []
+    'returned': [],
+    'refunded': []
   };
   
   return validTransitions[currentStatus]?.includes(newStatus) || false;

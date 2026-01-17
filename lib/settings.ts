@@ -130,23 +130,38 @@ export async function validateOrderValue(orderTotal: number) {
 }
 
 /**
- * Calculate shipping cost based on order total and village ID
- * Uses Village model for accurate delivery costs
+ * Calculate shipping cost based on order total, village ID, or shipping region
+ * Priority: shippingRegions > Village model > default shipping cost
  * @param orderTotal - Total order amount
  * @param villageId - Optional village ID for specific delivery cost
+ * @param shippingRegionCode - Optional shipping region code from SystemSettings
  * @returns Shipping cost (0 if free shipping threshold is met)
  */
-export async function calculateShippingCost(orderTotal: number, villageId?: number) {
+export async function calculateShippingCost(
+  orderTotal: number, 
+  villageId?: number,
+  shippingRegionCode?: string
+) {
   const settings = await getSystemSettings();
   if (!settings) return 0;
   
-  // Check for free shipping threshold
-  if (orderTotal >= settings.defaultFreeShippingThreshold) {
-    return 0; // Free shipping
+  let shippingCost = settings.defaultShippingCost;
+  let freeShippingThreshold = settings.defaultFreeShippingThreshold;
+  
+  // Priority 1: Check shipping regions if region code is provided
+  if (shippingRegionCode && settings.shippingRegions && settings.shippingRegions.length > 0) {
+    const region = settings.shippingRegions.find(
+      (r: any) => r.regionCode === shippingRegionCode && r.isActive === true
+    );
+    
+    if (region) {
+      shippingCost = region.shippingCost;
+      freeShippingThreshold = region.freeShippingThreshold ?? settings.defaultFreeShippingThreshold;
+    }
   }
   
-  // If villageId is specified, get shipping cost from Village model
-  if (villageId) {
+  // Priority 2: If villageId is specified and no region found, try Village model
+  if (!shippingRegionCode && villageId) {
     try {
       const Village = (await import('@/models/Village')).default;
       const village = await Village.findOne({ 
@@ -155,7 +170,10 @@ export async function calculateShippingCost(orderTotal: number, villageId?: numb
       }).lean();
       
       if (village) {
-        return (village as any).deliveryCost || settings.defaultShippingCost;
+        const villageCost = (village as any).deliveryCost;
+        if (villageCost !== undefined && villageCost !== null) {
+          shippingCost = villageCost;
+        }
       }
     } catch (error) {
       logger.warn('Error fetching village for shipping cost', { villageId, error });
@@ -163,8 +181,12 @@ export async function calculateShippingCost(orderTotal: number, villageId?: numb
     }
   }
   
-  // Fallback to default shipping cost
-  return settings.defaultShippingCost;
+  // Check for free shipping threshold
+  if (orderTotal >= freeShippingThreshold) {
+    return 0; // Free shipping
+  }
+  
+  return shippingCost;
 }
 
 /**

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Plus, Edit, Trash2, FolderOpen, Upload, X, Package, ChevronLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
+import { OptimizedImage } from '@/components/ui/LazyImage';
 
 interface Category {
   _id: string;
@@ -298,9 +299,11 @@ export default function AdminCategoriesPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4 space-x-reverse flex-1">
               {category.image ? (
-                <img
+                <OptimizedImage
                   src={category.image}
                   alt={category.name}
+                  width={48}
+                  height={48}
                   className="w-12 h-12 object-cover rounded-lg"
                 />
               ) : (
@@ -423,9 +426,11 @@ export default function AdminCategoriesPage() {
           <div className="card p-6">
             <div className="flex items-center space-x-4 space-x-reverse mb-4">
               {selectedCategory.image ? (
-                <img
+                <OptimizedImage
                   src={selectedCategory.image}
                   alt={selectedCategory.name}
+                  width={64}
+                  height={64}
                   className="w-16 h-16 object-cover rounded-lg"
                 />
               ) : (
@@ -497,9 +502,11 @@ export default function AdminCategoriesPage() {
                     onClick={() => router.push(`/dashboard/products/${product._id}`)}
                   >
                     {product.images && product.images.length > 0 ? (
-                      <img
+                      <OptimizedImage
                         src={product.images[0]}
                         alt={product.name}
+                        width={256}
+                        height={128}
                         className="w-full h-32 object-cover rounded-lg mb-3"
                       />
                     ) : (
@@ -645,9 +652,11 @@ export default function AdminCategoriesPage() {
                 </label>
                 {formData.image && !imageFile && (
                   <div className="mb-2">
-                    <img
+                    <OptimizedImage
                       src={formData.image}
                       alt="Current"
+                      width={80}
+                      height={80}
                       className="w-20 h-20 object-cover rounded-lg"
                     />
                   </div>
