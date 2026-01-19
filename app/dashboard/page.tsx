@@ -638,6 +638,8 @@ export default function DashboardPage() {
                           alt={product.name}
                           className="w-full h-full"
                           showTypeBadge={false}
+                          width={56}
+                          height={56}
                           fallbackIcon={<Package className="w-7 h-7 text-white" />}
                         />
                       </div>
@@ -705,6 +707,8 @@ export default function DashboardPage() {
                           alt={product.name}
                           className="w-full h-full"
                           showTypeBadge={false}
+                          width={56}
+                          height={56}
                           fallbackIcon={<Package className="w-7 h-7 text-white" />}
                         />
                       </div>
@@ -850,6 +854,8 @@ export default function DashboardPage() {
                             alt={product.name}
                             className="w-full h-full"
                             showTypeBadge={false}
+                            width={64}
+                            height={64}
                             fallbackIcon={<Package className="w-8 h-8 text-white" />}
                           />
                         </div>
