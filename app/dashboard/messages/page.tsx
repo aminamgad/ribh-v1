@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { useDataCache } from '@/components/hooks/useDataCache';
 import { 
   MessageSquare, 
   Send, 
@@ -52,25 +53,43 @@ interface Conversation {
 
 export default function MessagesPage() {
   const { user } = useAuth();
-  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [newMessageNotification, setNewMessageNotification] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchConversations();
-    
-    // Poll for new conversations every 10 seconds
-    const interval = setInterval(() => {
-      fetchConversations();
-    }, 10000);
+  // Use cache hook for conversations (initial load only, polling will refresh)
+  const { data: conversationsData, loading, refresh } = useDataCache<{
+    conversations: Conversation[];
+  }>({
+    key: 'messages_conversations',
+    fetchFn: async () => {
+      const response = await fetch('/api/messages/conversations');
+      if (!response.ok) {
+        throw new Error('Failed to fetch conversations');
+      }
+      return response.json();
+    },
+    enabled: !!user,
+    forceRefresh: false
+  });
 
-    return () => clearInterval(interval);
-  }, []);
+  const conversations = conversationsData?.conversations || [];
+
+  // Listen for refresh events
+  useEffect(() => {
+    const handleRefresh = () => {
+      refresh();
+    };
+
+    window.addEventListener('refresh-messages', handleRefresh);
+    
+    return () => {
+      window.removeEventListener('refresh-messages', handleRefresh);
+    };
+  }, [refresh]);
 
   useEffect(() => {
     if (selectedConversation) {
@@ -85,43 +104,9 @@ export default function MessagesPage() {
     }
   }, [selectedConversation]);
 
+  // Keep fetchConversations for backward compatibility and polling
   const fetchConversations = async () => {
-    try {
-      console.log('🔍 Frontend: Fetching conversations for user:', user?._id);
-      const response = await fetch('/api/messages/conversations');
-      console.log('🔍 Frontend: Response status:', response.status);
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('🔍 Frontend: Received data:', data);
-        
-        const previousUnreadCount = conversations.reduce((sum, conv) => sum + conv.unreadCount, 0);
-        const newUnreadCount = data.conversations.reduce((sum: number, conv: any) => sum + conv.unreadCount, 0);
-        
-        // Show notification if new messages arrived
-        if (newUnreadCount > previousUnreadCount && previousUnreadCount > 0) {
-          const newMessagesCount = newUnreadCount - previousUnreadCount;
-          setNewMessageNotification(`رسائل جديدة: ${newMessagesCount}`);
-          setTimeout(() => setNewMessageNotification(null), 3000);
-          
-          toast.success(`رسائل جديدة: ${newMessagesCount}`, {
-            duration: 3000
-          });
-        }
-        
-        setConversations(data.conversations || []);
-        console.log('🔍 Frontend: Set conversations:', data.conversations?.length || 0);
-      } else {
-        const errorData = await response.json();
-        console.error('🔍 Frontend: Error response:', errorData);
-        toast.error('فشل في جلب المحادثات');
-      }
-    } catch (error) {
-      console.error('Error fetching conversations:', error);
-      toast.error('حدث خطأ أثناء جلب المحادثات');
-    } finally {
-      setLoading(false);
-    }
+    refresh();
   };
 
   const fetchMessages = async () => {

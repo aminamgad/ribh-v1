@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { useDataCache } from '@/components/hooks/useDataCache';
 import { useCart } from '@/components/providers/CartProvider';
 import { Heart, ShoppingCart, Trash2, Package, Store } from 'lucide-react';
 import MediaThumbnail from '@/components/ui/MediaThumbnail';
@@ -25,26 +26,46 @@ interface Product {
 export default function FavoritesPage() {
   const { user } = useAuth();
   const { addToCart } = useCart();
-  const [favorites, setFavorites] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  useEffect(() => {
-    fetchFavorites();
-  }, []);
-
-  const fetchFavorites = async () => {
-    try {
+  // Use cache hook for favorites
+  const { data: favoritesData, loading, refresh } = useDataCache<{
+    favorites: Product[];
+  }>({
+    key: 'favorites',
+    fetchFn: async () => {
       const response = await fetch('/api/favorites');
-      if (response.ok) {
-        const data = await response.json();
-        setFavorites(data.favorites);
+      if (!response.ok) {
+        throw new Error('Failed to fetch favorites');
       }
-    } catch (error) {
+      return response.json();
+    },
+    enabled: !!user,
+    forceRefresh: false,
+    onError: () => {
       toast.error('حدث خطأ أثناء جلب المفضلة');
-    } finally {
-      setLoading(false);
     }
+  });
+
+  const favorites = favoritesData?.favorites || [];
+
+  // Listen for refresh events
+  useEffect(() => {
+    const handleRefresh = () => {
+      refresh();
+      // No toast here - header button already shows notification
+    };
+
+    window.addEventListener('refresh-favorites', handleRefresh);
+    
+    return () => {
+      window.removeEventListener('refresh-favorites', handleRefresh);
+    };
+  }, [refresh]);
+
+  // Keep fetchFavorites for backward compatibility
+  const fetchFavorites = async () => {
+    refresh();
   };
 
   const removeFromFavorites = async (productId: string) => {
@@ -54,7 +75,7 @@ export default function FavoritesPage() {
       });
 
       if (response.ok) {
-        setFavorites(prev => prev.filter(p => p._id !== productId));
+        refresh(); // Refresh cache after removal
         toast.success('تم إزالة المنتج من المفضلة');
       } else {
         toast.error('فشل في إزالة المنتج من المفضلة');

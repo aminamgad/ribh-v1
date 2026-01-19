@@ -129,6 +129,7 @@ export default function ProductSection({
                   width={256}
                   height={256}
                   sizes="(max-width: 768px) 50vw, (max-width: 1200px) 25vw, 16vw"
+                  priority={products.indexOf(product) < 6} // Priority for first 6 products
                   className="w-full h-full object-cover rounded-lg"
                 />
               ) : (

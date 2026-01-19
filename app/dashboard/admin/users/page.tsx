@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { useDataCache } from '@/components/hooks/useDataCache';
 import { Search, Filter, Eye, Edit, Shield, UserCheck, UserX, Mail, Phone, UserPlus } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -47,11 +48,18 @@ export default function AdminUsersPage() {
   const initialRole = searchParams.get('role') || 'all';
   const initialStatus = searchParams.get('status') || 'all';
   
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState(initialSearch);
   const [filterRole, setFilterRole] = useState(initialRole);
   const [filterStatus, setFilterStatus] = useState(initialStatus);
+
+  // Generate cache key based on filters
+  const cacheKey = useMemo(() => {
+    const params = new URLSearchParams();
+    if (searchTerm.trim()) params.append('search', searchTerm.trim());
+    if (filterRole && filterRole !== 'all') params.append('role', filterRole);
+    if (filterStatus && filterStatus !== 'all') params.append('status', filterStatus);
+    return `admin_users_${params.toString() || 'default'}`;
+  }, [searchTerm, filterRole, filterStatus]);
 
   // Update URL when filters change
   useEffect(() => {
@@ -91,12 +99,30 @@ export default function AdminUsersPage() {
     }
   }, [searchTerm, filterRole, filterStatus, pathname, router, searchParams]);
 
-  // Fetch users when filters change
-  useEffect(() => {
-    if (user?.role === 'admin') {
-      fetchUsers();
+  // Use cache hook for users
+  const { data: usersData, loading, refresh } = useDataCache<{ users: User[] }>({
+    key: cacheKey,
+    fetchFn: async () => {
+      const params = new URLSearchParams();
+      if (searchTerm.trim()) params.append('search', searchTerm.trim());
+      if (filterRole && filterRole !== 'all') params.append('role', filterRole);
+      if (filterStatus && filterStatus !== 'all') params.append('status', filterStatus);
+      
+      const queryString = params.toString();
+      const response = await fetch(`/api/admin/users?${queryString}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch users');
+      }
+      return response.json();
+    },
+    enabled: !!user && user.role === 'admin',
+    forceRefresh: false,
+    onError: () => {
+      toast.error('حدث خطأ أثناء جلب المستخدمين');
     }
-  }, [searchTerm, filterRole, filterStatus, user]);
+  });
+
+  const users = usersData?.users || [];
 
   useEffect(() => {
     if (user?.role !== 'admin') {
@@ -105,31 +131,23 @@ export default function AdminUsersPage() {
     }
   }, [user]);
 
+  // Listen for refresh events
+  useEffect(() => {
+    const handleRefresh = () => {
+      refresh();
+      // No toast here - header button already shows notification
+    };
+
+    window.addEventListener('refresh-users', handleRefresh);
+    
+    return () => {
+      window.removeEventListener('refresh-users', handleRefresh);
+    };
+  }, [refresh]);
+
+  // Keep fetchUsers for backward compatibility
   const fetchUsers = async () => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams();
-      if (searchTerm.trim()) {
-        params.append('search', searchTerm.trim());
-      }
-      if (filterRole && filterRole !== 'all') {
-        params.append('role', filterRole);
-      }
-      if (filterStatus && filterStatus !== 'all') {
-        params.append('status', filterStatus);
-      }
-      
-      const queryString = params.toString();
-      const response = await fetch(`/api/admin/users?${queryString}`);
-      if (response.ok) {
-        const data = await response.json();
-        setUsers(data.users);
-      }
-    } catch (error) {
-      toast.error('حدث خطأ أثناء جلب المستخدمين');
-    } finally {
-      setLoading(false);
-    }
+    refresh();
   };
 
   const handleToggleStatus = async (userId: string, currentStatus: boolean) => {

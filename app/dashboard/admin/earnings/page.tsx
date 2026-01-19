@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { useDataCache } from '@/components/hooks/useDataCache';
 import { DollarSign, TrendingUp, Users, Package, Calendar, Settings, BarChart3, PieChart, CalendarDays, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -34,54 +35,80 @@ interface TopEarner {
 
 export default function AdminEarningsPage() {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [statistics, setStatistics] = useState<EarningsStatistics | null>(null);
-  const [earningsByRole, setEarningsByRole] = useState<EarningsByRole[]>([]);
-  const [topEarners, setTopEarners] = useState<TopEarner[]>([]);
   const [period, setPeriod] = useState('month');
   const [customDateRange, setCustomDateRange] = useState(false);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  const fetchEarnings = useCallback(async () => {
-    try {
-      setLoading(true);
+  // Generate cache key based on period/date range
+  const cacheKey = useMemo(() => {
+    if (customDateRange && startDate && endDate) {
+      return `earnings_${startDate}_${endDate}`;
+    }
+    return `earnings_${period}`;
+  }, [period, customDateRange, startDate, endDate]);
+
+  // Use cache hook for earnings
+  const { data: earningsData, loading, refresh } = useDataCache<{
+    statistics: EarningsStatistics;
+    earningsByRole: EarningsByRole[];
+    topEarners: TopEarner[];
+  }>({
+    key: cacheKey,
+    fetchFn: async () => {
       let url = `/api/admin/earnings?period=${period}`;
       
       if (customDateRange && startDate && endDate) {
         // Validate date range
         if (new Date(startDate) > new Date(endDate)) {
-          toast.error('تاريخ البداية يجب أن يكون قبل تاريخ النهاية');
-          return;
+          throw new Error('تاريخ البداية يجب أن يكون قبل تاريخ النهاية');
         }
         
         url = `/api/admin/earnings?startDate=${startDate}&endDate=${endDate}`;
       }
       
       const response = await fetch(url);
-      if (response.ok) {
-        const data = await response.json();
-        setStatistics(data.statistics);
-        setEarningsByRole(data.earningsByRole);
-        setTopEarners(data.topEarners);
-      } else {
-        toast.error('حدث خطأ أثناء جلب إحصائيات الأرباح');
+      if (!response.ok) {
+        throw new Error('Failed to fetch earnings');
       }
-    } catch (error) {
-      console.error('Error fetching earnings:', error);
-      toast.error('حدث خطأ أثناء جلب إحصائيات الأرباح');
-    } finally {
-      setLoading(false);
+      return response.json();
+    },
+    enabled: !!user && user.role === 'admin',
+    forceRefresh: false,
+    onError: (error) => {
+      toast.error(error.message || 'حدث خطأ أثناء جلب إحصائيات الأرباح');
     }
-  }, [period, customDateRange, startDate, endDate]);
+  });
+
+  const statistics = earningsData?.statistics || null;
+  const earningsByRole = earningsData?.earningsByRole || [];
+  const topEarners = earningsData?.topEarners || [];
 
   useEffect(() => {
     if (user?.role !== 'admin') {
       toast.error('غير مصرح لك بالوصول لهذه الصفحة');
       return;
     }
-    fetchEarnings();
-  }, [user, fetchEarnings]);
+  }, [user]);
+
+  // Listen for refresh events
+  useEffect(() => {
+    const handleRefresh = () => {
+      refresh();
+      // No toast here - header button already shows notification
+    };
+
+    window.addEventListener('refresh-earnings', handleRefresh);
+    
+    return () => {
+      window.removeEventListener('refresh-earnings', handleRefresh);
+    };
+  }, [refresh]);
+
+  // Keep fetchEarnings for backward compatibility
+  const fetchEarnings = useCallback(async () => {
+    refresh();
+  }, [refresh]);
 
 
 

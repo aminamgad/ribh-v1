@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { useDataCache } from '@/components/hooks/useDataCache';
 import { toast } from 'react-hot-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -41,58 +42,93 @@ interface SystemSettings {
 
 export default function WithdrawalsPage() {
   const { user } = useAuth();
-  const [walletData, setWalletData] = useState<WalletData | null>(null);
-  const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRequest[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [walletNumber, setWalletNumber] = useState('');
   const [amount, setAmount] = useState(0);
   const [notes, setNotes] = useState('');
-  const [systemSettings, setSystemSettings] = useState<SystemSettings | null>(null);
 
-  useEffect(() => {
-    fetchWalletData();
-    fetchWithdrawalRequests();
-    fetchSystemSettings();
-  }, []);
-
-  const fetchWalletData = async () => {
-    try {
-      const response = await fetch('/api/wallet/status');
-      const data = await response.json();
-      
-      if (data.success) {
-        setWalletData(data.wallet);
+  // Use cache hook for withdrawal requests
+  const { data: withdrawalsData, loading: isLoading, refresh: refreshWithdrawals } = useDataCache<{
+    success: boolean;
+    withdrawalRequests: WithdrawalRequest[];
+  }>({
+    key: 'withdrawals',
+    fetchFn: async () => {
+      const response = await fetch('/api/withdrawals');
+      if (!response.ok) {
+        throw new Error('Failed to fetch withdrawals');
       }
-    } catch (error) {
-      console.error('خطأ في جلب بيانات المحفظة:', error);
-    }
+      return response.json();
+    },
+    enabled: !!user,
+    forceRefresh: false
+  });
+
+  // Use cache hook for wallet data
+  const { data: walletResponse, refresh: refreshWallet } = useDataCache<{
+    success: boolean;
+    wallet: WalletData;
+  }>({
+    key: 'wallet_withdrawals',
+    fetchFn: async () => {
+      const response = await fetch('/api/wallet/status');
+      if (!response.ok) {
+        throw new Error('Failed to fetch wallet data');
+      }
+      return response.json();
+    },
+    enabled: !!user,
+    forceRefresh: false
+  });
+
+  // Use cache hook for system settings
+  const { data: settingsResponse, refresh: refreshSettings } = useDataCache<{
+    success: boolean;
+    settings: SystemSettings;
+  }>({
+    key: 'system_settings_withdrawals',
+    fetchFn: async () => {
+      const response = await fetch('/api/settings');
+      if (!response.ok) {
+        throw new Error('Failed to fetch settings');
+      }
+      return response.json();
+    },
+    enabled: !!user,
+    forceRefresh: false
+  });
+
+  const walletData = walletResponse?.wallet || null;
+  const withdrawalRequests = withdrawalsData?.withdrawalRequests || [];
+  const systemSettings = settingsResponse?.settings || null;
+
+  // Listen for refresh events
+  useEffect(() => {
+    const handleRefresh = () => {
+      refreshWithdrawals();
+      refreshWallet();
+      refreshSettings();
+      // No toast here - header button already shows notification
+    };
+
+    window.addEventListener('refresh-withdrawals', handleRefresh);
+    
+    return () => {
+      window.removeEventListener('refresh-withdrawals', handleRefresh);
+    };
+  }, [refreshWithdrawals, refreshWallet, refreshSettings]);
+
+  // Keep functions for backward compatibility
+  const fetchWalletData = async () => {
+    refreshWallet();
   };
 
   const fetchWithdrawalRequests = async () => {
-    try {
-      const response = await fetch('/api/withdrawals');
-      const data = await response.json();
-      
-      if (data.success) {
-        setWithdrawalRequests(data.withdrawalRequests);
-      }
-    } catch (error) {
-      console.error('خطأ في جلب طلبات السحب:', error);
-    }
+    refreshWithdrawals();
   };
 
   const fetchSystemSettings = async () => {
-    try {
-      const response = await fetch('/api/settings');
-      const data = await response.json();
-      
-      if (data.success) {
-        setSystemSettings(data.settings);
-      }
-    } catch (error) {
-      console.error('خطأ في جلب إعدادات النظام:', error);
-    }
+    refreshSettings();
   };
 
   const handleSubmitWithdrawal = async () => {

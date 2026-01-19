@@ -282,36 +282,47 @@ async function getProducts(req: NextRequest, user: any) {
     const total = await Product.countDocuments(query);
     
     // Transform products for frontend
-    const transformedProducts = products.map(product => ({
-      _id: product._id,
-      name: product.name,
-      description: product.description,
-      images: product.images,
-      marketerPrice: product.marketerPrice,
-      wholesalerPrice: product.wholesalerPrice,
-      stockQuantity: product.stockQuantity,
-      isActive: product.isActive,
-      isApproved: product.isApproved,
-      isRejected: product.isRejected,
-      rejectionReason: product.rejectionReason,
-      adminNotes: product.adminNotes,
-      approvedAt: product.approvedAt,
-      approvedBy: product.approvedBy,
-      rejectedAt: product.rejectedAt,
-      rejectedBy: product.rejectedBy,
-      isFulfilled: product.isFulfilled,
-      isLocked: product.isLocked,
-      lockedAt: product.lockedAt,
-      lockedBy: product.lockedBy,
-      lockReason: product.lockReason,
-      categoryName: product.categoryId?.name,
-      supplierName: product.supplierId?.name || product.supplierId?.companyName,
-      sku: product.sku,
-      weight: product.weight,
-      dimensions: product.dimensions,
-      tags: product.tags,
-      createdAt: product.createdAt
-    }));
+    const transformedProducts = products.map(product => {
+      const baseProduct = {
+        _id: product._id,
+        name: product.name,
+        description: product.description,
+        images: product.images,
+        marketerPrice: product.marketerPrice,
+        wholesalerPrice: product.wholesalerPrice,
+        stockQuantity: product.stockQuantity,
+        isActive: product.isActive,
+        isApproved: product.isApproved,
+        isRejected: product.isRejected,
+        rejectionReason: product.rejectionReason,
+        adminNotes: product.adminNotes,
+        approvedAt: product.approvedAt,
+        approvedBy: product.approvedBy,
+        rejectedAt: product.rejectedAt,
+        rejectedBy: product.rejectedBy,
+        isFulfilled: product.isFulfilled,
+        isLocked: product.isLocked,
+        lockedAt: product.lockedAt,
+        lockedBy: product.lockedBy,
+        lockReason: product.lockReason,
+        categoryName: product.categoryId?.name,
+        sku: product.sku,
+        weight: product.weight,
+        dimensions: product.dimensions,
+        tags: product.tags,
+        createdAt: product.createdAt
+      };
+      
+      // Only include supplierName for admin and supplier roles
+      if (user?.role === 'admin' || user?.role === 'supplier') {
+        return {
+          ...baseProduct,
+          supplierName: product.supplierId?.name || product.supplierId?.companyName
+        };
+      }
+      
+      return baseProduct;
+    });
     
     // Cache the results
     productCache.set(cacheKey, { products: transformedProducts, total });

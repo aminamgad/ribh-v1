@@ -70,7 +70,7 @@ async function getProduct(req: NextRequest, user: any, ...args: unknown[]) {
     }
 
     // Transform product for frontend
-    const transformedProduct = {
+    const baseProduct = {
       _id: product._id,
       name: product.name,
       description: product.description,
@@ -93,7 +93,6 @@ async function getProduct(req: NextRequest, user: any, ...args: unknown[]) {
       isFulfilled: product.isFulfilled,
       categoryName: product.categoryId?.name,
       supplierId: product.supplierId,
-      supplierName: product.supplierId?.name || product.supplierId?.companyName,
       sku: product.sku,
       weight: product.weight,
       dimensions: product.dimensions,
@@ -111,6 +110,14 @@ async function getProduct(req: NextRequest, user: any, ...args: unknown[]) {
       lockedBy: product.lockedBy,
       lockReason: product.lockReason
     };
+    
+    // Only include supplierName for admin and supplier roles
+    const transformedProduct = (user?.role === 'admin' || user?.role === 'supplier')
+      ? {
+          ...baseProduct,
+          supplierName: product.supplierId?.name || product.supplierId?.companyName
+        }
+      : baseProduct;
 
     logger.debug('Sending product data', {
       productId: transformedProduct._id,

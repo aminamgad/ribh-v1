@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { useDataCache } from '@/components/hooks/useDataCache';
 import { DollarSign, TrendingUp, Clock, CheckCircle, ArrowUpRight, ArrowDownLeft, Wallet as WalletIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Badge } from '@/components/ui/badge';
@@ -52,10 +53,6 @@ interface SystemSettings {
 
 export default function WalletPage() {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [wallet, setWallet] = useState<WalletData | null>(null);
-  const [earnings, setEarnings] = useState<EarningsData | null>(null);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
   // Withdrawal states for marketer
   const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRequest[]>([]);
   const [systemSettings, setSystemSettings] = useState<SystemSettings | null>(null);
@@ -64,32 +61,55 @@ export default function WalletPage() {
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Use cache hook for wallet data
+  const { data: walletData, loading, refresh } = useDataCache<{
+    wallet: WalletData;
+    earnings: EarningsData;
+    recentTransactions: Transaction[];
+  }>({
+    key: 'wallet',
+    fetchFn: async () => {
+      const response = await fetch('/api/wallet/status');
+      if (!response.ok) {
+        throw new Error('Failed to fetch wallet status');
+      }
+      return response.json();
+    },
+    enabled: !!user,
+    forceRefresh: false,
+    onError: () => {
+      toast.error('حدث خطأ أثناء جلب حالة المحفظة');
+    }
+  });
+
+  const wallet = walletData?.wallet || null;
+  const earnings = walletData?.earnings || null;
+  const transactions = walletData?.recentTransactions || [];
+
   useEffect(() => {
-    fetchWalletStatus();
     if (user?.role === 'marketer') {
       fetchWithdrawalRequests();
       fetchSystemSettings();
     }
   }, [user]);
 
+  // Listen for refresh events
+  useEffect(() => {
+    const handleRefresh = () => {
+      refresh();
+      // No toast here - header button already shows notification
+    };
+
+    window.addEventListener('refresh-wallet', handleRefresh);
+    
+    return () => {
+      window.removeEventListener('refresh-wallet', handleRefresh);
+    };
+  }, [refresh]);
+
+  // Keep fetchWalletStatus for backward compatibility
   const fetchWalletStatus = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/wallet/status');
-      if (response.ok) {
-        const data = await response.json();
-        setWallet(data.wallet);
-        setEarnings(data.earnings);
-        setTransactions(data.recentTransactions);
-      } else {
-        toast.error('حدث خطأ أثناء جلب حالة المحفظة');
-      }
-    } catch (error) {
-      console.error('Error fetching wallet status:', error);
-      toast.error('حدث خطأ أثناء جلب حالة المحفظة');
-    } finally {
-      setLoading(false);
-    }
+    refresh();
   };
 
   const formatCurrency = (amount: number) => {

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { useDataCache } from '@/components/hooks/useDataCache';
 import { Search, Filter, Eye, Edit, Shield, UserCheck, UserX, Mail, Phone, User } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -38,33 +39,54 @@ const roleColors = {
 
 export default function AdminUsersPage() {
   const { user } = useAuth();
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const router = useRouter();
+
+  // Use cache hook for users
+  const { data: usersData, loading, refresh } = useDataCache<{ users: User[] }>({
+    key: 'users',
+    fetchFn: async () => {
+      const response = await fetch('/api/admin/users');
+      if (!response.ok) {
+        throw new Error('Failed to fetch users');
+      }
+      return response.json();
+    },
+    enabled: !!user && user.role === 'admin',
+    forceRefresh: false,
+    onError: () => {
+      toast.error('حدث خطأ أثناء جلب المستخدمين');
+    }
+  });
+
+  const users = usersData?.users || [];
 
   useEffect(() => {
     if (user?.role !== 'admin') {
       toast.error('غير مصرح لك بالوصول لهذه الصفحة');
       return;
     }
-    fetchUsers();
   }, [user]);
 
+  // Listen for refresh events
+  useEffect(() => {
+    const handleRefresh = () => {
+      refresh();
+      // No toast here - header button already shows notification
+    };
+
+    window.addEventListener('refresh-users', handleRefresh);
+    
+    return () => {
+      window.removeEventListener('refresh-users', handleRefresh);
+    };
+  }, [refresh]);
+
+  // Keep fetchUsers for backward compatibility
   const fetchUsers = async () => {
-    try {
-      const response = await fetch('/api/admin/users');
-      if (response.ok) {
-        const data = await response.json();
-        setUsers(data.users);
-      }
-    } catch (error) {
-      toast.error('حدث خطأ أثناء جلب المستخدمين');
-    } finally {
-      setLoading(false);
-    }
+    refresh();
   };
 
   const handleToggleStatus = async (userId: string, currentStatus: boolean) => {

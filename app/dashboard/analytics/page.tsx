@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { useDataCache } from '@/components/hooks/useDataCache';
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -43,42 +44,65 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
 export default function AnalyticsPage() {
   const { user } = useAuth();
-  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
-  const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState('month');
   const [selectedMetric, setSelectedMetric] = useState('revenue');
   const [customDateRange, setCustomDateRange] = useState(false);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  useEffect(() => {
-    fetchAnalytics();
+  // Generate cache key based on date range
+  const cacheKey = useMemo(() => {
+    if (customDateRange && startDate && endDate) {
+      return `analytics_${startDate}_${endDate}`;
+    }
+    return `analytics_${dateRange}`;
   }, [dateRange, customDateRange, startDate, endDate]);
 
-  const fetchAnalytics = async () => {
-    try {
+  // Use cache hook for analytics
+  const { data: analytics, loading, refresh } = useDataCache<AnalyticsData>({
+    key: cacheKey,
+    fetchFn: async () => {
       let url = `/api/analytics?range=${dateRange}`;
       
       if (customDateRange && startDate && endDate) {
         // Validate date range
         if (new Date(startDate) > new Date(endDate)) {
-          toast.error('تاريخ البداية يجب أن يكون قبل تاريخ النهاية');
-          return;
+          throw new Error('تاريخ البداية يجب أن يكون قبل تاريخ النهاية');
         }
         
         url = `/api/analytics?startDate=${startDate}&endDate=${endDate}`;
       }
       
       const response = await fetch(url);
-      if (response.ok) {
-        const data = await response.json();
-        setAnalytics(data);
+      if (!response.ok) {
+        throw new Error('Failed to fetch analytics');
       }
-    } catch (error) {
-      toast.error('حدث خطأ أثناء جلب البيانات التحليلية');
-    } finally {
-      setLoading(false);
+      return response.json();
+    },
+    enabled: !!user,
+    forceRefresh: false,
+    onError: (error) => {
+      toast.error(error.message || 'حدث خطأ أثناء جلب البيانات التحليلية');
     }
+  });
+
+  // Listen for refresh events
+  useEffect(() => {
+    const handleRefresh = () => {
+      refresh();
+      // No toast here - header button already shows notification
+    };
+
+    window.addEventListener('refresh-analytics', handleRefresh);
+    
+    return () => {
+      window.removeEventListener('refresh-analytics', handleRefresh);
+    };
+  }, [refresh]);
+
+  // Keep fetchAnalytics for backward compatibility
+  const fetchAnalytics = async () => {
+    refresh();
   };
 
   const exportReport = async () => {

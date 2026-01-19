@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { useDataCache } from '@/components/hooks/useDataCache';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { format } from 'date-fns';
@@ -64,8 +65,6 @@ interface IntegrationFormData {
 export default function IntegrationsPage() {
   const { user } = useAuth();
   const router = useRouter();
-  const [integrations, setIntegrations] = useState<StoreIntegration[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingIntegration, setEditingIntegration] = useState<StoreIntegration | null>(null);
   const [syncingId, setSyncingId] = useState<string | null>(null);
@@ -88,27 +87,51 @@ export default function IntegrationsPage() {
     }
   });
 
+  // Use cache hook for integrations
+  const { data: integrationsData, loading, refresh } = useDataCache<{
+    integrations: StoreIntegration[];
+  }>({
+    key: 'integrations',
+    fetchFn: async () => {
+      const response = await fetch('/api/integrations');
+      if (!response.ok) {
+        throw new Error('Failed to fetch integrations');
+      }
+      return response.json();
+    },
+    enabled: !!user && (user.role === 'marketer' || user.role === 'wholesaler'),
+    forceRefresh: false,
+    onError: () => {
+      toast.error('حدث خطأ في جلب التكاملات');
+    }
+  });
+
+  const integrations = integrationsData?.integrations || [];
+
   useEffect(() => {
     if (!user || (user.role !== 'marketer' && user.role !== 'wholesaler')) {
       router.push('/dashboard');
       return;
     }
-    fetchIntegrations();
   }, [user, router]);
 
+  // Listen for refresh events
+  useEffect(() => {
+    const handleRefresh = () => {
+      refresh();
+      // No toast here - header button already shows notification
+    };
+
+    window.addEventListener('refresh-integrations', handleRefresh);
+    
+    return () => {
+      window.removeEventListener('refresh-integrations', handleRefresh);
+    };
+  }, [refresh]);
+
+  // Keep fetchIntegrations for backward compatibility
   const fetchIntegrations = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/integrations');
-      if (!response.ok) throw new Error('Failed to fetch integrations');
-      const data = await response.json();
-      setIntegrations(data.integrations);
-    } catch (error) {
-      console.error('Error fetching integrations:', error);
-      toast.error('حدث خطأ في جلب التكاملات');
-    } finally {
-      setLoading(false);
-    }
+    refresh();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

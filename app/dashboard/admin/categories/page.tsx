@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { useDataCache } from '@/components/hooks/useDataCache';
 import { useRouter } from 'next/navigation';
 import { Plus, Edit, Trash2, FolderOpen, Upload, X, Package, ChevronLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -25,8 +26,6 @@ interface Category {
 export default function AdminCategoriesPage() {
   const { user } = useAuth();
   const router = useRouter();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
@@ -54,76 +53,93 @@ export default function AdminCategoriesPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
 
+  // Use cache hook for categories
+  const { data: categoriesData, loading, refresh } = useDataCache<{ categories: Category[] }>({
+    key: 'categories',
+    fetchFn: async () => {
+      // Fetch with tree structure and stats
+      const response = await fetch('/api/categories?includeInactive=true&tree=true&withStats=true');
+      if (!response.ok) {
+        throw new Error('Failed to fetch categories');
+      }
+      const data = await response.json();
+      
+      // Transform categories
+      const transformCategories = (cats: any[]): Category[] => {
+        return cats.map(cat => ({
+          _id: cat._id,
+          name: cat.name,
+          nameEn: cat.nameEn || '',
+          description: cat.description,
+          image: cat.image,
+          parentId: cat.parentId?._id || cat.parentId || undefined,
+          isActive: cat.isActive !== undefined ? cat.isActive : true,
+          order: cat.order || 0,
+          slug: cat.slug || '',
+          productCount: cat.productCount || 0,
+          subcategories: cat.subcategories && cat.subcategories.length > 0 
+            ? transformCategories(cat.subcategories) 
+            : undefined
+        }));
+      };
+      
+      if (data.categories && Array.isArray(data.categories)) {
+        return { categories: transformCategories(data.categories) };
+      } else {
+        // Fallback: fetch without tree and build hierarchy manually
+        const flatResponse = await fetch('/api/categories?includeInactive=true&withStats=true');
+        if (flatResponse.ok) {
+          const flatData = await flatResponse.json();
+          const buildTree = (cats: any[]): Category[] => {
+            const parentCats = cats.filter(c => !c.parentId);
+            return parentCats.map(parent => ({
+              ...parent,
+              subcategories: cats
+                .filter(c => c.parentId && String(c.parentId) === String(parent._id))
+                .map(sub => {
+                  const subTree = buildTree([sub]);
+                  return subTree[0] || sub;
+                })
+            }));
+          };
+          return { categories: buildTree(flatData.categories || []) };
+        }
+      }
+      throw new Error('Failed to fetch categories');
+    },
+    enabled: !!user && user.role === 'admin',
+    forceRefresh: false,
+    onError: () => {
+      toast.error('حدث خطأ أثناء جلب الفئات');
+    }
+  });
+
+  const categories = categoriesData?.categories || [];
+
   useEffect(() => {
     if (user?.role !== 'admin') {
       toast.error('غير مصرح لك بالوصول لهذه الصفحة');
       return;
     }
-    fetchCategories();
   }, [user]);
 
+  // Listen for refresh events
+  useEffect(() => {
+    const handleRefresh = () => {
+      refresh();
+      // No toast here - header button already shows notification
+    };
+
+    window.addEventListener('refresh-categories', handleRefresh);
+    
+    return () => {
+      window.removeEventListener('refresh-categories', handleRefresh);
+    };
+  }, [refresh]);
+
+  // Keep fetchCategories for backward compatibility
   const fetchCategories = async () => {
-    try {
-      setLoading(true);
-      // Fetch with tree structure and stats
-      const response = await fetch('/api/categories?includeInactive=true&tree=true&withStats=true');
-      if (response.ok) {
-        const data = await response.json();
-        console.log('📦 Categories data received:', data);
-        
-        // If tree=true, categories come with subcategories already nested
-        if (data.categories && Array.isArray(data.categories)) {
-          // Transform to ensure all fields are present
-          const transformCategories = (cats: any[]): Category[] => {
-            return cats.map(cat => ({
-              _id: cat._id,
-              name: cat.name,
-              nameEn: cat.nameEn || '',
-              description: cat.description,
-              image: cat.image,
-              parentId: cat.parentId?._id || cat.parentId || undefined,
-              isActive: cat.isActive !== undefined ? cat.isActive : true,
-              order: cat.order || 0,
-              slug: cat.slug || '',
-              productCount: cat.productCount || 0,
-              subcategories: cat.subcategories && cat.subcategories.length > 0 
-                ? transformCategories(cat.subcategories) 
-                : undefined
-            }));
-          };
-          const transformed = transformCategories(data.categories);
-          console.log('✅ Transformed categories:', transformed);
-          setCategories(transformed);
-        } else {
-          // Fallback: fetch without tree and build hierarchy manually
-          const flatResponse = await fetch('/api/categories?includeInactive=true&withStats=true');
-          if (flatResponse.ok) {
-            const flatData = await flatResponse.json();
-            const buildTree = (cats: any[]): any[] => {
-              const parentCats = cats.filter(c => !c.parentId);
-              return parentCats.map(parent => ({
-                ...parent,
-                subcategories: cats
-                  .filter(c => c.parentId && String(c.parentId) === String(parent._id))
-                  .map(sub => {
-                    const subTree = buildTree([sub]);
-                    return subTree[0] || sub;
-                  })
-              }));
-            };
-            setCategories(buildTree(flatData.categories || []));
-          }
-        }
-      } else {
-        const errorData = await response.json();
-        toast.error(errorData.message || 'حدث خطأ أثناء جلب الفئات');
-      }
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-      toast.error('حدث خطأ أثناء جلب الفئات');
-    } finally {
-      setLoading(false);
-    }
+    refresh();
   };
 
   const handleImageUpload = async () => {

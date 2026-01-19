@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { useDataCache } from '@/components/hooks/useDataCache';
 import { toast } from 'react-hot-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -39,37 +40,67 @@ interface WithdrawalRequest {
 
 export default function AdminWithdrawalsPage() {
   const { user } = useAuth();
-  const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
-  const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [processing, setProcessing] = useState<string | null>(null);
 
-  // Fetch withdrawal requests
-  const fetchWithdrawals = async () => {
-    try {
-      setLoading(true);
+  // Generate cache key based on filters
+  const cacheKey = useMemo(() => {
+    return `admin_withdrawals_${statusFilter}_${currentPage}`;
+  }, [statusFilter, currentPage]);
+
+  // Use cache hook for withdrawals
+  const { data: withdrawalsData, loading, refresh } = useDataCache<{
+    success: boolean;
+    withdrawals: WithdrawalRequest[];
+    pagination: { pages: number };
+  }>({
+    key: cacheKey,
+    fetchFn: async () => {
       const response = await fetch(`/api/admin/withdrawals?status=${statusFilter}&page=${currentPage}`);
-      const data = await response.json();
-      
-      if (data.success) {
-        setWithdrawals(data.withdrawals);
-        setTotalPages(data.pagination.pages);
-      } else {
-        toast.error(data.message);
+      if (!response.ok) {
+        throw new Error('Failed to fetch withdrawals');
       }
-    } catch (error) {
-      console.error('Error fetching withdrawals:', error);
-      toast.error('حدث خطأ في جلب طلبات السحب');
-    } finally {
-      setLoading(false);
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error(data.message || 'Failed to fetch withdrawals');
+      }
+      return data;
+    },
+    enabled: !!user && user.role === 'admin',
+    forceRefresh: false,
+    onError: (error) => {
+      toast.error(error.message || 'حدث خطأ في جلب طلبات السحب');
     }
-  };
+  });
+
+  const withdrawals = withdrawalsData?.withdrawals || [];
 
   useEffect(() => {
-    fetchWithdrawals();
-  }, [statusFilter, currentPage]);
+    if (withdrawalsData?.pagination) {
+      setTotalPages(withdrawalsData.pagination.pages);
+    }
+  }, [withdrawalsData]);
+
+  // Listen for refresh events
+  useEffect(() => {
+    const handleRefresh = () => {
+      refresh();
+      // No toast here - header button already shows notification
+    };
+
+    window.addEventListener('refresh-withdrawals', handleRefresh);
+    
+    return () => {
+      window.removeEventListener('refresh-withdrawals', handleRefresh);
+    };
+  }, [refresh]);
+
+  // Keep fetchWithdrawals for backward compatibility
+  const fetchWithdrawals = async () => {
+    refresh();
+  };
 
   const handleStatusUpdate = async (requestId: string, status: string, notes?: string, rejectionReason?: string) => {
     setProcessing(requestId);

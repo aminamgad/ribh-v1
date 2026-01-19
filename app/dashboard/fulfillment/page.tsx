@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { useDataCache } from '@/components/hooks/useDataCache';
 import { Plus, Search, Filter, Eye, CheckCircle, X, Clock, Package, Phone, Mail, MessageCircle, XCircle, RefreshCw, TrendingUp, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -48,9 +49,6 @@ const statusLabels = {
 
 export default function FulfillmentPage() {
   const { user } = useAuth();
-  const [requests, setRequests] = useState<FulfillmentRequest[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('createdAt');
@@ -60,6 +58,27 @@ export default function FulfillmentPage() {
   const [processingRequest, setProcessingRequest] = useState<string | null>(null);
   const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
   const router = useRouter();
+
+  // Use cache hook for fulfillment requests
+  const { data: fulfillmentData, loading, refresh } = useDataCache<{
+    requests: FulfillmentRequest[];
+  }>({
+    key: 'fulfillment',
+    fetchFn: async () => {
+      const response = await fetch('/api/fulfillment');
+      if (!response.ok) {
+        throw new Error('Failed to fetch fulfillment requests');
+      }
+      return response.json();
+    },
+    enabled: !!user,
+    forceRefresh: false,
+    onError: () => {
+      toast.error('حدث خطأ أثناء جلب طلبات التخزين');
+    }
+  });
+
+  const requests = fulfillmentData?.requests || [];
 
   // WhatsApp communication functions
   const openWhatsApp = (phone: string, message: string) => {
@@ -122,44 +141,23 @@ export default function FulfillmentPage() {
     }
   };
 
+  // Listen for refresh events
   useEffect(() => {
-    fetchFulfillmentRequests();
-    
-    // Auto-refresh every 30 seconds for admins
-    if (user?.role === 'admin') {
-      const interval = setInterval(() => {
-        fetchFulfillmentRequests(true); // Silent refresh
-      }, 30000);
-      
-      return () => clearInterval(interval);
-    }
-  }, [user?.role]);
+    const handleRefresh = () => {
+      refresh();
+      // No toast here - header button already shows notification
+    };
 
-  const fetchFulfillmentRequests = async (silent = false) => {
-    if (!silent) {
-      setLoading(true);
-    } else {
-      setRefreshing(true);
-    }
+    window.addEventListener('refresh-fulfillment', handleRefresh);
     
-    try {
-      const response = await fetch('/api/fulfillment');
-      if (response.ok) {
-        const data = await response.json();
-        setRequests(data.requests);
-        if (!silent) {
-          toast.success(`تم تحديث البيانات - ${data.requests.length} طلب`);
-        }
-      } else {
-        const error = await response.json();
-        toast.error(error.message || 'حدث خطأ أثناء جلب طلبات التخزين');
-      }
-    } catch (error) {
-      toast.error('حدث خطأ أثناء جلب طلبات التخزين');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+    return () => {
+      window.removeEventListener('refresh-fulfillment', handleRefresh);
+    };
+  }, [refresh]);
+
+  // Keep fetchFulfillmentRequests for backward compatibility
+  const fetchFulfillmentRequests = async (silent = false) => {
+    refresh();
   };
 
   const handleApproveRequest = async (requestId: string) => {
@@ -395,11 +393,11 @@ export default function FulfillmentPage() {
         <div className="flex items-center space-x-3 space-x-reverse">
           <button
             onClick={() => fetchFulfillmentRequests()}
-            disabled={refreshing}
+            disabled={loading}
             className="btn-secondary"
             title="تحديث البيانات"
           >
-            <RefreshCw className={`w-4 h-4 ml-2 ${refreshing ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ml-2 ${loading ? 'animate-spin' : ''}`} />
             تحديث
           </button>
           

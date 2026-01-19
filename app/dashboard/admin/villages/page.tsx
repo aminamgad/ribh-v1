@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Search, MapPin, Package, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useDataCache } from '@/components/hooks/useDataCache';
 
 interface Village {
   _id: string;
@@ -21,17 +22,65 @@ interface Area {
 }
 
 export default function VillagesPage() {
-  const [villages, setVillages] = useState<Village[]>([]);
-  const [areas, setAreas] = useState<Area[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedArea, setSelectedArea] = useState<number | null>(null);
   const [filteredVillages, setFilteredVillages] = useState<Village[]>([]);
 
+  // Use cache hook for villages
+  const { data: villagesData, loading: villagesLoading, refresh: refreshVillages } = useDataCache<{
+    success: boolean;
+    data: Village[];
+  }>({
+    key: 'villages',
+    fetchFn: async () => {
+      const response = await fetch('/api/villages?limit=1000');
+      if (!response.ok) {
+        throw new Error('Failed to fetch villages');
+      }
+      return response.json();
+    },
+    enabled: true,
+    forceRefresh: false,
+    onError: () => {
+      toast.error('فشل في جلب القرى');
+    }
+  });
+
+  // Use cache hook for areas
+  const { data: areasData, loading: areasLoading, refresh: refreshAreas } = useDataCache<{
+    success: boolean;
+    data: Area[];
+  }>({
+    key: 'areas',
+    fetchFn: async () => {
+      const response = await fetch('/api/areas');
+      if (!response.ok) {
+        throw new Error('Failed to fetch areas');
+      }
+      return response.json();
+    },
+    enabled: true,
+    forceRefresh: false
+  });
+
+  const villages = villagesData?.data || [];
+  const areas = areasData?.data || [];
+  const loading = villagesLoading || areasLoading;
+
+  // Listen for refresh events
   useEffect(() => {
-    fetchVillages();
-    fetchAreas();
-  }, []);
+    const handleRefresh = () => {
+      refreshVillages();
+      refreshAreas();
+      // No toast here - header button already shows notification
+    };
+
+    window.addEventListener('refresh-villages', handleRefresh);
+    
+    return () => {
+      window.removeEventListener('refresh-villages', handleRefresh);
+    };
+  }, [refreshVillages, refreshAreas]);
 
   useEffect(() => {
     let filtered = villages;
@@ -49,35 +98,13 @@ export default function VillagesPage() {
     setFilteredVillages(filtered);
   }, [villages, search, selectedArea]);
 
+  // Keep functions for backward compatibility
   const fetchVillages = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/villages?limit=1000');
-      const data = await response.json();
-
-      if (data.success) {
-        setVillages(data.data);
-      } else {
-        toast.error('فشل في جلب القرى');
-      }
-    } catch (error) {
-      toast.error('حدث خطأ أثناء جلب القرى');
-    } finally {
-      setLoading(false);
-    }
+    refreshVillages();
   };
 
   const fetchAreas = async () => {
-    try {
-      const response = await fetch('/api/areas');
-      const data = await response.json();
-
-      if (data.success) {
-        setAreas(data.data);
-      }
-    } catch (error) {
-      console.error('Error fetching areas:', error);
-    }
+    refreshAreas();
   };
 
   const uniqueAreas = Array.from(new Set(villages.map((v) => v.areaId))).sort();

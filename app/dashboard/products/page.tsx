@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useCart } from '@/components/providers/CartProvider';
 import { useFavorites } from '@/components/providers/FavoritesProvider';
+import { useDataCache } from '@/components/hooks/useDataCache';
+import { useDataCache as useDataCacheContext } from '@/components/providers/DataCacheProvider';
 import { 
   Package, 
   Plus, 
@@ -71,8 +73,13 @@ export default function ProductsPage() {
   const { addToFavorites, removeFromFavorites, isFavorite } = useFavorites();
   const searchParams = useSearchParams();
   const queryString = searchParams.toString();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { refreshData } = useDataCacheContext();
+  
+  // Generate cache key based on query string
+  const cacheKey = useMemo(() => {
+    return `products_${queryString || 'default'}`;
+  }, [queryString]);
+  
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -111,8 +118,8 @@ export default function ProductsPage() {
 
   const router = useRouter();
 
-  // Product sections state
-  const [productSections, setProductSections] = useState<{
+  // Use cache hook for product sections (only for marketer when no filters)
+  const { data: sectionsData, loading: sectionsLoading, refresh: refreshSections } = useDataCache<{
     newArrivals: Product[];
     bestSellers: Product[];
     gardenHome: Product[];
@@ -120,27 +127,8 @@ export default function ProductsPage() {
     electronics: Product[];
     games: Product[];
   }>({
-    newArrivals: [],
-    bestSellers: [],
-    gardenHome: [],
-    healthBeauty: [],
-    electronics: [],
-    games: []
-  });
-  const [sectionsLoading, setSectionsLoading] = useState(false);
-
-  useEffect(() => {
-    fetchProducts();
-    // Only fetch sections if no search/filters are active and user is marketer
-    if (user?.role === 'marketer' && !queryString) {
-      fetchProductSections();
-    }
-  }, [queryString, user?.role]);
-
-  const fetchProductSections = async () => {
-    try {
-      setSectionsLoading(true);
-      
+    key: 'product_sections',
+    fetchFn: async () => {
       // Fetch all sections in parallel
       const [newArrivalsRes, bestSellersRes, categoriesRes] = await Promise.all([
         fetch('/api/products?limit=8'),
@@ -225,7 +213,7 @@ export default function ProductsPage() {
       const filterApproved = (products: Product[]) => 
         products.filter((p: Product) => p.isApproved && !p.isRejected && !p.isLocked).slice(0, 8);
 
-      const sections = {
+      return {
         newArrivals: newArrivals,
         bestSellers: bestSellers,
         gardenHome: filterApproved(gardenHomeData.products || []),
@@ -233,31 +221,25 @@ export default function ProductsPage() {
         electronics: filterApproved(electronicsData.products || []),
         games: filterApproved(gamesData.products || [])
       };
+    },
+    enabled: !!user && user.role === 'marketer' && !queryString,
+    forceRefresh: false
+  });
 
-      console.log('📦 Product Sections loaded:', {
-        newArrivals: sections.newArrivals.length,
-        bestSellers: sections.bestSellers.length,
-        gardenHome: sections.gardenHome.length,
-        healthBeauty: sections.healthBeauty.length,
-        electronics: sections.electronics.length,
-        games: sections.games.length
-      });
-
-      setProductSections(sections);
-    } catch (error) {
-      console.error('Error fetching product sections:', error);
-    } finally {
-      setSectionsLoading(false);
-    }
+  const productSections = sectionsData || {
+    newArrivals: [],
+    bestSellers: [],
+    gardenHome: [],
+    healthBeauty: [],
+    electronics: [],
+    games: []
   };
 
-  const fetchProducts = async (overrideQueryString?: string) => {
-    try {
-      setLoading(true);
-      const queryString = overrideQueryString ?? searchParams.toString();
+  // Use cache hook for products
+  const { data: productsData, loading, refresh } = useDataCache<{ products: Product[]; pagination?: any }>({
+    key: cacheKey,
+    fetchFn: async () => {
       const params = new URLSearchParams(queryString);
-      // Use /api/products for admin filters (stockStatus, suppliers, startDate, endDate)
-      // or when user is admin, otherwise use /api/search for regular search
       const hasAdminFilters =
         params.has('stockStatus') ||
         params.has('suppliers') ||
@@ -270,35 +252,52 @@ export default function ProductsPage() {
             ? `/api/search?${queryString}`
             : '/api/products';
       
-      console.log('🔄 Fetching products from:', endpoint);
-      
       const response = await fetch(endpoint);
-      if (response.ok) {
-        const data = await response.json();
-        console.log('📦 Raw API response:', data);
-        console.log('📦 Fetched products:', data.products.map((p: any) => ({
-          id: p._id,
-          name: p.name,
-          isApproved: p.isApproved,
-          isRejected: p.isRejected,
-          status: p.isApproved ? 'معتمد' : p.isRejected ? 'مرفوض' : 'قيد المراجعة'
-        })));
-        
-        setProducts(data.products);
-        console.log('✅ Products state updated with:', data.products.length, 'products');
-        
-        if (data.pagination) {
-          setPagination(data.pagination);
-        }
-      } else {
-        console.error('❌ API response not ok:', response.status, response.statusText);
-        toast.error('حدث خطأ أثناء جلب المنتجات');
+      if (!response.ok) {
+        throw new Error('Failed to fetch products');
       }
-    } catch (error) {
-      console.error('❌ Error fetching products:', error);
-      toast.error('حدث خطأ أثناء جلب المنتجات');
-    } finally {
-      setLoading(false);
+      const data = await response.json();
+      return data;
+    },
+    enabled: !!user,
+    forceRefresh: false
+  });
+
+  const products = productsData?.products || [];
+  
+  useEffect(() => {
+    if (productsData?.pagination) {
+      setPagination(productsData.pagination);
+    }
+  }, [productsData]);
+
+  // Listen for refresh events from header button
+  useEffect(() => {
+    const handleRefresh = () => {
+      refresh();
+      refreshSections();
+      // No toast here - header button already shows notification
+    };
+
+    window.addEventListener('refresh-products', handleRefresh);
+    
+    return () => {
+      window.removeEventListener('refresh-products', handleRefresh);
+    };
+  }, [refresh, refreshSections]);
+
+  // Keep fetchProductSections for backward compatibility
+  const fetchProductSections = async () => {
+    refreshSections();
+  };
+
+  // Keep fetchProducts for backward compatibility (used in some handlers)
+  const fetchProducts = async (overrideQueryString?: string) => {
+    if (overrideQueryString) {
+      // If query string changed, refresh cache with new key
+      refresh();
+    } else {
+      refresh();
     }
   };
 
@@ -727,7 +726,7 @@ export default function ProductsPage() {
       </div>
 
       {/* Search and Filters */}
-      <SearchFilters onSearch={() => setLoading(true)} />
+      <SearchFilters onSearch={() => fetchProducts()} />
 
       {/* Product Sections for Marketer - Only show when no filters/search */}
       {user?.role === 'marketer' && !searchParams.toString() && (
@@ -897,6 +896,9 @@ export default function ProductsPage() {
                      alt={product.name}
                      className="w-full"
                      showTypeBadge={true}
+                     priority={products.indexOf(product) < 8} // Priority for first 8 visible products
+                     width={400}
+                     height={400}
                      fallbackIcon={<Package className="w-12 h-12 text-gray-400 dark:text-slate-500" />}
                    />
                    
@@ -1132,13 +1134,6 @@ export default function ProductsPage() {
                           نفذ المخزون
                         </div>
                       )}
-                    </div>
-                  )}
-
-                  {/* Supplier Info for Marketer */}
-                  {user?.role === 'marketer' && product.supplierName && (
-                    <div className="text-xs text-gray-500 dark:text-slate-500">
-                      المورد: {product.supplierName}
                     </div>
                   )}
                 </div>

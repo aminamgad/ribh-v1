@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { useDataCache } from '@/components/hooks/useDataCache';
 import { 
   BarChart3, 
   ShoppingBag, 
@@ -59,12 +60,22 @@ interface DashboardStats {
 export default function DashboardPage() {
   const { user } = useAuth();
   const router = useRouter();
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
-  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
-  const [refreshInterval, setRefreshInterval] = useState(30000); // 30 seconds default
+  
+  // Use cache hook for dashboard stats
+  const { data: stats, loading, refresh } = useDataCache<DashboardStats>({
+    key: 'dashboard_stats',
+    fetchFn: async () => {
+      const response = await fetch(`/api/dashboard/stats`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch dashboard stats');
+      }
+      const data = await response.json();
+      return data.stats;
+    },
+    enabled: !!user,
+    forceRefresh: false
+  });
   
   // Quick edit states for supplier
   const [showQuickEditModal, setShowQuickEditModal] = useState(false);
@@ -85,60 +96,30 @@ export default function DashboardPage() {
       return;
     }
     
-    fetchDashboardStats(true);
-    
-    // Auto-refresh interval (default: 30 seconds, admin can set to faster)
-    let interval: NodeJS.Timeout | null = null;
-    
-    if (autoRefreshEnabled) {
-      interval = setInterval(() => {
-        fetchDashboardStats(false);
-      }, refreshInterval);
+    // Update last update time when stats change
+    if (stats) {
+      setLastUpdate(new Date());
     }
+  }, [user, router, stats]);
 
-    return () => {
-      if (interval) clearInterval(interval);
+  // Listen for refresh events from header button
+  useEffect(() => {
+    const handleRefresh = () => {
+      refresh();
+      // No toast here - header button already shows notification
     };
-  }, [user, router, autoRefreshEnabled, refreshInterval]);
 
-  const fetchDashboardStats = async (showLoading: boolean = false) => {
-    try {
-      if (showLoading) {
-        setLoading(true);
-      } else {
-        setRefreshing(true);
-      }
-      
-      // Add cache-busting query parameter
-      const response = await fetch(`/api/dashboard/stats?t=${Date.now()}`);
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data.stats);
-        setLastUpdate(new Date());
-        
-        if (!showLoading) {
-          // Silent refresh - no toast notification
-        }
-      } else {
-        if (showLoading) {
-          console.error('Failed to fetch dashboard stats');
-          toast.error('فشل في تحميل الإحصائيات');
-        }
-      }
-    } catch (error) {
-      if (showLoading) {
-        console.error('Error fetching dashboard stats:', error);
-        toast.error('حدث خطأ أثناء تحميل الإحصائيات');
-      }
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
+    // Listen for custom refresh event
+    window.addEventListener('refresh-dashboard', handleRefresh);
+    
+    return () => {
+      window.removeEventListener('refresh-dashboard', handleRefresh);
+    };
+  }, [refresh]);
   
   const handleManualRefresh = () => {
-    fetchDashboardStats(true);
-    toast.success('جاري تحديث الإحصائيات...');
+    refresh();
+    // No toast here - header button already shows notification
   };
 
   const getRoleTitle = () => {
@@ -267,7 +248,7 @@ export default function DashboardPage() {
 
       if (response.ok) {
         toast.success('تم تحديث المنتج بنجاح');
-        fetchDashboardStats(); // Refresh dashboard data
+        refresh(); // Refresh dashboard data
         setShowQuickEditModal(false);
         setSelectedProduct(null);
       } else {
@@ -321,9 +302,9 @@ export default function DashboardPage() {
             {/* Quick Status Indicators */}
             <div className="flex flex-wrap gap-4 mt-6">
               <div className="flex items-center gap-2 px-4 py-2 bg-green-100 dark:bg-green-900/30 rounded-full">
-                <div className={`w-2 h-2 ${autoRefreshEnabled ? 'bg-green-500' : 'bg-gray-400'} rounded-full animate-pulse`}></div>
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                 <span className="text-sm font-medium text-green-700 dark:text-green-400">
-                  {autoRefreshEnabled ? 'تحديث تلقائي نشط' : 'تحديث تلقائي معطل'}
+                  البيانات محفوظة في الذاكرة المؤقتة
                 </span>
               </div>
               {lastUpdate && (
@@ -336,13 +317,13 @@ export default function DashboardPage() {
               )}
               <button
                 onClick={handleManualRefresh}
-                disabled={refreshing || loading}
+                disabled={loading}
                 className="flex items-center gap-2 px-4 py-2 bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-900/50 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 title="تحديث الإحصائيات يدوياً"
               >
-                <RefreshCw className={`w-4 h-4 text-blue-600 dark:text-blue-400 ${refreshing ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`w-4 h-4 text-blue-600 dark:text-blue-400 ${loading ? 'animate-spin' : ''}`} />
                 <span className="text-sm font-medium text-blue-700 dark:text-blue-400">
-                  {refreshing ? 'جاري التحديث...' : 'تحديث الآن'}
+                  {loading ? 'جاري التحديث...' : 'تحديث الآن'}
                 </span>
               </button>
             </div>
@@ -886,10 +867,6 @@ export default function DashboardPage() {
                         <div className="flex items-center space-x-3 space-x-reverse mb-3">
                           <span className="text-sm text-gray-600 dark:text-slate-400">
                             {product.categoryName}
-                          </span>
-                          <span className="text-gray-400 dark:text-slate-500">•</span>
-                          <span className="text-sm text-gray-600 dark:text-slate-400">
-                            {product.supplierName}
                           </span>
                         </div>
                         <div className="flex items-center space-x-4 space-x-reverse">

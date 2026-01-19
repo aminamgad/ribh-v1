@@ -298,8 +298,8 @@ export function OptimizedImage({
         className={className}
         priority={priority}
         loading={priority ? undefined : 'lazy'}
-        sizes={sizes}
-        quality={quality}
+        sizes={sizes || `(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw`}
+        quality={priority ? 85 : quality} // Higher quality for priority images
         placeholder={placeholder}
         blurDataURL={placeholder === 'blur' ? blurDataURL : undefined}
         unoptimized={shouldUnoptimize}

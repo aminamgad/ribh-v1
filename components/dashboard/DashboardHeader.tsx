@@ -6,22 +6,27 @@ import { useCart } from '@/components/providers/CartProvider';
 import { useNotifications } from '@/components/providers/NotificationProvider';
 import { useChat } from '@/components/providers/ChatProvider';
 import { useSettings } from '@/components/providers/SettingsProvider';
-import { Bell, ChevronDown, User, ShoppingCart, MessageSquare, Menu, Search } from 'lucide-react';
+import { useDataCache } from '@/components/providers/DataCacheProvider';
+import { Bell, ChevronDown, User, ShoppingCart, MessageSquare, Menu, Search, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import ThemeToggle from '@/components/ui/ThemeToggle';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { OptimizedImage } from '@/components/ui/LazyImage';
+import { toast } from 'react-hot-toast';
 
 export default function DashboardHeader() {
   const { user } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const { totalItems } = useCart();
   const { unreadCount } = useNotifications();
   const { totalUnread: totalUnreadChats } = useChat();
   const { settings } = useSettings();
+  const { refreshData, clearAllCache } = useDataCache();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Debug: طباعة قيمة العداد
   console.log('=== DASHBOARD HEADER DEBUG ===');
@@ -47,6 +52,58 @@ export default function DashboardHeader() {
     } else {
       // If empty, just go to products page
       router.push('/dashboard/products');
+    }
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      // Dispatch custom refresh event for current page
+      const eventName = `refresh-${pathname.replace('/dashboard/', '').replace(/\//g, '-') || 'dashboard'}`;
+      window.dispatchEvent(new CustomEvent(eventName));
+      
+      // Also dispatch general refresh events
+      window.dispatchEvent(new CustomEvent('refresh-dashboard'));
+      window.dispatchEvent(new CustomEvent('refresh-products'));
+      window.dispatchEvent(new CustomEvent('refresh-orders'));
+      
+      // Clear cache for current page pattern
+      const cacheKeyPattern = pathname.replace('/dashboard/', '').split('/')[0] || 'dashboard';
+      refreshData(`page_${pathname}`);
+      
+      // Refresh common cache keys
+      const commonKeys = [
+        'dashboard_stats',
+        'products',
+        'orders',
+        'users',
+        'analytics',
+        'categories',
+        'wallet',
+        'withdrawals',
+        'earnings',
+        'fulfillment',
+        'messages',
+        'notifications',
+        'favorites',
+        'villages',
+        'product_stats',
+        'integrations',
+        'cart',
+        'chat'
+      ];
+      
+      commonKeys.forEach(key => refreshData(key));
+      
+      // Force page reload to trigger data refresh
+      router.refresh();
+      
+      toast.success('جاري تحديث البيانات...', { duration: 2000 });
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+      toast.error('حدث خطأ أثناء تحديث البيانات');
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 1000);
     }
   };
 
@@ -125,6 +182,18 @@ export default function DashboardHeader() {
           <div className="flex items-center space-x-2 sm:space-x-3 space-x-reverse">
             {/* Theme Toggle */}
             <ThemeToggle />
+
+            {/* Refresh Button */}
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="relative p-2 sm:p-3 rounded-lg sm:rounded-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 shadow-lg hover:shadow-xl dark:hover:shadow-slate-900/30 transition-all duration-300 group hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="تحديث البيانات"
+            >
+              <RefreshCw 
+                className={`w-4 h-4 sm:w-5 sm:h-5 text-gray-600 dark:text-slate-300 group-hover:text-[#FF9800] dark:group-hover:text-[#FF9800] transition-colors duration-300 ${isRefreshing ? 'animate-spin' : ''}`} 
+              />
+            </button>
 
             {/* Cart Icon for Marketer/Wholesaler */}
             {(user?.role === 'marketer' || user?.role === 'wholesaler') && (

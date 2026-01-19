@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { useDataCache } from '@/components/hooks/useDataCache';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
@@ -92,12 +93,66 @@ export default function ProductStatsPage() {
   const searchParams = useSearchParams();
   const productId = searchParams.get('productId');
 
-  const [stats, setStats] = useState<ProductStats | null>(null);
-  const [loading, setLoading] = useState(false);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [customDateRange, setCustomDateRange] = useState(false);
   const [selectedRange, setSelectedRange] = useState('30d'); // Track selected range
+
+  // Generate cache key based on productId and date range
+  const cacheKey = useMemo(() => {
+    if (!productId) return '';
+    if (customDateRange && startDate && endDate) {
+      return `product_stats_${productId}_${startDate}_${endDate}`;
+    }
+    return `product_stats_${productId}_${selectedRange}`;
+  }, [productId, customDateRange, startDate, endDate, selectedRange]);
+
+  // Use cache hook for product stats
+  const { data: statsData, loading, refresh } = useDataCache<ProductStats>({
+    key: cacheKey,
+    fetchFn: async () => {
+      if (!productId) throw new Error('Product ID is required');
+      
+      let url = `/api/admin/product-stats?productId=${productId}`;
+      
+      if (customDateRange && startDate && endDate) {
+        url += `&startDate=${startDate}&endDate=${endDate}`;
+      } else if (startDate && endDate) {
+        url += `&startDate=${startDate}&endDate=${endDate}`;
+      }
+
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error('Failed to fetch product stats');
+      }
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.message || 'Failed to fetch product stats');
+      }
+
+      // Add fallback data for empty charts
+      return {
+        ...data,
+        ordersByStatus: data.ordersByStatus.length > 0 ? data.ordersByStatus : [
+          { status: 'pending', count: 0, quantity: 0, revenue: 0 },
+          { status: 'confirmed', count: 0, quantity: 0, revenue: 0 },
+          { status: 'processing', count: 0, quantity: 0, revenue: 0 },
+          { status: 'shipped', count: 0, quantity: 0, revenue: 0 },
+          { status: 'delivered', count: 0, quantity: 0, revenue: 0 }
+        ],
+        dailySales: data.dailySales.length > 0 ? data.dailySales : generateEmptyDailySales(startDate, endDate),
+        topCustomers: data.topCustomers.length > 0 ? data.topCustomers : []
+      };
+    },
+    enabled: !!productId && !!user && user.role === 'admin',
+    forceRefresh: false,
+    onError: (error) => {
+      toast.error(error.message || 'حدث خطأ أثناء جلب إحصائيات المنتج');
+    }
+  });
+
+  const stats = statsData || null;
 
   useEffect(() => {
     if (!productId) {
@@ -111,61 +166,25 @@ export default function ProductStatsPage() {
       router.push('/dashboard');
       return;
     }
+  }, [productId, user?.role, router]);
 
-    fetchProductStats();
-  }, [productId, user?.role, startDate, endDate, customDateRange]); // Added date range dependencies
+  // Listen for refresh events
+  useEffect(() => {
+    const handleRefresh = () => {
+      refresh();
+      // No toast here - header button already shows notification
+    };
 
+    window.addEventListener('refresh-product-stats', handleRefresh);
+    
+    return () => {
+      window.removeEventListener('refresh-product-stats', handleRefresh);
+    };
+  }, [refresh]);
+
+  // Keep fetchProductStats for backward compatibility
   const fetchProductStats = async () => {
-    if (!productId) return;
-
-    setLoading(true);
-    try {
-      let url = `/api/admin/product-stats?productId=${productId}`;
-      
-      if (customDateRange && startDate && endDate) {
-        url += `&startDate=${startDate}&endDate=${endDate}`;
-      } else if (startDate && endDate) {
-        // For predefined ranges, also pass the dates
-        url += `&startDate=${startDate}&endDate=${endDate}`;
-      }
-
-      console.log('🔍 Fetching stats with URL:', url);
-
-      const response = await fetch(url);
-      const data = await response.json();
-
-      if (data.success) {
-        // Add fallback data for empty charts
-        const statsWithFallbacks = {
-          ...data,
-          ordersByStatus: data.ordersByStatus.length > 0 ? data.ordersByStatus : [
-            { status: 'pending', count: 0, quantity: 0, revenue: 0 },
-            { status: 'confirmed', count: 0, quantity: 0, revenue: 0 },
-            { status: 'processing', count: 0, quantity: 0, revenue: 0 },
-            { status: 'shipped', count: 0, quantity: 0, revenue: 0 },
-            { status: 'delivered', count: 0, quantity: 0, revenue: 0 }
-          ],
-          dailySales: data.dailySales.length > 0 ? data.dailySales : generateEmptyDailySales(startDate, endDate),
-          topCustomers: data.topCustomers.length > 0 ? data.topCustomers : []
-        };
-        
-        console.log('📦 Product data received:', {
-          productName: data.product.name,
-          productImages: data.product.images,
-          imageCount: data.product.images?.length || 0,
-          firstImage: data.product.images?.[0]
-        });
-        
-        setStats(statsWithFallbacks);
-      } else {
-        toast.error(data.message || 'حدث خطأ أثناء جلب إحصائيات المنتج');
-      }
-    } catch (error) {
-      console.error('Error fetching product stats:', error);
-      toast.error('حدث خطأ أثناء جلب إحصائيات المنتج');
-    } finally {
-      setLoading(false);
-    }
+    refresh();
   };
 
   const generateEmptyDailySales = (start: string, end: string) => {

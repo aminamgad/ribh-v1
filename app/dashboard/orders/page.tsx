@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { useDataCache } from '@/components/hooks/useDataCache';
 import { Search, Plus, Eye, CheckCircle, Truck, Package, Clock, DollarSign, Edit, X, RotateCcw, Download, Upload, Phone, Mail, MessageCircle, Printer } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -90,9 +91,13 @@ export default function OrdersPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searching, setSearching] = useState(false); // Loading state for search
+  // Generate cache key based on query string
+  // Convert searchParams to string once and memoize it
+  const queryString = useMemo(() => searchParams.toString(), [searchParams]);
+  const cacheKey = useMemo(() => {
+    return `orders_${queryString || 'default'}`;
+  }, [queryString]);
+  
   const [updatingOrder, setUpdatingOrder] = useState<string | null>(null);
 
   // Export/Import modal states
@@ -185,39 +190,42 @@ export default function OrdersPage() {
     }
   };
 
-  // Fetch orders when searchParams change (triggered by OrdersFilters)
-  useEffect(() => {
-    fetchOrders();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
-
-  const fetchOrders = async () => {
-    try {
-      // Show initial loading only on first load
-      if (orders.length === 0) {
-        setLoading(true);
-      } else {
-        // Show searching indicator when filtering/searching
-        setSearching(true);
-      }
-      
-      // Build query params from URL searchParams (the OrdersFilters component updates the URL)
+  // Use cache hook for orders
+  const { data: ordersData, loading, refresh } = useDataCache<{ orders: Order[] }>({
+    key: cacheKey,
+    fetchFn: async () => {
       const queryString = searchParams.toString();
-      
       const response = await fetch(`/api/orders?${queryString}`);
-      if (response.ok) {
-        const data = await response.json();
-        setOrders(data.orders || []);
-      } else {
-        toast.error('حدث خطأ أثناء جلب الطلبات');
+      if (!response.ok) {
+        throw new Error('Failed to fetch orders');
       }
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-      toast.error('حدث خطأ أثناء جلب الطلبات');
-    } finally {
-      setLoading(false);
-      setSearching(false);
-    }
+      const data = await response.json();
+      return data;
+    },
+    enabled: !!user,
+    forceRefresh: false
+  });
+
+  const orders = ordersData?.orders || [];
+  const searching = loading && orders.length > 0;
+
+  // Listen for refresh events from header button
+  useEffect(() => {
+    const handleRefresh = () => {
+      refresh();
+      // No toast here - header button already shows notification
+    };
+
+    window.addEventListener('refresh-orders', handleRefresh);
+    
+    return () => {
+      window.removeEventListener('refresh-orders', handleRefresh);
+    };
+  }, [refresh]);
+
+  // Keep fetchOrders for backward compatibility
+  const fetchOrders = async () => {
+    refresh();
   };
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
