@@ -486,11 +486,13 @@ async function getOrdersHandler(req: NextRequest, user: any) {
       }
     }
     
-    // Build search conditions array
-    const searchConditions: any[] = [];
+    // CRITICAL FIX: Build search conditions with AND logic between different search types
+    // Each search type (customerSearch, orderNumberSearch) must match independently (AND logic)
+    // Within each search type, multiple fields can match (OR logic)
     
-    // Legacy search (backward compatibility)
+    // Legacy search (backward compatibility) - uses OR logic within itself
     if (search && search.trim()) {
+      const searchConditions: any[] = [];
       const searchRegex = { $regex: search.trim(), $options: 'i' };
       searchConditions.push(
         { orderNumber: searchRegex },
@@ -508,32 +510,49 @@ async function getOrdersHandler(req: NextRequest, user: any) {
       if (!isNaN(Number(search.trim()))) {
         searchConditions.push({ orderNumber: search.trim() });
       }
+      
+      // Add legacy search with OR logic
+      query.$and = query.$and || [];
+      query.$and.push({ $or: searchConditions });
+      
+      logger.debug('Legacy search applied', { search, searchConditionsCount: searchConditions.length });
     }
     
-    // Customer search (name/phone)
+    // Customer search (name/phone) - separate AND condition
+    // CRITICAL FIX: This must work with AND logic alongside orderNumberSearch
     if (customerSearch && customerSearch.trim()) {
       const customerRegex = { $regex: customerSearch.trim(), $options: 'i' };
-      searchConditions.push(
+      const customerConditions = [
         { 'shippingAddress.fullName': customerRegex },
         { 'shippingAddress.phone': customerRegex }
-      );
+      ];
+      
+      query.$and = query.$and || [];
+      query.$and.push({ $or: customerConditions });
+      
+      logger.debug('Customer search applied', { customerSearch, customerConditionsCount: customerConditions.length });
     }
     
-    // Order number search
+    // Order number search - separate AND condition
+    // CRITICAL FIX: This must work with AND logic alongside customerSearch
     if (orderNumberSearch && orderNumberSearch.trim()) {
+      const orderNumberConditions: any[] = [];
       const orderRegex = { $regex: orderNumberSearch.trim(), $options: 'i' };
-      searchConditions.push({ orderNumber: orderRegex });
+      orderNumberConditions.push({ orderNumber: orderRegex });
       
       // If it's a number, also search exactly
       if (!isNaN(Number(orderNumberSearch.trim()))) {
-        searchConditions.push({ orderNumber: orderNumberSearch.trim() });
+        orderNumberConditions.push({ orderNumber: orderNumberSearch.trim() });
       }
-    }
-    
-    // Combine search conditions
-    if (searchConditions.length > 0) {
+      
       query.$and = query.$and || [];
-      query.$and.push({ $or: searchConditions });
+      query.$and.push({ $or: orderNumberConditions });
+      
+      logger.debug('Order number search applied', { 
+        orderNumberSearch, 
+        orderNumberConditionsCount: orderNumberConditions.length,
+        isNumber: !isNaN(Number(orderNumberSearch.trim()))
+      });
     }
     
     // Get orders with pagination

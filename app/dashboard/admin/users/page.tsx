@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback, memo } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useDataCache } from '@/components/hooks/useDataCache';
@@ -36,6 +36,37 @@ const roleColors = {
   marketer: 'bg-green-100 text-green-800',
   wholesaler: 'bg-purple-100 text-purple-800'
 };
+
+// Memoized Stats Card Component to prevent unnecessary re-renders
+const StatsCard = memo(({ 
+  icon: Icon, 
+  label, 
+  value, 
+  iconBg, 
+  iconColor 
+}: { 
+  icon: any; 
+  label: string; 
+  value: number; 
+  iconBg: string; 
+  iconColor: string; 
+}) => {
+  return (
+    <div className="card">
+      <div className="flex items-center">
+        <div className={`${iconBg} p-2 rounded-lg`}>
+          <Icon className={`w-5 h-5 ${iconColor}`} />
+        </div>
+        <div className="mr-3">
+          <p className="text-sm text-gray-600">{label}</p>
+          <p className="text-xl font-bold text-gray-900">{value}</p>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+StatsCard.displayName = 'StatsCard';
 
 export default function AdminUsersPage() {
   const { user } = useAuth();
@@ -399,7 +430,9 @@ export default function AdminUsersPage() {
   // Filtering is now done on server side
   const filteredUsers = users;
 
-  const getStats = () => {
+  // CRITICAL FIX: Use useMemo for stats to prevent recalculation on every render
+  // Only recalculate when users array changes
+  const stats = useMemo(() => {
     const total = users.length;
     const active = users.filter(u => u.isActive).length;
     const verified = users.filter(u => u.isVerified).length;
@@ -408,7 +441,7 @@ export default function AdminUsersPage() {
     const wholesalers = users.filter(u => u.role === 'wholesaler').length;
 
     return { total, active, verified, suppliers, marketers, wholesalers };
-  };
+  }, [users]);
 
   if (user?.role !== 'admin') {
     return (
@@ -422,15 +455,17 @@ export default function AdminUsersPage() {
     );
   }
 
-  if (loading) {
+  // CRITICAL FIX: Only show full-page loading on initial load (when no data exists)
+  // After initial load, show loading indicator only for the table section
+  const isInitialLoad = loading && !usersData;
+
+  if (isInitialLoad) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="loading-spinner w-8 h-8"></div>
       </div>
     );
   }
-
-  const stats = getStats();
 
   return (
     <div className="space-y-6">
@@ -449,79 +484,50 @@ export default function AdminUsersPage() {
         </Link>
       </div>
 
-      {/* Stats */}
+      {/* Stats - Using memoized components to prevent unnecessary re-renders */}
       <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-        <div className="card">
-          <div className="flex items-center">
-            <div className="bg-primary-100 p-2 rounded-lg">
-              <Shield className="w-5 h-5 text-primary-600" />
-            </div>
-            <div className="mr-3">
-              <p className="text-sm text-gray-600">إجمالي المستخدمين</p>
-              <p className="text-xl font-bold text-gray-900">{stats.total}</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="card">
-          <div className="flex items-center">
-            <div className="bg-success-100 p-2 rounded-lg">
-              <UserCheck className="w-5 h-5 text-success-600" />
-            </div>
-            <div className="mr-3">
-              <p className="text-sm text-gray-600">نشط</p>
-              <p className="text-xl font-bold text-gray-900">{stats.active}</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="card">
-          <div className="flex items-center">
-            <div className="bg-warning-100 p-2 rounded-lg">
-              <Shield className="w-5 h-5 text-warning-600" />
-            </div>
-            <div className="mr-3">
-              <p className="text-sm text-gray-600">محقق</p>
-              <p className="text-xl font-bold text-gray-900">{stats.verified}</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="card">
-          <div className="flex items-center">
-            <div className="bg-blue-100 p-2 rounded-lg">
-              <Shield className="w-5 h-5 text-blue-600" />
-            </div>
-            <div className="mr-3">
-              <p className="text-sm text-gray-600">الموردين</p>
-              <p className="text-xl font-bold text-gray-900">{stats.suppliers}</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="card">
-          <div className="flex items-center">
-            <div className="bg-green-100 p-2 rounded-lg">
-              <Shield className="w-5 h-5 text-green-600" />
-            </div>
-            <div className="mr-3">
-              <p className="text-sm text-gray-600">المسوقين</p>
-              <p className="text-xl font-bold text-gray-900">{stats.marketers}</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="card">
-          <div className="flex items-center">
-            <div className="bg-purple-100 p-2 rounded-lg">
-              <Shield className="w-5 h-5 text-purple-600" />
-            </div>
-            <div className="mr-3">
-              <p className="text-sm text-gray-600">تجار الجملة</p>
-              <p className="text-xl font-bold text-gray-900">{stats.wholesalers}</p>
-            </div>
-          </div>
-        </div>
+        <StatsCard
+          icon={Shield}
+          label="إجمالي المستخدمين"
+          value={stats.total}
+          iconBg="bg-primary-100"
+          iconColor="text-primary-600"
+        />
+        <StatsCard
+          icon={UserCheck}
+          label="نشط"
+          value={stats.active}
+          iconBg="bg-success-100"
+          iconColor="text-success-600"
+        />
+        <StatsCard
+          icon={Shield}
+          label="محقق"
+          value={stats.verified}
+          iconBg="bg-warning-100"
+          iconColor="text-warning-600"
+        />
+        <StatsCard
+          icon={Shield}
+          label="الموردين"
+          value={stats.suppliers}
+          iconBg="bg-blue-100"
+          iconColor="text-blue-600"
+        />
+        <StatsCard
+          icon={Shield}
+          label="المسوقين"
+          value={stats.marketers}
+          iconBg="bg-green-100"
+          iconColor="text-green-600"
+        />
+        <StatsCard
+          icon={Shield}
+          label="تجار الجملة"
+          value={stats.wholesalers}
+          iconBg="bg-purple-100"
+          iconColor="text-purple-600"
+        />
       </div>
 
       {/* Filters */}
@@ -597,7 +603,15 @@ export default function AdminUsersPage() {
       </div>
 
       {/* Users Table */}
-      {filteredUsers.length === 0 ? (
+      {/* CRITICAL FIX: Show loading indicator only for table section, not entire page */}
+      {loading && usersData && (
+        <div className="mb-4 flex items-center justify-center py-4">
+          <div className="loading-spinner w-6 h-6"></div>
+          <span className="mr-2 text-sm text-gray-600">جاري تحديث البيانات...</span>
+        </div>
+      )}
+      
+      {filteredUsers.length === 0 && !loading ? (
         <div className="card text-center py-12">
           <Shield className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">لا توجد مستخدمين</h3>

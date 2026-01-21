@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo, memo } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useDataCache } from '@/components/hooks/useDataCache';
 import { Search, Filter, Eye, Edit, Shield, UserCheck, UserX, Mail, Phone, User } from 'lucide-react';
@@ -32,10 +32,41 @@ const roleLabels = {
 
 const roleColors = {
   admin: 'bg-red-100 text-red-800',
-      supplier: 'bg-[#4CAF50]/20 text-[#4CAF50]',
+  supplier: 'bg-[#4CAF50]/20 text-[#4CAF50]',
   marketer: 'bg-green-100 text-green-800',
   wholesaler: 'bg-purple-100 text-purple-800'
 };
+
+// Memoized Stats Card Component to prevent unnecessary re-renders
+const StatsCard = memo(({ 
+  icon: Icon, 
+  label, 
+  value, 
+  iconBg, 
+  iconColor 
+}: { 
+  icon: any; 
+  label: string; 
+  value: number; 
+  iconBg: string; 
+  iconColor: string; 
+}) => {
+  return (
+    <div className="card p-3 sm:p-4">
+      <div className="flex items-center">
+        <div className={`${iconBg} p-1.5 sm:p-2 rounded-lg flex-shrink-0`}>
+          <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${iconColor}`} />
+        </div>
+        <div className="mr-2 sm:mr-3 min-w-0">
+          <p className="text-[10px] sm:text-xs md:text-sm text-gray-600 dark:text-slate-300 truncate">{label}</p>
+          <p className="text-base sm:text-lg md:text-xl font-bold text-gray-900 dark:text-slate-100">{value}</p>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+StatsCard.displayName = 'StatsCard';
 
 export default function AdminUsersPage() {
   const { user } = useAuth();
@@ -395,28 +426,45 @@ export default function AdminUsersPage() {
     }
   };
 
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.phone.includes(searchTerm);
-    const matchesRole = filterRole === 'all' || user.role === filterRole;
-    const matchesStatus = filterStatus === 'all' || 
-                         (filterStatus === 'active' && user.isActive) ||
-                         (filterStatus === 'inactive' && !user.isActive);
-    
-    return matchesSearch && matchesRole && matchesStatus;
-  });
+  // CRITICAL FIX: Use useMemo for filteredUsers to prevent unnecessary recalculations
+  // Only recalculate when users, searchTerm, filterRole, or filterStatus changes
+  // Note: Since filtering is done server-side via API, this is mainly for fallback
+  // But we keep it memoized to avoid unnecessary renders
+  const filteredUsers = useMemo(() => {
+    // If API filtering is working correctly, users should already be filtered
+    // This client-side filtering is just a fallback
+    return users.filter(user => {
+      const matchesSearch = !searchTerm || 
+        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.phone.includes(searchTerm);
+      const matchesRole = filterRole === 'all' || user.role === filterRole;
+      const matchesStatus = filterStatus === 'all' || 
+        (filterStatus === 'active' && user.isActive) ||
+        (filterStatus === 'inactive' && !user.isActive);
+      
+      return matchesSearch && matchesRole && matchesStatus;
+    });
+  }, [users, searchTerm, filterRole, filterStatus]);
 
-  const getStats = () => {
-    const total = users.length;
-    const active = users.filter(u => u.isActive).length;
-    const verified = users.filter(u => u.isVerified).length;
-    const suppliers = users.filter(u => u.role === 'supplier').length;
-    const marketers = users.filter(u => u.role === 'marketer').length;
-    const wholesalers = users.filter(u => u.role === 'wholesaler').length;
+  // CRITICAL FIX: Only show full-page loading on initial load (when no data exists)
+  // After initial load, show loading indicator only for the table section
+  const isInitialLoad = loading && !usersData;
+
+  // CRITICAL FIX: Use useMemo for stats to prevent recalculation on every render
+  // Only recalculate when users array changes
+  // Calculate stats even during loading (using previous data or empty array)
+  const stats = useMemo(() => {
+    const usersForStats = users.length > 0 ? users : [];
+    const total = usersForStats.length;
+    const active = usersForStats.filter(u => u.isActive).length;
+    const verified = usersForStats.filter(u => u.isVerified).length;
+    const suppliers = usersForStats.filter(u => u.role === 'supplier').length;
+    const marketers = usersForStats.filter(u => u.role === 'marketer').length;
+    const wholesalers = usersForStats.filter(u => u.role === 'wholesaler').length;
 
     return { total, active, verified, suppliers, marketers, wholesalers };
-  };
+  }, [users]);
 
   if (user?.role !== 'admin') {
     return (
@@ -430,15 +478,13 @@ export default function AdminUsersPage() {
     );
   }
 
-  if (loading) {
+  if (isInitialLoad) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="loading-spinner w-8 h-8"></div>
       </div>
     );
   }
-
-  const stats = getStats();
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -458,79 +504,50 @@ export default function AdminUsersPage() {
         </Link>
       </div>
 
-      {/* Stats */}
+      {/* Stats - Using memoized components to prevent unnecessary re-renders */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3 md:gap-4">
-        <div className="card p-3 sm:p-4">
-          <div className="flex items-center">
-            <div className="bg-primary-100 dark:bg-primary-900/30 p-1.5 sm:p-2 rounded-lg flex-shrink-0">
-              <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-primary-600 dark:text-primary-400" />
-            </div>
-            <div className="mr-2 sm:mr-3 min-w-0">
-              <p className="text-[10px] sm:text-xs md:text-sm text-gray-600 dark:text-slate-300 truncate">إجمالي المستخدمين</p>
-              <p className="text-base sm:text-lg md:text-xl font-bold text-gray-900 dark:text-slate-100">{stats.total}</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="card p-3 sm:p-4">
-          <div className="flex items-center">
-            <div className="bg-success-100 dark:bg-success-900/30 p-1.5 sm:p-2 rounded-lg flex-shrink-0">
-              <UserCheck className="w-4 h-4 sm:w-5 sm:h-5 text-success-600 dark:text-success-400" />
-            </div>
-            <div className="mr-2 sm:mr-3 min-w-0">
-              <p className="text-[10px] sm:text-xs md:text-sm text-gray-600 dark:text-slate-300 truncate">نشط</p>
-              <p className="text-base sm:text-lg md:text-xl font-bold text-gray-900 dark:text-slate-100">{stats.active}</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="card p-3 sm:p-4">
-          <div className="flex items-center">
-            <div className="bg-warning-100 dark:bg-warning-900/30 p-1.5 sm:p-2 rounded-lg flex-shrink-0">
-              <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-warning-600 dark:text-warning-400" />
-            </div>
-            <div className="mr-2 sm:mr-3 min-w-0">
-              <p className="text-[10px] sm:text-xs md:text-sm text-gray-600 dark:text-slate-300 truncate">محقق</p>
-              <p className="text-base sm:text-lg md:text-xl font-bold text-gray-900 dark:text-slate-100">{stats.verified}</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="card p-3 sm:p-4">
-          <div className="flex items-center">
-            <div className="bg-[#FF9800]/20 dark:bg-[#FF9800]/30 p-1.5 sm:p-2 rounded-lg flex-shrink-0">
-              <User className="w-4 h-4 sm:w-5 sm:h-5 text-[#FF9800] dark:text-[#FF9800]" />
-            </div>
-            <div className="mr-2 sm:mr-3 min-w-0">
-              <p className="text-[10px] sm:text-xs md:text-sm text-gray-600 dark:text-slate-300 truncate">الموردين</p>
-              <p className="text-base sm:text-lg md:text-xl font-bold text-gray-900 dark:text-slate-100">{stats.suppliers}</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="card p-3 sm:p-4">
-          <div className="flex items-center">
-            <div className="bg-green-100 dark:bg-green-900/30 p-1.5 sm:p-2 rounded-lg flex-shrink-0">
-              <User className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 dark:text-green-400" />
-            </div>
-            <div className="mr-2 sm:mr-3 min-w-0">
-              <p className="text-[10px] sm:text-xs md:text-sm text-gray-600 dark:text-slate-300 truncate">المسوقين</p>
-              <p className="text-base sm:text-lg md:text-xl font-bold text-gray-900 dark:text-slate-100">{stats.marketers}</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="card p-3 sm:p-4">
-          <div className="flex items-center">
-            <div className="bg-purple-100 dark:bg-purple-900/30 p-1.5 sm:p-2 rounded-lg flex-shrink-0">
-              <User className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600 dark:text-purple-400" />
-            </div>
-            <div className="mr-2 sm:mr-3 min-w-0">
-              <p className="text-[10px] sm:text-xs md:text-sm text-gray-600 dark:text-slate-300 truncate">الجملة</p>
-              <p className="text-base sm:text-lg md:text-xl font-bold text-gray-900 dark:text-slate-100">{stats.wholesalers}</p>
-            </div>
-          </div>
-        </div>
+        <StatsCard
+          icon={Shield}
+          label="إجمالي المستخدمين"
+          value={stats.total}
+          iconBg="bg-primary-100 dark:bg-primary-900/30"
+          iconColor="text-primary-600 dark:text-primary-400"
+        />
+        <StatsCard
+          icon={UserCheck}
+          label="نشط"
+          value={stats.active}
+          iconBg="bg-success-100 dark:bg-success-900/30"
+          iconColor="text-success-600 dark:text-success-400"
+        />
+        <StatsCard
+          icon={Shield}
+          label="محقق"
+          value={stats.verified}
+          iconBg="bg-warning-100 dark:bg-warning-900/30"
+          iconColor="text-warning-600 dark:text-warning-400"
+        />
+        <StatsCard
+          icon={User}
+          label="الموردين"
+          value={stats.suppliers}
+          iconBg="bg-[#FF9800]/20 dark:bg-[#FF9800]/30"
+          iconColor="text-[#FF9800] dark:text-[#FF9800]"
+        />
+        <StatsCard
+          icon={User}
+          label="المسوقين"
+          value={stats.marketers}
+          iconBg="bg-green-100 dark:bg-green-900/30"
+          iconColor="text-green-600 dark:text-green-400"
+        />
+        <StatsCard
+          icon={User}
+          label="الجملة"
+          value={stats.wholesalers}
+          iconBg="bg-purple-100 dark:bg-purple-900/30"
+          iconColor="text-purple-600 dark:text-purple-400"
+        />
       </div>
 
       {/* Filters */}
@@ -606,7 +623,15 @@ export default function AdminUsersPage() {
       </div>
 
       {/* Users Table/Cards */}
-      {filteredUsers.length === 0 ? (
+      {/* CRITICAL FIX: Show loading indicator only for table section, not entire page */}
+      {loading && usersData && (
+        <div className="mb-4 flex items-center justify-center py-4">
+          <div className="loading-spinner w-6 h-6"></div>
+          <span className="mr-2 text-sm text-gray-600 dark:text-slate-400">جاري تحديث البيانات...</span>
+        </div>
+      )}
+      
+      {filteredUsers.length === 0 && !loading ? (
         <div className="card text-center py-8 sm:py-12">
           <Shield className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400 dark:text-slate-500 mx-auto mb-3 sm:mb-4" />
           <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-slate-100 mb-2">لا توجد مستخدمين</h3>
@@ -726,6 +751,15 @@ export default function AdminUsersPage() {
 
           {/* Mobile Cards */}
           <div className="lg:hidden space-y-3">
+            {/* Show loading overlay for mobile cards when loading */}
+            {loading && usersData && (
+              <div className="absolute inset-0 bg-white/50 dark:bg-slate-800/50 flex items-center justify-center z-10 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <div className="loading-spinner w-5 h-5"></div>
+                  <span className="text-sm text-gray-600 dark:text-slate-400">جاري التحديث...</span>
+                </div>
+              </div>
+            )}
             {filteredUsers.map((userItem) => (
               <div
                 key={userItem._id}

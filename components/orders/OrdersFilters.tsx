@@ -23,11 +23,26 @@ export default function OrdersFilters({ onFiltersChange }: OrdersFiltersProps) {
   const [startDate, setStartDate] = useState(() => searchParams.get('startDate') || '');
   const [endDate, setEndDate] = useState(() => searchParams.get('endDate') || '');
   
-  // Refs to store current date values for immediate access in onChange handlers
+  // Refs to store current filter values for immediate access in onChange handlers
+  const customerSearchRef = useRef(customerSearch);
+  const orderNumberSearchRef = useRef(orderNumberSearch);
+  const productSearchRef = useRef(productSearch);
   const startDateRef = useRef(startDate);
   const endDateRef = useRef(endDate);
   
   // Update refs when state changes
+  useEffect(() => {
+    customerSearchRef.current = customerSearch;
+  }, [customerSearch]);
+  
+  useEffect(() => {
+    orderNumberSearchRef.current = orderNumberSearch;
+  }, [orderNumberSearch]);
+  
+  useEffect(() => {
+    productSearchRef.current = productSearch;
+  }, [productSearch]);
+  
   useEffect(() => {
     startDateRef.current = startDate;
   }, [startDate]);
@@ -107,10 +122,11 @@ export default function OrdersFilters({ onFiltersChange }: OrdersFiltersProps) {
     
     const params = new URLSearchParams();
 
-    // Search filters - use override values if provided, otherwise use state values
-    const currentCustomerSearch = overrideCustomerSearch !== undefined ? overrideCustomerSearch : customerSearch;
-    const currentOrderNumberSearch = overrideOrderNumberSearch !== undefined ? overrideOrderNumberSearch : orderNumberSearch;
-    const currentProductSearch = overrideProductSearch !== undefined ? overrideProductSearch : productSearch;
+    // Search filters - use override values if provided, otherwise use ref values for immediate access
+    // CRITICAL FIX: Use refs to get current values immediately without waiting for state update
+    const currentCustomerSearch = overrideCustomerSearch !== undefined ? overrideCustomerSearch : customerSearchRef.current;
+    const currentOrderNumberSearch = overrideOrderNumberSearch !== undefined ? overrideOrderNumberSearch : orderNumberSearchRef.current;
+    const currentProductSearch = overrideProductSearch !== undefined ? overrideProductSearch : productSearchRef.current;
     
     if (currentCustomerSearch.trim()) {
       params.set('customerSearch', currentCustomerSearch.trim());
@@ -319,7 +335,7 @@ export default function OrdersFilters({ onFiltersChange }: OrdersFiltersProps) {
                 onChange={(e) => {
                   const newValue = e.target.value;
                   setCustomerSearch(newValue);
-                  // Update ref immediately
+                  customerSearchRef.current = newValue; // Update ref immediately
                   // Apply immediately with the new value directly
                   if (!isInitialMount.current) {
                     applyFiltersAuto(newValue, undefined, undefined);
@@ -344,6 +360,7 @@ export default function OrdersFilters({ onFiltersChange }: OrdersFiltersProps) {
                 onChange={(e) => {
                   const newValue = e.target.value;
                   setOrderNumberSearch(newValue);
+                  orderNumberSearchRef.current = newValue; // Update ref immediately
                   // Apply immediately with the new value directly
                   if (!isInitialMount.current) {
                     applyFiltersAuto(undefined, newValue, undefined);
@@ -368,6 +385,7 @@ export default function OrdersFilters({ onFiltersChange }: OrdersFiltersProps) {
                 onChange={(e) => {
                   const newValue = e.target.value;
                   setProductSearch(newValue);
+                  productSearchRef.current = newValue; // Update ref immediately
                   // Apply immediately with the new value directly
                   if (!isInitialMount.current) {
                     applyFiltersAuto(undefined, undefined, newValue);
