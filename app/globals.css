@@ -311,6 +311,66 @@ body::after {
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;
   }
+  
+  .line-clamp-4 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 4;
+  }
+  
+  .line-clamp-5 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 5;
+  }
+  
+  /* Enhanced text truncation for long text */
+  .text-truncate-mobile {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  @media (min-width: 640px) {
+    .text-truncate-mobile {
+      white-space: normal;
+    }
+  }
+  
+  /* Text wrapping for long Arabic text */
+  .text-wrap-long {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    hyphens: auto;
+  }
+  
+  /* Responsive text sizing for long descriptions */
+  .text-responsive-long {
+    font-size: 0.875rem; /* 14px */
+    line-height: 1.5;
+  }
+  
+  @media (min-width: 640px) {
+    .text-responsive-long {
+      font-size: 1rem; /* 16px */
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    .text-responsive-long {
+      font-size: 1.125rem; /* 18px */
+    }
+  }
+  
+  /* Multi-line text with proper spacing */
+  .text-multiline {
+    white-space: pre-line;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
 
   /* Mobile-safe area support */
   .safe-area-top {
@@ -439,12 +499,18 @@ body::after {
 
   /* Mobile-optimized Card, Table, and Input Enhancements */
   .card {
-    @apply bg-white/80 dark:bg-slate-800/95 dark:text-slate-100 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/50 dark:border-slate-700/70 p-4 transition-all duration-300 hover:shadow-xl dark:hover:shadow-slate-900/30;
+    @apply bg-white/80 dark:bg-slate-800/95 dark:text-slate-100 backdrop-blur-sm rounded-lg sm:rounded-xl shadow-lg border border-gray-200/50 dark:border-slate-700/70 p-3 sm:p-4 md:p-6 transition-all duration-300 hover:shadow-xl dark:hover:shadow-slate-900/30;
   }
   
   @media (min-width: 640px) {
     .card {
-      @apply rounded-2xl p-6 hover:scale-[1.02];
+      @apply rounded-xl hover:scale-[1.02];
+    }
+  }
+  
+  @media (min-width: 768px) {
+    .card {
+      @apply rounded-2xl;
     }
   }
 
@@ -463,7 +529,7 @@ body::after {
   }
 
   .input-field {
-    @apply block w-full px-3 py-2.5 text-sm rounded-lg border-2 border-gray-200 dark:border-slate-600 bg-white/80 dark:bg-slate-800/95 backdrop-blur-sm text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:border-gray-300 dark:hover:border-slate-400 shadow-md dark:shadow-slate-900/20;
+    @apply block w-full px-3 py-2.5 text-sm rounded-lg border-2 border-gray-200 dark:border-slate-600 bg-white/80 dark:bg-slate-800/95 backdrop-blur-sm text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:border-gray-300 dark:hover:border-slate-400 shadow-md dark:shadow-slate-900/20 min-h-[44px];
   }
   
   @media (min-width: 640px) {
@@ -626,7 +692,7 @@ body::after {
   }
   
   .btn-success {
-    @apply inline-flex items-center justify-center px-4 py-2.5 text-sm font-semibold rounded-lg shadow-md text-white bg-gradient-to-r from-emerald-600 via-emerald-700 to-green-700 hover:from-emerald-700 hover:via-emerald-800 hover:to-green-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800 transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-emerald-500/25 dark:shadow-emerald-500/20;
+    @apply inline-flex items-center justify-center px-3 py-2.5 text-xs sm:text-sm font-semibold rounded-lg shadow-md text-white bg-gradient-to-r from-emerald-600 via-emerald-700 to-green-700 hover:from-emerald-700 hover:via-emerald-800 hover:to-green-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800 transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-emerald-500/25 dark:shadow-emerald-500/20 min-h-[44px];
   }
   
   @media (min-width: 640px) {
@@ -636,7 +702,7 @@ body::after {
   }
   
   .btn-danger {
-    @apply inline-flex items-center justify-center px-4 py-2.5 text-sm font-semibold rounded-lg shadow-md text-white bg-gradient-to-r from-red-600 via-red-700 to-pink-700 hover:from-red-700 hover:via-red-800 hover:to-pink-800 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800 transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-red-500/25 dark:shadow-red-500/20;
+    @apply inline-flex items-center justify-center px-3 py-2.5 text-xs sm:text-sm font-semibold rounded-lg shadow-md text-white bg-gradient-to-r from-red-600 via-red-700 to-pink-700 hover:from-red-700 hover:via-red-800 hover:to-pink-800 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800 transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-red-500/25 dark:shadow-red-500/20 min-h-[44px];
   }
   
   @media (min-width: 640px) {
@@ -692,7 +758,7 @@ body::after {
   
   /* Enhanced Mobile-First Input System */
   .input-field {
-    @apply block w-full px-3 py-2.5 text-sm rounded-lg border-2 border-gray-200 dark:border-slate-600 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#FF9800] focus:border-transparent transition-all duration-300 hover:border-gray-300 dark:hover:border-slate-500 shadow-md dark:shadow-slate-900/20;
+    @apply block w-full px-3 py-2.5 text-sm rounded-lg border-2 border-gray-200 dark:border-slate-600 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#FF9800] focus:border-transparent transition-all duration-300 hover:border-gray-300 dark:hover:border-slate-500 shadow-md dark:shadow-slate-900/20 min-h-[44px];
   }
   
   @media (min-width: 640px) {
@@ -835,7 +901,7 @@ body::after {
   
   /* Enhanced Mobile-First Sidebar System */
   .sidebar-link {
-    @apply flex items-center px-3 py-2.5 text-sm font-medium text-gray-600 dark:text-slate-300 rounded-lg hover:bg-gray-100/50 dark:hover:bg-slate-700/50 hover:text-gray-900 dark:hover:text-slate-100 transition-all duration-300 shadow-md dark:shadow-slate-900/20;
+    @apply flex items-center px-2.5 py-2 sm:px-3 sm:py-2.5 text-xs sm:text-sm font-medium text-gray-600 dark:text-slate-300 rounded-lg hover:bg-gray-100/50 dark:hover:bg-slate-700/50 hover:text-gray-900 dark:hover:text-slate-100 transition-all duration-300 shadow-md dark:shadow-slate-900/20 min-h-[44px];
   }
 
   .sidebar-link:hover .sidebar-icon {
@@ -875,7 +941,8 @@ body::after {
 
   /* Mobile Navigation Components */
   .mobile-nav {
-    @apply fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg border-t border-gray-200 dark:border-slate-700 safe-area-bottom;
+    @apply fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg border-t border-gray-200 dark:border-slate-700;
+    padding-bottom: max(env(safe-area-inset-bottom), 0px);
   }
   
   .mobile-nav-item {
@@ -892,7 +959,8 @@ body::after {
   
   /* Mobile Header */
   .mobile-header {
-    @apply sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg border-b border-gray-200 dark:border-slate-700 safe-area-top;
+    @apply sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg border-b border-gray-200 dark:border-slate-700;
+    padding-top: max(env(safe-area-inset-top), 0px);
   }
   
   /* Mobile Drawer */
@@ -918,7 +986,7 @@ body::after {
   }
   
   .mobile-table-card {
-    @apply block w-full bg-white dark:bg-slate-800 rounded-lg shadow-md border border-gray-200 dark:border-slate-700 p-4 mb-3;
+    @apply block w-full bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl shadow-md border border-gray-200 dark:border-slate-700 p-3 sm:p-4 mb-2 sm:mb-3 transition-all duration-200;
   }
   
   /* Mobile Grid */
@@ -1247,6 +1315,65 @@ body::after {
       @apply w-8 h-8;
     }
   }
+
+  /* Skeleton Loading States */
+  .skeleton {
+    @apply animate-pulse bg-gray-200 dark:bg-slate-700 rounded;
+  }
+
+  .skeleton-text {
+    @apply skeleton h-4 w-full mb-2;
+  }
+
+  .skeleton-text-sm {
+    @apply skeleton h-3 w-3/4 mb-1;
+  }
+
+  .skeleton-title {
+    @apply skeleton h-6 w-2/3 mb-3;
+  }
+
+  .skeleton-avatar {
+    @apply skeleton rounded-full w-10 h-10;
+  }
+
+  .skeleton-image {
+    @apply skeleton w-full h-48 rounded-lg;
+  }
+
+  .skeleton-card {
+    @apply skeleton rounded-lg p-4 space-y-3;
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -1000px 0;
+    }
+    100% {
+      background-position: 1000px 0;
+    }
+  }
+
+  .skeleton-shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.2) 50%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    background-size: 1000px 100%;
+    animation: shimmer 2s infinite;
+  }
+
+  .dark .skeleton-shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.1) 50%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    background-size: 1000px 100%;
+  }
   
   /* Mobile touch targets */
   .touch-target {
@@ -1255,7 +1382,10 @@ body::after {
   
   /* Mobile safe areas */
   .safe-area-inset {
-    @apply safe-area-top safe-area-bottom safe-area-left safe-area-right;
+    padding-top: max(env(safe-area-inset-top), 0px);
+    padding-bottom: max(env(safe-area-inset-bottom), 0px);
+    padding-left: max(env(safe-area-inset-left), 0px);
+    padding-right: max(env(safe-area-inset-right), 0px);
   }
   
   /* Mobile scroll snap */
@@ -1277,6 +1407,53 @@ body::after {
   
   .scroll-snap-end {
     scroll-snap-align: end;
+  }
+
+  /* Touch Interactions */
+  .touch-active {
+    @apply active:scale-[0.98] transition-transform duration-150;
+  }
+
+  .touch-feedback {
+    @apply active:opacity-70 transition-opacity duration-150;
+  }
+
+  /* Pull to Refresh */
+  .pull-to-refresh {
+    @apply relative overflow-hidden;
+  }
+
+  .pull-to-refresh-indicator {
+    @apply absolute top-0 left-0 right-0 flex items-center justify-center h-12 transform -translate-y-full transition-transform duration-300;
+  }
+
+  .pull-to-refresh-indicator.active {
+    @apply translate-y-0;
+  }
+
+  /* Swipe Gestures */
+  .swipeable {
+    @apply touch-pan-x;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Smooth Scrolling */
+  .smooth-scroll {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Optimized Scrolling for Mobile */
+  @media (max-width: 768px) {
+    * {
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Improve scroll performance */
+    .overflow-y-auto,
+    .overflow-x-auto {
+      will-change: scroll-position;
+    }
   }
   
   /* Mobile aspect ratios */
@@ -1736,5 +1913,117 @@ body::after {
   #bulk-print-page *::after {
     visibility: visible !important;
     opacity: 1 !important;
+  }
+}
+
+/* Mobile Toast Notifications Improvements */
+@media (max-width: 640px) {
+  /* React Hot Toast Mobile Styles */
+  [data-sonner-toaster] {
+    padding: 12px !important;
+  }
+  
+  [data-sonner-toast] {
+    min-width: calc(100vw - 24px) !important;
+    max-width: calc(100vw - 24px) !important;
+    padding: 12px 16px !important;
+    font-size: 14px !important;
+    line-height: 1.5 !important;
+    border-radius: 12px !important;
+    margin-bottom: 8px !important;
+  }
+  
+  [data-sonner-toast] [data-title] {
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    margin-bottom: 4px !important;
+  }
+  
+  [data-sonner-toast] [data-description] {
+    font-size: 13px !important;
+    line-height: 1.4 !important;
+  }
+  
+  [data-sonner-toast] [data-icon] {
+    width: 18px !important;
+    height: 18px !important;
+    margin-left: 8px !important;
+  }
+  
+  [data-sonner-toast] [data-close-button] {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+    padding: 0 !important;
+    margin-right: -4px !important;
+  }
+  
+  /* Ensure toast is above safe area on mobile */
+  [data-sonner-toaster][data-position="top-center"],
+  [data-sonner-toaster][data-position="top-left"],
+  [data-sonner-toaster][data-position="top-right"] {
+    top: max(12px, env(safe-area-inset-top, 0px)) !important;
+  }
+  
+  [data-sonner-toaster][data-position="bottom-center"],
+  [data-sonner-toaster][data-position="bottom-left"],
+  [data-sonner-toaster][data-position="bottom-right"] {
+    bottom: max(12px, env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
+/* Enhanced Safe Area Support */
+@supports (padding: max(0px)) {
+  .safe-area-top {
+    padding-top: max(env(safe-area-inset-top), 0px);
+  }
+  
+  .safe-area-bottom {
+    padding-bottom: max(env(safe-area-inset-bottom), 0px);
+  }
+  
+  .safe-area-left {
+    padding-left: max(env(safe-area-inset-left), 0px);
+  }
+  
+  .safe-area-right {
+    padding-right: max(env(safe-area-inset-right), 0px);
+  }
+  
+  .safe-area-inset {
+    padding-top: max(env(safe-area-inset-top), 0px);
+    padding-bottom: max(env(safe-area-inset-bottom), 0px);
+    padding-left: max(env(safe-area-inset-left), 0px);
+    padding-right: max(env(safe-area-inset-right), 0px);
+  }
+}
+
+/* Mobile-specific safe area adjustments */
+@media (max-width: 640px) {
+  /* Header safe area */
+  header.safe-area-top,
+  .mobile-header.safe-area-top {
+    padding-top: max(12px, env(safe-area-inset-top, 12px));
+  }
+  
+  /* Footer safe area */
+  footer.safe-area-bottom,
+  .mobile-footer.safe-area-bottom {
+    padding-bottom: max(12px, env(safe-area-inset-bottom, 12px));
+  }
+  
+  /* Sidebar safe area */
+  aside.safe-area-left,
+  .mobile-sidebar.safe-area-left {
+    padding-left: max(12px, env(safe-area-inset-left, 12px));
+  }
+  
+  /* Main content safe area */
+  main.safe-area-inset {
+    padding-top: max(12px, env(safe-area-inset-top, 12px));
+    padding-bottom: max(12px, env(safe-area-inset-bottom, 12px));
+    padding-left: max(12px, env(safe-area-inset-left, 12px));
+    padding-right: max(12px, env(safe-area-inset-right, 12px));
   }
 } 

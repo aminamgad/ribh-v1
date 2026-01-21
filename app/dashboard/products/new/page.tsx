@@ -239,44 +239,44 @@ export default function NewProductPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">إضافة منتج جديد</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">أضف منتجك الجديد إلى المنصة</p>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100">إضافة منتج جديد</h1>
+          <p className="text-xs sm:text-sm md:text-base text-gray-600 dark:text-gray-400 mt-1 sm:mt-2">أضف منتجك الجديد إلى المنصة</p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Main Form */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             {/* Basic Information */}
-            <div className="card">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">المعلومات الأساسية</h2>
+            <div className="card p-4 sm:p-6">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100 mb-3 sm:mb-4">المعلومات الأساسية</h2>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2">
                     اسم المنتج *
                   </label>
                   <input
                     type="text"
                     {...register('name')}
-                    className="input-field"
+                    className="input-field text-sm sm:text-base min-h-[44px]"
                     placeholder="أدخل اسم المنتج"
                   />
                   {errors.name && (
-                    <p className="text-danger-600 dark:text-danger-400 text-sm mt-1">{errors.name.message}</p>
+                    <p className="text-danger-600 dark:text-danger-400 text-xs sm:text-sm mt-1">{errors.name.message}</p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2">
                     الفئة (اختياري)
                   </label>
-                  <select {...register('categoryId')} className="input-field">
+                  <select {...register('categoryId')} className="input-field text-sm sm:text-base min-h-[44px]">
                     <option value="">اختر الفئة</option>
                     {categories.map((category) => (
                       <option key={category._id} value={category._id}>
@@ -285,20 +285,20 @@ export default function NewProductPage() {
                     ))}
                   </select>
                   {errors.categoryId && (
-                    <p className="text-danger-600 dark:text-danger-400 text-sm mt-1">{errors.categoryId.message}</p>
+                    <p className="text-danger-600 dark:text-danger-400 text-xs sm:text-sm mt-1">{errors.categoryId.message}</p>
                   )}
                 </div>
 
                 {/* Supplier Selection - Only for Admin */}
                 {user?.role === 'admin' && (
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2">
                       المورد (اختياري)
                     </label>
                     <select
                       value={selectedSupplierId}
                       onChange={(e) => setSelectedSupplierId(e.target.value)}
-                      className="input-field"
+                      className="input-field text-sm sm:text-base min-h-[44px]"
                     >
                       <option value="">اختر المورد (اختياري - سيتم إضافة المنتج باسمك إذا لم تختر)</option>
                       {suppliers.map((supplier) => (
@@ -307,54 +307,54 @@ export default function NewProductPage() {
                         </option>
                       ))}
                     </select>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mt-1">
                       يمكنك اختيار مورد محدد لإضافة المنتج باسمه. إذا لم تختر، سيتم إضافة المنتج باسمك كإدارة.
                     </p>
                   </div>
                 )}
               </div>
 
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <div className="mt-3 sm:mt-4">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2">
                   وصف المنتج (اختياري)
                 </label>
                 <textarea
                   {...register('description')}
                   rows={4}
-                  className="input-field"
+                  className="input-field text-sm sm:text-base min-h-[120px]"
                   placeholder="أدخل وصف المنتج"
                 />
                 {errors.description && (
-                  <p className="text-danger-600 dark:text-danger-400 text-sm mt-1">{errors.description.message}</p>
+                  <p className="text-danger-600 dark:text-danger-400 text-xs sm:text-sm mt-1">{errors.description.message}</p>
                 )}
               </div>
 
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <div className="mt-3 sm:mt-4">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2">
                   النص التسويقي (اختياري)
                 </label>
                 <textarea
                   {...register('marketingText')}
                   rows={4}
-                  className="input-field"
-                  placeholder="أدخل نص تسويقي للمنتج يمكن نسخه واستخدامه في التسويق"
+                  className="input-field text-sm sm:text-base min-h-[120px]"
+                  placeholder="أدخل نص تسويقي للمنتج"
                 />
                 {errors.marketingText && (
-                  <p className="text-danger-600 dark:text-danger-400 text-sm mt-1">{errors.marketingText.message}</p>
+                  <p className="text-danger-600 dark:text-danger-400 text-xs sm:text-sm mt-1">{errors.marketingText.message}</p>
                 )}
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mt-1">
                   هذا النص سيظهر في صفحة المنتج مع زر نسخ للمسوقين والتجار
                 </p>
               </div>
             </div>
 
             {/* Pricing */}
-            <div className="card">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">الأسعار</h2>
+            <div className="card p-4 sm:p-6">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100 mb-3 sm:mb-4">الأسعار</h2>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2">
                     سعر الجملة (للتجار) *
                   </label>
                   <div className="relative">
@@ -363,21 +363,21 @@ export default function NewProductPage() {
                       step="0.01"
                       min="0.01"
                       {...register('wholesalerPrice', { valueAsNumber: true })}
-                      className="input-field pr-8"
+                      className="input-field text-sm sm:text-base pr-8 min-h-[44px]"
                       placeholder="0.00"
                     />
-                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400">₪</span>
+                    <span className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400 text-sm sm:text-base">₪</span>
                   </div>
                   {errors.wholesalerPrice && (
-                    <p className="text-danger-600 dark:text-danger-400 text-sm mt-1">{errors.wholesalerPrice.message}</p>
+                    <p className="text-danger-600 dark:text-danger-400 text-xs sm:text-sm mt-1">{errors.wholesalerPrice.message}</p>
                   )}
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mt-1">
                     سعر ثابت للتجار - لا يتغير عند الطلب
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2">
                     سعر المسوق (السعر الأساسي) *
                   </label>
                   <div className="relative">
@@ -386,44 +386,44 @@ export default function NewProductPage() {
                       step="0.01"
                       min="0.01"
                       {...register('marketerPrice', { valueAsNumber: true })}
-                      className="input-field pr-8"
+                      className="input-field text-sm sm:text-base pr-8 min-h-[44px]"
                       placeholder="0.00"
                     />
-                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400">₪</span>
+                    <span className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400 text-sm sm:text-base">₪</span>
                   </div>
                   {errors.marketerPrice && (
-                    <p className="text-danger-600 dark:text-danger-400 text-sm mt-1">{errors.marketerPrice.message}</p>
+                    <p className="text-danger-600 dark:text-danger-400 text-xs sm:text-sm mt-1">{errors.marketerPrice.message}</p>
                   )}
                   {marketerPrice <= wholesalerPrice && marketerPrice > 0 && wholesalerPrice > 0 && (
-                    <p className="text-danger-600 dark:text-danger-400 text-sm mt-1">
+                    <p className="text-danger-600 dark:text-danger-400 text-xs sm:text-sm mt-1">
                       يجب أن يكون أكبر من سعر الجملة
                     </p>
                   )}
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mt-1">
                     السعر الأساسي للمسوق - يحدد ربحه عند الطلب
                   </p>
                 </div>
               </div>
 
               {/* Minimum Selling Price Section */}
-              <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">السعر الأدنى للبيع</h3>
+              <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-gray-100 mb-3 sm:mb-4">السعر الأدنى للبيع</h3>
                 
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-3 space-x-reverse">
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="flex items-start space-x-2 sm:space-x-3 space-x-reverse min-h-[44px]">
                     <input
                       type="checkbox"
                       id="isMinimumPriceMandatory"
                       {...register('isMinimumPriceMandatory')}
-                      className="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                      className="w-4 h-4 sm:w-5 sm:h-5 mt-0.5 sm:mt-1 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 flex-shrink-0"
                     />
-                    <label htmlFor="isMinimumPriceMandatory" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <label htmlFor="isMinimumPriceMandatory" className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
                       إلزامي - المسوق يجب أن يبيع بسعر لا يقل عن السعر المحدد
                     </label>
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2">
                       السعر الأدنى للبيع
                     </label>
                     <div className="relative">
@@ -432,15 +432,15 @@ export default function NewProductPage() {
                         step="0.01"
                         min="0.01"
                         {...register('minimumSellingPrice', { valueAsNumber: true })}
-                        className="input-field pr-8"
+                        className="input-field text-sm sm:text-base pr-8 min-h-[44px]"
                         placeholder="0.00"
                       />
-                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400">₪</span>
+                      <span className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400 text-sm sm:text-base">₪</span>
                     </div>
                     {errors.minimumSellingPrice && (
-                      <p className="text-danger-600 dark:text-danger-400 text-sm mt-1">{errors.minimumSellingPrice.message}</p>
+                      <p className="text-danger-600 dark:text-danger-400 text-xs sm:text-sm mt-1">{errors.minimumSellingPrice.message}</p>
                     )}
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mt-1">
                       إذا كان إلزامي، المسوق لا يمكنه بيع المنتج بأقل من هذا السعر. المسوق يحدد ربحه عند الطلب
                     </p>
                   </div>
@@ -449,28 +449,28 @@ export default function NewProductPage() {
             </div>
 
             {/* Inventory */}
-            <div className="card">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">المخزون والمواصفات</h2>
+            <div className="card p-4 sm:p-6">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100 mb-3 sm:mb-4">المخزون والمواصفات</h2>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2">
                     الكمية المتوفرة
                   </label>
                   <input
                     type="number"
                     min="0"
                     {...register('stockQuantity', { valueAsNumber: true })}
-                    className="input-field"
+                    className="input-field text-sm sm:text-base min-h-[44px]"
                     placeholder="0"
                   />
                   {errors.stockQuantity && (
-                    <p className="text-danger-600 dark:text-danger-400 text-sm mt-1">{errors.stockQuantity.message}</p>
+                    <p className="text-danger-600 dark:text-danger-400 text-xs sm:text-sm mt-1">{errors.stockQuantity.message}</p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2">
                     الوزن (كجم)
                   </label>
                   <input
@@ -478,38 +478,38 @@ export default function NewProductPage() {
                     step="0.01"
                     min="0"
                     {...register('weight', { valueAsNumber: true })}
-                    className="input-field"
+                    className="input-field text-sm sm:text-base min-h-[44px]"
                     placeholder="0.00"
                   />
                   {errors.weight && (
-                    <p className="text-danger-600 dark:text-danger-400 text-sm mt-1">{errors.weight.message}</p>
+                    <p className="text-danger-600 dark:text-danger-400 text-xs sm:text-sm mt-1">{errors.weight.message}</p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2">
                     SKU (اختياري)
                   </label>
                   <input
                     type="text"
                     {...register('sku')}
-                    className="input-field"
+                    className="input-field text-sm sm:text-base min-h-[44px]"
                     placeholder="SKU-001"
                   />
                 </div>
               </div>
 
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <div className="mt-3 sm:mt-4">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2">
                   الأبعاد (سم) - اختياري
                 </label>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-3 gap-2 sm:gap-4">
                   <input
                     type="number"
                     step="0.1"
                     min="0"
                     {...register('dimensions.length', { valueAsNumber: true })}
-                    className="input-field"
+                    className="input-field text-sm sm:text-base min-h-[44px]"
                     placeholder="الطول"
                   />
                   <input
@@ -517,7 +517,7 @@ export default function NewProductPage() {
                     step="0.1"
                     min="0"
                     {...register('dimensions.width', { valueAsNumber: true })}
-                    className="input-field"
+                    className="input-field text-sm sm:text-base min-h-[44px]"
                     placeholder="العرض"
                   />
                   <input
@@ -525,7 +525,7 @@ export default function NewProductPage() {
                     step="0.1"
                     min="0"
                     {...register('dimensions.height', { valueAsNumber: true })}
-                    className="input-field"
+                    className="input-field text-sm sm:text-base min-h-[44px]"
                     placeholder="الارتفاع"
                   />
                 </div>
@@ -533,8 +533,8 @@ export default function NewProductPage() {
             </div>
 
             {/* Product Variants */}
-            <div className="card">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">متغيرات المنتج</h2>
+            <div className="card p-4 sm:p-6">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100 mb-3 sm:mb-4">متغيرات المنتج</h2>
               <ProductVariants
                 hasVariants={hasVariants}
                 variants={variants}
@@ -545,7 +545,7 @@ export default function NewProductPage() {
           </div>
 
           {/* Sidebar */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {/* Media Upload */}
             <MediaUpload
               onUpload={(urls) => setImages(prev => [...prev, ...urls])}
@@ -560,22 +560,22 @@ export default function NewProductPage() {
             />
 
             {/* Preview */}
-            <div className="card">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">معاينة المنتج</h2>
+            <div className="card p-4 sm:p-6">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100 mb-3 sm:mb-4">معاينة المنتج</h2>
               
-              <div className="space-y-3">
+              <div className="space-y-2.5 sm:space-y-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">اسم المنتج:</label>
-                  <p className="text-gray-900 dark:text-gray-100 font-medium">{watch('name') || 'غير محدد'}</p>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-0.5">اسم المنتج:</label>
+                  <p className="text-sm sm:text-base text-gray-900 dark:text-gray-100 font-medium">{watch('name') || 'غير محدد'}</p>
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">الأسعار:</label>
-                  <div className="space-y-1">
-                    <p className="text-sm text-gray-600 dark:text-gray-400">الجملة (للتجار): {wholesalerPrice} ₪</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">المسوق (الأساسي): {marketerPrice} ₪</p>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-0.5">الأسعار:</label>
+                  <div className="space-y-0.5 sm:space-y-1">
+                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">الجملة (للتجار): {wholesalerPrice} ₪</p>
+                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">المسوق (الأساسي): {marketerPrice} ₪</p>
                     {minimumSellingPrice > 0 && (
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                      <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                         السعر الأدنى: {minimumSellingPrice} ₪ {isMinimumPriceMandatory ? '(إلزامي)' : '(اختياري)'}
                       </p>
                     )}
@@ -583,14 +583,14 @@ export default function NewProductPage() {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">المخزون:</label>
-                  <p className="text-gray-900 dark:text-gray-100">{watch('stockQuantity') || 0} قطعة</p>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-0.5">المخزون:</label>
+                  <p className="text-sm sm:text-base text-gray-900 dark:text-gray-100">{watch('stockQuantity') || 0} قطعة</p>
                 </div>
                 
                 {user?.role === 'admin' && selectedSupplierId && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">المورد المحدد:</label>
-                    <p className="text-gray-900 dark:text-gray-100">
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-0.5">المورد المحدد:</label>
+                    <p className="text-sm sm:text-base text-gray-900 dark:text-gray-100">
                       {suppliers.find(s => s._id === selectedSupplierId)?.companyName || 
                        suppliers.find(s => s._id === selectedSupplierId)?.name || 
                        'غير محدد'}
@@ -603,27 +603,27 @@ export default function NewProductPage() {
         </div>
 
         {/* Submit Button */}
-        <div className="flex justify-end space-x-3 space-x-reverse">
+        <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 space-y-2 sm:space-y-0 space-y-reverse sm:space-x-3 sm:space-x-reverse sticky bottom-0 bg-white dark:bg-slate-900 p-3 sm:p-4 -mx-3 sm:-mx-4 md:-mx-6 border-t border-gray-200 dark:border-slate-700 safe-area-bottom">
           <button
             type="button"
             onClick={() => router.back()}
-            className="btn-secondary"
+            className="btn-secondary min-h-[44px] text-sm sm:text-base w-full sm:w-auto"
           >
             إلغاء
           </button>
           <button
             type="submit"
             disabled={loading || uploading || images.length === 0}
-            className="btn-primary"
+            className="btn-primary min-h-[44px] text-sm sm:text-base w-full sm:w-auto"
           >
             {loading ? (
               <>
-                <div className="loading-spinner w-4 h-4 ml-2"></div>
+                <div className="loading-spinner w-4 h-4 ml-1.5 sm:ml-2"></div>
                 جاري الحفظ...
               </>
             ) : (
               <>
-                <Save className="w-5 h-5 ml-2" />
+                <Save className="w-4 h-4 sm:w-5 sm:h-5 ml-1.5 sm:ml-2" />
                 حفظ المنتج
               </>
             )}

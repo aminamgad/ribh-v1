@@ -229,182 +229,187 @@ export default function WithdrawalsPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">طلبات السحب</h1>
+    <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 md:py-8">
+      <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-4 sm:mb-6 md:mb-8">طلبات السحب</h1>
       
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 md:gap-8">
         {/* Wallet Overview */}
-        <Card>
-          <CardHeader>
-            <CardTitle>نظرة عامة على المحفظة</CardTitle>
+        <Card className="p-3 sm:p-4 md:p-6">
+          <CardHeader className="p-0 pb-3 sm:pb-4">
+            <CardTitle className="text-base sm:text-lg md:text-xl">نظرة عامة على المحفظة</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-0 space-y-2 sm:space-y-3">
             {walletData ? (
-              <div className="space-y-4">
-                <div className="flex justify-between">
+              <>
+                <div className="flex justify-between items-center text-sm sm:text-base">
                   <span className="text-gray-600 dark:text-gray-400">الرصيد الحالي:</span>
-                  <span className="font-bold text-lg">{walletData.balance}₪</span>
+                  <span className="font-bold text-base sm:text-lg">{walletData.balance}₪</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between items-center text-sm sm:text-base">
                   <span className="text-gray-600 dark:text-gray-400">الرصيد المتاح:</span>
-                  <span className="font-bold text-lg text-blue-600 dark:text-blue-400">
-                    {(walletData.availableBalance || walletData.balance)}₪
-                  </span>
-                  {(walletData.pendingWithdrawals || 0) > 0 && (
-                    <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">
-                      ({(walletData.pendingWithdrawals || 0)}₪ قيد السحب)
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <span className="font-bold text-base sm:text-lg text-blue-600 dark:text-blue-400">
+                      {(walletData.availableBalance || walletData.balance)}₪
                     </span>
-                  )}
+                    {(walletData.pendingWithdrawals || 0) > 0 && (
+                      <span className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">
+                        ({(walletData.pendingWithdrawals || 0)}₪ قيد السحب)
+                      </span>
+                    )}
+                  </div>
                 </div>
                 {(walletData.pendingWithdrawals || 0) > 0 && (
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-center text-sm sm:text-base">
                     <span className="text-gray-600 dark:text-gray-400">السحوبات المعلقة:</span>
                     <span className="text-orange-600 dark:text-orange-400">{walletData.pendingWithdrawals}₪</span>
                   </div>
                 )}
-                <div className="flex justify-between">
+                <div className="flex justify-between items-center text-sm sm:text-base">
                   <span className="text-gray-600 dark:text-gray-400">إجمالي الأرباح:</span>
                   <span>{walletData.totalEarnings}₪</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between items-center text-sm sm:text-base">
                   <span className="text-gray-600 dark:text-gray-400">إجمالي السحوبات:</span>
                   <span>{walletData.totalWithdrawals}₪</span>
                 </div>
                 {systemSettings && (
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-center text-sm sm:text-base">
                     <span className="text-gray-600 dark:text-gray-400">الحد الأدنى للسحب:</span>
                     <span>{systemSettings.withdrawalSettings.minimumWithdrawal}₪</span>
                   </div>
                 )}
                 {systemSettings && (
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-center text-sm sm:text-base">
                     <span className="text-gray-600 dark:text-gray-400">الحد الأقصى للسحب:</span>
                     <span>{systemSettings.withdrawalSettings.maximumWithdrawal}₪</span>
                   </div>
                 )}
                 {systemSettings && (
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-center text-sm sm:text-base">
                     <span className="text-gray-600 dark:text-gray-400">رسوم السحب:</span>
                     <span>{systemSettings.withdrawalSettings.withdrawalFees}%</span>
                   </div>
                 )}
-              </div>
+              </>
             ) : (
-              <p>جاري تحميل بيانات المحفظة...</p>
+              <p className="text-sm sm:text-base">جاري تحميل بيانات المحفظة...</p>
             )}
           </CardContent>
         </Card>
 
         {/* New Withdrawal Request */}
-        <Card>
-          <CardHeader>
-            <CardTitle>طلب سحب جديد</CardTitle>
+        <Card className="p-3 sm:p-4 md:p-6">
+          <CardHeader className="p-0 pb-3 sm:pb-4">
+            <CardTitle className="text-base sm:text-lg md:text-xl">طلب سحب جديد</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="walletNumber">رقم المحفظة</Label>
-                <Input
-                  id="walletNumber"
-                  value={walletNumber}
-                  onChange={(e) => setWalletNumber(e.target.value)}
-                  placeholder="أدخل رقم المحفظة"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="amount">المبلغ</Label>
-                <Input
-                  id="amount"
-                  type="number"
-                  value={amount}
-                  onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
-                  placeholder="أدخل المبلغ"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="notes">ملاحظات (اختياري)</Label>
-                <Textarea
-                  id="notes"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="ملاحظات إضافية"
-                  rows={3}
-                />
-              </div>
-              
-              {systemSettings && amount > 0 && (
-                <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-                  <h4 className="font-semibold mb-2">تفاصيل السحب:</h4>
-                  <div className="space-y-1 text-sm">
-                    <div className="flex justify-between">
-                      <span>المبلغ المطلوب:</span>
-                      <span>{amount}₪</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>الرسوم ({systemSettings.withdrawalSettings.withdrawalFees}%):</span>
-                      <span>{(amount * systemSettings.withdrawalSettings.withdrawalFees / 100)}₪</span>
-                    </div>
-                    <div className="flex justify-between font-bold">
-                      <span>الإجمالي:</span>
-                      <span>{amount + (amount * systemSettings.withdrawalSettings.withdrawalFees / 100)}₪</span>
-                    </div>
+          <CardContent className="p-0 space-y-3 sm:space-y-4">
+            <div>
+              <Label htmlFor="walletNumber" className="text-xs sm:text-sm mb-1.5 sm:mb-2">رقم المحفظة</Label>
+              <Input
+                id="walletNumber"
+                value={walletNumber}
+                onChange={(e) => setWalletNumber(e.target.value)}
+                placeholder="أدخل رقم المحفظة"
+                className="text-sm sm:text-base min-h-[44px]"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="amount" className="text-xs sm:text-sm mb-1.5 sm:mb-2">المبلغ</Label>
+              <Input
+                id="amount"
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
+                placeholder="أدخل المبلغ"
+                className="text-sm sm:text-base min-h-[44px]"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="notes" className="text-xs sm:text-sm mb-1.5 sm:mb-2">ملاحظات (اختياري)</Label>
+              <Textarea
+                id="notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="ملاحظات إضافية"
+                rows={3}
+                className="text-sm sm:text-base min-h-[100px]"
+              />
+            </div>
+            
+            {systemSettings && amount > 0 && (
+              <div className="bg-gray-50 dark:bg-gray-800 p-3 sm:p-4 rounded-lg">
+                <h4 className="text-sm sm:text-base font-semibold mb-2">تفاصيل السحب:</h4>
+                <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm">
+                  <div className="flex justify-between items-center">
+                    <span>المبلغ المطلوب:</span>
+                    <span className="font-medium">{amount}₪</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>الرسوم ({systemSettings.withdrawalSettings.withdrawalFees}%):</span>
+                    <span className="font-medium">{(amount * systemSettings.withdrawalSettings.withdrawalFees / 100)}₪</span>
+                  </div>
+                  <div className="flex justify-between items-center font-bold pt-1 border-t border-gray-200 dark:border-slate-700">
+                    <span>الإجمالي:</span>
+                    <span>{amount + (amount * systemSettings.withdrawalSettings.withdrawalFees / 100)}₪</span>
                   </div>
                 </div>
-              )}
-              
-              <Button 
-                onClick={handleSubmitWithdrawal}
-                disabled={isSubmitting || !walletData?.canWithdraw}
-                className="w-full"
-              >
-                {isSubmitting ? 'جاري إرسال الطلب...' : 'إرسال طلب السحب'}
-              </Button>
-            </div>
+              </div>
+            )}
+            
+            <Button 
+              onClick={handleSubmitWithdrawal}
+              disabled={isSubmitting || !walletData?.canWithdraw}
+              className="w-full min-h-[44px] text-sm sm:text-base font-medium"
+            >
+              {isSubmitting ? 'جاري إرسال الطلب...' : 'إرسال طلب السحب'}
+            </Button>
           </CardContent>
         </Card>
       </div>
 
       {/* Withdrawal Requests History */}
-      <Card className="mt-8">
-        <CardHeader>
-          <CardTitle>سجل طلبات السحب</CardTitle>
+      <Card className="mt-4 sm:mt-6 md:mt-8 p-3 sm:p-4 md:p-6">
+        <CardHeader className="p-0 pb-3 sm:pb-4">
+          <CardTitle className="text-base sm:text-lg md:text-xl">سجل طلبات السحب</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {withdrawalRequests.length === 0 ? (
-            <p className="text-center text-gray-600 dark:text-gray-400">لا توجد طلبات سحب</p>
+            <p className="text-center text-sm sm:text-base text-gray-600 dark:text-gray-400 py-4">لا توجد طلبات سحب</p>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {withdrawalRequests.map((request) => (
-                <div key={request._id} className="border rounded-lg p-4">
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <p className="font-semibold">رقم المحفظة: {request.walletNumber}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {new Date(request.createdAt).toLocaleDateString('en-US')}
+                <div key={request._id} className="border rounded-lg sm:rounded-xl p-3 sm:p-4">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0 mb-2 sm:mb-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm sm:text-base font-semibold mb-1">رقم المحفظة: {request.walletNumber}</p>
+                      <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                        {new Date(request.createdAt).toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' })}
                       </p>
                     </div>
-                    {getStatusBadge(request.status)}
+                    <div className="flex-shrink-0">
+                      {getStatusBadge(request.status)}
+                    </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
                     <div>
-                      <span className="text-gray-600 dark:text-gray-400">المبلغ:</span>
-                      <span className="ml-2">{request.amount}₪</span>
+                      <span className="text-gray-600 dark:text-gray-400 block mb-0.5">المبلغ:</span>
+                      <span className="font-medium">{request.amount}₪</span>
                     </div>
                     <div>
-                      <span className="text-gray-600 dark:text-gray-400">الرسوم:</span>
-                      <span className="ml-2">{request.fees}₪</span>
+                      <span className="text-gray-600 dark:text-gray-400 block mb-0.5">الرسوم:</span>
+                      <span className="font-medium">{request.fees}₪</span>
                     </div>
-                    <div>
-                      <span className="text-gray-600 dark:text-gray-400">الإجمالي:</span>
-                      <span className="ml-2 font-semibold">{request.totalAmount}₪</span>
+                    <div className="col-span-2 pt-2 border-t border-gray-200 dark:border-slate-700">
+                      <span className="text-gray-600 dark:text-gray-400 block mb-0.5">الإجمالي:</span>
+                      <span className="font-semibold text-base sm:text-lg">{request.totalAmount}₪</span>
                     </div>
                   </div>
                   {request.notes && (
-                    <div className="mt-2">
-                      <span className="text-gray-600 dark:text-gray-400">ملاحظات:</span>
-                      <p className="text-sm mt-1">{request.notes}</p>
+                    <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-gray-200 dark:border-slate-700">
+                      <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 block mb-1">ملاحظات:</span>
+                      <p className="text-xs sm:text-sm text-gray-900 dark:text-slate-100">{request.notes}</p>
                     </div>
                   )}
                 </div>

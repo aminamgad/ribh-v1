@@ -12,7 +12,7 @@ import {
   Store, 
   Link as LinkIcon, 
   Settings, 
-  RefreshCw, 
+  RotateCw, 
   AlertCircle,
   CheckCircle,
   Clock,
@@ -284,18 +284,18 @@ export default function IntegrationsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">تكاملات المتاجر</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">تكاملات المتاجر</h1>
+          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">
             قم بربط متجرك الخارجي لمزامنة المنتجات والطلبات
           </p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
-          className="btn-primary flex items-center gap-2"
+          className="btn-primary flex items-center justify-center gap-2 min-h-[44px] text-sm sm:text-base px-3 sm:px-4 w-full sm:w-auto"
         >
           <Plus className="w-4 h-4" />
           <span>إضافة تكامل</span>
@@ -304,101 +304,102 @@ export default function IntegrationsPage() {
 
       {/* Integrations List */}
       {integrations.length === 0 ? (
-        <div className="card p-12 text-center">
-          <Store className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+        <div className="card p-6 sm:p-12 text-center">
+          <Store className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400 dark:text-slate-500 mx-auto mb-3 sm:mb-4" />
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-2">
             لا توجد تكاملات حتى الآن
           </h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">
+          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-4 sm:mb-6">
             قم بإضافة تكامل جديد لربط متجرك الخارجي
           </p>
           <button
             onClick={() => setShowAddModal(true)}
-            className="btn-primary mx-auto"
+            className="btn-primary mx-auto min-h-[44px] text-sm sm:text-base px-4 sm:px-6"
           >
             إضافة تكامل الآن
           </button>
         </div>
       ) : (
-        <div className="grid gap-6">
+        <div className="grid gap-4 sm:gap-6">
           {integrations.map((integration) => (
-            <div key={integration.id} className="card">
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-start gap-4">
+            <div key={integration.id} className="card p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-start justify-between gap-3 sm:gap-4 mb-3 sm:mb-4">
+                <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
+                  <div className="flex-shrink-0">
                     {getPlatformLogo(integration.type)}
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
-                        {integration.storeName}
-                      </h3>
-                      {integration.storeUrl && (
-                        <a
-                          href={integration.storeUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-[#FF9800] hover:underline flex items-center gap-1 mt-1"
-                        >
-                          <LinkIcon className="w-3 h-3" />
-                          {integration.storeUrl}
-                        </a>
-                      )}
-                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {getStatusIcon(integration.status)}
-                    <span className={`text-sm font-medium ${
-                      integration.status === 'active' ? 'text-green-600 dark:text-green-400' :
-                      integration.status === 'error' ? 'text-red-600 dark:text-red-400' :
-                      integration.status === 'pending' ? 'text-yellow-600 dark:text-yellow-400' :
-                      'text-gray-600 dark:text-slate-400'
-                    }`}>
-                      {getStatusText(integration.status)}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-slate-100 truncate">
+                      {integration.storeName}
+                    </h3>
+                    {integration.storeUrl && (
+                      <a
+                        href={integration.storeUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs sm:text-sm text-[#FF9800] hover:underline flex items-center gap-1 mt-1 break-all"
+                      >
+                        <LinkIcon className="w-3 h-3 flex-shrink-0" />
+                        <span className="truncate">{integration.storeUrl}</span>
+                      </a>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {getStatusIcon(integration.status)}
+                  <span className={`text-xs sm:text-sm font-medium ${
+                    integration.status === 'active' ? 'text-green-600 dark:text-green-400' :
+                    integration.status === 'error' ? 'text-red-600 dark:text-red-400' :
+                    integration.status === 'pending' ? 'text-yellow-600 dark:text-yellow-400' :
+                    'text-gray-600 dark:text-slate-400'
+                  }`}>
+                    {getStatusText(integration.status)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Settings Summary */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-3 sm:mb-4">
+                <div className="flex items-center gap-2 text-xs sm:text-sm">
+                  <Package className={`w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0 ${integration.settings.syncProducts ? 'text-green-500' : 'text-gray-400'}`} />
+                  <span className="text-gray-700 dark:text-gray-300">مزامنة المنتجات</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs sm:text-sm">
+                  <ShoppingBag className={`w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0 ${integration.settings.syncOrders ? 'text-green-500' : 'text-gray-400'}`} />
+                  <span className="text-gray-700 dark:text-gray-300">مزامنة الطلبات</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs sm:text-sm">
+                  <RotateCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0 ${integration.settings.syncInventory ? 'text-green-500' : 'text-gray-400'}`} />
+                  <span className="text-gray-700 dark:text-gray-300">مزامنة المخزون</span>
+                </div>
+                {integration.settings.priceMarkup && integration.settings.priceMarkup > 0 && (
+                  <div className="flex items-center gap-2 text-xs sm:text-sm">
+                    <span className="text-gray-700 dark:text-gray-300">
+                      هامش ربح: {integration.settings.priceMarkup}%
                     </span>
                   </div>
-                </div>
-
-                {/* Settings Summary */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Package className={`w-4 h-4 ${integration.settings.syncProducts ? 'text-green-500' : 'text-gray-400'}`} />
-                    <span className="text-gray-700 dark:text-gray-300">مزامنة المنتجات</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <ShoppingBag className={`w-4 h-4 ${integration.settings.syncOrders ? 'text-green-500' : 'text-gray-400'}`} />
-                    <span className="text-gray-700 dark:text-gray-300">مزامنة الطلبات</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <RefreshCw className={`w-4 h-4 ${integration.settings.syncInventory ? 'text-green-500' : 'text-gray-400'}`} />
-                    <span className="text-gray-700 dark:text-gray-300">مزامنة المخزون</span>
-                  </div>
-                  {integration.settings.priceMarkup && integration.settings.priceMarkup > 0 && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="text-gray-700 dark:text-gray-300">
-                        هامش ربح: {integration.settings.priceMarkup}%
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Last Sync Info */}
-                {integration.lastSync && (
-                  <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    آخر مزامنة: {format(new Date(integration.lastSync), 'dd/MM/yyyy HH:mm')}
-                  </div>
                 )}
+              </div>
+
+              {/* Last Sync Info */}
+              {integration.lastSync && (
+                <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-3 sm:mb-4">
+                  آخر مزامنة: {format(new Date(integration.lastSync), 'dd/MM/yyyy HH:mm')}
+                </div>
+              )}
 
                 {/* Errors */}
                 {integration.syncErrors && integration.syncErrors.length > 0 && (
-                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 mb-4">
+                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-2.5 sm:p-3 mb-3 sm:mb-4">
                     <div className="flex items-start gap-2">
-                      <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 mt-0.5" />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-red-800 dark:text-red-200">
+                      <AlertCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs sm:text-sm font-medium text-red-800 dark:text-red-200">
                           أخطاء المزامنة:
                         </p>
-                        <ul className="text-sm text-red-700 dark:text-red-300 mt-1 list-disc list-inside">
+                        <ul className="text-xs sm:text-sm text-red-700 dark:text-red-300 mt-1 list-disc list-inside">
                           {integration.syncErrors.slice(-3).map((error, index) => (
-                            <li key={index}>{error}</li>
+                            <li key={index} className="break-words">{error}</li>
                           ))}
                         </ul>
                       </div>
@@ -411,35 +412,39 @@ export default function IntegrationsPage() {
                   <button
                     onClick={() => handleSync(integration.id, 'all')}
                     disabled={syncingId === integration.id || integration.status !== 'active'}
-                    className="btn-secondary text-sm flex items-center gap-1"
+                    className="btn-secondary text-xs sm:text-sm flex items-center justify-center gap-1 min-h-[44px] px-3 sm:px-4 flex-1 sm:flex-initial"
                   >
                     {syncingId === integration.id ? (
                       <>
-                        <RefreshCw className="w-4 h-4 animate-spin" />
-                        <span>جاري المزامنة...</span>
+                        <RotateCw className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
+                        <span className="hidden sm:inline">جاري المزامنة...</span>
+                        <span className="sm:hidden">جاري...</span>
                       </>
                     ) : (
                       <>
-                        <RefreshCw className="w-4 h-4" />
-                        <span>مزامنة الكل</span>
+                        <RotateCw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                        <span className="hidden sm:inline">مزامنة الكل</span>
+                        <span className="sm:hidden">الكل</span>
                       </>
                     )}
                   </button>
                   <button
                     onClick={() => handleSync(integration.id, 'products')}
                     disabled={syncingId === integration.id || integration.status !== 'active'}
-                    className="btn-secondary text-sm flex items-center gap-1"
+                    className="btn-secondary text-xs sm:text-sm flex items-center justify-center gap-1 min-h-[44px] px-3 sm:px-4 flex-1 sm:flex-initial"
                   >
-                    <Package className="w-4 h-4" />
-                    <span>مزامنة المنتجات</span>
+                    <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span className="hidden sm:inline">مزامنة المنتجات</span>
+                    <span className="sm:hidden">المنتجات</span>
                   </button>
                   <button
                     onClick={() => handleSync(integration.id, 'orders')}
                     disabled={syncingId === integration.id || integration.status !== 'active'}
-                    className="btn-secondary text-sm flex items-center gap-1"
+                    className="btn-secondary text-xs sm:text-sm flex items-center justify-center gap-1 min-h-[44px] px-3 sm:px-4 flex-1 sm:flex-initial"
                   >
-                    <ShoppingBag className="w-4 h-4" />
-                    <span>مزامنة الطلبات</span>
+                    <ShoppingBag className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span className="hidden sm:inline">مزامنة الطلبات</span>
+                    <span className="sm:hidden">الطلبات</span>
                   </button>
                   <button
                     onClick={() => {
@@ -458,30 +463,29 @@ export default function IntegrationsPage() {
                       });
                       setShowAddModal(true);
                     }}
-                    className="btn-secondary text-sm flex items-center gap-1"
+                    className="btn-secondary text-xs sm:text-sm flex items-center justify-center gap-1 min-h-[44px] px-3 sm:px-4 flex-1 sm:flex-initial"
                   >
-                    <Settings className="w-4 h-4" />
+                    <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     <span>الإعدادات</span>
                   </button>
                   <button
                     onClick={() => handleDelete(integration)}
-                    className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 text-sm flex items-center gap-1"
+                    className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 text-xs sm:text-sm flex items-center justify-center gap-1 min-h-[44px] px-3 sm:px-4 flex-1 sm:flex-initial"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     <span>حذف</span>
                   </button>
                 </div>
               </div>
-            </div>
           ))}
         </div>
       )}
 
       {/* Add/Edit Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto mobile-modal-content">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">
               {editingIntegration ? 'تعديل التكامل' : 'إضافة تكامل جديد'}
             </h2>
 

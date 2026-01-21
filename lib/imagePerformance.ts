@@ -55,6 +55,71 @@ class ImagePerformanceMonitor {
     return this.metrics.filter(m => m.loadTime > threshold);
   }
 
+  getFastImages(threshold: number = 500): ImageLoadMetric[] {
+    return this.metrics.filter(m => m.loadTime < threshold);
+  }
+
+  getMetricsByUrl(url: string): ImageLoadMetric[] {
+    return this.metrics.filter(m => m.url === url);
+  }
+
+  getMetricsSummary() {
+    if (this.metrics.length === 0) {
+      return {
+        total: 0,
+        average: 0,
+        min: 0,
+        max: 0,
+        slowCount: 0,
+        fastCount: 0,
+        slowPercentage: 0,
+        fastPercentage: 0
+      };
+    }
+
+    const loadTimes = this.metrics.map(m => m.loadTime);
+    const slowImages = this.getSlowImages();
+    const fastImages = this.getFastImages();
+
+    return {
+      total: this.metrics.length,
+      average: this.getAverageLoadTime(),
+      min: Math.min(...loadTimes),
+      max: Math.max(...loadTimes),
+      slowCount: slowImages.length,
+      fastCount: fastImages.length,
+      slowPercentage: (slowImages.length / this.metrics.length) * 100,
+      fastPercentage: (fastImages.length / this.metrics.length) * 100
+    };
+  }
+
+  // Get performance report
+  getPerformanceReport(): string {
+    const summary = this.getMetricsSummary();
+    const slowImages = this.getSlowImages();
+
+    let report = `\n=== Image Performance Report ===\n`;
+    report += `Total Images Loaded: ${summary.total}\n`;
+    report += `Average Load Time: ${summary.average.toFixed(2)}ms\n`;
+    report += `Fastest: ${summary.min.toFixed(2)}ms\n`;
+    report += `Slowest: ${summary.max.toFixed(2)}ms\n`;
+    report += `Fast Images (<500ms): ${summary.fastCount} (${summary.fastPercentage.toFixed(1)}%)\n`;
+    report += `Slow Images (>1000ms): ${summary.slowCount} (${summary.slowPercentage.toFixed(1)}%)\n`;
+
+    if (slowImages.length > 0) {
+      report += `\nSlowest Images:\n`;
+      slowImages
+        .sort((a, b) => b.loadTime - a.loadTime)
+        .slice(0, 5)
+        .forEach((img, index) => {
+          const shortUrl = img.url.length > 60 ? img.url.substring(0, 60) + '...' : img.url;
+          report += `${index + 1}. ${shortUrl}: ${img.loadTime.toFixed(2)}ms\n`;
+        });
+    }
+
+    return report;
+  }
+
   clearMetrics() {
     this.metrics = [];
   }

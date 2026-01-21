@@ -1,7 +1,7 @@
 'use client';
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertCircle, RefreshCw, Home } from 'lucide-react';
+import { AlertCircle, RotateCw, Home } from 'lucide-react';
 import { Button } from './ui/button';
 
 interface Props {
@@ -111,7 +111,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 onClick={this.handleReset}
                 className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
               >
-                <RefreshCw className="w-4 h-4 ml-2" />
+                <RotateCw className="w-4 h-4 ml-2" />
                 إعادة المحاولة
               </Button>
               

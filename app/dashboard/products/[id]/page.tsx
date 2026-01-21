@@ -37,6 +37,7 @@ import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import ProductVariantSelector from '@/components/ui/ProductVariantSelector';
 import CommentsSection from '@/components/ui/CommentsSection';
 import { ProductVariant, ProductVariantOption } from '@/types';
+import { getCloudinaryThumbnailUrl, isCloudinaryUrl } from '@/lib/mediaUtils';
 
 interface Product {
   _id: string;
@@ -135,6 +136,61 @@ export default function ProductDetailPage() {
       fetchProduct();
     }
   }, [params.id]);
+
+  // Preload product images for faster display
+  useEffect(() => {
+    if (product?.images && product.images.length > 0) {
+      // Preload main image (first image) with high priority
+      const mainImage = product.images[0];
+      if (isCloudinaryUrl(mainImage)) {
+        const mainImageUrl = getCloudinaryThumbnailUrl(mainImage, { 
+          width: 800, 
+          height: 800, 
+          crop: 'fill', 
+          quality: 'auto:best',
+          format: 'auto',
+          dpr: 'auto'
+        });
+        
+        const link = document.createElement('link');
+        link.rel = 'preload';
+        link.as = 'image';
+        link.href = mainImageUrl;
+        document.head.appendChild(link);
+      }
+      
+      // Preload first 3 thumbnails
+      const thumbnails = product.images.slice(1, 4);
+      thumbnails.forEach((imageUrl) => {
+        if (isCloudinaryUrl(imageUrl)) {
+          const thumbnailUrl = getCloudinaryThumbnailUrl(imageUrl, { 
+            width: 200, 
+            height: 200, 
+            crop: 'fill', 
+            quality: 'auto:good',
+            format: 'auto',
+            dpr: 'auto'
+          });
+          
+          const link = document.createElement('link');
+          link.rel = 'preload';
+          link.as = 'image';
+          link.href = thumbnailUrl;
+          document.head.appendChild(link);
+        }
+      });
+      
+      // Cleanup on unmount
+      return () => {
+        const prefetchLinks = document.querySelectorAll('link[rel="preload"][as="image"]');
+        prefetchLinks.forEach(link => {
+          if (product.images.some(img => link.getAttribute('href')?.includes(img))) {
+            link.remove();
+          }
+        });
+      };
+    }
+  }, [product?.images]);
 
   // Poll for new messages when chat is open
   useEffect(() => {
@@ -873,7 +929,7 @@ export default function ProductDetailPage() {
                 </div>
               </div>
 
-              <p className="text-gray-700 dark:text-slate-300 leading-relaxed mb-4">{product.description}</p>
+              <p className="text-sm sm:text-base text-gray-700 dark:text-slate-300 leading-relaxed mb-4 text-wrap-long">{product.description}</p>
 
               {/* Marketing Text Section */}
               {product.marketingText && (
@@ -895,7 +951,7 @@ export default function ProductDetailPage() {
                     </button>
                   </div>
                   <div className="bg-white dark:bg-slate-800 rounded p-3 border border-primary-200 dark:border-primary-700">
-                    <p className="text-gray-800 dark:text-slate-200 whitespace-pre-wrap leading-relaxed">
+                    <p className="text-sm sm:text-base text-gray-800 dark:text-slate-200 whitespace-pre-wrap leading-relaxed text-wrap-long">
                       {product.marketingText}
                     </p>
                   </div>

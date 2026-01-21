@@ -95,11 +95,14 @@ async function getProducts(req: NextRequest, user: any) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
     const category = searchParams.get('category'); // can be comma-separated IDs
-    const search = searchParams.get('search');
+    const search = searchParams.get('search') || searchParams.get('q'); // Support both 'search' and 'q' params
     const status = searchParams.get('status');
     
+    // Price filters
+    const minPrice = searchParams.get('minPrice');
+    const maxPrice = searchParams.get('maxPrice');
+    
     // Admin-specific filters
-    const stockStatus = searchParams.get('stockStatus');
     const minStock = searchParams.get('minStock');
     const maxStock = searchParams.get('maxStock');
     const suppliers = searchParams.get('suppliers'); // Comma-separated supplier IDs
@@ -124,33 +127,72 @@ async function getProducts(req: NextRequest, user: any) {
     }
     
     // Admin filters: Stock Quantity Range
+    const stockRangeFilter: any = {};
     if (user.role === 'admin' && (minStock || maxStock)) {
-      const stockQuantityFilter: any = {};
-      
       if (minStock) {
         const min = parseInt(minStock, 10);
-        if (!isNaN(min)) {
-          stockQuantityFilter.$gte = min;
+        if (!isNaN(min) && min >= 0) {
+          stockRangeFilter.$gte = min;
         }
       }
       
       if (maxStock) {
         const max = parseInt(maxStock, 10);
-        if (!isNaN(max)) {
-          stockQuantityFilter.$lte = max;
+        if (!isNaN(max) && max >= 0) {
+          stockRangeFilter.$lte = max;
         }
-      }
-      
-      // Only apply filter if at least one valid value was parsed
-      if (Object.keys(stockQuantityFilter).length > 0) {
-        query.stockQuantity = stockQuantityFilter;
       }
     }
     
+    // Apply stock range filter
+    if (Object.keys(stockRangeFilter).length > 0) {
+      query.stockQuantity = stockRangeFilter;
+    }
+    
+    // Log stock filter for debugging
+    if (user.role === 'admin' && (minStock || maxStock)) {
+      logger.debug('Stock range filter applied', { minStock, maxStock, stockRangeFilter, queryStockQuantity: query.stockQuantity });
+    }
+    
     // Admin filters: Suppliers (multi-select)
-    if (user.role === 'admin' && suppliers) {
-      const supplierIds = suppliers.split(',');
-      query.supplierId = { $in: supplierIds };
+    // IMPORTANT: This must be applied AFTER role-based filtering to override it for admin
+    logger.debug('Checking suppliers filter', { 
+      userRole: user.role, 
+      suppliers, 
+      suppliersTrimmed: suppliers?.trim(),
+      hasSuppliers: !!suppliers,
+      suppliersLength: suppliers?.length
+    });
+    
+    if (user.role === 'admin' && suppliers && suppliers.trim()) {
+      const supplierIds = suppliers.split(',').map(id => id.trim()).filter(Boolean);
+      logger.debug('Processing suppliers filter', { 
+        suppliers, 
+        supplierIds, 
+        supplierIdsLength: supplierIds.length 
+      });
+      
+      if (supplierIds.length > 0) {
+        // Override role-based supplierId filter with admin's selected suppliers
+        query.supplierId = { $in: supplierIds };
+        logger.debug('Suppliers filter applied successfully', { 
+          suppliers, 
+          supplierIds, 
+          querySupplierId: query.supplierId,
+          supplierIdType: typeof query.supplierId,
+          supplierIdKeys: Object.keys(query.supplierId || {})
+        });
+      } else {
+        logger.warn('Suppliers filter provided but no valid IDs after processing', { suppliers, supplierIds });
+      }
+    } else {
+      logger.debug('Suppliers filter NOT applied', { 
+        userRole: user.role, 
+        isAdmin: user.role === 'admin',
+        hasSuppliers: !!suppliers,
+        suppliers,
+        suppliersTrimmed: suppliers?.trim()
+      });
     }
     
     // Admin filters: Date Range
@@ -164,12 +206,73 @@ async function getProducts(req: NextRequest, user: any) {
       }
     }
     
-    // Build search conditions
-    let searchConditions = [];
-    if (search) {
-      searchConditions.push(
-        { name: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } }
+    // Price range filter - works for all roles
+    // Determine price field based on user role
+    const priceField = user.role === 'wholesaler' ? 'wholesalerPrice' : 'marketerPrice';
+    
+    // Log price filter parameters for debugging
+    logger.debug('Price filter parameters', {
+      minPrice,
+      maxPrice,
+      priceField,
+      userRole: user.role,
+      hasMinPrice: !!minPrice,
+      hasMaxPrice: !!maxPrice
+    });
+    
+    if (minPrice || maxPrice) {
+      query[priceField] = {};
+      if (minPrice) {
+        const min = parseFloat(minPrice);
+        if (!isNaN(min) && min >= 0) {
+          query[priceField].$gte = min;
+          logger.debug('Price filter - min applied', {
+            minPrice,
+            parsedMin: min,
+            priceField,
+            queryField: query[priceField]
+          });
+        } else {
+          logger.warn('Price filter - invalid minPrice', { minPrice });
+        }
+      }
+      if (maxPrice) {
+        const max = parseFloat(maxPrice);
+        if (!isNaN(max) && max >= 0) {
+          query[priceField].$lte = max;
+          logger.debug('Price filter - max applied', {
+            maxPrice,
+            parsedMax: max,
+            priceField,
+            queryField: query[priceField]
+          });
+        } else {
+          logger.warn('Price filter - invalid maxPrice', { maxPrice });
+        }
+      }
+      
+      // Log final price filter query
+      logger.debug('Price filter applied successfully', {
+        priceField,
+        queryPriceField: query[priceField],
+        minPrice,
+        maxPrice
+      });
+    } else {
+      logger.debug('Price filter NOT applied', {
+        minPrice,
+        maxPrice,
+        reason: 'No price filters provided'
+      });
+    }
+    
+    // Build text search conditions (name, description)
+    let textSearchConditions = [];
+    if (search && search.trim()) {
+      const searchTerm = search.trim();
+      textSearchConditions.push(
+        { name: { $regex: searchTerm, $options: 'i' } },
+        { description: { $regex: searchTerm, $options: 'i' } }
       );
     }
     
@@ -188,8 +291,10 @@ async function getProducts(req: NextRequest, user: any) {
       }
 
       if (statusOr.length === 1) {
+        // Single status: apply directly to query (AND with other filters)
         Object.assign(query, statusOr[0]);
       } else if (statusOr.length > 1) {
+        // Multiple statuses: use $or but ensure it works with AND for other filters
         query.$and = query.$and || [];
         query.$and.push({ $or: statusOr });
       }
@@ -199,10 +304,13 @@ async function getProducts(req: NextRequest, user: any) {
     if (user.role === 'marketer' || user.role === 'wholesaler') {
       query.isApproved = true;
       // نسمح بالمنتجات التي لم يتم رفضها أو isRejected = false أو undefined
-      searchConditions.push(
-        { isRejected: false },
-        { isRejected: { $exists: false } }
-      );
+      query.$and = query.$and || [];
+      query.$and.push({
+        $or: [
+          { isRejected: false },
+          { isRejected: { $exists: false } }
+        ]
+      });
       // Exclude locked products for marketers and wholesalers
       query.isLocked = { $ne: true };
       // لا نضيف فلتر isActive هنا - نترك المسوق يرى جميع المنتجات المعتمدة
@@ -211,21 +319,54 @@ async function getProducts(req: NextRequest, user: any) {
       // query.stockQuantity = { $gt: 0 };
     }
     
-    // Combine search conditions with main query
-    // Handle case where we have both stock status $or and search $or
-    if (searchConditions.length > 0) {
-      if (query.$or && Array.isArray(query.$or)) {
-        // We have stock status $or, so we need to use $and to combine both
-        query.$and = query.$and || [];
-        query.$and.push({ $or: searchConditions });
-        query.$and.push({ $or: query.$or });
-        delete query.$or;
-      } else {
-        query.$or = searchConditions;
-      }
+    // Combine text search conditions with main query
+    // Text search should work with AND logic with other filters
+    if (textSearchConditions.length > 0) {
+      // Add text search to $and to ensure it works with all other filters (AND logic)
+      query.$and = query.$and || [];
+      query.$and.push({ $or: textSearchConditions });
     }
     
-    logger.debug('Products query', { query, userRole: user.role, userId: user._id });
+    // IMPORTANT: Ensure all filters work together with AND logic
+    // The problem: When we have both status filter (isApproved/isRejected) and stockQuantity filter,
+    // they must both be satisfied (AND logic), not OR logic
+    
+    // MongoDB applies direct properties with AND by default, but we need to be explicit
+    // when combining with $or/$and to ensure all filters work together correctly
+    
+    // CRITICAL FIX: If we have both status filter (isApproved/isRejected) as direct property
+    // and stockQuantity as direct property, they should work together with AND logic
+    // MongoDB handles this automatically: { isApproved: true, stockQuantity: { $gte: 200 } }
+    // means (isApproved = true) AND (stockQuantity >= 200)
+    
+    // However, if there's a $or in the query from search conditions,
+    // MongoDB will still AND direct properties correctly
+    // But we need to ensure that direct properties are not lost or overridden
+    
+    // The issue: MongoDB applies direct properties with AND by default, so this should work correctly
+    // But let's verify the query structure is correct
+    
+    // Log final query for debugging
+    logger.debug('Final products query', { 
+      query: JSON.stringify(query, null, 2), 
+      userRole: user.role, 
+      userId: user._id, 
+      status, 
+      minStock, 
+      maxStock,
+      suppliers,
+      supplierIds: suppliers ? suppliers.split(',').map(id => id.trim()).filter(Boolean) : [],
+      hasOr: !!query.$or,
+      hasAnd: !!query.$and,
+      hasStockQuantity: !!query.stockQuantity,
+      hasSupplierId: !!query.supplierId,
+      supplierIdValue: query.supplierId,
+      hasIsApproved: query.isApproved !== undefined,
+      hasIsRejected: query.isRejected !== undefined,
+      stockQuantityValue: query.stockQuantity,
+      isApprovedValue: query.isApproved,
+      isRejectedValue: query.isRejected
+    });
     
     // Test: Check if user's products exist
     if (user.role === 'supplier') {
@@ -235,7 +376,20 @@ async function getProducts(req: NextRequest, user: any) {
     
     const skip = (page - 1) * limit;
     
-    // Generate cache key (include admin filters)
+    // Normalize suppliers for cache key (sort IDs to ensure consistent cache keys)
+    // This ensures that suppliers=id1,id2 and suppliers=id2,id1 produce the same cache key
+    let normalizedSuppliers = '';
+    if (suppliers && suppliers.trim()) {
+      const supplierIds = suppliers.split(',').map(id => id.trim()).filter(Boolean);
+      if (supplierIds.length > 0) {
+        // Sort supplier IDs to ensure consistent cache keys
+        normalizedSuppliers = supplierIds.sort().join(',');
+      }
+    }
+    
+    // Generate cache key (include all filters including minPrice, maxPrice, minStock, maxStock, and suppliers)
+    // IMPORTANT: Use normalizedSuppliers to ensure consistent cache keys
+    // CRITICAL: Include minPrice and maxPrice in cache key to ensure cache invalidation when price filters change
     const cacheKey = generateCacheKey(
       'products',
       user.role,
@@ -245,8 +399,11 @@ async function getProducts(req: NextRequest, user: any) {
       category || '',
       search || '',
       status || '',
-      stockStatus || '',
-      suppliers || '',
+      minPrice || '',
+      maxPrice || '',
+      minStock || '',
+      maxStock || '',
+      normalizedSuppliers,
       startDate || '',
       endDate || ''
     );

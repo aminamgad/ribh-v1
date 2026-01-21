@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, MapPin, Package, RefreshCw } from 'lucide-react';
+import { Search, MapPin, Package, RotateCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useDataCache } from '@/components/hooks/useDataCache';
 
@@ -110,77 +110,77 @@ export default function VillagesPage() {
   const uniqueAreas = Array.from(new Set(villages.map((v) => v.areaId))).sort();
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+    <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
           إدارة القرى والمناطق
         </h1>
         <button
           onClick={fetchVillages}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 min-h-[44px] text-sm sm:text-base w-full sm:w-auto"
         >
-          <RefreshCw className="w-4 h-4" />
+          <RotateCw className="w-4 h-4" />
           تحديث
         </button>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <div className="bg-white dark:bg-gray-800 p-3 sm:p-4 rounded-lg shadow">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">إجمالي القرى</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] sm:text-xs md:text-sm text-gray-600 dark:text-gray-400 truncate">إجمالي القرى</p>
+              <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 dark:text-white truncate">
                 {villages.length}
               </p>
             </div>
-            <MapPin className="w-8 h-8 text-blue-600" />
+            <MapPin className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 flex-shrink-0" />
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+        <div className="bg-white dark:bg-gray-800 p-3 sm:p-4 rounded-lg shadow">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">عدد المناطق</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] sm:text-xs md:text-sm text-gray-600 dark:text-gray-400 truncate">عدد المناطق</p>
+              <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 dark:text-white truncate">
                 {uniqueAreas.length}
               </p>
             </div>
-            <Package className="w-8 h-8 text-green-600" />
+            <Package className="w-6 h-6 sm:w-8 sm:h-8 text-green-600 flex-shrink-0" />
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+        <div className="bg-white dark:bg-gray-800 p-3 sm:p-4 rounded-lg shadow">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">القرى النشطة</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] sm:text-xs md:text-sm text-gray-600 dark:text-gray-400 truncate">القرى النشطة</p>
+              <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 dark:text-white truncate">
                 {villages.filter((v) => v.isActive).length}
               </p>
             </div>
-            <RefreshCw className="w-8 h-8 text-purple-600" />
+            <RotateCw className="w-6 h-6 sm:w-8 sm:h-8 text-purple-600 flex-shrink-0" />
           </div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="bg-white dark:bg-gray-800 p-3 sm:p-4 rounded-lg shadow">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
           <div className="relative">
-            <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <Search className="absolute right-2.5 sm:right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
             <input
               type="text"
               placeholder="بحث عن قرية..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pr-10 pl-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              className="w-full pr-9 sm:pr-10 pl-3 sm:pl-4 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white min-h-[44px]"
             />
           </div>
 
           <select
             value={selectedArea || ''}
             onChange={(e) => setSelectedArea(e.target.value ? parseInt(e.target.value) : null)}
-            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+            className="px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white min-h-[44px]"
           >
             <option value="">جميع المناطق</option>
             {uniqueAreas.map((areaId) => (
@@ -192,9 +192,56 @@ export default function VillagesPage() {
         </div>
       </div>
 
-      {/* Villages Table */}
+      {/* Villages Table - Mobile Card View */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Mobile Card View */}
+        <div className="md:hidden space-y-3 p-3 sm:p-4">
+          {loading ? (
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+              جاري التحميل...
+            </div>
+          ) : filteredVillages.length === 0 ? (
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+              لا توجد قرى
+            </div>
+          ) : (
+            filteredVillages.map((village) => (
+              <div key={village._id} className="mobile-table-card p-3 sm:p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">
+                    {village.villageName}
+                  </h3>
+                  <span
+                    className={`px-2 py-1 text-[10px] sm:text-xs rounded-full flex-shrink-0 ${
+                      village.isActive
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                        : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                    }`}
+                  >
+                    {village.isActive ? 'نشط' : 'غير نشط'}
+                  </span>
+                </div>
+                <div className="space-y-1.5 text-xs sm:text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500 dark:text-gray-400">معرف القرية:</span>
+                    <span className="text-gray-900 dark:text-white font-medium">{village.villageId}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500 dark:text-gray-400">المنطقة:</span>
+                    <span className="text-gray-900 dark:text-white font-medium">المنطقة {village.areaId}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500 dark:text-gray-400">تكلفة التوصيل:</span>
+                    <span className="text-gray-900 dark:text-white font-semibold">{village.deliveryCost} ₪</span>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Desktop Table */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
@@ -262,7 +309,7 @@ export default function VillagesPage() {
         </div>
 
         {filteredVillages.length > 0 && (
-          <div className="px-6 py-3 bg-gray-50 dark:bg-gray-700 text-sm text-gray-500 dark:text-gray-400">
+          <div className="px-4 sm:px-6 py-2 sm:py-3 bg-gray-50 dark:bg-gray-700 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
             عرض {filteredVillages.length} من {villages.length} قرية
           </div>
         )}

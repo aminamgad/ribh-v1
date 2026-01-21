@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useTransition, useRef, useCallback } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useCart } from '@/components/providers/CartProvider';
 import { useFavorites } from '@/components/providers/FavoritesProvider';
@@ -16,7 +16,7 @@ import {
   Heart, 
   CheckCircle, 
   XCircle,
-  RefreshCw,
+  RotateCw,
   AlertCircle,
   Save,
   BarChart3,
@@ -35,7 +35,6 @@ import {
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import SearchFilters from '@/components/search/SearchFilters';
-import { useSearchParams } from 'next/navigation';
 import MediaThumbnail from '@/components/ui/MediaThumbnail';
 import { useRouter } from 'next/navigation';
 import ProductSection from '@/components/products/ProductSection';
@@ -71,13 +70,93 @@ export default function ProductsPage() {
   const { user } = useAuth();
   const { addToCart } = useCart();
   const { addToFavorites, removeFromFavorites, isFavorite } = useFavorites();
-  const searchParams = useSearchParams();
-  const queryString = searchParams.toString();
+  const [urlQueryString, setUrlQueryString] = useState(() => 
+    typeof window !== 'undefined' ? window.location.search.substring(1) : ''
+  );
   const { refreshData } = useDataCacheContext();
+  const [isPending, startTransition] = useTransition();
+  const cacheKeyRef = useRef<string>('');
+  const previousQueryRef = useRef<string>('');
   
-  // Generate cache key based on query string
+  // Sync with actual URL changes from popstate events and custom events
+  useEffect(() => {
+    let isUpdating = false; // Flag to prevent infinite loops
+    
+    const handleUrlChange = (e?: Event) => {
+      if (isUpdating || typeof window === 'undefined') return;
+      
+      // Get query from event detail if available, otherwise from window.location
+      let newQuery: string;
+      if (e && 'detail' in e && (e as any).detail?.query !== undefined) {
+        newQuery = (e as any).detail.query || '';
+      } else {
+        newQuery = window.location.search.substring(1);
+      }
+      
+      // Only update if query actually changed
+      if (urlQueryString !== newQuery) {
+        previousQueryRef.current = urlQueryString;
+        // Use startTransition to mark state update as non-urgent, preventing full page re-render
+        startTransition(() => {
+          setUrlQueryString(newQuery);
+        });
+        // Reset flag immediately (no delay)
+        isUpdating = false;
+      }
+    };
+    
+    // Check on mount
+    if (typeof window !== 'undefined') {
+      handleUrlChange();
+    }
+    
+    // Listen to popstate events (when URL changes via history API)
+    window.addEventListener('popstate', handleUrlChange);
+    
+    // Listen to custom urlchange events - prioritize these over popstate
+    const handleUrlChangeEvent = (e: Event) => {
+      // Always use detail.query from custom event if available
+      if (e && 'detail' in e && (e as any).detail?.query !== undefined) {
+        const newQuery = (e as any).detail.query || '';
+        // Update immediately for instant response (no startTransition delay)
+        // This ensures filters respond instantly when changed
+        setUrlQueryString((prev) => {
+          if (prev !== newQuery) {
+            return newQuery;
+          }
+          return prev;
+        });
+      } else {
+        handleUrlChange(e);
+      }
+    };
+    
+    window.addEventListener('urlchange', handleUrlChangeEvent);
+    
+    return () => {
+      window.removeEventListener('popstate', handleUrlChange);
+      window.removeEventListener('urlchange', handleUrlChangeEvent);
+    };
+  }, []); // Remove startTransition from dependencies
+  
+  // Use URL query string directly - no need for searchParams which causes re-renders
+  // This is synchronous - no delay
+  const queryString = urlQueryString || '';
+  
+  // Generate cache key based on query string - synchronous calculation
+  // This updates immediately when queryString changes
   const cacheKey = useMemo(() => {
-    return `products_${queryString || 'default'}`;
+    const newKey = `products_${queryString || 'default'}`;
+    if (cacheKeyRef.current !== newKey) {
+      console.log('Cache key changed:', {
+        oldKey: cacheKeyRef.current,
+        newKey,
+        queryString,
+        hasSuppliers: queryString.includes('suppliers')
+      });
+      cacheKeyRef.current = newKey;
+    }
+    return newKey;
   }, [queryString]);
   
   const [pagination, setPagination] = useState({
@@ -235,35 +314,39 @@ export default function ProductsPage() {
     games: []
   };
 
+  // Fetch function - use useCallback to ensure it uses latest queryString
+  const fetchProducts = useCallback(async () => {
+    const params = new URLSearchParams(queryString);
+    const hasAdminFilters =
+      params.has('stockStatus') ||
+      params.has('suppliers') ||
+      params.has('startDate') ||
+      params.has('endDate');
+    const endpoint =
+      (hasAdminFilters || user?.role === 'admin')
+        ? (queryString ? `/api/products?${queryString}` : '/api/products')
+        : queryString
+          ? `/api/search?${queryString}`
+          : '/api/products';
+    
+    const response = await fetch(endpoint);
+    if (!response.ok) {
+      throw new Error('Failed to fetch products');
+    }
+    const data = await response.json();
+    return data;
+  }, [queryString, user?.role]);
+
   // Use cache hook for products
   const { data: productsData, loading, refresh } = useDataCache<{ products: Product[]; pagination?: any }>({
     key: cacheKey,
-    fetchFn: async () => {
-      const params = new URLSearchParams(queryString);
-      const hasAdminFilters =
-        params.has('stockStatus') ||
-        params.has('suppliers') ||
-        params.has('startDate') ||
-        params.has('endDate');
-      const endpoint =
-        (hasAdminFilters || user?.role === 'admin')
-          ? (queryString ? `/api/products?${queryString}` : '/api/products')
-          : queryString
-            ? `/api/search?${queryString}`
-            : '/api/products';
-      
-      const response = await fetch(endpoint);
-      if (!response.ok) {
-        throw new Error('Failed to fetch products');
-      }
-      const data = await response.json();
-      return data;
-    },
+    fetchFn: fetchProducts,
     enabled: !!user,
     forceRefresh: false
   });
 
   const products = productsData?.products || [];
+  
   
   useEffect(() => {
     if (productsData?.pagination) {
@@ -291,15 +374,13 @@ export default function ProductsPage() {
     refreshSections();
   };
 
-  // Keep fetchProducts for backward compatibility (used in some handlers)
-  const fetchProducts = async (overrideQueryString?: string) => {
-    if (overrideQueryString) {
-      // If query string changed, refresh cache with new key
-      refresh();
-    } else {
-      refresh();
-    }
-  };
+
+  // Handle search callback - memoize to prevent re-creating on every render
+  // Empty function to prevent unnecessary re-renders of SearchFilters
+  const handleSearch = useCallback(() => {
+    // Filters apply automatically via urlchange event, no need to do anything here
+    // This callback is kept for backward compatibility
+  }, []);
 
   const handleDeleteProduct = async (productId: string) => {
     const product = products.find(p => p._id === productId);
@@ -320,7 +401,7 @@ export default function ProductsPage() {
 
       if (response.ok) {
         toast.success('تم حذف المنتج بنجاح');
-        fetchProducts();
+        refresh();
       } else {
         toast.error('فشل في حذف المنتج');
       }
@@ -387,7 +468,7 @@ export default function ProductsPage() {
 
       if (response.ok) {
         toast.success('تم تحديث المنتج بنجاح');
-        fetchProducts();
+        refresh();
         setShowQuickEditModal(false);
         setSelectedProduct(null);
       } else {
@@ -436,7 +517,7 @@ export default function ProductsPage() {
       if (response.ok) {
         const data = await response.json();
         toast.success(data.message);
-        fetchProducts(); // Refresh products list
+        refresh(); // Refresh products list
       } else {
         const errorData = await response.json();
         toast.error(errorData.message || 'فشل في قفل/إلغاء قفل المنتج');
@@ -517,7 +598,7 @@ export default function ProductsPage() {
         
         // Add a small delay to ensure database is updated
         setTimeout(() => {
-          fetchProducts();
+          refresh();
         }, 500);
       } else {
         const error = await response.json();
@@ -591,7 +672,7 @@ export default function ProductsPage() {
         // Add a small delay to ensure database is updated
         setTimeout(() => {
           console.log('🔄 Refreshing products after rejection...');
-          fetchProducts();
+          refresh();
         }, 500);
       } else {
         const error = await response.json();
@@ -637,7 +718,7 @@ export default function ProductsPage() {
 
       if (response.ok) {
         toast.success('تم إعادة تقديم المنتج بنجاح');
-        fetchProducts();
+        refresh();
       } else {
         const error = await response.json();
         toast.error(error.message || 'فشل في إعادة تقديم المنتج');
@@ -680,14 +761,29 @@ export default function ProductsPage() {
         return '';
     }
   };
+  
+  const getRoleDescriptionMobile = () => {
+    switch (user?.role) {
+      case 'supplier':
+        return 'إدارة منتجاتك وإضافة منتجات جديدة';
+      case 'admin':
+        return 'إدارة جميع المنتجات في المنصة';
+      case 'marketer':
+        return (
+          <>
+            <span className="block sm:inline">تصفح المنتجات المعتمدة</span>
+            <span className="block sm:inline">وأضفها للسلة لإنشاء طلبات للعملاء</span>
+          </>
+        );
+      case 'wholesaler':
+        return 'تصفح المنتجات المتاحة للطلب بالجملة';
+      default:
+        return '';
+    }
+  };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="loading-spinner w-8 h-8"></div>
-      </div>
-    );
-  }
+  // Don't block entire page on loading - show loading indicator inline instead
+  // This prevents SearchFilters from being unmounted and losing its state
 
   return (
     <div className="space-y-6">
@@ -698,8 +794,8 @@ export default function ProductsPage() {
             <h1 className={`text-3xl font-bold ${user?.role === 'marketer' ? 'text-white' : 'text-gray-900 dark:text-slate-100'}`}>
               {getRoleTitle()}
             </h1>
-            <p className={`mt-2 ${user?.role === 'marketer' ? 'text-white/90' : 'text-gray-600 dark:text-slate-400'}`}>
-              {getRoleDescription()}
+            <p className={`mt-2 text-sm sm:text-base ${user?.role === 'marketer' ? 'text-white/90' : 'text-gray-600 dark:text-slate-400'} text-wrap-long`}>
+              {user?.role === 'marketer' ? getRoleDescriptionMobile() : getRoleDescription()}
             </p>
           </div>
 
@@ -726,10 +822,10 @@ export default function ProductsPage() {
       </div>
 
       {/* Search and Filters */}
-      <SearchFilters onSearch={() => fetchProducts()} />
+      <SearchFilters onSearch={handleSearch} />
 
       {/* Product Sections for Marketer - Only show when no filters/search */}
-      {user?.role === 'marketer' && !searchParams.toString() && (
+      {user?.role === 'marketer' && !queryString && (
         <div className="space-y-8">
           {sectionsLoading ? (
             <div className="flex items-center justify-center py-8">
@@ -831,12 +927,18 @@ export default function ProductsPage() {
       )}
 
       {/* Products Display - Admin uses table/list view, others use grid */}
-      {products.length === 0 ? (
+      {loading && !productsData ? (
+        // Show loading spinner inline when first loading (but keep filters visible)
+        <div className="flex items-center justify-center py-12">
+          <div className="loading-spinner w-8 h-8"></div>
+          <span className="mr-3 text-gray-600 dark:text-slate-400">جاري تحميل المنتجات...</span>
+        </div>
+      ) : products.length === 0 ? (
         <div className="card text-center py-12">
           <Package className="w-16 h-16 text-gray-400 dark:text-slate-500 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100 mb-2">لا توجد منتجات</h3>
           <p className="text-gray-600 dark:text-slate-400">
-            {searchParams.toString() 
+            {queryString 
               ? 'لا توجد نتائج مطابقة لبحثك'
               : user?.role === 'supplier'
                 ? 'لم تقم بإضافة أي منتجات بعد. ابدأ بإضافة منتجك الأول!'
@@ -845,7 +947,7 @@ export default function ProductsPage() {
                 : 'لا توجد منتجات متاحة حالياً.'
             }
           </p>
-          {user?.role === 'supplier' && !searchParams.toString() && (
+          {user?.role === 'supplier' && !queryString && (
             <Link href="/dashboard/products/new" className="btn-primary mt-4">
               <Plus className="w-5 h-5 ml-2" />
               إضافة منتج جديد
@@ -853,21 +955,36 @@ export default function ProductsPage() {
           )}
         </div>
       ) : user?.role === 'admin' ? (
-        // Admin Table/List View
-        <AdminProductsTableView
-          products={products}
-          onApprove={handleApproveProduct}
-          onReject={handleRejectProduct}
-          viewMode={adminViewMode}
-          onViewModeChange={setAdminViewMode}
-        />
+        // Admin Table/List View - show loading indicator when loading new data
+        <>
+          {loading && productsData && (
+            <div className="mb-4 flex items-center justify-center py-4">
+              <div className="loading-spinner w-6 h-6"></div>
+              <span className="mr-2 text-sm text-gray-600 dark:text-slate-400">جاري تحديث القائمة...</span>
+            </div>
+          )}
+          <AdminProductsTableView
+            products={products}
+            onApprove={handleApproveProduct}
+            onReject={handleRejectProduct}
+            viewMode={adminViewMode}
+            onViewModeChange={setAdminViewMode}
+          />
+        </>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {/* Show loading indicator when loading new data but keep previous data visible */}
+          {loading && productsData && (
+            <div className="mb-4 flex items-center justify-center py-4">
+              <div className="loading-spinner w-6 h-6"></div>
+              <span className="mr-2 text-sm text-gray-600 dark:text-slate-400">جاري تحديث القائمة...</span>
+            </div>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
             {products.map((product) => (
               <div 
                 key={product._id} 
-                className="card hover:shadow-medium transition-shadow relative cursor-pointer"
+                className="card hover:shadow-medium transition-all duration-200 relative cursor-pointer active:scale-[0.98]"
                 onClick={() => router.push(`/dashboard/products/${product._id}`)}
               >
                 {/* Favorite button for marketers/wholesalers */}
@@ -877,10 +994,10 @@ export default function ProductsPage() {
                       e.stopPropagation();
                       handleToggleFavorite(product);
                     }}
-                    className="absolute top-2 left-2 p-2 bg-white dark:bg-slate-800 rounded-full shadow-sm hover:shadow-md transition-shadow z-10 flex items-center justify-center"
+                    className="absolute top-2 left-2 p-2 sm:p-2.5 bg-white dark:bg-slate-800 rounded-full shadow-sm hover:shadow-md transition-shadow z-10 flex items-center justify-center min-w-[44px] min-h-[44px]"
                   >
                     <Heart 
-                      className={`w-5 h-5 ${
+                      className={`w-5 h-5 sm:w-6 sm:h-6 ${
                         isFavorite(product._id) 
                           ? 'text-danger-600 dark:text-danger-400 fill-current' 
                           : 'text-gray-400 dark:text-slate-500 hover:text-danger-600 dark:hover:text-danger-400'
@@ -890,15 +1007,15 @@ export default function ProductsPage() {
                 )}
 
                                  {/* Product Media */}
-                 <div className="relative mb-6">
+                 <div className="relative mb-3 sm:mb-4 md:mb-6">
                    <MediaThumbnail
                      media={product.images || []}
                      alt={product.name}
-                     className="w-full"
+                     className="w-full aspect-square"
                      showTypeBadge={true}
                      priority={products.indexOf(product) < 8} // Priority for first 8 visible products
-                     width={400}
-                     height={400}
+                     width={300}
+                     height={300}
                      fallbackIcon={<Package className="w-12 h-12 text-gray-400 dark:text-slate-500" />}
                    />
                    
@@ -910,32 +1027,32 @@ export default function ProductsPage() {
                            e.stopPropagation();
                            handleQuickEdit(product);
                          }}
-                         className="bg-white dark:bg-slate-800 text-[#FF9800] dark:text-[#FF9800] px-3 py-2 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 flex items-center space-x-2 space-x-reverse"
+                         className="bg-white dark:bg-slate-800 text-[#FF9800] dark:text-[#FF9800] px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 flex items-center space-x-2 space-x-reverse min-h-[44px]"
                        >
-                         <Edit className="w-4 h-4" />
-                         <span className="text-sm font-medium">تعديل سريع</span>
+                         <Edit className="w-4 h-4 sm:w-5 sm:h-5" />
+                         <span className="text-xs sm:text-sm font-medium">تعديل سريع</span>
                        </button>
                      </div>
                    )}
                  </div>
 
                 {/* Product Info */}
-                <div className="space-y-3">
-                  <h3 className="font-semibold text-gray-900 dark:text-slate-100 line-clamp-2">{product.name}</h3>
-                  <p className="text-sm text-gray-600 dark:text-slate-300 line-clamp-2">{product.description}</p>
+                <div className="space-y-2 sm:space-y-3">
+                  <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-slate-100 line-clamp-2 min-h-[2.5rem] sm:min-h-[3rem]">{product.name}</h3>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-300 line-clamp-2 hidden sm:block text-wrap-long">{product.description}</p>
 
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-lg font-bold text-primary-600 dark:text-primary-400">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-base sm:text-lg md:text-xl font-bold text-primary-600 dark:text-primary-400">
                         {user?.role === 'wholesaler' ? product.wholesalerPrice : product.marketerPrice} ₪
                       </p>
                       {user?.role === 'marketer' && product.minimumSellingPrice && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mt-0.5 sm:mt-1">
                           السعر الأدنى: {product.minimumSellingPrice} ₪
                         </p>
                       )}
-                      <div className="flex items-center space-x-2 space-x-reverse mt-1">
-                        <span className={`text-xs px-2 py-1 rounded-full ${
+                      <div className="flex items-center flex-wrap gap-1.5 sm:gap-2 space-x-reverse mt-1.5 sm:mt-2">
+                        <span className={`text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full ${
                           product.stockQuantity > 10 
                             ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
                             : product.stockQuantity > 0 
@@ -952,7 +1069,7 @@ export default function ProductsPage() {
                                e.stopPropagation();
                                handleQuickEdit(product);
                              }}
-                             className="text-xs text-[#FF9800] dark:text-[#FF9800] hover:text-[#F57C00] dark:hover:text-[#F57C00] font-medium"
+                             className="text-[10px] sm:text-xs text-[#FF9800] dark:text-[#FF9800] hover:text-[#F57C00] dark:hover:text-[#F57C00] font-medium px-1.5 py-0.5 min-h-[28px]"
                              title="تعديل سريع"
                            >
                              ✏️ تعديل
@@ -994,44 +1111,48 @@ export default function ProductsPage() {
                    </div>
 
                   {/* Actions */}
-                  <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-slate-700">
-                    <div className="text-primary-600 dark:text-primary-400 text-sm font-medium">
-                      <Eye className="w-4 h-4 ml-1 inline" />
-                      عرض
-                    </div>
+                  <div className="flex items-center justify-between pt-2 sm:pt-3 border-t border-gray-100 dark:border-slate-700 gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/dashboard/products/${product._id}`);
+                      }}
+                      className="text-primary-600 dark:text-primary-400 text-xs sm:text-sm font-medium flex items-center min-h-[36px] sm:min-h-[40px] px-2 sm:px-3 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg transition-colors"
+                    >
+                      <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4 ml-1" />
+                      <span className="hidden sm:inline">عرض</span>
+                    </button>
 
                     {/* Actions for Marketer/Wholesaler */}
                     {(user?.role === 'marketer' || user?.role === 'wholesaler') && product.isApproved && !product.isLocked && (
-                      <div className="flex items-center space-x-2 space-x-reverse">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleAddToCart(product);
-                          }}
-                          className={`text-sm font-medium px-3 py-1.5 rounded-lg transition-colors flex items-center ${
-                            product.stockQuantity > 0 
-                              ? 'bg-emerald-600 hover:bg-emerald-700 text-white dark:bg-emerald-500 dark:hover:bg-emerald-600 shadow-md hover:shadow-lg' 
-                              : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
-                          }`}
-                          title={product.stockQuantity > 0 ? 'إضافة للسلة' : 'غير متوفر في المخزون'}
-                          disabled={product.stockQuantity <= 0}
-                        >
-                          <ShoppingCart className="w-4 h-4 ml-1" />
-                          {product.stockQuantity > 0 ? 'إضافة للسلة' : 'غير متوفر'}
-                        </button>
-                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAddToCart(product);
+                        }}
+                        className={`text-xs sm:text-sm font-medium px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg transition-colors flex items-center justify-center min-h-[36px] sm:min-h-[44px] flex-1 ${
+                          product.stockQuantity > 0 
+                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white dark:bg-emerald-500 dark:hover:bg-emerald-600 shadow-md hover:shadow-lg active:scale-95' 
+                            : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                        }`}
+                        title={product.stockQuantity > 0 ? 'إضافة للسلة' : 'غير متوفر في المخزون'}
+                        disabled={product.stockQuantity <= 0}
+                      >
+                        <ShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4 ml-1 flex-shrink-0" />
+                        <span className="truncate">{product.stockQuantity > 0 ? 'إضافة للسلة' : 'غير متوفر'}</span>
+                      </button>
                     )}
 
                                          {/* Actions for Supplier/Admin */}
                      {(user?.role === 'supplier' || user?.role === 'admin') && (
-                       <div className="flex items-center space-x-2 space-x-reverse">
+                       <div className="flex items-center space-x-1.5 sm:space-x-2 space-x-reverse">
                          <Link
                            href={`/dashboard/products/${product._id}/edit`}
-                           className="text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100"
+                           className="text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 p-2 sm:p-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
                            title="تعديل كامل"
                            onClick={(e) => e.stopPropagation()}
                          >
-                           <Edit className="w-4 h-4" />
+                           <Edit className="w-4 h-4 sm:w-5 sm:h-5" />
                          </Link>
                         
                         {user?.role === 'admin' && !product.isApproved && !product.isRejected && (
@@ -1040,10 +1161,10 @@ export default function ProductsPage() {
                               e.stopPropagation();
                               handleApproveProduct(product._id);
                             }}
-                            className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300"
+                            className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 p-2 sm:p-2.5 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
                             title="اعتماد المنتج"
                           >
-                            <CheckCircle className="w-4 h-4" />
+                            <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                           </button>
                         )}
                         
@@ -1053,10 +1174,10 @@ export default function ProductsPage() {
                               e.stopPropagation();
                               handleRejectProduct(product._id);
                             }}
-                            className="text-danger-600 dark:text-danger-400 hover:text-danger-700 dark:hover:text-danger-300"
+                            className="text-danger-600 dark:text-danger-400 hover:text-danger-700 dark:hover:text-danger-300 p-2 sm:p-2.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
                             title="رفض المنتج"
                           >
-                            <XCircle className="w-4 h-4" />
+                            <XCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                           </button>
                         )}
                         
@@ -1066,21 +1187,21 @@ export default function ProductsPage() {
                               e.stopPropagation();
                               handleResubmitProduct(product._id);
                             }}
-                            className="text-[#FF9800] dark:text-[#FF9800] hover:text-[#F57C00] dark:hover:text-[#F57C00]"
+                            className="text-[#FF9800] dark:text-[#FF9800] hover:text-[#F57C00] dark:hover:text-[#F57C00] p-2 sm:p-2.5 rounded-lg hover:bg-[#FF9800]/10 dark:hover:bg-[#FF9800]/20 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
                             title="إعادة تقديم"
                           >
-                            <RefreshCw className="w-4 h-4" />
+                            <RotateCw className="w-4 h-4 sm:w-5 sm:h-5" />
                           </button>
                         )}
                         
                         {user?.role === 'admin' && (
                           <Link
                             href={`/dashboard/admin/product-stats?productId=${product._id}`}
-                            className="text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300"
+                            className="text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 p-2 sm:p-2.5 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
                             title="عرض الإحصائيات"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <BarChart3 className="w-4 h-4" />
+                            <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" />
                           </Link>
                         )}
                         
@@ -1146,9 +1267,24 @@ export default function ProductsPage() {
             <div className="flex justify-center items-center space-x-2 space-x-reverse mt-8">
               <button
                 onClick={() => {
-                  const params = new URLSearchParams(searchParams.toString());
+                  const params = new URLSearchParams(queryString);
                   params.set('page', (pagination.page - 1).toString());
-                  window.location.search = params.toString();
+                  const newQuery = params.toString();
+                  const newUrl = `/dashboard/products${newQuery ? `?${newQuery}` : ''}`;
+                  
+                  // Update URL without page reload
+                  if (typeof window !== 'undefined') {
+                    const newState = { ...window.history.state, as: newUrl, url: newUrl };
+                    window.history.replaceState(newState, '', newUrl);
+                    
+                    // Update local state - no need for startTransition, urlQueryString update will trigger cache refresh
+                    setUrlQueryString(newQuery);
+                    
+                    // Trigger events for other listeners
+                    const popStateEvent = new PopStateEvent('popstate', { state: newState });
+                    window.dispatchEvent(popStateEvent);
+                    window.dispatchEvent(new CustomEvent('urlchange', { detail: { query: newQuery } }));
+                  }
                 }}
                 disabled={pagination.page === 1}
                 className="btn-secondary"
@@ -1162,9 +1298,24 @@ export default function ProductsPage() {
               
               <button
                 onClick={() => {
-                  const params = new URLSearchParams(searchParams.toString());
+                  const params = new URLSearchParams(queryString);
                   params.set('page', (pagination.page + 1).toString());
-                  window.location.search = params.toString();
+                  const newQuery = params.toString();
+                  const newUrl = `/dashboard/products${newQuery ? `?${newQuery}` : ''}`;
+                  
+                  // Update URL without page reload
+                  if (typeof window !== 'undefined') {
+                    const newState = { ...window.history.state, as: newUrl, url: newUrl };
+                    window.history.replaceState(newState, '', newUrl);
+                    
+                    // Update local state - no need for startTransition, urlQueryString update will trigger cache refresh
+                    setUrlQueryString(newQuery);
+                    
+                    // Trigger events for other listeners
+                    const popStateEvent = new PopStateEvent('popstate', { state: newState });
+                    window.dispatchEvent(popStateEvent);
+                    window.dispatchEvent(new CustomEvent('urlchange', { detail: { query: newQuery } }));
+                  }
                 }}
                 disabled={pagination.page === pagination.pages}
                 className="btn-secondary"
@@ -1294,7 +1445,7 @@ export default function ProductsPage() {
           <div className="bg-white dark:bg-slate-800 rounded-lg p-6 max-w-md w-full shadow-xl">
             <div className="flex items-center mb-4">
               <div className="bg-primary-100 dark:bg-primary-900/30 p-2 rounded-full mr-3">
-                <RefreshCw className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+                <RotateCw className="w-6 h-6 text-primary-600 dark:text-primary-400" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">إعادة تقديم المنتج</h3>
             </div>
@@ -1326,7 +1477,7 @@ export default function ProductsPage() {
                   </>
                 ) : (
                   <>
-                    <RefreshCw className="w-4 h-4 ml-2" />
+                    <RotateCw className="w-4 h-4 ml-2" />
                     إعادة تقديم
                   </>
                 )}
@@ -1342,7 +1493,7 @@ export default function ProductsPage() {
           <div className="bg-white dark:bg-slate-800 rounded-lg p-6 max-w-md w-full shadow-xl">
             <div className="flex items-center mb-4">
               <div className="bg-primary-100 dark:bg-primary-900/30 p-2 rounded-full mr-3">
-                <RefreshCw className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+                <RotateCw className="w-6 h-6 text-primary-600 dark:text-primary-400" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">إعادة تقديم المنتج</h3>
             </div>
@@ -1374,7 +1525,7 @@ export default function ProductsPage() {
                   </>
                 ) : (
                   <>
-                    <RefreshCw className="w-4 h-4 ml-2" />
+                    <RotateCw className="w-4 h-4 ml-2" />
                     إعادة تقديم
                   </>
                 )}

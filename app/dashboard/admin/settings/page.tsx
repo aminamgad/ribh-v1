@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Settings, 
   Save, 
-  RefreshCw, 
+  RotateCw, 
   DollarSign, 
   CreditCard, 
   Package, 
@@ -487,7 +487,7 @@ export default function SettingsPage() {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center">
-          <RefreshCw className="w-8 h-8 animate-spin text-blue-600 dark:text-blue-400 mx-auto mb-4" />
+          <RotateCw className="w-8 h-8 animate-spin text-blue-600 dark:text-blue-400 mx-auto mb-4" />
           <p className="text-gray-600 dark:text-gray-300">جاري تحميل الإعدادات...</p>
         </div>
       </div>
@@ -502,7 +502,7 @@ export default function SettingsPage() {
           <AlertCircle className="w-8 h-8 text-yellow-600 dark:text-yellow-400 mx-auto mb-4" />
           <p className="text-gray-600 dark:text-gray-300">جاري تحميل البيانات...</p>
           <Button onClick={fetchSettings} className="mt-4 bg-[#FF9800] hover:bg-[#F57C00] dark:bg-[#FF9800] dark:hover:bg-[#F57C00]">
-            <RefreshCw className="w-4 h-4 ml-2" />
+            <RotateCw className="w-4 h-4 ml-2" />
             إعادة المحاولة
           </Button>
         </div>
@@ -519,7 +519,7 @@ export default function SettingsPage() {
           <p className="text-gray-600 dark:text-gray-300 mt-2">إدارة إعدادات المنصة والتكوين</p>
         </div>
         <Button onClick={fetchSettings} variant="outline" className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700">
-          <RefreshCw className="w-4 h-4 ml-2" />
+          <RotateCw className="w-4 h-4 ml-2" />
           تحديث
         </Button>
       </div>

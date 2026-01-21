@@ -15,20 +15,44 @@ export const isCloudinaryUrl = (url: string): boolean => {
 /**
  * Returns a Cloudinary URL resized/cropped for thumbnails.
  * This avoids downloading the original large image before showing it in tables/lists.
+ * Optimized with dpr_auto, fetch_format auto, and smart quality settings.
  */
 export const getCloudinaryThumbnailUrl = (
   url: string,
-  opts: { width: number; height: number; crop?: 'fill' | 'fit' | 'limit'; quality?: 'auto' | number }
+  opts: { 
+    width: number; 
+    height: number; 
+    crop?: 'fill' | 'fit' | 'limit' | 'thumb' | 'scale'; 
+    quality?: 'auto' | 'auto:best' | 'auto:good' | 'auto:eco' | 'auto:low' | number;
+    format?: 'auto' | 'webp' | 'avif' | 'jpg' | 'png';
+    dpr?: 'auto' | number;
+  }
 ): string => {
   if (!isCloudinaryUrl(url)) return url;
-  const { width, height, crop = 'fill', quality = 'auto' } = opts;
+  const { 
+    width, 
+    height, 
+    crop = 'fill', 
+    quality = 'auto:good', // Use auto:good for better balance between quality and size
+    format = 'auto',
+    dpr = 'auto' // Auto DPR for retina displays
+  } = opts;
 
   const [prefix, suffix] = url.split('/upload/');
   if (!prefix || !suffix) return url;
 
-  const q = quality === 'auto' ? 'q_auto' : `q_${quality}`;
-  // g_auto helps crop to the subject automatically, good for product thumbnails
-  const transform = `f_auto,${q},w_${width},h_${height},c_${crop},g_auto`;
+  // Build quality parameter
+  const q = typeof quality === 'number' ? `q_${quality}` : `q_${quality}`;
+  
+  // Build format parameter (f_auto already handles format selection, but we can be explicit)
+  const f = format === 'auto' ? 'f_auto' : `f_${format}`;
+  
+  // Build DPR parameter
+  const dprParam = dpr === 'auto' ? 'dpr_auto' : `dpr_${dpr}`;
+  
+  // Build transformation string with optimizations
+  // Order matters: format first, then quality, then dimensions, then crop, then DPR, then gravity
+  const transform = `${f},${q},w_${width},h_${height},c_${crop},${dprParam},g_auto`;
 
   return `${prefix}/upload/${transform}/${suffix}`;
 };

@@ -12,6 +12,7 @@ import { ChatProvider } from '@/components/providers/ChatProvider';
 import { SettingsProvider } from '@/components/providers/SettingsProvider';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Analytics } from '@/components/Analytics';
+import ImageCacheInitializer from '@/components/ImageCacheInitializer';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -51,6 +52,9 @@ export default function RootLayout({
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        {/* Cloudinary CDN optimization - DNS prefetch and preconnect for faster image loading */}
+        <link rel="dns-prefetch" href="https://res.cloudinary.com" />
+        <link rel="preconnect" href="https://res.cloudinary.com" crossOrigin="anonymous" />
         <link rel="icon" href="/favicon.ico" />
         <link rel="apple-touch-icon" href="/logo.png" />
         <link rel="manifest" href="/manifest.json" />
@@ -117,6 +121,7 @@ export default function RootLayout({
                          }}
                       />
                       <ErrorBoundary>
+                        <ImageCacheInitializer />
                         <Analytics />
                         {children}
                       </ErrorBoundary>

@@ -96,7 +96,7 @@ export default function ConfirmationModal({
   };
 
   return (
-    <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-opacity duration-200 ${
+    <div className={`fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 transition-opacity duration-200 safe-area-inset ${
       isOpen ? 'opacity-100' : 'opacity-0'
     }`}>
       {/* Backdrop */}
@@ -106,57 +106,59 @@ export default function ConfirmationModal({
       />
       
       {/* Modal */}
-      <div className={`relative bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-md transform transition-all duration-200 ${
+      <div className={`relative bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto transform transition-all duration-200 ${
         isOpen ? 'scale-100' : 'scale-95'
       }`}>
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-slate-700">
-          <div className="flex items-center space-x-3 space-x-reverse">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 dark:border-slate-700 sticky top-0 bg-white dark:bg-slate-800 z-10">
+          <div className="flex items-center space-x-2 sm:space-x-3 space-x-reverse flex-1 min-w-0">
             <div className="flex-shrink-0">
-              {getIcon()}
+              <div className="w-5 h-5 sm:w-6 sm:h-6">
+                {getIcon()}
+              </div>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-slate-100 truncate">
               {title}
             </h3>
           </div>
           <button
             onClick={handleClose}
             disabled={loading}
-            className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
+            className="p-2 sm:p-2.5 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors disabled:opacity-50 min-w-[44px] min-h-[44px] flex items-center justify-center flex-shrink-0 mr-2 sm:mr-0"
           >
-            <X className="w-5 h-5 text-gray-500 dark:text-slate-400" />
+            <X className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500 dark:text-slate-400" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6">
-          <p className="text-gray-700 dark:text-slate-300 leading-relaxed">
+        <div className="p-4 sm:p-6">
+          <p className="text-sm sm:text-base text-gray-700 dark:text-slate-300 leading-relaxed">
             {message}
           </p>
           {customContent && (
-            <div className="mt-4">
+            <div className="mt-3 sm:mt-4">
               {customContent}
             </div>
           )}
         </div>
 
         {/* Actions */}
-        <div className="flex justify-end space-x-3 space-x-reverse p-6 border-t border-gray-200 dark:border-slate-700">
+        <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 space-y-reverse sm:space-x-reverse p-4 sm:p-6 border-t border-gray-200 dark:border-slate-700 sticky bottom-0 bg-white dark:bg-slate-800">
           <button
             onClick={handleCancel}
             disabled={loading}
-            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-2.5 sm:py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors min-h-[44px] w-full sm:w-auto"
           >
             {cancelText}
           </button>
           <button
             onClick={handleConfirm}
             disabled={loading}
-            className={`px-4 py-2 text-sm font-medium text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 ${getButtonStyles()} disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2 space-x-reverse`}
+            className={`px-4 py-2.5 sm:py-2 text-sm font-medium text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 ${getButtonStyles()} disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center space-x-2 space-x-reverse min-h-[44px] w-full sm:w-auto`}
           >
             {loading ? (
               <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                <div className="animate-spin rounded-full h-3.5 w-3.5 sm:h-4 sm:w-4 border-b-2 border-white"></div>
                 <span>جاري التحميل...</span>
               </>
             ) : (

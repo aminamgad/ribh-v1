@@ -40,16 +40,23 @@ export default function MultiSelect({
   }, []);
 
   const handleToggle = (value: string) => {
+    console.log('MultiSelect handleToggle called:', { value, selected, isSelected: selected.includes(value) });
     if (selected.includes(value)) {
-      onChange(selected.filter((item) => item !== value));
+      const newValue = selected.filter((item) => item !== value);
+      console.log('MultiSelect removing item, calling onChange:', { newValue });
+      onChange(newValue);
     } else {
-      onChange([...selected, value]);
+      const newValue = [...selected, value];
+      console.log('MultiSelect adding item, calling onChange:', { newValue });
+      onChange(newValue);
     }
   };
 
   const handleRemove = (value: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    onChange(selected.filter((item) => item !== value));
+    const newValue = selected.filter((item) => item !== value);
+    console.log('MultiSelect handleRemove called, calling onChange:', { value, newValue });
+    onChange(newValue);
   };
 
   const selectedLabels = selected
@@ -79,14 +86,25 @@ export default function MultiSelect({
               selectedLabels.map((label, index) => (
                 <span
                   key={selected[index]}
-                  className="inline-flex items-center gap-1 px-2 py-1 bg-[#FF9800]/10 dark:bg-[#FF9800]/20 text-[#FF9800] dark:text-[#FF9800] rounded text-sm"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-[#FF9800]/10 dark:bg-[#FF9800]/20 text-[#FF9800] dark:text-[#FF9800] rounded-md text-sm font-medium border border-[#FF9800]/20 dark:border-[#FF9800]/30"
                 >
-                  {label}
+                  <span className="flex-shrink-0">{label}</span>
                   <button
                     onClick={(e) => handleRemove(selected[index], e)}
-                    className="hover:bg-[#FF9800]/20 rounded p-0.5"
+                    className="
+                      flex items-center justify-center
+                      w-5 h-5 min-w-[20px] min-h-[20px]
+                      rounded-full
+                      hover:bg-[#FF9800]/30 dark:hover:bg-[#FF9800]/40
+                      active:bg-[#FF9800]/40 dark:active:bg-[#FF9800]/50
+                      transition-all duration-150
+                      focus:outline-none focus:ring-2 focus:ring-[#FF9800]/50 focus:ring-offset-1
+                      ml-0.5
+                    "
+                    aria-label={`إزالة ${label}`}
+                    title={`إزالة ${label}`}
                   >
-                    <X className="w-3 h-3" />
+                    <X className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={2.5} />
                   </button>
                 </span>
               ))

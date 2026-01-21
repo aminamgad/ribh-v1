@@ -30,7 +30,7 @@ import {
   Edit,
   Save,
   Trash2,
-  RefreshCw
+  RotateCw
 } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -144,7 +144,12 @@ export default function DashboardPage() {
       case 'supplier':
         return 'مرحباً بك في لوحة تحكم المورد. يمكنك إدارة منتجاتك وطلبات التخزين من هنا.';
       case 'marketer':
-        return 'مرحباً بك في لوحة تحكم المسوق. يمكنك تصفح المنتجات وطلبها للعملاء من هنا.';
+        return (
+          <>
+            <span className="block sm:inline">مرحباً بك في لوحة تحكم المسوق.</span>
+            <span className="block sm:inline">يمكنك تصفح المنتجات وطلبها للعملاء من هنا.</span>
+          </>
+        );
       case 'wholesaler':
         return 'مرحباً بك في لوحة تحكم تاجر الجملة. يمكنك شراء المنتجات بأسعار الجملة من هنا.';
       default:
@@ -321,7 +326,7 @@ export default function DashboardPage() {
                 className="flex items-center gap-2 px-4 py-2 bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-900/50 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 title="تحديث الإحصائيات يدوياً"
               >
-                <RefreshCw className={`w-4 h-4 text-blue-600 dark:text-blue-400 ${loading ? 'animate-spin' : ''}`} />
+                <RotateCw className={`w-4 h-4 text-blue-600 dark:text-blue-400 ${loading ? 'animate-spin' : ''}`} />
                 <span className="text-sm font-medium text-blue-700 dark:text-blue-400">
                   {loading ? 'جاري التحديث...' : 'تحديث الآن'}
                 </span>
@@ -348,97 +353,97 @@ export default function DashboardPage() {
       </div>
 
       {/* Enhanced Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 md:gap-8">
         {/* Orders Card */}
-        <div className="card-hover group p-8 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#4CAF50]/10 to-[#388E3C]/10 rounded-full -translate-y-16 translate-x-16"></div>
+        <div className="card-hover group p-4 sm:p-6 md:p-8 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-br from-[#4CAF50]/10 to-[#388E3C]/10 rounded-full -translate-y-12 translate-x-12 sm:-translate-y-16 sm:translate-x-16"></div>
           <div className="relative z-10">
-            <div className="flex items-center justify-between mb-6">
-              <div className="bg-gradient-to-br from-[#4CAF50] to-[#388E3C] p-4 rounded-2xl shadow-lg group-hover:scale-110 transition-all duration-300">
-                <ShoppingBag className="w-8 h-8 text-white" />
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <div className="bg-gradient-to-br from-[#4CAF50] to-[#388E3C] p-2.5 sm:p-3 md:p-4 rounded-xl sm:rounded-2xl shadow-lg group-hover:scale-110 transition-all duration-300">
+                <ShoppingBag className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 text-white" />
               </div>
               <div className="text-left">
-                <div className="flex items-center text-sm font-medium text-[#4CAF50] dark:text-[#4CAF50]">
-                  <ArrowUpRight className="w-4 h-4 ml-1" />
+                <div className="flex items-center text-xs sm:text-sm font-medium text-[#4CAF50] dark:text-[#4CAF50]">
+                  <ArrowUpRight className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />
                   +12.5%
                 </div>
-                <p className="text-xs text-gray-500 dark:text-slate-400">من الشهر الماضي</p>
+                <p className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">من الشهر الماضي</p>
               </div>
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-3">
+              <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-slate-400 mb-2 sm:mb-3">
                 {user?.role === 'admin' ? 'إجمالي الطلبات' : 'طلباتي'}
               </p>
-              <p className="text-4xl font-bold text-gray-900 dark:text-slate-100 mb-2">
+              <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-slate-100 mb-1.5 sm:mb-2">
                 {stats?.totalOrders || 0}
               </p>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-[#4CAF50] rounded-full"></div>
-                <span className="text-xs text-gray-500 dark:text-slate-400">نشط</span>
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-[#4CAF50] rounded-full"></div>
+                <span className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">نشط</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Revenue Card */}
-        <div className="card-hover group p-8 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#FF9800]/10 to-[#F57C00]/10 rounded-full -translate-y-16 translate-x-16"></div>
+        <div className="card-hover group p-4 sm:p-6 md:p-8 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-br from-[#FF9800]/10 to-[#F57C00]/10 rounded-full -translate-y-12 translate-x-12 sm:-translate-y-16 sm:translate-x-16"></div>
           <div className="relative z-10">
-            <div className="flex items-center justify-between mb-6">
-              <div className="bg-gradient-to-br from-[#FF9800] to-[#F57C00] p-4 rounded-2xl shadow-lg group-hover:scale-110 transition-all duration-300">
-                <DollarSign className="w-8 h-8 text-white" />
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <div className="bg-gradient-to-br from-[#FF9800] to-[#F57C00] p-2.5 sm:p-3 md:p-4 rounded-xl sm:rounded-2xl shadow-lg group-hover:scale-110 transition-all duration-300">
+                <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 text-white" />
               </div>
               <div className="text-left">
-                <div className="flex items-center text-sm font-medium text-[#FF9800] dark:text-[#FF9800]">
-                  <ArrowUpRight className="w-4 h-4 ml-1" />
+                <div className="flex items-center text-xs sm:text-sm font-medium text-[#FF9800] dark:text-[#FF9800]">
+                  <ArrowUpRight className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />
                   +8.3%
                 </div>
-                <p className="text-xs text-gray-500 dark:text-slate-400">من الشهر الماضي</p>
+                <p className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">من الشهر الماضي</p>
               </div>
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-3">
+              <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-slate-400 mb-2 sm:mb-3">
                 {user?.role === 'admin' ? 'إجمالي الإيرادات' : 'إيراداتي'}
               </p>
-              <p className="text-4xl font-bold text-gray-900 dark:text-slate-100 mb-2">
+              <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-slate-100 mb-1.5 sm:mb-2 break-words">
                 {formatCurrency(stats?.totalRevenue || 0)}
               </p>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-[#FF9800] rounded-full"></div>
-                <span className="text-xs text-gray-500 dark:text-slate-400">متنامي</span>
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-[#FF9800] rounded-full"></div>
+                <span className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">متنامي</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Products Card */}
-        <div className="card-hover group p-8 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#FF9800]/10 to-[#F57C00]/10 rounded-full -translate-y-16 translate-x-16"></div>
+        <div className="card-hover group p-4 sm:p-6 md:p-8 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-br from-[#FF9800]/10 to-[#F57C00]/10 rounded-full -translate-y-12 translate-x-12 sm:-translate-y-16 sm:translate-x-16"></div>
           <div className="relative z-10">
-            <div className="flex items-center justify-between mb-6">
-              <div className="bg-gradient-to-br from-[#FF9800] to-[#F57C00] p-4 rounded-2xl shadow-lg group-hover:scale-110 transition-all duration-300">
-                <Package className="w-8 h-8 text-white" />
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <div className="bg-gradient-to-br from-[#FF9800] to-[#F57C00] p-2.5 sm:p-3 md:p-4 rounded-xl sm:rounded-2xl shadow-lg group-hover:scale-110 transition-all duration-300">
+                <Package className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 text-white" />
               </div>
               <div className="text-left">
-                <div className="flex items-center text-sm font-medium text-[#FF9800] dark:text-[#FF9800]">
-                  <ArrowUpRight className="w-4 h-4 ml-1" />
+                <div className="flex items-center text-xs sm:text-sm font-medium text-[#FF9800] dark:text-[#FF9800]">
+                  <ArrowUpRight className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />
                   +15.2%
                 </div>
-                <p className="text-xs text-gray-500 dark:text-slate-400">من الشهر الماضي</p>
+                <p className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">من الشهر الماضي</p>
               </div>
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-3">
+              <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-slate-400 mb-2 sm:mb-3">
                 {user?.role === 'supplier' ? 'منتجاتي' : 
                  user?.role === 'marketer' ? 'المفضلة' : 'المنتجات'}
               </p>
-              <p className="text-4xl font-bold text-gray-900 dark:text-slate-100 mb-2">
+              <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-slate-100 mb-1.5 sm:mb-2">
                 {user?.role === 'supplier' ? (stats?.totalProducts || 0) : 
                  user?.role === 'marketer' ? (stats?.favoritesCount || 0) : (stats?.totalProducts || 0)}
               </p>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-[#FF9800] rounded-full"></div>
-                <span className="text-xs text-gray-500 dark:text-slate-400">متوفر</span>
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-[#FF9800] rounded-full"></div>
+                <span className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">متوفر</span>
               </div>
             </div>
           </div>
@@ -447,65 +452,65 @@ export default function DashboardPage() {
         {/* Users Card - Only for Admin */}
         {user?.role === 'admin' ? (
           <>
-            <div className="card-hover group p-8 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#4CAF50]/10 to-[#388E3C]/10 rounded-full -translate-y-16 translate-x-16"></div>
+            <div className="card-hover group p-4 sm:p-6 md:p-8 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-br from-[#4CAF50]/10 to-[#388E3C]/10 rounded-full -translate-y-12 translate-x-12 sm:-translate-y-16 sm:translate-x-16"></div>
               <div className="relative z-10">
-                            <div className="flex items-center justify-between mb-6">
-              <div className="bg-gradient-to-br from-[#4CAF50] to-[#388E3C] p-4 rounded-2xl shadow-lg group-hover:scale-110 transition-all duration-300">
-                <Users className="w-8 h-8 text-white" />
-              </div>
-              <div className="text-left">
-                <div className="flex items-center text-sm font-medium text-[#4CAF50] dark:text-[#4CAF50]">
-                  <ArrowUpRight className="w-4 h-4 ml-1" />
-                  +5.8%
+                <div className="flex items-center justify-between mb-4 sm:mb-6">
+                  <div className="bg-gradient-to-br from-[#4CAF50] to-[#388E3C] p-2.5 sm:p-3 md:p-4 rounded-xl sm:rounded-2xl shadow-lg group-hover:scale-110 transition-all duration-300">
+                    <Users className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 text-white" />
+                  </div>
+                  <div className="text-left">
+                    <div className="flex items-center text-xs sm:text-sm font-medium text-[#4CAF50] dark:text-[#4CAF50]">
+                      <ArrowUpRight className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />
+                      +5.8%
+                    </div>
+                    <p className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">من الشهر الماضي</p>
+                  </div>
                 </div>
-                <p className="text-xs text-gray-500 dark:text-slate-400">من الشهر الماضي</p>
-              </div>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-3">المستخدمين</p>
-              <p className="text-4xl font-bold text-gray-900 dark:text-slate-100 mb-2">
-                {stats?.totalUsers || 0}
-              </p>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-[#4CAF50] rounded-full"></div>
-                <span className="text-xs text-gray-500 dark:text-slate-400">مسجلين</span>
-              </div>
-            </div>
+                <div>
+                  <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-slate-400 mb-2 sm:mb-3">المستخدمين</p>
+                  <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-slate-100 mb-1.5 sm:mb-2">
+                    {stats?.totalUsers || 0}
+                  </p>
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-[#4CAF50] rounded-full"></div>
+                    <span className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">مسجلين</span>
+                  </div>
+                </div>
               </div>
             </div>
 
             {/* Messages Card - Only for Admin */}
-            <Link href="/dashboard/admin/messages" className="card-hover group p-8 relative overflow-hidden cursor-pointer">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#FF9800]/10 to-[#F57C00]/10 rounded-full -translate-y-16 translate-x-16"></div>
+            <Link href="/dashboard/admin/messages" className="card-hover group p-4 sm:p-6 md:p-8 relative overflow-hidden cursor-pointer active:scale-[0.98] transition-transform">
+              <div className="absolute top-0 right-0 w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-br from-[#FF9800]/10 to-[#F57C00]/10 rounded-full -translate-y-12 translate-x-12 sm:-translate-y-16 sm:translate-x-16"></div>
               <div className="relative z-10">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="bg-gradient-to-br from-[#FF9800] to-[#F57C00] p-4 rounded-2xl shadow-lg group-hover:scale-110 transition-all duration-300">
-                    <MessageSquare className="w-8 h-8 text-white" />
+                <div className="flex items-center justify-between mb-4 sm:mb-6">
+                  <div className="bg-gradient-to-br from-[#FF9800] to-[#F57C00] p-2.5 sm:p-3 md:p-4 rounded-xl sm:rounded-2xl shadow-lg group-hover:scale-110 transition-all duration-300">
+                    <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 text-white" />
                   </div>
                   <div className="text-left">
-                    <div className="flex items-center text-sm font-medium text-[#FF9800] dark:text-[#FF9800]">
-                      <ArrowUpRight className="w-4 h-4 ml-1" />
+                    <div className="flex items-center text-xs sm:text-sm font-medium text-[#FF9800] dark:text-[#FF9800]">
+                      <ArrowUpRight className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />
                       +22.1%
                     </div>
-                    <p className="text-xs text-gray-500 dark:text-slate-400">من الشهر الماضي</p>
+                    <p className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">من الشهر الماضي</p>
                   </div>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-3">الرسائل</p>
-                  <div className="flex items-center gap-3 mb-2">
-                    <p className="text-4xl font-bold text-gray-900 dark:text-slate-100">
+                  <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-slate-400 mb-2 sm:mb-3">الرسائل</p>
+                  <div className="flex items-center gap-2 sm:gap-3 mb-1.5 sm:mb-2 flex-wrap">
+                    <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-slate-100">
                       {stats?.totalMessages || 0}
                     </p>
                     {stats?.pendingMessages && stats.pendingMessages > 0 && (
-                      <span className="badge badge-warning text-xs px-2 py-1">
+                      <span className="badge badge-warning text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 sm:py-1">
                         {stats.pendingMessages} قيد المراجعة
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-[#FF9800] rounded-full"></div>
-                    <span className="text-xs text-gray-500 dark:text-slate-400">نشط</span>
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-[#FF9800] rounded-full"></div>
+                    <span className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">نشط</span>
                   </div>
                 </div>
               </div>
@@ -513,32 +518,32 @@ export default function DashboardPage() {
            </>
          ) : (
           // Additional stats for non-admin users
-          <div className="card-hover group p-8 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#4CAF50]/10 to-[#388E3C]/10 rounded-full -translate-y-16 translate-x-16"></div>
+          <div className="card-hover group p-4 sm:p-6 md:p-8 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-br from-[#4CAF50]/10 to-[#388E3C]/10 rounded-full -translate-y-12 translate-x-12 sm:-translate-y-16 sm:translate-x-16"></div>
             <div className="relative z-10">
-              <div className="flex items-center justify-between mb-6">
-                <div className="bg-gradient-to-br from-[#4CAF50] to-[#388E3C] p-4 rounded-2xl shadow-lg group-hover:scale-110 transition-all duration-300">
-                  <TrendingUp className="w-8 h-8 text-white" />
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
+                <div className="bg-gradient-to-br from-[#4CAF50] to-[#388E3C] p-2.5 sm:p-3 md:p-4 rounded-xl sm:rounded-2xl shadow-lg group-hover:scale-110 transition-all duration-300">
+                  <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 text-white" />
                 </div>
                 <div className="text-left">
-                  <div className="flex items-center text-sm font-medium text-[#4CAF50] dark:text-[#4CAF50]">
-                    <ArrowUpRight className="w-4 h-4 ml-1" />
+                  <div className="flex items-center text-xs sm:text-sm font-medium text-[#4CAF50] dark:text-[#4CAF50]">
+                    <ArrowUpRight className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />
                     +15.2%
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-slate-400">من الشهر الماضي</p>
+                  <p className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">من الشهر الماضي</p>
                 </div>
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-3">
+                <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-slate-400 mb-2 sm:mb-3">
                   {user?.role === 'supplier' ? 'المنتجات النشطة' : 
                    user?.role === 'marketer' ? 'معدل النمو' : 'معدل النمو'}
                 </p>
-                <p className="text-4xl font-bold text-gray-900 dark:text-slate-100 mb-2">
+                <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-slate-100 mb-1.5 sm:mb-2">
                   {user?.role === 'supplier' ? (stats?.activeProducts || 0) : '+15%'}
                 </p>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-[#4CAF50] rounded-full"></div>
-                  <span className="text-xs text-gray-500 dark:text-slate-400">
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-[#4CAF50] rounded-full"></div>
+                  <span className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">
                     {user?.role === 'supplier' ? 'نشط' : 'متنامي'}
                   </span>
                 </div>
@@ -921,7 +926,7 @@ export default function DashboardPage() {
                   <Store className="w-10 h-10 text-[#FF9800] dark:text-[#FF9800]" />
                 </div>
                   <h4 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-3">لا توجد منتجات مميزة</h4>
-                  <p className="text-gray-600 dark:text-slate-400 mb-6">ابدأ بتصفح المنتجات المتاحة وإضافة المفضلة</p>
+                  <p className="text-gray-600 dark:text-slate-400 mb-6 text-sm sm:text-base text-wrap-long">ابدأ بتصفح المنتجات المتاحة وإضافة المفضلة</p>
                   <Link href="/dashboard/products" className="btn-primary">
                     <Store className="w-4 h-4 mr-2" />
                     تصفح المنتجات
@@ -1035,7 +1040,7 @@ export default function DashboardPage() {
                     </div>
                     <div>
                       <h4 className="font-medium text-gray-900 dark:text-slate-100 mb-2">زيادة المبيعات</h4>
-                      <p className="text-sm text-gray-600 dark:text-slate-400 mb-3">
+                      <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-400 mb-3 text-wrap-long line-clamp-2">
                         ركز على المنتجات عالية الربح في فئة الإلكترونيات
                       </p>
                       <Link href="/dashboard/products" className="text-sm text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 font-medium">
@@ -1052,7 +1057,7 @@ export default function DashboardPage() {
                     </div>
                     <div>
                       <h4 className="font-medium text-gray-900 dark:text-slate-100 mb-2">توقيت مثالي</h4>
-                      <p className="text-sm text-gray-600 dark:text-slate-400 mb-3">
+                      <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-400 mb-3 text-wrap-long">
                         أفضل وقت للطلب هو بين 9 صباحاً و 2 ظهراً
                       </p>
                       <Link href="/dashboard/cart" className="text-sm text-[#FF9800] dark:text-[#FF9800] hover:text-[#F57C00] dark:hover:text-[#F57C00] font-medium">
@@ -1070,7 +1075,7 @@ export default function DashboardPage() {
                       </div>
                       <div>
                         <h4 className="font-medium text-gray-900 dark:text-slate-100 mb-2">مخزون محدود</h4>
-                        <p className="text-sm text-gray-600 dark:text-slate-400 mb-3">
+                        <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-400 mb-3 text-wrap-long line-clamp-2">
                           3 منتجات في قائمة المفضلة تنفد من المخزون قريباً
                         </p>
                         <Link href="/dashboard/favorites" className="text-sm text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 font-medium">
@@ -1087,94 +1092,94 @@ export default function DashboardPage() {
       )}
 
       {/* Quick Actions */}
-      <div className="card p-8">
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-              <Settings className="w-6 h-6 text-white" />
+      <div className="card p-4 sm:p-6 md:p-8">
+        <div className="flex items-center justify-between mb-4 sm:mb-6 md:mb-8">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg">
+              <Settings className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
             <div>
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-slate-100">إجراءات سريعة</h3>
-              <p className="text-sm text-gray-600 dark:text-slate-400">الوصول السريع للوظائف الأساسية</p>
+              <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 dark:text-slate-100">إجراءات سريعة</h3>
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-400 hidden sm:block">الوصول السريع للوظائف الأساسية</p>
             </div>
           </div>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
           {user?.role === 'admin' && (
             <>
-              <Link href="/dashboard/users" className="btn-primary">
-                <Users className="w-5 h-5 mr-2" />
-                إدارة المستخدمين
+              <Link href="/dashboard/users" className="btn-primary min-h-[44px] text-xs sm:text-sm flex items-center justify-center px-2 sm:px-4 py-2.5 sm:py-3">
+                <Users className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 flex-shrink-0" />
+                <span className="truncate">إدارة المستخدمين</span>
               </Link>
-              <Link href="/dashboard/products" className="btn-secondary">
-                <Package className="w-5 h-5 mr-2" />
-                إدارة المنتجات
+              <Link href="/dashboard/products" className="btn-secondary min-h-[44px] text-xs sm:text-sm flex items-center justify-center px-2 sm:px-4 py-2.5 sm:py-3">
+                <Package className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 flex-shrink-0" />
+                <span className="truncate">إدارة المنتجات</span>
               </Link>
-              <Link href="/dashboard/admin/settings" className="btn-primary bg-gradient-to-r from-[#FF9800] to-[#F57C00] hover:from-[#F57C00] hover:to-[#E65100] text-white border-0 shadow-lg">
-                <Settings className="w-5 h-5 mr-2" />
-                إعدادات النظام
+              <Link href="/dashboard/admin/settings" className="btn-primary bg-gradient-to-r from-[#FF9800] to-[#F57C00] hover:from-[#F57C00] hover:to-[#E65100] text-white border-0 shadow-lg min-h-[44px] text-xs sm:text-sm flex items-center justify-center px-2 sm:px-4 py-2.5 sm:py-3">
+                <Settings className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 flex-shrink-0" />
+                <span className="truncate">إعدادات النظام</span>
               </Link>
-              <Link href="/dashboard/orders" className="btn-secondary">
-                <ShoppingBag className="w-5 h-5 mr-2" />
-                إدارة الطلبات
+              <Link href="/dashboard/orders" className="btn-secondary min-h-[44px] text-xs sm:text-sm flex items-center justify-center px-2 sm:px-4 py-2.5 sm:py-3">
+                <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 flex-shrink-0" />
+                <span className="truncate">إدارة الطلبات</span>
               </Link>
             </>
           )}
           
           {user?.role === 'supplier' && (
             <>
-              <Link href="/dashboard/products/new" className="btn-primary">
-                <Plus className="w-5 h-5 mr-2" />
-                إضافة منتج جديد
+              <Link href="/dashboard/products/new" className="btn-primary min-h-[44px] text-xs sm:text-sm flex items-center justify-center px-2 sm:px-4 py-2.5 sm:py-3">
+                <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 flex-shrink-0" />
+                <span className="truncate">إضافة منتج جديد</span>
               </Link>
-              <Link href="/dashboard/fulfillment" className="btn-secondary">
-                <Truck className="w-5 h-5 mr-2" />
-                طلب تخزين
+              <Link href="/dashboard/fulfillment" className="btn-secondary min-h-[44px] text-xs sm:text-sm flex items-center justify-center px-2 sm:px-4 py-2.5 sm:py-3">
+                <Truck className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 flex-shrink-0" />
+                <span className="truncate">طلب تخزين</span>
               </Link>
             </>
           )}
           
           {user?.role === 'marketer' && (
             <>
-              <Link href="/dashboard/products" className="btn-primary">
-                <Store className="w-5 h-5 mr-2" />
-                تصفح المنتجات
+              <Link href="/dashboard/products" className="btn-primary min-h-[44px] text-xs sm:text-sm flex items-center justify-center px-2 sm:px-4 py-2.5 sm:py-3">
+                <Store className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 flex-shrink-0" />
+                <span className="truncate">تصفح المنتجات</span>
               </Link>
-              <Link href="/dashboard/favorites" className="btn-secondary">
-                <Heart className="w-5 h-5 mr-2" />
-                المفضلة
+              <Link href="/dashboard/favorites" className="btn-secondary min-h-[44px] text-xs sm:text-sm flex items-center justify-center px-2 sm:px-4 py-2.5 sm:py-3">
+                <Heart className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 flex-shrink-0" />
+                <span className="truncate">المفضلة</span>
               </Link>
-              <Link href="/dashboard/cart" className="btn-secondary">
-                <ShoppingCart className="w-5 h-5 mr-2" />
-                سلة التسوق
+              <Link href="/dashboard/cart" className="btn-secondary min-h-[44px] text-xs sm:text-sm flex items-center justify-center px-2 sm:px-4 py-2.5 sm:py-3">
+                <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 flex-shrink-0" />
+                <span className="truncate">سلة التسوق</span>
               </Link>
-              <Link href="/dashboard/orders" className="btn-secondary">
-                <ShoppingBag className="w-5 h-5 mr-2" />
-                طلباتي
+              <Link href="/dashboard/orders" className="btn-secondary min-h-[44px] text-xs sm:text-sm flex items-center justify-center px-2 sm:px-4 py-2.5 sm:py-3">
+                <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 flex-shrink-0" />
+                <span className="truncate">طلباتي</span>
               </Link>
             </>
           )}
           
           {user?.role === 'wholesaler' && (
             <>
-              <Link href="/dashboard/products" className="btn-primary">
-                <Store className="w-5 h-5 mr-2" />
-                تصفح المنتجات
+              <Link href="/dashboard/products" className="btn-primary min-h-[44px] text-xs sm:text-sm flex items-center justify-center px-2 sm:px-4 py-2.5 sm:py-3">
+                <Store className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 flex-shrink-0" />
+                <span className="truncate">تصفح المنتجات</span>
               </Link>
-              <Link href="/dashboard/favorites" className="btn-secondary">
-                <Heart className="w-5 h-5 mr-2" />
-                المفضلة
+              <Link href="/dashboard/favorites" className="btn-secondary min-h-[44px] text-xs sm:text-sm flex items-center justify-center px-2 sm:px-4 py-2.5 sm:py-3">
+                <Heart className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 flex-shrink-0" />
+                <span className="truncate">المفضلة</span>
               </Link>
             </>
           )}
           
-          <Link href="/dashboard/messages" className="btn-secondary">
-            <MessageSquare className="w-5 h-5 mr-2" />
-            الرسائل
+          <Link href="/dashboard/messages" className="btn-secondary min-h-[44px] text-xs sm:text-sm flex items-center justify-center px-2 sm:px-4 py-2.5 sm:py-3">
+            <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 flex-shrink-0" />
+            <span className="truncate">الرسائل</span>
           </Link>
-          <Link href="/dashboard/wallet" className="btn-secondary">
-            <Wallet className="w-5 h-5 mr-2" />
-            المحفظة
+          <Link href="/dashboard/wallet" className="btn-secondary min-h-[44px] text-xs sm:text-sm flex items-center justify-center px-2 sm:px-4 py-2.5 sm:py-3">
+            <Wallet className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 flex-shrink-0" />
+            <span className="truncate">المحفظة</span>
           </Link>
         </div>
       </div>
@@ -1214,22 +1219,22 @@ export default function DashboardPage() {
 
       {/* Quick Edit Modal for Supplier */}
       {showQuickEditModal && selectedProduct && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-lg p-8 max-w-lg w-full shadow-xl">
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center">
-                <div className="bg-[#FF9800]/20 dark:bg-[#FF9800]/30 p-3 rounded-full mr-4">
-                  <Edit className="w-6 h-6 text-[#FF9800] dark:text-[#FF9800]" />
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4 overflow-y-auto safe-area-inset">
+          <div className="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 max-w-lg w-full shadow-xl my-auto max-h-[95vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4 sm:mb-6 md:mb-8">
+              <div className="flex items-center flex-1 min-w-0">
+                <div className="bg-[#FF9800]/20 dark:bg-[#FF9800]/30 p-2 sm:p-3 rounded-full mr-2 sm:mr-4 flex-shrink-0">
+                  <Edit className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-[#FF9800] dark:text-[#FF9800]" />
                 </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">تعديل سريع</h3>
-                  <p className="text-sm text-gray-600 dark:text-slate-400">{selectedProduct.name}</p>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-slate-100">تعديل سريع</h3>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-400 truncate">{selectedProduct.name}</p>
                 </div>
               </div>
               
               {/* Product Image Preview */}
               {selectedProduct.images && selectedProduct.images.length > 0 && (
-                <div className="w-16 h-16 rounded-lg overflow-hidden">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-lg overflow-hidden flex-shrink-0 mr-2 sm:mr-4">
                   <MediaThumbnail
                     media={selectedProduct.images}
                     alt={selectedProduct.name}
@@ -1242,25 +1247,25 @@ export default function DashboardPage() {
               )}
             </div>
             
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-5 md:space-y-6">
               {/* Product Name */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-2 sm:mb-3">
                   اسم المنتج
                 </label>
                 <input
                   type="text"
                   value={quickEditData.name}
                   onChange={(e) => setQuickEditData({...quickEditData, name: e.target.value})}
-                  className="input-field"
+                  className="input-field text-sm sm:text-base min-h-[44px]"
                   placeholder="اسم المنتج"
                 />
               </div>
 
               {/* Prices */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-2 sm:mb-3">
                     سعر المسوق (الأساسي)
                   </label>
                   <input
@@ -1269,13 +1274,13 @@ export default function DashboardPage() {
                     min="0.01"
                     value={quickEditData.marketerPrice}
                     onChange={(e) => setQuickEditData({...quickEditData, marketerPrice: parseFloat(e.target.value) || 0})}
-                    className="input-field"
+                    className="input-field text-sm sm:text-base min-h-[44px]"
                     placeholder="0.00"
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-2 sm:mb-3">
                     سعر الجملة (للتجار)
                   </label>
                   <input
@@ -1284,7 +1289,7 @@ export default function DashboardPage() {
                     min="0.01"
                     value={quickEditData.wholesalerPrice}
                     onChange={(e) => setQuickEditData({...quickEditData, wholesalerPrice: parseFloat(e.target.value) || 0})}
-                    className="input-field"
+                    className="input-field text-sm sm:text-base min-h-[44px]"
                     placeholder="0.00"
                   />
                 </div>
@@ -1292,7 +1297,7 @@ export default function DashboardPage() {
 
               {/* Stock Quantity */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-2 sm:mb-3">
                   الكمية المتوفرة
                 </label>
                 <div className="relative">
@@ -1301,11 +1306,11 @@ export default function DashboardPage() {
                     min="0"
                     value={quickEditData.stockQuantity}
                     onChange={(e) => setQuickEditData({...quickEditData, stockQuantity: parseInt(e.target.value) || 0})}
-                    className="input-field pr-12"
+                    className="input-field pr-20 sm:pr-24 text-sm sm:text-base min-h-[44px]"
                     placeholder="0"
                   />
-                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                    <span className={`text-xs px-2 py-1 rounded-full ${
+                  <div className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2">
+                    <span className={`text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full ${
                       quickEditData.stockQuantity > 10 
                         ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
                         : quickEditData.stockQuantity > 0 
@@ -1319,9 +1324,9 @@ export default function DashboardPage() {
               </div>
 
               {/* Minimum Selling Price */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-2 sm:mb-3">
                     السعر الأدنى للبيع (اختياري)
                   </label>
                   <input
@@ -1330,20 +1335,20 @@ export default function DashboardPage() {
                     min="0.01"
                     value={quickEditData.minimumSellingPrice}
                     onChange={(e) => setQuickEditData({...quickEditData, minimumSellingPrice: parseFloat(e.target.value) || 0})}
-                    className="input-field"
+                    className="input-field text-sm sm:text-base min-h-[44px]"
                     placeholder="0.00"
                   />
                 </div>
                 
-                <div className="flex items-center mt-8">
+                <div className="flex items-center mt-6 sm:mt-8">
                   <input
                     type="checkbox"
                     id="isMinimumPriceMandatory"
                     checked={quickEditData.isMinimumPriceMandatory}
                     onChange={(e) => setQuickEditData({...quickEditData, isMinimumPriceMandatory: e.target.checked})}
-                                         className="w-4 h-4 text-[#FF9800] bg-gray-100 border-gray-300 rounded focus:ring-[#FF9800] dark:focus:ring-[#FF9800] dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                    className="w-4 h-4 sm:w-5 sm:h-5 text-[#FF9800] bg-gray-100 border-gray-300 rounded focus:ring-[#FF9800] dark:focus:ring-[#FF9800] dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 min-w-[20px] min-h-[20px]"
                   />
-                  <label htmlFor="isMinimumPriceMandatory" className="mr-2 text-sm font-medium text-gray-700 dark:text-slate-300">
+                  <label htmlFor="isMinimumPriceMandatory" className="mr-2 text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300">
                     إلزامي للمسوقين
                   </label>
                 </div>
@@ -1351,48 +1356,48 @@ export default function DashboardPage() {
             </div>
             
             {/* Profit Preview */}
-            <div className="bg-gray-50 dark:bg-slate-700 rounded-lg p-6 mt-8">
-              <h4 className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-4">معاينة الأرباح</h4>
-              <div className="grid grid-cols-2 gap-6 text-sm">
+            <div className="bg-gray-50 dark:bg-slate-700 rounded-lg p-4 sm:p-6 mt-4 sm:mt-6 md:mt-8">
+              <h4 className="text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-3 sm:mb-4">معاينة الأرباح</h4>
+              <div className="grid grid-cols-2 gap-4 sm:gap-6 text-xs sm:text-sm">
                 <div>
-                  <span className="text-gray-600 dark:text-slate-400">الفرق بين الأسعار:</span>
-                  <span className="block font-medium text-green-600 dark:text-green-400 mt-1">
+                  <span className="text-gray-600 dark:text-slate-400 block mb-1">الفرق بين الأسعار:</span>
+                  <span className="block font-medium text-green-600 dark:text-green-400 text-sm sm:text-base">
                     {new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(quickEditData.marketerPrice - quickEditData.wholesalerPrice)} ₪
                   </span>
                 </div>
                 <div>
-                  <span className="text-gray-600 dark:text-slate-400">نسبة الربح:</span>
-                                      <span className="block font-medium text-[#FF9800] dark:text-[#FF9800] mt-1">
+                  <span className="text-gray-600 dark:text-slate-400 block mb-1">نسبة الربح:</span>
+                  <span className="block font-medium text-[#FF9800] dark:text-[#FF9800] text-sm sm:text-base">
                     {new Intl.NumberFormat('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format((quickEditData.marketerPrice - quickEditData.wholesalerPrice) / quickEditData.marketerPrice * 100)}%
                   </span>
                 </div>
               </div>
             </div>
             
-            <div className="flex justify-end space-x-4 space-x-reverse mt-8">
+            <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-4 space-y-reverse sm:space-x-reverse mt-6 sm:mt-8">
               <button
                 onClick={() => {
                   setShowQuickEditModal(false);
                   setSelectedProduct(null);
                 }}
                 disabled={processing}
-                className="btn-secondary"
+                className="btn-secondary w-full sm:w-auto min-h-[44px] text-xs sm:text-sm"
               >
                 إلغاء
               </button>
               <button
                 onClick={handleQuickEditSave}
                 disabled={processing || !quickEditData.name.trim()}
-                className="btn-primary flex items-center"
+                className="btn-primary flex items-center justify-center w-full sm:w-auto min-h-[44px] text-xs sm:text-sm"
               >
                 {processing ? (
                   <>
-                    <div className="loading-spinner w-4 h-4 ml-2"></div>
+                    <div className="loading-spinner w-3.5 h-3.5 sm:w-4 sm:h-4 ml-2"></div>
                     جاري الحفظ...
                   </>
                 ) : (
                   <>
-                    <Save className="w-4 h-4 ml-2" />
+                    <Save className="w-3.5 h-3.5 sm:w-4 sm:h-4 ml-2" />
                     حفظ التغييرات
                   </>
                 )}

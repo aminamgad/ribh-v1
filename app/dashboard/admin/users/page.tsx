@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useDataCache } from '@/components/hooks/useDataCache';
@@ -43,73 +43,281 @@ export default function AdminUsersPage() {
   const pathname = usePathname();
   const router = useRouter();
   
-  // Initialize filters from URL
-  const initialSearch = searchParams.get('search') || '';
-  const initialRole = searchParams.get('role') || 'all';
-  const initialStatus = searchParams.get('status') || 'all';
-  
-  const [searchTerm, setSearchTerm] = useState(initialSearch);
-  const [filterRole, setFilterRole] = useState(initialRole);
-  const [filterStatus, setFilterStatus] = useState(initialStatus);
+  // Helper function to get URL params without causing re-renders
+  const getUrlParam = (key: string): string => {
+    if (typeof window === 'undefined') return '';
+    const params = new URLSearchParams(window.location.search);
+    return params.get(key) || '';
+  };
 
-  // Generate cache key based on filters
-  const cacheKey = useMemo(() => {
-    const params = new URLSearchParams();
-    if (searchTerm.trim()) params.append('search', searchTerm.trim());
-    if (filterRole && filterRole !== 'all') params.append('role', filterRole);
-    if (filterStatus && filterStatus !== 'all') params.append('status', filterStatus);
-    return `admin_users_${params.toString() || 'default'}`;
-  }, [searchTerm, filterRole, filterStatus]);
+  // Helper function to get filters from sessionStorage
+  const getFiltersFromStorage = (): URLSearchParams | null => {
+    if (typeof window === 'undefined') return null;
+    const saved = sessionStorage.getItem(`filters_${pathname}`);
+    if (saved) {
+      return new URLSearchParams(saved);
+    }
+    return null;
+  };
 
-  // Update URL when filters change
-  useEffect(() => {
-    const params = new URLSearchParams(searchParams.toString());
+  // Helper function to get param value from URL or sessionStorage
+  const getParamValue = (key: string, defaultValue: string = ''): string => {
+    // First try URL (has priority)
+    const urlValue = getUrlParam(key);
+    if (urlValue) return urlValue;
     
-    if (searchTerm.trim()) {
-      params.set('search', searchTerm.trim());
+    // Then try sessionStorage
+    const storageParams = getFiltersFromStorage();
+    if (storageParams) {
+      const storageValue = storageParams.get(key);
+      if (storageValue) return storageValue;
+    }
+    
+    return defaultValue;
+  };
+
+  // Initialize filters from URL or sessionStorage
+  const [searchTerm, setSearchTerm] = useState(() => getParamValue('search'));
+  const [filterRole, setFilterRole] = useState(() => getParamValue('role', 'all'));
+  const [filterStatus, setFilterStatus] = useState(() => getParamValue('status', 'all'));
+
+  // URL query string state for cache key
+  const [urlQueryString, setUrlQueryString] = useState(() => 
+    typeof window !== 'undefined' ? window.location.search.substring(1) : ''
+  );
+
+  // Refs to store current filter values for immediate access in onChange handlers
+  const searchTermRef = useRef(searchTerm);
+  const filterRoleRef = useRef(filterRole);
+  const filterStatusRef = useRef(filterStatus);
+
+  // Update refs when state changes
+  useEffect(() => {
+    searchTermRef.current = searchTerm;
+  }, [searchTerm]);
+
+  useEffect(() => {
+    filterRoleRef.current = filterRole;
+  }, [filterRole]);
+
+  useEffect(() => {
+    filterStatusRef.current = filterStatus;
+  }, [filterStatus]);
+
+  // Ref to track if component just mounted (to avoid auto-update on mount)
+  const isInitialMount = useRef(true);
+
+  useEffect(() => {
+    // Mark initial mount as complete after first render
+    const timer = setTimeout(() => {
+      isInitialMount.current = false;
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Auto-update function - accepts optional overrides for immediate updates
+  const applyFiltersAuto = useCallback((
+    overrideSearchTerm?: string,
+    overrideFilterRole?: string,
+    overrideFilterStatus?: string
+  ) => {
+    if (isInitialMount.current) return;
+    
+    const params = new URLSearchParams();
+
+    // Search filters - use override values if provided, otherwise use state values
+    const currentSearchTerm = overrideSearchTerm !== undefined ? overrideSearchTerm : searchTerm;
+    const currentFilterRole = overrideFilterRole !== undefined ? overrideFilterRole : filterRole;
+    const currentFilterStatus = overrideFilterStatus !== undefined ? overrideFilterStatus : filterStatus;
+    
+    if (currentSearchTerm.trim()) {
+      params.set('search', currentSearchTerm.trim());
     } else {
       params.delete('search');
     }
     
-    if (filterRole && filterRole !== 'all') {
-      params.set('role', filterRole);
+    if (currentFilterRole && currentFilterRole !== 'all') {
+      params.set('role', currentFilterRole);
     } else {
       params.delete('role');
     }
     
-    if (filterStatus && filterStatus !== 'all') {
-      params.set('status', filterStatus);
+    if (currentFilterStatus && currentFilterStatus !== 'all') {
+      params.set('status', currentFilterStatus);
     } else {
       params.delete('status');
     }
-    
+
     const queryString = params.toString();
-    const newUrl = queryString ? `${pathname}?${queryString}` : pathname;
-    router.replace(newUrl, { scroll: false });
+    const newUrl = `${pathname}${queryString ? `?${queryString}` : ''}`;
+    
+    // Get current URL directly (don't use searchParams in comparison to avoid infinite loop)
+    const currentSearch = window.location.search || '';
+    const currentUrl = `${pathname}${currentSearch}`;
+    
+    // Compare query strings using URLSearchParams for accurate comparison
+    const currentParams = new URLSearchParams(currentSearch);
+    const newParams = new URLSearchParams(queryString);
+    
+    // Compare all relevant params - normalize empty strings and nulls
+    const normalizeParam = (val: string | null) => val || '';
+    const allParamsMatch = 
+      normalizeParam(currentParams.get('search')) === normalizeParam(newParams.get('search')) &&
+      normalizeParam(currentParams.get('role')) === normalizeParam(newParams.get('role')) &&
+      normalizeParam(currentParams.get('status')) === normalizeParam(newParams.get('status'));
+    
+    // Always update if query strings don't match exactly (including empty strings)
+    const currentQueryNormalized = currentSearch.replace(/^\?/, '');
+    const newQueryNormalized = queryString;
+    
+    if (allParamsMatch && currentQueryNormalized === newQueryNormalized) {
+      // All params match exactly, no need to update
+      return;
+    }
     
     // Save filters to sessionStorage
     try {
       if (queryString) {
-        sessionStorage.setItem('filters_/dashboard/admin/users', queryString);
+        sessionStorage.setItem(`filters_${pathname}`, queryString);
+        if (user?.role === 'admin') {
+          console.log('Admin user filters saved to sessionStorage:', {
+            key: `filters_${pathname}`,
+            value: queryString
+          });
+        }
       } else {
-        sessionStorage.removeItem('filters_/dashboard/admin/users');
+        sessionStorage.removeItem(`filters_${pathname}`);
       }
     } catch (e) {
       // Ignore errors
+      console.error('Error saving admin user filters to sessionStorage:', e);
     }
-  }, [searchTerm, filterRole, filterStatus, pathname, router, searchParams]);
+
+    // Update URL immediately using window.history (no router, no setTimeout)
+    // This prevents Next.js from reloading the page and triggers immediate data refresh
+    if (typeof window !== 'undefined') {
+      const newState = { ...window.history.state, as: newUrl, url: newUrl };
+      window.history.replaceState(newState, '', newUrl);
+      
+      // Trigger custom event immediately to update URL state in page component
+      // This ensures cacheKey updates immediately and data refreshes right away
+      window.dispatchEvent(new CustomEvent('urlchange', { detail: { query: queryString } }));
+    }
+  }, [searchTerm, filterRole, filterStatus, pathname, user?.role]);
+
+  // Sync filter states with URL params when URL changes externally
+  useEffect(() => {
+    // Read from window.location directly since searchParams doesn't update with history.replaceState
+    if (typeof window === 'undefined') return;
+    
+    const params = new URLSearchParams(window.location.search);
+    const searchFromUrl = params.get('search') || '';
+    const roleFromUrl = params.get('role') || 'all';
+    const statusFromUrl = params.get('status') || 'all';
+    
+    // Only update if different to avoid loops
+    if (searchFromUrl !== searchTerm) {
+      setSearchTerm(searchFromUrl);
+    }
+    if (roleFromUrl !== filterRole) {
+      setFilterRole(roleFromUrl);
+    }
+    if (statusFromUrl !== filterStatus) {
+      setFilterStatus(statusFromUrl);
+    }
+  }, []); // Only run once on mount - URL changes will be handled by the filters themselves
+
+  // Sync with actual URL changes from popstate events and custom events
+  useEffect(() => {
+    const handleUrlChangeEvent = (e: Event) => {
+      // Always use detail.query from custom event if available
+      if (e && 'detail' in e && (e as any).detail?.query !== undefined) {
+        const newQuery = (e as any).detail.query || '';
+        console.log('Admin user filters urlchange event received:', {
+          newQuery,
+          previousQuery: urlQueryString
+        });
+        // Update immediately for instant response (no startTransition delay)
+        setUrlQueryString((prev) => {
+          if (prev !== newQuery) {
+            console.log('Updating urlQueryString:', { prev, newQuery });
+            return newQuery;
+          }
+          return prev;
+        });
+      }
+    };
+    
+    window.addEventListener('urlchange', handleUrlChangeEvent);
+    
+    return () => {
+      window.removeEventListener('urlchange', handleUrlChangeEvent);
+    };
+  }, [urlQueryString]);
+
+  // Restore filters from sessionStorage on mount (if URL is empty)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // Only restore from sessionStorage if URL is empty
+    if (urlParams.toString() === '') {
+      const savedFilters = sessionStorage.getItem(`filters_${pathname}`);
+      if (savedFilters) {
+        const params = new URLSearchParams(savedFilters);
+        
+        if (user?.role === 'admin') {
+          console.log('Restoring admin user filters from sessionStorage:', {
+            key: `filters_${pathname}`,
+            value: savedFilters
+          });
+        }
+        
+        // Restore filter states
+        if (params.get('search')) {
+          setSearchTerm(params.get('search') || '');
+        }
+        if (params.get('role')) {
+          setFilterRole(params.get('role') || 'all');
+        }
+        if (params.get('status')) {
+          setFilterStatus(params.get('status') || 'all');
+        }
+        
+        // Update URL and trigger data fetch
+        if (savedFilters) {
+          const newUrl = `${pathname}?${savedFilters}`;
+          const newState = { ...window.history.state, as: newUrl, url: newUrl };
+          window.history.replaceState(newState, '', newUrl);
+          window.dispatchEvent(new CustomEvent('urlchange', { detail: { query: savedFilters } }));
+        }
+      }
+    }
+  }, [pathname, user?.role]);
+
+  // Use URL query string directly - no need for searchParams which causes re-renders
+  const queryString = urlQueryString || '';
+  
+  // Generate cache key based on query string - synchronous calculation
+  const cacheKey = useMemo(() => {
+    const newKey = `admin_users_${queryString || 'default'}`;
+    return newKey;
+  }, [queryString]);
 
   // Use cache hook for users
   const { data: usersData, loading, refresh } = useDataCache<{ users: User[] }>({
     key: cacheKey,
     fetchFn: async () => {
-      const params = new URLSearchParams();
-      if (searchTerm.trim()) params.append('search', searchTerm.trim());
-      if (filterRole && filterRole !== 'all') params.append('role', filterRole);
-      if (filterStatus && filterStatus !== 'all') params.append('status', filterStatus);
+      const params = new URLSearchParams(queryString);
+      const apiParams = new URLSearchParams();
       
-      const queryString = params.toString();
-      const response = await fetch(`/api/admin/users?${queryString}`);
+      if (params.get('search')) apiParams.append('search', params.get('search') || '');
+      if (params.get('role') && params.get('role') !== 'all') apiParams.append('role', params.get('role') || '');
+      if (params.get('status') && params.get('status') !== 'all') apiParams.append('status', params.get('status') || '');
+      
+      const queryParams = apiParams.toString();
+      const response = await fetch(`/api/admin/users${queryParams ? `?${queryParams}` : ''}`);
       if (!response.ok) {
         throw new Error('Failed to fetch users');
       }
@@ -326,7 +534,17 @@ export default function AdminUsersPage() {
                 type="text"
                 placeholder="البحث في المستخدمين..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  const newValue = e.target.value;
+                  setSearchTerm(newValue);
+                  // Update ref immediately
+                  searchTermRef.current = newValue;
+                  // Apply immediately with the new value directly
+                  if (!isInitialMount.current) {
+                    console.log('Admin search term changed - applying filters:', { newValue });
+                    applyFiltersAuto(newValue, undefined, undefined);
+                  }
+                }}
                 className="input-field pr-11"
               />
             </div>
@@ -335,7 +553,17 @@ export default function AdminUsersPage() {
           <div className="flex gap-2">
             <select
               value={filterRole}
-              onChange={(e) => setFilterRole(e.target.value)}
+              onChange={(e) => {
+                const newValue = e.target.value;
+                setFilterRole(newValue);
+                // Update ref immediately
+                filterRoleRef.current = newValue;
+                // Apply immediately with the new value directly
+                if (!isInitialMount.current) {
+                  console.log('Admin role filter changed - applying filters:', { newValue });
+                  applyFiltersAuto(undefined, newValue, undefined);
+                }
+              }}
               className="input-field"
             >
               <option value="all">جميع الأدوار</option>
@@ -347,7 +575,17 @@ export default function AdminUsersPage() {
             
             <select
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
+              onChange={(e) => {
+                const newValue = e.target.value;
+                setFilterStatus(newValue);
+                // Update ref immediately
+                filterStatusRef.current = newValue;
+                // Apply immediately with the new value directly
+                if (!isInitialMount.current) {
+                  console.log('Admin status filter changed - applying filters:', { newValue });
+                  applyFiltersAuto(undefined, undefined, newValue);
+                }
+              }}
               className="input-field"
             >
               <option value="all">جميع الحالات</option>

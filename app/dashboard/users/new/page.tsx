@@ -203,114 +203,114 @@ export default function CreateUserPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="max-w-4xl mx-auto px-3 sm:px-4 py-4 sm:py-6 md:py-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center space-x-4 space-x-reverse">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6 md:mb-8">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 space-y-2 sm:space-y-0 space-y-reverse sm:space-x-4 sm:space-x-reverse w-full sm:w-auto">
             <Link 
               href="/dashboard/users"
-              className="btn-secondary"
+              className="btn-secondary min-h-[44px] text-sm sm:text-base px-3 sm:px-4 w-full sm:w-auto"
             >
-              <ArrowLeft className="w-4 h-4 ml-2" />
+              <ArrowLeft className="w-4 h-4 ml-1.5 sm:ml-2" />
               العودة للمستخدمين
             </Link>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">إنشاء مستخدم جديد</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-slate-100">إنشاء مستخدم جديد</h1>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6 md:space-y-8">
           {/* Basic Information */}
-          <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-gray-200 dark:border-slate-700">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-6">المعلومات الأساسية</h2>
+          <div className="bg-white dark:bg-slate-800 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-slate-700">
+            <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4 sm:mb-6">المعلومات الأساسية</h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5 sm:mb-2">
                   الاسم الكامل *
                 </label>
                 <input
                   type="text"
                   {...register('name')}
-                  className="input-field"
+                  className="input-field text-sm sm:text-base min-h-[44px]"
                   placeholder="الاسم الكامل"
                 />
                 {errors.name && (
-                  <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.name.message}</p>
+                  <p className="text-red-500 dark:text-red-400 text-xs sm:text-sm mt-1">{errors.name.message}</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5 sm:mb-2">
                   البريد الإلكتروني *
                 </label>
                 <input
                   type="email"
                   {...register('email')}
-                  className="input-field"
+                  className="input-field text-sm sm:text-base min-h-[44px]"
                   placeholder="example@email.com"
                 />
                 {errors.email && (
-                  <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.email.message}</p>
+                  <p className="text-red-500 dark:text-red-400 text-xs sm:text-sm mt-1">{errors.email.message}</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5 sm:mb-2">
                   رقم الهاتف *
                 </label>
                 <input
                   type="tel"
                   {...register('phone')}
-                  className="input-field"
-                                      placeholder="أدخل رقم الهاتف"
+                  className="input-field text-sm sm:text-base min-h-[44px]"
+                  placeholder="أدخل رقم الهاتف"
                 />
                 {errors.phone && (
-                  <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.phone.message}</p>
+                  <p className="text-red-500 dark:text-red-400 text-xs sm:text-sm mt-1">{errors.phone.message}</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5 sm:mb-2">
                   الدور *
                 </label>
-                <select {...register('role')} className="input-field">
+                <select {...register('role')} className="input-field text-sm sm:text-base min-h-[44px]">
                   <option value="marketer">المسوق</option>
                    <option value="supplier">المورد</option>
                   <option value="wholesaler">تاجر الجملة</option>
                   <option value="admin">الإدارة</option>
                 </select>
                 {errors.role && (
-                  <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.role.message}</p>
+                  <p className="text-red-500 dark:text-red-400 text-xs sm:text-sm mt-1">{errors.role.message}</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5 sm:mb-2">
                   كلمة المرور *
                 </label>
                 <input
                   type="password"
                   {...register('password')}
-                  className="input-field"
+                  className="input-field text-sm sm:text-base min-h-[44px]"
                   placeholder="كلمة المرور"
                 />
                 {errors.password && (
-                  <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.password.message}</p>
+                  <p className="text-red-500 dark:text-red-400 text-xs sm:text-sm mt-1">{errors.password.message}</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5 sm:mb-2">
                   تأكيد كلمة المرور *
                 </label>
                 <input
                   type="password"
                   {...register('confirmPassword')}
-                  className="input-field"
+                  className="input-field text-sm sm:text-base min-h-[44px]"
                   placeholder="تأكيد كلمة المرور"
                 />
                 {errors.confirmPassword && (
-                  <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.confirmPassword.message}</p>
+                  <p className="text-red-500 dark:text-red-400 text-xs sm:text-sm mt-1">{errors.confirmPassword.message}</p>
                 )}
               </div>
             </div>
@@ -318,12 +318,12 @@ export default function CreateUserPage() {
 
           {/* Marketing Account Fields */}
           {watchedValues.role === 'marketer' && (
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-gray-200 dark:border-slate-700">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-6">معلومات المسوق</h2>
+            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-slate-700">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4 sm:mb-6">معلومات المسوق</h2>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5 sm:mb-2">
                     دولة الجنسية *
                   </label>
                   <CountrySelect
@@ -335,45 +335,45 @@ export default function CreateUserPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5 sm:mb-2">
                     تاريخ الميلاد *
                   </label>
                   <input
                     type="date"
                     {...register('dateOfBirth')}
-                    className="input-field"
+                    className="input-field text-sm sm:text-base min-h-[44px]"
                   />
                   {errors.dateOfBirth && (
-                    <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.dateOfBirth.message}</p>
+                    <p className="text-red-500 dark:text-red-400 text-xs sm:text-sm mt-1">{errors.dateOfBirth.message}</p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5 sm:mb-2">
                     الجنس *
                   </label>
-                  <select {...register('gender')} className="input-field">
+                  <select {...register('gender')} className="input-field text-sm sm:text-base min-h-[44px]">
                     <option value="">اختر الجنس</option>
                     <option value="male">ذكر</option>
                     <option value="female">أنثى</option>
                   </select>
                   {errors.gender && (
-                    <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.gender.message}</p>
+                    <p className="text-red-500 dark:text-red-400 text-xs sm:text-sm mt-1">{errors.gender.message}</p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5 sm:mb-2">
                     رابط الموقع/الصفحة (اختياري)
                   </label>
                   <input
                     type="text"
                     {...register('websiteLink')}
-                    className="input-field"
+                    className="input-field text-sm sm:text-base min-h-[44px]"
                     placeholder="www.example.com أو https://example.com"
                   />
                   {errors.websiteLink && (
-                    <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.websiteLink.message}</p>
+                    <p className="text-red-500 dark:text-red-400 text-xs sm:text-sm mt-1">{errors.websiteLink.message}</p>
                   )}
                 </div>
               </div>
@@ -382,52 +382,52 @@ export default function CreateUserPage() {
 
           {/* Supplier Account Fields */}
           {watchedValues.role === 'supplier' && (
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-gray-200 dark:border-slate-700">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-6">معلومات المورد</h2>
+            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-slate-700">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4 sm:mb-6">معلومات المورد</h2>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5 sm:mb-2">
                     اسم الشركة *
                   </label>
                   <input
                     type="text"
                     {...register('companyName')}
-                    className="input-field"
+                    className="input-field text-sm sm:text-base min-h-[44px]"
                     placeholder="اسم الشركة"
                   />
                   {errors.companyName && (
-                    <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.companyName.message}</p>
+                    <p className="text-red-500 dark:text-red-400 text-xs sm:text-sm mt-1">{errors.companyName.message}</p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5 sm:mb-2">
                     رقم السجل التجاري *
                   </label>
                   <input
                     type="text"
                     {...register('commercialRegisterNumber')}
-                    className="input-field"
+                    className="input-field text-sm sm:text-base min-h-[44px]"
                     placeholder="رقم السجل التجاري"
                   />
                   {errors.commercialRegisterNumber && (
-                    <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.commercialRegisterNumber.message}</p>
+                    <p className="text-red-500 dark:text-red-400 text-xs sm:text-sm mt-1">{errors.commercialRegisterNumber.message}</p>
                   )}
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5 sm:mb-2">
                     العنوان *
                   </label>
                   <textarea
                     {...register('address')}
                     rows={3}
-                    className="input-field"
+                    className="input-field text-sm sm:text-base min-h-[88px]"
                     placeholder="عنوان الشركة"
                   />
                   {errors.address && (
-                    <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.address.message}</p>
+                    <p className="text-red-500 dark:text-red-400 text-xs sm:text-sm mt-1">{errors.address.message}</p>
                   )}
                 </div>
               </div>
@@ -436,45 +436,45 @@ export default function CreateUserPage() {
 
            {/* Wholesaler Account Fields */}
            {watchedValues.role === 'wholesaler' && (
-          <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-gray-200 dark:border-slate-700">
-               <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-6">معلومات تاجر الجملة</h2>
+          <div className="bg-white dark:bg-slate-800 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-slate-700">
+               <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4 sm:mb-6">معلومات تاجر الجملة</h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5 sm:mb-2">
                      اسم الشركة *
                 </label>
                 <input
                   type="text"
                   {...register('companyName')}
-                  className="input-field"
+                  className="input-field text-sm sm:text-base min-h-[44px]"
                   placeholder="اسم الشركة"
                 />
                    {errors.companyName && (
-                     <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.companyName.message}</p>
+                     <p className="text-red-500 dark:text-red-400 text-xs sm:text-sm mt-1">{errors.companyName.message}</p>
                    )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5 sm:mb-2">
                      رخصة الجملة *
                 </label>
                 <input
                   type="text"
                      {...register('wholesaleLicense')}
-                  className="input-field"
+                  className="input-field text-sm sm:text-base min-h-[44px]"
                      placeholder="رقم رخصة الجملة"
                    />
                    {errors.wholesaleLicense && (
-                     <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.wholesaleLicense.message}</p>
+                     <p className="text-red-500 dark:text-red-400 text-xs sm:text-sm mt-1">{errors.wholesaleLicense.message}</p>
                    )}
                  </div>
 
                  <div>
-                   <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                   <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5 sm:mb-2">
                      نوع النشاط التجاري *
                    </label>
-                   <select {...register('businessType')} className="input-field">
+                   <select {...register('businessType')} className="input-field text-sm sm:text-base min-h-[44px]">
                      <option value="">اختر نوع النشاط</option>
                      <option value="electronics">الإلكترونيات</option>
                      <option value="clothing">الملابس</option>
@@ -486,22 +486,22 @@ export default function CreateUserPage() {
                      <option value="other">أخرى</option>
                    </select>
                    {errors.businessType && (
-                     <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.businessType.message}</p>
+                     <p className="text-red-500 dark:text-red-400 text-xs sm:text-sm mt-1">{errors.businessType.message}</p>
                    )}
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5 sm:mb-2">
                      العنوان *
                 </label>
                 <textarea
                   {...register('address')}
                   rows={3}
-                  className="input-field"
+                  className="input-field text-sm sm:text-base min-h-[88px]"
                   placeholder="عنوان الشركة"
                 />
                    {errors.address && (
-                     <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.address.message}</p>
+                     <p className="text-red-500 dark:text-red-400 text-xs sm:text-sm mt-1">{errors.address.message}</p>
                    )}
               </div>
             </div>
@@ -509,28 +509,28 @@ export default function CreateUserPage() {
            )}
 
           {/* Account Status */}
-          <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-gray-200 dark:border-slate-700">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-6">حالة الحساب</h2>
+          <div className="bg-white dark:bg-slate-800 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-slate-700">
+            <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4 sm:mb-6">حالة الحساب</h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="flex items-center space-x-3 space-x-reverse">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+              <div className="flex items-center space-x-2 sm:space-x-3 space-x-reverse min-h-[44px]">
                 <input
                   type="checkbox"
                   {...register('isActive')}
-                  className="w-4 h-4 text-primary-600 border-gray-300 dark:border-slate-600 rounded focus:ring-primary-500"
+                  className="w-4 h-4 sm:w-5 sm:h-5 text-primary-600 border-gray-300 dark:border-slate-600 rounded focus:ring-primary-500 flex-shrink-0"
                 />
-                <label className="text-sm font-medium text-gray-700 dark:text-slate-300">
+                <label className="text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 cursor-pointer">
                   الحساب نشط
                 </label>
               </div>
 
-              <div className="flex items-center space-x-3 space-x-reverse">
+              <div className="flex items-center space-x-2 sm:space-x-3 space-x-reverse min-h-[44px]">
                 <input
                   type="checkbox"
                   {...register('isVerified')}
-                  className="w-4 h-4 text-primary-600 border-gray-300 dark:border-slate-600 rounded focus:ring-primary-500"
+                  className="w-4 h-4 sm:w-5 sm:h-5 text-primary-600 border-gray-300 dark:border-slate-600 rounded focus:ring-primary-500 flex-shrink-0"
                 />
-                <label className="text-sm font-medium text-gray-700 dark:text-slate-300">
+                <label className="text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 cursor-pointer">
                   الحساب محقق
                 </label>
               </div>
@@ -578,26 +578,26 @@ export default function CreateUserPage() {
           </div>
 
           {/* Submit */}
-          <div className="flex justify-end space-x-4 space-x-reverse">
+          <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 space-y-2 sm:space-y-0 space-y-reverse sm:space-x-4 sm:space-x-reverse sticky bottom-0 bg-white dark:bg-slate-800 p-3 sm:p-4 -mx-3 sm:-mx-4 border-t border-gray-200 dark:border-slate-700 safe-area-bottom">
             <Link
               href="/dashboard/users"
-              className="btn-secondary"
+              className="btn-secondary min-h-[44px] text-sm sm:text-base w-full sm:w-auto text-center"
             >
               إلغاء
             </Link>
             <button
               type="submit"
               disabled={saving}
-              className="btn-primary"
+              className="btn-primary min-h-[44px] text-sm sm:text-base w-full sm:w-auto"
             >
               {saving ? (
                 <>
-                  <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                  <Loader2 className="w-4 h-4 ml-1.5 sm:ml-2 animate-spin" />
                   جاري الإنشاء...
                 </>
               ) : (
                 <>
-                  <Save className="w-4 h-4 ml-2" />
+                  <Save className="w-4 h-4 ml-1.5 sm:ml-2" />
                   إنشاء المستخدم
                 </>
               )}

@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { Filter, X, Calendar, Download } from 'lucide-react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import MultiSelect from '@/components/ui/MultiSelect';
 import toast from 'react-hot-toast';
 
@@ -16,35 +16,180 @@ interface AdminProductFiltersProps {
   onFiltersChange?: () => void;
 }
 
-export default function AdminProductFilters({ onFiltersChange }: AdminProductFiltersProps) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const [showFilters, setShowFilters] = useState(false);
+const AdminProductFilters = memo(function AdminProductFilters({ onFiltersChange }: AdminProductFiltersProps) {
+  const pathname = usePathname();
+  
+  // Helper function to get URL params without causing re-renders
+  const getUrlParam = (key: string): string => {
+    if (typeof window === 'undefined') return '';
+    const params = new URLSearchParams(window.location.search);
+    return params.get(key) || '';
+  };
+  
+  const [showFilters, setShowFilters] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = sessionStorage.getItem(`showFilters_${pathname}`);
+      return saved === 'true';
+    }
+    return false;
+  });
+  
+  // Use ref to track current showFilters value to prevent losing state on re-renders
+  const showFiltersRef = useRef(showFilters);
+  
+  // Update ref and sessionStorage when state changes
+  useEffect(() => {
+    showFiltersRef.current = showFilters;
+    // Save to sessionStorage whenever showFilters changes (except on initial mount)
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(`showFilters_${pathname}`, String(showFilters));
+    }
+  }, [showFilters, pathname]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loadingSuppliers, setLoadingSuppliers] = useState(false);
 
   // Filter states
   const [selectedStockStatus, setSelectedStockStatus] = useState<string[]>(() => {
-    const stockParam = searchParams.get('stockStatus');
-    return stockParam ? stockParam.split(',') : [];
+    const stockParam = getUrlParam('stockStatus');
+    return stockParam ? stockParam.split(',').filter(Boolean) : [];
   });
   const [selectedSuppliers, setSelectedSuppliers] = useState<string[]>(() => {
-    const suppliersParam = searchParams.get('suppliers');
-    return suppliersParam ? suppliersParam.split(',') : [];
+    const suppliersParam = getUrlParam('suppliers');
+    return suppliersParam ? suppliersParam.split(',').filter(Boolean) : [];
   });
-  const [startDate, setStartDate] = useState(() => searchParams.get('startDate') || '');
-  const [endDate, setEndDate] = useState(() => searchParams.get('endDate') || '');
+  const [startDate, setStartDate] = useState(() => getUrlParam('startDate'));
+  const [endDate, setEndDate] = useState(() => getUrlParam('endDate'));
+  
+  // Refs to store current date values for immediate access in onChange handlers
+  const startDateRef = useRef(startDate);
+  const endDateRef = useRef(endDate);
+  
+  // Update refs when state changes
+  useEffect(() => {
+    startDateRef.current = startDate;
+  }, [startDate]);
+  
+  useEffect(() => {
+    endDateRef.current = endDate;
+  }, [endDate]);
+
+  // Ref to track if component just mounted (to avoid auto-update on mount)
+  const isInitialMount = useRef(true);
 
   // Stock status options
-  const stockStatusOptions = [
+  const stockStatusOptions = useMemo(() => [
     { value: 'in_stock', label: 'متوفر (أكثر من 10)' },
     { value: 'low_stock', label: 'منخفض (1-10)' },
     { value: 'out_of_stock', label: 'نفد (0)' },
-  ];
+  ], []);
 
   useEffect(() => {
     fetchSuppliers();
+    // Mark initial mount as complete after first render
+    const timer = setTimeout(() => {
+      isInitialMount.current = false;
+    }, 100);
+    return () => clearTimeout(timer);
   }, []);
+
+  // Auto-update function - accepts optional overrides for immediate updates
+  const applyFiltersAuto = useCallback((
+    overrideStartDate?: string,
+    overrideEndDate?: string,
+    overrideSelectedStockStatus?: string[],
+    overrideSelectedSuppliers?: string[]
+  ) => {
+    if (isInitialMount.current) return;
+    
+    // Get current search params directly (don't include in dependencies to avoid infinite loop)
+    const currentSearch = window.location.search || '';
+    const currentParams = new URLSearchParams(currentSearch);
+    const params = new URLSearchParams();
+
+    // Stock status filter - use override value if provided, otherwise use state value
+    const currentSelectedStockStatus = overrideSelectedStockStatus !== undefined ? overrideSelectedStockStatus : selectedStockStatus;
+    if (currentSelectedStockStatus.length > 0) {
+      params.set('stockStatus', currentSelectedStockStatus.join(','));
+    } else {
+      params.delete('stockStatus');
+    }
+
+    // Suppliers filter - use override value if provided, otherwise use state value
+    const currentSelectedSuppliers = overrideSelectedSuppliers !== undefined ? overrideSelectedSuppliers : selectedSuppliers;
+    if (currentSelectedSuppliers.length > 0) {
+      params.set('suppliers', currentSelectedSuppliers.join(','));
+    } else {
+      params.delete('suppliers');
+    }
+
+    // Date range filter - use override values if provided, otherwise use state values
+    const currentStartDate = overrideStartDate !== undefined ? overrideStartDate : startDate;
+    const currentEndDate = overrideEndDate !== undefined ? overrideEndDate : endDate;
+    
+    if (currentStartDate) {
+      params.set('startDate', currentStartDate);
+    } else {
+      params.delete('startDate');
+    }
+
+    if (currentEndDate) {
+      params.set('endDate', currentEndDate);
+    } else {
+      params.delete('endDate');
+    }
+
+    const queryString = params.toString();
+    const newUrl = `${pathname}${queryString ? `?${queryString}` : ''}`;
+    
+    // Only update if URL actually changed to avoid unnecessary updates
+    // Normalize comparison - remove leading ? from currentSearch
+    const currentQueryNormalized = currentSearch.replace(/^\?/, '');
+    const newQueryNormalized = queryString;
+    const currentUrl = `${pathname}${currentSearch}`;
+    
+    // Compare query strings using URLSearchParams for accurate comparison
+    const normalizeParam = (val: string | null) => val || '';
+    const allParamsMatch = 
+      normalizeParam(currentParams.get('stockStatus')) === normalizeParam(new URLSearchParams(queryString).get('stockStatus')) &&
+      normalizeParam(currentParams.get('suppliers')) === normalizeParam(new URLSearchParams(queryString).get('suppliers')) &&
+      normalizeParam(currentParams.get('startDate')) === normalizeParam(new URLSearchParams(queryString).get('startDate')) &&
+      normalizeParam(currentParams.get('endDate')) === normalizeParam(new URLSearchParams(queryString).get('endDate'));
+    
+    if (allParamsMatch && currentQueryNormalized === newQueryNormalized) {
+      // All params match exactly, no need to update
+      return;
+    }
+    
+    // Save filters to sessionStorage
+    try {
+      if (queryString) {
+        sessionStorage.setItem(`filters_${pathname}`, queryString);
+      } else {
+        sessionStorage.removeItem(`filters_${pathname}`);
+      }
+    } catch (e) {
+      // Ignore errors
+    }
+
+    // Update URL immediately using window.history (no router, no setTimeout)
+    // This prevents Next.js from reloading the page and triggers immediate data refresh
+    if (typeof window !== 'undefined') {
+      const newState = { ...window.history.state, as: newUrl, url: newUrl };
+      window.history.replaceState(newState, '', newUrl);
+      
+      // Trigger custom event immediately to update URL state in page component
+      // This ensures cacheKey updates immediately and data refreshes right away
+      window.dispatchEvent(new CustomEvent('urlchange', { detail: { query: queryString } }));
+    }
+    
+    // Update data AFTER URL update to ensure cache key is updated first
+    if (onFiltersChange) {
+      onFiltersChange();
+    }
+  }, [selectedStockStatus, selectedSuppliers, startDate, endDate, onFiltersChange, pathname]);
+
+  // Note: All filters now apply immediately via onChange handlers
+  // No useEffect needed - this ensures instant response
 
   const fetchSuppliers = async () => {
     try {
@@ -62,59 +207,14 @@ export default function AdminProductFilters({ onFiltersChange }: AdminProductFil
     }
   };
 
-  const supplierOptions = suppliers.map((supplier) => ({
+  const supplierOptions = useMemo(() => suppliers.map((supplier) => ({
     value: supplier._id,
     label: supplier.companyName || supplier.name,
-  }));
+  })), [suppliers]);
 
   const applyFilters = () => {
-    const params = new URLSearchParams(searchParams.toString());
-
-    // Stock status filter
-    if (selectedStockStatus.length > 0) {
-      params.set('stockStatus', selectedStockStatus.join(','));
-    } else {
-      params.delete('stockStatus');
-    }
-
-    // Suppliers filter
-    if (selectedSuppliers.length > 0) {
-      params.set('suppliers', selectedSuppliers.join(','));
-    } else {
-      params.delete('suppliers');
-    }
-
-    // Date range filter
-    if (startDate) {
-      params.set('startDate', startDate);
-    } else {
-      params.delete('startDate');
-    }
-
-    if (endDate) {
-      params.set('endDate', endDate);
-    } else {
-      params.delete('endDate');
-    }
-
-    const queryString = params.toString();
-    router.push(`/dashboard/products?${queryString}`);
-    
-    // Save filters to sessionStorage
-    try {
-      if (queryString) {
-        sessionStorage.setItem('filters_/dashboard/products', queryString);
-      } else {
-        sessionStorage.removeItem('filters_/dashboard/products');
-      }
-    } catch (e) {
-      // Ignore errors
-    }
-    
-    setShowFilters(false);
-    if (onFiltersChange) {
-      onFiltersChange();
-    }
+    applyFiltersAuto();
+    // Don't hide filters automatically - let user close them manually
   };
 
   const clearFilters = () => {
@@ -123,23 +223,51 @@ export default function AdminProductFilters({ onFiltersChange }: AdminProductFil
     setStartDate('');
     setEndDate('');
 
-    const params = new URLSearchParams(searchParams.toString());
+    // Get current URL params and remove filter params
+    const currentSearch = window.location.search || '';
+    const params = new URLSearchParams(currentSearch);
     params.delete('stockStatus');
     params.delete('suppliers');
     params.delete('startDate');
     params.delete('endDate');
 
-    router.push(`/dashboard/products?${params.toString()}`);
+    const queryString = params.toString();
+    const newUrl = `${pathname}${queryString ? `?${queryString}` : ''}`;
+
+    // Clear from sessionStorage
+    try {
+      if (queryString) {
+        sessionStorage.setItem(`filters_${pathname}`, queryString);
+      } else {
+        sessionStorage.removeItem(`filters_${pathname}`);
+      }
+    } catch (e) {
+      // Ignore errors
+    }
+
+    // Update URL immediately - state updates are synchronous for clearing
+    if (typeof window !== 'undefined') {
+      const newState = { ...window.history.state, as: newUrl, url: newUrl };
+      window.history.replaceState(newState, '', newUrl);
+      
+      // Trigger custom event immediately to update URL state in page component
+      // This ensures cacheKey updates immediately and data refreshes right away
+      window.dispatchEvent(new CustomEvent('urlchange', { detail: { query: queryString } }));
+    }
+    
+    // Update data AFTER URL update to ensure cache key is updated first
     if (onFiltersChange) {
       onFiltersChange();
     }
   };
 
-  const hasActiveFilters =
+  const hasActiveFilters = useMemo(() =>
     selectedStockStatus.length > 0 ||
     selectedSuppliers.length > 0 ||
     startDate ||
-    endDate;
+    endDate,
+    [selectedStockStatus, selectedSuppliers, startDate, endDate]
+  );
 
   const handleExport = async () => {
     try {
@@ -187,7 +315,17 @@ export default function AdminProductFilters({ onFiltersChange }: AdminProductFil
       {/* Filter Toggle Button */}
       <div className="flex items-center justify-between">
         <button
-          onClick={() => setShowFilters(!showFilters)}
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const newValue = !showFilters;
+            setShowFilters(newValue);
+            // Save to sessionStorage to persist across re-renders
+            if (typeof window !== 'undefined') {
+              sessionStorage.setItem(`showFilters_${pathname}`, String(newValue));
+            }
+          }}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
             hasActiveFilters
               ? 'bg-[#FF9800] text-white'
@@ -223,7 +361,12 @@ export default function AdminProductFilters({ onFiltersChange }: AdminProductFil
               فلاتر المنتجات المتقدمة
             </h3>
             <button
-              onClick={() => setShowFilters(false)}
+              onClick={() => {
+                setShowFilters(false);
+                if (typeof window !== 'undefined') {
+                  sessionStorage.setItem(`showFilters_${pathname}`, 'false');
+                }
+              }}
               className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-300"
             >
               <X className="w-5 h-5" />
@@ -235,7 +378,13 @@ export default function AdminProductFilters({ onFiltersChange }: AdminProductFil
             <MultiSelect
               options={stockStatusOptions}
               selected={selectedStockStatus}
-              onChange={setSelectedStockStatus}
+              onChange={(value) => {
+                setSelectedStockStatus(value);
+                // Apply immediately with the new stock status value directly
+                if (!isInitialMount.current) {
+                  applyFiltersAuto(undefined, undefined, value);
+                }
+              }}
               placeholder="اختر حالة المخزون"
               label="حالة المخزون"
             />
@@ -246,7 +395,13 @@ export default function AdminProductFilters({ onFiltersChange }: AdminProductFil
             <MultiSelect
               options={supplierOptions}
               selected={selectedSuppliers}
-              onChange={setSelectedSuppliers}
+              onChange={(value) => {
+                setSelectedSuppliers(value);
+                // Apply immediately with the new suppliers value directly
+                if (!isInitialMount.current) {
+                  applyFiltersAuto(undefined, undefined, undefined, value);
+                }
+              }}
               placeholder={loadingSuppliers ? 'جاري التحميل...' : 'اختر الموردين'}
               label="المورد"
             />
@@ -266,7 +421,17 @@ export default function AdminProductFilters({ onFiltersChange }: AdminProductFil
                 <input
                   type="date"
                   value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
+                  onChange={(e) => {
+                    const newDate = e.target.value;
+                    setStartDate(newDate);
+                    // Update ref immediately
+                    startDateRef.current = newDate;
+                    // Force immediate update for date changes - pass new value directly
+                    if (!isInitialMount.current) {
+                      // Apply immediately with the new date value and current endDate from ref
+                      applyFiltersAuto(newDate, endDateRef.current);
+                    }
+                  }}
                   className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-[#FF9800] focus:border-transparent dark:bg-slate-700 dark:text-slate-100"
                 />
               </div>
@@ -277,7 +442,17 @@ export default function AdminProductFilters({ onFiltersChange }: AdminProductFil
                 <input
                   type="date"
                   value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
+                  onChange={(e) => {
+                    const newDate = e.target.value;
+                    setEndDate(newDate);
+                    // Update ref immediately
+                    endDateRef.current = newDate;
+                    // Force immediate update for date changes - pass new value directly
+                    if (!isInitialMount.current) {
+                      // Apply immediately with current startDate from ref and new date value
+                      applyFiltersAuto(startDateRef.current, newDate);
+                    }
+                  }}
                   className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-[#FF9800] focus:border-transparent dark:bg-slate-700 dark:text-slate-100"
                 />
               </div>
@@ -303,5 +478,7 @@ export default function AdminProductFilters({ onFiltersChange }: AdminProductFil
       )}
     </div>
   );
-}
+});
+
+export default AdminProductFilters;
 

@@ -176,21 +176,21 @@ export default function AdminEarningsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100">إدارة الأرباح</h1>
-          <p className="text-gray-600 dark:text-slate-400 mt-2">إحصائيات الأرباح والعمولات</p>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-slate-100">إدارة الأرباح</h1>
+          <p className="text-xs sm:text-sm md:text-base text-gray-600 dark:text-slate-400 mt-1 sm:mt-2">إحصائيات الأرباح والعمولات</p>
           {customDateRange && startDate && endDate && (
-            <p className="text-sm text-blue-600 dark:text-blue-400 mt-1">
-              الفترة المحددة: من {new Date(startDate).toLocaleDateString('en-US')} إلى {new Date(endDate).toLocaleDateString('en-US')}
+            <p className="text-[10px] sm:text-xs text-blue-600 dark:text-blue-400 mt-1">
+              الفترة المحددة: من {new Date(startDate).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' })} إلى {new Date(endDate).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' })}
             </p>
           )}
         </div>
-        <div className="flex items-center space-x-4 space-x-reverse">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 space-x-reverse w-full sm:w-auto">
           {/* Date Range Selector */}
-          <div className="flex items-center space-x-2 space-x-reverse">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 space-x-reverse">
             <select
               value={customDateRange ? 'custom' : period}
               onChange={(e) => {
@@ -201,7 +201,7 @@ export default function AdminEarningsPage() {
                   setPeriod(e.target.value);
                 }
               }}
-              className="input-field"
+              className="input-field text-sm sm:text-base min-h-[44px]"
             >
               <option value="week">آخر أسبوع</option>
               <option value="month">آخر شهر</option>
@@ -210,31 +210,31 @@ export default function AdminEarningsPage() {
             </select>
             
             {customDateRange && (
-              <div className="flex items-center space-x-2 space-x-reverse">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 space-x-reverse">
                 <div className="flex items-center space-x-1 space-x-reverse">
-                  <CalendarDays className="w-4 h-4 text-gray-500" />
+                  <CalendarDays className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500 flex-shrink-0" />
                   <input
                     type="date"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
-                    className="px-2 py-1 text-sm border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100"
+                    className="px-2 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 min-h-[44px] flex-1"
                     placeholder="من تاريخ"
                   />
                 </div>
-                <span className="text-gray-500">إلى</span>
+                <span className="text-xs sm:text-sm text-gray-500 text-center sm:text-right">إلى</span>
                 <div className="flex items-center space-x-1 space-x-reverse">
-                  <CalendarDays className="w-4 h-4 text-gray-500" />
+                  <CalendarDays className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500 flex-shrink-0" />
                   <input
                     type="date"
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
-                    className="px-2 py-1 text-sm border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100"
+                    className="px-2 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 min-h-[44px] flex-1"
                     placeholder="إلى تاريخ"
                   />
                 </div>
                 
                 {/* Quick Date Presets */}
-                <div className="flex items-center space-x-1 space-x-reverse ml-4">
+                <div className="flex items-center space-x-1 space-x-reverse sm:ml-2 flex-wrap gap-1 sm:gap-0">
                   <button
                     onClick={() => {
                       const today = new Date();
@@ -242,7 +242,7 @@ export default function AdminEarningsPage() {
                       setStartDate(lastWeek.toISOString().split('T')[0]);
                       setEndDate(today.toISOString().split('T')[0]);
                     }}
-                    className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-500"
+                    className="px-2 py-1 text-[10px] sm:text-xs bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-500 min-h-[32px] sm:min-h-[auto]"
                   >
                     آخر أسبوع
                   </button>
@@ -253,7 +253,7 @@ export default function AdminEarningsPage() {
                       setStartDate(lastMonth.toISOString().split('T')[0]);
                       setEndDate(today.toISOString().split('T')[0]);
                     }}
-                    className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-500"
+                    className="px-2 py-1 text-[10px] sm:text-xs bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-500 min-h-[32px] sm:min-h-[auto]"
                   >
                     آخر شهر
                   </button>
@@ -264,78 +264,79 @@ export default function AdminEarningsPage() {
                       setStartDate(lastQuarter.toISOString().split('T')[0]);
                       setEndDate(today.toISOString().split('T')[0]);
                     }}
-                    className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-500"
+                    className="px-2 py-1 text-[10px] sm:text-xs bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-500 min-h-[32px] sm:min-h-[auto]"
                   >
                     آخر 3 شهور
                   </button>
-                                 </div>
-               </div>
-             )}
-           </div>
-           
-           <button
-             onClick={exportEarningsReport}
-             className="px-4 py-2 bg-[#FF9800] hover:bg-[#F57C00] text-white rounded-md flex items-center space-x-2 space-x-reverse transition-colors"
-           >
-             <Download className="w-4 h-4" />
-             <span>تصدير التقرير</span>
-           </button>
-         </div>
-       </div>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <button
+            onClick={exportEarningsReport}
+            className="px-3 sm:px-4 py-2 bg-[#FF9800] hover:bg-[#F57C00] text-white rounded-md flex items-center justify-center space-x-2 space-x-reverse transition-colors min-h-[44px] text-xs sm:text-sm"
+          >
+            <Download className="w-4 h-4" />
+            <span className="hidden sm:inline">تصدير التقرير</span>
+            <span className="sm:hidden">تصدير</span>
+          </button>
+        </div>
+      </div>
 
       {/* Statistics Cards */}
       {statistics && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="card">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+          <div className="card p-3 sm:p-4">
             <div className="flex items-center">
-              <div className="bg-primary-100 dark:bg-primary-900/30 p-2 rounded-lg">
-                <DollarSign className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+              <div className="bg-primary-100 dark:bg-primary-900/30 p-1.5 sm:p-2 rounded-lg flex-shrink-0">
+                <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-primary-600 dark:text-primary-400" />
               </div>
-              <div className="mr-3">
-                <p className="text-sm text-gray-600 dark:text-slate-400">إجمالي الإيرادات</p>
-                <p className="text-xl font-bold text-gray-900 dark:text-slate-100">
+              <div className="mr-2 sm:mr-3 flex-1 min-w-0">
+                <p className="text-[10px] sm:text-xs md:text-sm text-gray-600 dark:text-slate-400 truncate">إجمالي الإيرادات</p>
+                <p className="text-base sm:text-lg md:text-xl font-bold text-gray-900 dark:text-slate-100 truncate">
                   {formatCurrency(statistics.totalRevenue)}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="card">
+          <div className="card p-3 sm:p-4">
             <div className="flex items-center">
-              <div className="bg-green-100 dark:bg-green-900/30 p-2 rounded-lg">
-                <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />
+              <div className="bg-green-100 dark:bg-green-900/30 p-1.5 sm:p-2 rounded-lg flex-shrink-0">
+                <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 dark:text-green-400" />
               </div>
-              <div className="mr-3">
-                <p className="text-sm text-gray-600 dark:text-slate-400">عمولة المنصة</p>
-                <p className="text-xl font-bold text-gray-900 dark:text-slate-100">
+              <div className="mr-2 sm:mr-3 flex-1 min-w-0">
+                <p className="text-[10px] sm:text-xs md:text-sm text-gray-600 dark:text-slate-400 truncate">عمولة المنصة</p>
+                <p className="text-base sm:text-lg md:text-xl font-bold text-gray-900 dark:text-slate-100 truncate">
                   {formatCurrency(statistics.totalCommission)}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="card">
+          <div className="card p-3 sm:p-4">
             <div className="flex items-center">
-              <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg">
-                <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <div className="bg-blue-100 dark:bg-blue-900/30 p-1.5 sm:p-2 rounded-lg flex-shrink-0">
+                <Users className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 dark:text-blue-400" />
               </div>
-              <div className="mr-3">
-                <p className="text-sm text-gray-600 dark:text-slate-400">أرباح المسوقين</p>
-                <p className="text-xl font-bold text-gray-900 dark:text-slate-100">
+              <div className="mr-2 sm:mr-3 flex-1 min-w-0">
+                <p className="text-[10px] sm:text-xs md:text-sm text-gray-600 dark:text-slate-400 truncate">أرباح المسوقين</p>
+                <p className="text-base sm:text-lg md:text-xl font-bold text-gray-900 dark:text-slate-100 truncate">
                   {formatCurrency(statistics.totalMarketerProfit)}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="card">
+          <div className="card p-3 sm:p-4">
             <div className="flex items-center">
-              <div className="bg-purple-100 dark:bg-purple-900/30 p-2 rounded-lg">
-                <Package className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              <div className="bg-purple-100 dark:bg-purple-900/30 p-1.5 sm:p-2 rounded-lg flex-shrink-0">
+                <Package className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600 dark:text-purple-400" />
               </div>
-              <div className="mr-3">
-                <p className="text-sm text-gray-600 dark:text-slate-400">إيرادات الموردين</p>
-                <p className="text-xl font-bold text-gray-900 dark:text-slate-100">
+              <div className="mr-2 sm:mr-3 flex-1 min-w-0">
+                <p className="text-[10px] sm:text-xs md:text-sm text-gray-600 dark:text-slate-400 truncate">إيرادات الموردين</p>
+                <p className="text-base sm:text-lg md:text-xl font-bold text-gray-900 dark:text-slate-100 truncate">
                   {formatCurrency(statistics.totalSupplierRevenue)}
                 </p>
               </div>

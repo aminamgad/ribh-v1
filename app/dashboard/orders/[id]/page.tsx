@@ -972,69 +972,70 @@ export default function OrderDetailPage() {
   const availableStatuses = getAvailableStatuses();
 
   return (
-    <div className="p-6 space-y-6 print:hidden">
+    <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 print:hidden">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4 space-x-reverse">
-          <Link href="/dashboard/orders" className="btn-secondary">
-            <ArrowLeft className="w-4 h-4 ml-2" />
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 space-y-2 sm:space-y-0 space-y-reverse sm:space-x-4 sm:space-x-reverse w-full sm:w-auto">
+          <Link href="/dashboard/orders" className="btn-secondary min-h-[44px] text-sm sm:text-base px-3 sm:px-4 w-full sm:w-auto">
+            <ArrowLeft className="w-4 h-4 ml-1.5 sm:ml-2" />
             العودة للطلبات
           </Link>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 dark:text-white truncate">
               الطلب #{order.orderNumber}
             </h1>
-            <p className="text-gray-600 dark:text-gray-400">
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-0.5">
               تم إنشاؤه في {formatDate(order.createdAt)}
             </p>
           </div>
         </div>
         
-        <div className="flex items-center space-x-3 space-x-reverse">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 space-y-2 sm:space-y-0 space-y-reverse sm:space-x-3 sm:space-x-reverse w-full sm:w-auto">
           {/* Print Invoice Button */}
           <button
             onClick={() => setShowInvoice(true)}
-            className="btn-secondary-solid flex items-center font-medium px-4 py-2 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
+            className="btn-secondary-solid flex items-center justify-center font-medium px-3 sm:px-4 py-2 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 min-h-[44px] text-sm sm:text-base w-full sm:w-auto"
             title="طباعة الفاتورة"
           >
-            <Printer className="w-4 h-4 ml-2" />
-            طباعة الفاتورة
+            <Printer className="w-4 h-4 ml-1.5 sm:ml-2" />
+            <span className="hidden sm:inline">طباعة الفاتورة</span>
+            <span className="sm:hidden">طباعة</span>
           </button>
           
           {/* Update Status Button */}
           {canUpdateOrder() && availableStatuses.length > 0 && (
             <button
               onClick={() => openStatusModal('')}
-              className="btn-primary flex items-center font-medium px-4 py-2 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
+              className="btn-primary flex items-center justify-center font-medium px-3 sm:px-4 py-2 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 min-h-[44px] text-sm sm:text-base w-full sm:w-auto"
             >
-              <Edit className="w-4 h-4 ml-2" />
+              <Edit className="w-4 h-4 ml-1.5 sm:ml-2" />
               تحديث الحالة
             </button>
           )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Order Details */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-4 sm:space-y-6">
           {/* Status Card */}
-          <div className="card">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3 space-x-reverse">
-                <div className={`p-2 rounded-lg ${status.color}`}>
-                  <StatusIcon className="w-6 h-6" />
+          <div className="card p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
+              <div className="flex items-center space-x-2 sm:space-x-3 space-x-reverse flex-1 min-w-0">
+                <div className={`p-1.5 sm:p-2 rounded-lg flex-shrink-0 ${status.color}`}>
+                  <StatusIcon className="w-5 h-5 sm:w-6 sm:h-6" />
                 </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white truncate">
                     {status.label}
                   </h3>
-                  <p className="text-gray-600 dark:text-gray-400">{status.description}</p>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">{status.description}</p>
                 </div>
               </div>
               {order.actualDelivery && (
-                <div className="text-right">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">تاريخ التسليم</p>
-                  <p className="font-medium text-gray-900 dark:text-white">
+                <div className="text-right sm:text-left flex-shrink-0">
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">تاريخ التسليم</p>
+                  <p className="text-sm sm:text-base font-medium text-gray-900 dark:text-white">
                     {formatDate(order.actualDelivery)}
                   </p>
                 </div>
@@ -1043,20 +1044,20 @@ export default function OrderDetailPage() {
           </div>
 
           {/* Processing Workflow */}
-          <div className="card">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
-              <Package className="w-5 h-5 ml-2" />
+          <div className="card p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-4 sm:mb-6 flex items-center">
+              <Package className="w-4 h-4 sm:w-5 sm:h-5 ml-1.5 sm:ml-2" />
               مراحل معالجة الطلب
             </h3>
             
             {/* Processing Steps */}
-            <div className="space-y-4 mb-8">
+            <div className="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
               {getProcessingSteps().map((step, index) => {
                 const StepIcon = step.icon;
                 return (
-                  <div key={step.id} className="flex items-start space-x-4 space-x-reverse">
+                  <div key={step.id} className="flex items-start space-x-2 sm:space-x-4 space-x-reverse">
                     {/* Step Icon */}
-                    <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                    <div className={`flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center ${
                       step.isCompleted 
                         ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-200' 
                         : step.isCurrent 
@@ -1064,23 +1065,23 @@ export default function OrderDetailPage() {
                         : 'bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500'
                     }`}>
                       {step.isCompleted ? (
-                        <CheckCircle className="w-5 h-5" />
+                        <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                       ) : (
-                        <StepIcon className="w-5 h-5" />
+                        <StepIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                       )}
                     </div>
                     
                     {/* Step Content */}
                     <div className="flex-1 min-w-0">
-                      <div className={`p-4 rounded-lg border ${
+                      <div className={`p-3 sm:p-4 rounded-lg border ${
                         step.isCompleted 
                           ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-700' 
                           : step.isCurrent 
                           ? 'bg-[#FF9800]/10 border-[#FF9800]/20 dark:bg-[#FF9800]/20 dark:border-[#FF9800]/30' 
                           : 'bg-gray-50 border-gray-200 dark:bg-gray-800 dark:border-gray-600'
                       }`}>
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className={`font-medium ${
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1.5 sm:gap-0 mb-1.5 sm:mb-2">
+                          <h4 className={`text-sm sm:text-base font-medium ${
                             step.isCompleted 
                               ? 'text-green-800 dark:text-green-200' 
                               : step.isCurrent 
@@ -1090,12 +1091,12 @@ export default function OrderDetailPage() {
                             {step.title}
                           </h4>
                           {step.isCurrent && (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-[#FF9800]/20 text-[#FF9800] dark:bg-[#FF9800]/30 dark:text-[#FF9800]">
+                            <span className="inline-flex items-center px-2 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium bg-[#FF9800]/20 text-[#FF9800] dark:bg-[#FF9800]/30 dark:text-[#FF9800] flex-shrink-0">
                               الحالية
                             </span>
                           )}
                         </div>
-                        <p className={`text-sm ${
+                        <p className={`text-xs sm:text-sm ${
                           step.isCompleted 
                             ? 'text-green-700 dark:text-green-300' 
                             : step.isCurrent 
@@ -1107,14 +1108,14 @@ export default function OrderDetailPage() {
                         
                         {/* Available Actions */}
                         {step.isCurrent && canUpdateOrder() && (
-                          <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
-                            <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">الإجراءات المتاحة:</p>
-                            <div className="flex flex-wrap gap-2">
+                          <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-gray-200 dark:border-gray-600">
+                            <p className="text-[10px] sm:text-xs text-gray-600 dark:text-gray-400 mb-1.5 sm:mb-2">الإجراءات المتاحة:</p>
+                            <div className="flex flex-wrap gap-1.5 sm:gap-2">
                               {step.actions.map(action => (
                                 <button
                                   key={action}
                                   onClick={() => openStatusModal(action)}
-                                  className="px-3 py-1 text-xs bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors text-gray-700 dark:text-gray-200 font-medium"
+                                  className="px-2 sm:px-3 py-1 text-[10px] sm:text-xs bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors text-gray-700 dark:text-gray-200 font-medium min-h-[32px] sm:min-h-[auto]"
                                 >
                                   {statusConfig[action as keyof typeof statusConfig]?.label || action}
                                 </button>
@@ -1210,7 +1211,7 @@ export default function OrderDetailPage() {
           {order.notes && (
             <div className="card">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">ملاحظات الطلب</h3>
-              <p className="text-gray-700 dark:text-gray-300">{order.notes}</p>
+              <p className="text-sm sm:text-base text-gray-700 dark:text-gray-300 text-wrap-long">{order.notes}</p>
             </div>
           )}
 
@@ -1221,7 +1222,7 @@ export default function OrderDetailPage() {
                 <Truck className="w-5 h-5 ml-2 text-[#FF9800]" />
                 ملاحظات التوصيل (من المسوق)
               </h3>
-              <p className="text-gray-700 dark:text-gray-300">{(order as any).deliveryNotes}</p>
+              <p className="text-sm sm:text-base text-gray-700 dark:text-gray-300 text-wrap-long">{(order as any).deliveryNotes}</p>
             </div>
           )}
 
@@ -1229,7 +1230,7 @@ export default function OrderDetailPage() {
           {order.adminNotes && (
             <div className="card">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">ملاحظات الإدارة</h3>
-              <p className="text-gray-700 dark:text-gray-300">{order.adminNotes}</p>
+              <p className="text-sm sm:text-base text-gray-700 dark:text-gray-300 text-wrap-long">{order.adminNotes}</p>
             </div>
           )}
 
@@ -1633,7 +1634,7 @@ export default function OrderDetailPage() {
               {order.shippingAddress.notes && (
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">ملاحظات</p>
-                  <p className="font-medium text-gray-900 dark:text-white">{order.shippingAddress.notes}</p>
+                  <p className="text-sm sm:text-base font-medium text-gray-900 dark:text-white text-wrap-long">{order.shippingAddress.notes}</p>
                 </div>
               )}
             </div>

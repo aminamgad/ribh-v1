@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { Eye, Edit, BarChart3, CheckCircle, XCircle, LayoutGrid, List } from 'lucide-react';
 import Link from 'next/link';
 import MediaThumbnail from '@/components/ui/MediaThumbnail';
@@ -31,7 +31,7 @@ interface AdminProductsTableViewProps {
   onViewModeChange?: (mode: 'list' | 'grid') => void;
 }
 
-export default function AdminProductsTableView({
+const AdminProductsTableView = memo(function AdminProductsTableView({
   products,
   onApprove,
   onReject,
@@ -48,7 +48,14 @@ export default function AdminProductsTableView({
       if (product.images && product.images.length > 0) {
         const imageUrl = product.images[0];
         const thumbnailUrl = isCloudinaryUrl(imageUrl) && viewMode === 'list'
-          ? getCloudinaryThumbnailUrl(imageUrl, { width: 64, height: 64, crop: 'fill', quality: 'auto' })
+          ? getCloudinaryThumbnailUrl(imageUrl, { 
+              width: 64, 
+              height: 64, 
+              crop: 'fill', 
+              quality: 'auto:good',
+              format: 'auto',
+              dpr: 'auto'
+            })
           : imageUrl;
         
         // Prefetch using link preload
@@ -149,6 +156,9 @@ export default function AdminProductsTableView({
                     alt={product.name}
                     className="w-full h-48 object-cover rounded-lg"
                     showTypeBadge={false}
+                    width={300}
+                    height={192}
+                    priority={products.indexOf(product) < 4}
                     fallbackIcon={<Package className="w-12 h-12 text-gray-400 dark:text-slate-500" />}
                   />
                 </div>
@@ -326,6 +336,7 @@ export default function AdminProductsTableView({
                           showTypeBadge={false}
                           width={64}
                           height={64}
+                          priority={index < 10}
                           fallbackIcon={<Package className="w-8 h-8 text-gray-400 dark:text-slate-500" />}
                         />
                       </div>
@@ -434,5 +445,7 @@ export default function AdminProductsTableView({
       </div>
     </div>
   );
-}
+});
+
+export default AdminProductsTableView;
 

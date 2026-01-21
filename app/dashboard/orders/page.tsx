@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useDataCache } from '@/components/hooks/useDataCache';
 import { Search, Plus, Eye, CheckCircle, Truck, Package, Clock, DollarSign, Edit, X, RotateCcw, Download, Upload, Phone, Mail, MessageCircle, Printer } from 'lucide-react';
@@ -90,12 +90,80 @@ export default function OrdersPage() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const [urlQueryString, setUrlQueryString] = useState(() => 
+    typeof window !== 'undefined' ? window.location.search.substring(1) : ''
+  );
+  const cacheKeyRef = useRef<string>('');
+  const previousQueryRef = useRef<string>('');
   
-  // Generate cache key based on query string
-  // Convert searchParams to string once and memoize it
-  const queryString = useMemo(() => searchParams.toString(), [searchParams]);
+  // Sync with actual URL changes from popstate events and custom events
+  useEffect(() => {
+    let isUpdating = false; // Flag to prevent infinite loops
+    
+    const handleUrlChange = (e?: Event) => {
+      if (isUpdating || typeof window === 'undefined') return;
+      
+      // Get query from event detail if available, otherwise from window.location
+      let newQuery: string;
+      if (e && 'detail' in e && (e as any).detail?.query !== undefined) {
+        newQuery = (e as any).detail.query || '';
+      } else {
+        newQuery = window.location.search.substring(1);
+      }
+      
+      // Only update if query actually changed
+      if (urlQueryString !== newQuery) {
+        previousQueryRef.current = urlQueryString;
+        setUrlQueryString(newQuery);
+        // Reset flag immediately (no delay)
+        isUpdating = false;
+      }
+    };
+    
+    // Check on mount
+    if (typeof window !== 'undefined') {
+      handleUrlChange();
+    }
+    
+    // Listen to popstate events (when URL changes via history API)
+    window.addEventListener('popstate', handleUrlChange);
+    
+    // Listen to custom urlchange events - prioritize these over popstate
+    const handleUrlChangeEvent = (e: Event) => {
+      // Always use detail.query from custom event if available
+      if (e && 'detail' in e && (e as any).detail?.query !== undefined) {
+        const newQuery = (e as any).detail.query || '';
+        setUrlQueryString((prev) => {
+          if (prev !== newQuery) {
+            return newQuery;
+          }
+          return prev;
+        });
+      } else {
+        handleUrlChange(e);
+      }
+    };
+    
+    window.addEventListener('urlchange', handleUrlChangeEvent);
+    
+    return () => {
+      window.removeEventListener('popstate', handleUrlChange);
+      window.removeEventListener('urlchange', handleUrlChangeEvent);
+    };
+  }, []); // Remove startTransition from dependencies
+  
+  // Use URL query string if available, otherwise use searchParams
+  // This is synchronous - no delay
+  const queryString = urlQueryString !== undefined ? urlQueryString : searchParams.toString();
+  
+  // Generate cache key based on query string - synchronous calculation
+  // This updates immediately when queryString changes
   const cacheKey = useMemo(() => {
-    return `orders_${queryString || 'default'}`;
+    const newKey = `orders_${queryString || 'default'}`;
+    if (cacheKeyRef.current !== newKey) {
+      cacheKeyRef.current = newKey;
+    }
+    return newKey;
   }, [queryString]);
   
   const [updatingOrder, setUpdatingOrder] = useState<string | null>(null);
@@ -178,7 +246,7 @@ export default function OrdersPage() {
       if (response.ok) {
         const result = await response.json();
         toast.success(result.message || 'تم تحديث الطلبات بنجاح');
-        fetchOrders(); // Refresh orders list
+        refresh(); // Refresh orders list
       } else {
         const error = await response.json();
         toast.error(error.message || 'حدث خطأ أثناء تحديث الطلبات');
@@ -190,24 +258,40 @@ export default function OrdersPage() {
     }
   };
 
+  // Fetch function - use useCallback to ensure it uses latest queryString
+  const fetchOrders = useCallback(async () => {
+    // Build proper query string - queryString is already formatted from URL
+    let apiQueryString = queryString;
+    
+    // Ensure it's properly formatted if not empty
+    if (queryString && queryString.trim()) {
+      // Parse and rebuild to ensure proper formatting
+      const params = new URLSearchParams(queryString);
+      apiQueryString = params.toString();
+    } else {
+      apiQueryString = '';
+    }
+    
+    const url = `/api/orders${apiQueryString ? `?${apiQueryString}` : ''}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error('Failed to fetch orders');
+    }
+    const data = await response.json();
+    return data;
+  }, [queryString]);
+
   // Use cache hook for orders
   const { data: ordersData, loading, refresh } = useDataCache<{ orders: Order[] }>({
     key: cacheKey,
-    fetchFn: async () => {
-      const queryString = searchParams.toString();
-      const response = await fetch(`/api/orders?${queryString}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch orders');
-      }
-      const data = await response.json();
-      return data;
-    },
+    fetchFn: fetchOrders,
     enabled: !!user,
     forceRefresh: false
   });
 
   const orders = ordersData?.orders || [];
   const searching = loading && orders.length > 0;
+
 
   // Listen for refresh events from header button
   useEffect(() => {
@@ -223,10 +307,12 @@ export default function OrdersPage() {
     };
   }, [refresh]);
 
-  // Keep fetchOrders for backward compatibility
-  const fetchOrders = async () => {
+  // Handle filters change callback - memoize to prevent re-creating on every render
+  const handleFiltersChange = useCallback(() => {
+    // Just refresh - the cache key will change when URL updates
+    // This prevents double fetching
     refresh();
-  };
+  }, [refresh]);
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
@@ -245,7 +331,7 @@ export default function OrdersPage() {
         const data = await response.json();
         console.log('Update success:', data);
         toast.success(data.message || 'تم تحديث حالة الطلب بنجاح');
-        fetchOrders(); // Refresh orders
+        refresh(); // Refresh orders
       } else {
         const error = await response.json();
         console.error('Update error:', error);
@@ -330,7 +416,7 @@ export default function OrdersPage() {
       </div>
 
       {/* Filters */}
-      <OrdersFilters onFiltersChange={fetchOrders} />
+      <OrdersFilters onFiltersChange={handleFiltersChange} />
 
       {/* Bulk Actions - Only for Admin */}
       {user?.role === 'admin' && (
@@ -361,7 +447,7 @@ export default function OrdersPage() {
           <Package className="mobile-empty-icon" />
           <h3 className="mobile-empty-title">لا توجد طلبات</h3>
           <p className="mobile-empty-description">
-            {searchParams.toString()
+            {queryString
               ? 'لا توجد طلبات تطابق معايير البحث المحددة'
               : 'لم يتم العثور على أي طلبات بعد'
             }
@@ -471,6 +557,7 @@ export default function OrdersPage() {
                                 showTypeBadge={false}
                                 width={40}
                                 height={40}
+                                priority={false}
                               />
                             ) : (
                               <div className="w-5 h-5 bg-gray-300 dark:bg-gray-500 rounded"></div>
@@ -548,47 +635,47 @@ export default function OrdersPage() {
           </div>
 
           {/* Mobile Cards */}
-          <div className="lg:hidden space-y-4">
+          <div className="lg:hidden space-y-3 sm:space-y-4">
             {filteredOrders.map((order) => {
               const StatusIcon = statusIcons[order.status as keyof typeof statusIcons] || Clock;
               return (
                 <div 
                   key={order._id} 
-                  className="mobile-table-card cursor-pointer"
+                  className="mobile-table-card cursor-pointer active:scale-[0.98] transition-transform"
                   onClick={() => router.push(`/dashboard/orders/${order._id}`)}
                 >
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <h3 className="font-semibold text-gray-900 dark:text-gray-100">
+                  <div className="flex items-start justify-between mb-3 sm:mb-4">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
                         {order.orderNumber}
                       </h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {new Date(order.createdAt).toLocaleDateString('en-US')}
+                      <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                        {new Date(order.createdAt).toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' })}
                       </p>
                     </div>
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[order.status as keyof typeof statusColors]}`}>
-                      <StatusIcon className="w-3 h-3 ml-1" />
+                    <span className={`inline-flex items-center px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-medium flex-shrink-0 mr-2 ${statusColors[order.status as keyof typeof statusColors]}`}>
+                      <StatusIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5 ml-1" />
                       {getStatusLabel(order.status)}
                     </span>
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="space-y-3 sm:space-y-4">
                     {/* Customer Info */}
-                    <div className="flex items-center space-x-3 space-x-reverse">
-                      <div className="w-10 h-10 bg-[#FF9800]/20 dark:bg-[#FF9800]/30 rounded-full flex items-center justify-center">
-                        <span className="text-[#FF9800] dark:text-[#FF9800] font-semibold text-sm">
+                    <div className="flex items-center space-x-2 sm:space-x-3 space-x-reverse">
+                      <div className="w-11 h-11 sm:w-12 sm:h-12 bg-[#FF9800]/20 dark:bg-[#FF9800]/30 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-[#FF9800] dark:text-[#FF9800] font-semibold text-sm sm:text-base">
                           {(order.shippingAddress?.fullName || 
                             (typeof order.customerId === 'object' ? order.customerId.name : order.customerName) || 
                             'غير محدد').charAt(0)}
                         </span>
                       </div>
-                      <div>
-                        <div className="font-medium text-gray-900 dark:text-gray-100">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm sm:text-base font-medium text-gray-900 dark:text-gray-100 truncate">
                           {order.shippingAddress?.fullName || 
                            (typeof order.customerId === 'object' ? order.customerId.name : order.customerName) || 
                            'غير محدد'}
                         </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                        <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">
                           {order.shippingAddress?.phone || 
                            (typeof order.customerId === 'object' ? order.customerId.phone : '')}
                         </div>
@@ -596,39 +683,39 @@ export default function OrdersPage() {
                     </div>
 
                     {/* Products */}
-                    <div className="flex items-center space-x-3 space-x-reverse">
-                      <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-lg border flex items-center justify-center overflow-hidden">
+                    <div className="flex items-center space-x-2 sm:space-x-3 space-x-reverse">
+                      <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gray-100 dark:bg-gray-700 rounded-lg border flex items-center justify-center overflow-hidden flex-shrink-0">
                         {typeof order.items[0]?.productId === 'object' && order.items[0]?.productId?.images && order.items[0].productId.images.length > 0 ? (
                           <MediaThumbnail
                             media={order.items[0].productId.images}
                             alt={order.items[0].productName}
                             className="w-full h-full"
                             showTypeBadge={false}
-                            width={48}
-                            height={48}
+                            width={56}
+                            height={56}
                           />
                         ) : (
-                          <Package className="w-6 h-6 text-gray-400" />
+                          <Package className="w-7 h-7 sm:w-8 sm:h-8 text-gray-400" />
                         )}
                       </div>
-                      <div className="flex-1">
-                        <div className="font-medium text-gray-900 dark:text-gray-100">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm sm:text-base font-medium text-gray-900 dark:text-gray-100 truncate mb-1">
                           {order.items[0]?.productName}
                         </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                        <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                           {order.items.length > 1 ? `+${order.items.length - 1} منتجات أخرى` : ''}
                         </div>
                       </div>
                     </div>
 
                     {/* Amount */}
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-slate-700">
                       <div>
-                        <div className="font-semibold text-gray-900 dark:text-gray-100">
+                        <div className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100">
                           {order.total} ₪
                         </div>
                         {user?.role === 'marketer' && order.marketerProfit && (
-                          <div className="text-sm text-green-600 dark:text-green-400">
+                          <div className="text-xs sm:text-sm text-green-600 dark:text-green-400 font-medium mt-0.5">
                             ربح: {order.marketerProfit} ₪
                           </div>
                         )}
@@ -636,32 +723,36 @@ export default function OrdersPage() {
                     </div>
 
                     {/* Actions */}
-                    <div className="mobile-actions">
-                      <div
-                        className="btn-primary flex-1 flex items-center justify-center"
+                    <div className="mobile-actions pt-2 border-t border-gray-200 dark:border-slate-700">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/dashboard/orders/${order._id}`);
+                        }}
+                        className="btn-primary flex-1 flex items-center justify-center min-h-[44px] text-sm sm:text-base font-medium"
                       >
-                        <Eye className="w-4 h-4 ml-2" />
+                        <Eye className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
                         عرض التفاصيل
-                      </div>
+                      </button>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           handleWhatsAppContact(order);
                         }}
-                        className="btn-success flex items-center justify-center px-3 py-2"
+                        className="btn-success flex items-center justify-center min-w-[44px] min-h-[44px] px-3 sm:px-4"
                         title="تواصل عبر واتساب"
                       >
-                        <MessageCircle className="w-4 h-4" />
+                        <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                       </button>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           handlePrintInvoice(order);
                         }}
-                        className="btn-secondary flex items-center justify-center px-3 py-2"
+                        className="btn-secondary flex items-center justify-center min-w-[44px] min-h-[44px] px-3 sm:px-4"
                         title="طباعة الفاتورة"
                       >
-                        <Printer className="w-4 h-4" />
+                        <Printer className="w-4 h-4 sm:w-5 sm:h-5" />
                       </button>
                     </div>
                   </div>
@@ -687,7 +778,7 @@ export default function OrdersPage() {
           onClose={() => setShowImportModal(false)}
           onImportSuccess={() => {
             setShowImportModal(false);
-            fetchOrders();
+            refresh();
           }}
         />
       )}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, memo } from 'react';
 import { Package, ShoppingCart, Heart, ArrowLeft } from 'lucide-react';
 import MediaThumbnail from '@/components/ui/MediaThumbnail';
 import { OptimizedImage } from '@/components/ui/LazyImage';
@@ -29,7 +29,7 @@ interface ProductSectionProps {
   isFavorite: (productId: string) => boolean;
 }
 
-export default function ProductSection({
+const ProductSection = memo(function ProductSection({
   title,
   icon,
   products,
@@ -47,7 +47,14 @@ export default function ProductSection({
       if (product.images && product.images.length > 0) {
         const imageUrl = product.images[0];
         const thumbnailUrl = isCloudinaryUrl(imageUrl)
-          ? getCloudinaryThumbnailUrl(imageUrl, { width: 256, height: 256, crop: 'fill', quality: 'auto' })
+          ? getCloudinaryThumbnailUrl(imageUrl, { 
+              width: 256, 
+              height: 256, 
+              crop: 'fill', 
+              quality: 'auto:good',
+              format: 'auto',
+              dpr: 'auto'
+            })
           : imageUrl;
         
         // Prefetch using link preload
@@ -179,5 +186,7 @@ export default function ProductSection({
       )}
     </div>
   );
-}
+});
+
+export default ProductSection;
 

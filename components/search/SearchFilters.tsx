@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, memo, useTransition } from 'react';
 import { Search, Filter, X, ChevronDown, Calendar, Download } from 'lucide-react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import MultiSelect from '@/components/ui/MultiSelect';
 import toast from 'react-hot-toast';
@@ -23,46 +23,514 @@ interface SearchFiltersProps {
   onSearch?: (filters: any) => void;
 }
 
-export default function SearchFilters({ onSearch }: SearchFiltersProps) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
+function SearchFilters({ onSearch }: SearchFiltersProps) {
+  const pathname = usePathname();
   const { user } = useAuth();
+  const [, startTransition] = useTransition();
   
-  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
+  // Use refs to store user and pathname to avoid re-renders
+  const userRef = useRef(user);
+  const pathnameRef = useRef(pathname);
+  
+  // Initialize pathnameRef immediately
+  if (typeof window !== 'undefined' && !pathnameRef.current) {
+    pathnameRef.current = pathname;
+  }
+  
+  // Update refs when values change
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+  
+  useEffect(() => {
+    pathnameRef.current = pathname;
+  }, [pathname]);
+  
+  // Helper function to get URL params without causing re-renders
+  const getUrlParam = (key: string): string => {
+    if (typeof window === 'undefined') return '';
+    const params = new URLSearchParams(window.location.search);
+    return params.get(key) || '';
+  };
+  
+  // Helper function to get filters from sessionStorage
+  const getFiltersFromStorage = (): URLSearchParams | null => {
+    if (typeof window === 'undefined') return null;
+    const currentPathname = pathnameRef.current || pathname;
+    const saved = sessionStorage.getItem(`filters_${currentPathname}`);
+    if (saved) {
+      return new URLSearchParams(saved);
+    }
+    return null;
+  };
+  
+  // Helper function to get param value from URL or sessionStorage
+  const getParamValue = (key: string, defaultValue: string = ''): string => {
+    // First try URL (has priority)
+    const urlValue = getUrlParam(key);
+    if (urlValue) return urlValue;
+    
+    // Then try sessionStorage
+    const storageParams = getFiltersFromStorage();
+    if (storageParams) {
+      const storageValue = storageParams.get(key);
+      if (storageValue) return storageValue;
+    }
+    
+    return defaultValue;
+  };
+  
+  const [searchQuery, setSearchQuery] = useState(() => getParamValue('q'));
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(() => {
-    const categoryParam = searchParams.get('category');
+    const categoryParam = getParamValue('category');
     return categoryParam ? categoryParam.split(',').filter(Boolean) : [];
   });
-  const [minPrice, setMinPrice] = useState(searchParams.get('minPrice') || '');
-  const [maxPrice, setMaxPrice] = useState(searchParams.get('maxPrice') || '');
-  const [inStock, setInStock] = useState(searchParams.get('inStock') === 'true');
-  const [sortBy, setSortBy] = useState(searchParams.get('sortBy') || 'createdAt');
-  const [sortOrder, setSortOrder] = useState(searchParams.get('sortOrder') || 'desc');
-  const [showFilters, setShowFilters] = useState(false);
+  const [minPrice, setMinPrice] = useState(() => getParamValue('minPrice'));
+  const [maxPrice, setMaxPrice] = useState(() => getParamValue('maxPrice'));
+  const [sortBy, setSortBy] = useState(() => getParamValue('sortBy', 'createdAt'));
+  const [sortOrder, setSortOrder] = useState(() => getParamValue('sortOrder', 'desc'));
+  // Preserve showFilters state across re-renders using sessionStorage
+  const [showFilters, setShowFilters] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const currentPathname = pathnameRef.current || pathname;
+      const saved = sessionStorage.getItem(`showFilters_${currentPathname}`);
+      return saved === 'true';
+    }
+    return false;
+  });
+  
+  // Use ref to track current showFilters value to prevent losing state on re-renders
+  const showFiltersRef = useRef(showFilters);
+  
+  // Update ref when state changes
+  useEffect(() => {
+    showFiltersRef.current = showFilters;
+    // Save to sessionStorage whenever showFilters changes (except on initial mount)
+    if (typeof window !== 'undefined') {
+      const currentPathname = pathnameRef.current || pathname;
+      sessionStorage.setItem(`showFilters_${currentPathname}`, String(showFilters));
+    }
+  }, [showFilters, pathname]);
+  
+  // Sync showFilters with sessionStorage when pathname changes (but preserve state on filter updates)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && pathnameRef.current) {
+      const saved = sessionStorage.getItem(`showFilters_${pathnameRef.current}`);
+      if (saved !== null) {
+        const shouldShow = saved === 'true';
+        // Only update if different and ref indicates it's safe to sync (not during filter updates)
+        if (showFiltersRef.current !== shouldShow && shouldShow !== showFilters) {
+          setShowFilters(shouldShow);
+        }
+      }
+    }
+  }, [pathname]); // Only depend on pathname, not showFilters to avoid loops during filter updates
+  
+  // Listen to storage events to sync showFilters across tabs/windows
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === `showFilters_${pathnameRef.current || pathname}` && e.newValue !== null) {
+        const shouldShow = e.newValue === 'true';
+        if (showFilters !== shouldShow) {
+          setShowFilters(shouldShow);
+        }
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [showFilters, pathname]);
   const [selectedApprovalStatuses, setSelectedApprovalStatuses] = useState<string[]>(() => {
-    const statusParam = searchParams.get('status');
+    const statusParam = getParamValue('status');
     return statusParam ? statusParam.split(',').filter(Boolean) : [];
   });
 
   // Admin-specific filter states
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loadingSuppliers, setLoadingSuppliers] = useState(false);
-  const [minStock, setMinStock] = useState(() => searchParams.get('minStock') || '');
-  const [maxStock, setMaxStock] = useState(() => searchParams.get('maxStock') || '');
+  const [minStock, setMinStock] = useState(() => getParamValue('minStock'));
+  const [maxStock, setMaxStock] = useState(() => getParamValue('maxStock'));
   const [selectedSuppliers, setSelectedSuppliers] = useState<string[]>(() => {
-    const suppliersParam = searchParams.get('suppliers');
-    return suppliersParam ? suppliersParam.split(',') : [];
+    const suppliersParam = getParamValue('suppliers');
+    return suppliersParam ? suppliersParam.split(',').filter(Boolean) : [];
   });
-  const [startDate, setStartDate] = useState(() => searchParams.get('startDate') || '');
-  const [endDate, setEndDate] = useState(() => searchParams.get('endDate') || '');
+  const [startDate, setStartDate] = useState(() => getParamValue('startDate'));
+  const [endDate, setEndDate] = useState(() => getParamValue('endDate'));
 
+  // Refs to store current date values for immediate access in onChange handlers
+  const startDateRef = useRef(startDate);
+  const endDateRef = useRef(endDate);
+  
+  // Refs to store current price values for immediate access in onChange handlers
+  // This ensures both minPrice and maxPrice are passed together when one changes
+  const minPriceRef = useRef(minPrice);
+  const maxPriceRef = useRef(maxPrice);
+  
+  // Update refs when state changes
+  useEffect(() => {
+    startDateRef.current = startDate;
+  }, [startDate]);
+  
+  useEffect(() => {
+    endDateRef.current = endDate;
+  }, [endDate]);
+  
+  useEffect(() => {
+    minPriceRef.current = minPrice;
+  }, [minPrice]);
+  
+  useEffect(() => {
+    maxPriceRef.current = maxPrice;
+  }, [maxPrice]);
+
+  // Ref to track if component just mounted (to avoid auto-update on mount)
+  const isInitialMount = useRef(true);
+  
+  // Refs to store filter values temporarily to avoid re-renders
+  const categoriesRef = useRef(selectedCategories);
+  const approvalStatusesRef = useRef(selectedApprovalStatuses);
+  const suppliersRef = useRef(selectedSuppliers);
+  
+  // Update refs when state changes
+  useEffect(() => {
+    categoriesRef.current = selectedCategories;
+  }, [selectedCategories]);
+  
+  useEffect(() => {
+    approvalStatusesRef.current = selectedApprovalStatuses;
+  }, [selectedApprovalStatuses]);
+  
+  useEffect(() => {
+    suppliersRef.current = selectedSuppliers;
+  }, [selectedSuppliers]);
+
+  // Restore filters from sessionStorage on mount if URL is empty
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const currentPathname = pathnameRef.current || pathname;
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // If URL has no params, try to restore from sessionStorage
+    if (urlParams.toString() === '') {
+      const savedFilters = sessionStorage.getItem(`filters_${currentPathname}`);
+      if (savedFilters) {
+        const params = new URLSearchParams(savedFilters);
+        
+        // Restore all filters from sessionStorage
+        if (params.get('q')) setSearchQuery(params.get('q') || '');
+        if (params.get('category')) {
+          const cats = params.get('category')?.split(',').filter(Boolean) || [];
+          setSelectedCategories(cats);
+        }
+        if (params.get('minPrice')) setMinPrice(params.get('minPrice') || '');
+        if (params.get('maxPrice')) setMaxPrice(params.get('maxPrice') || '');
+        if (params.get('sortBy')) setSortBy(params.get('sortBy') || 'createdAt');
+        if (params.get('sortOrder')) setSortOrder(params.get('sortOrder') || 'desc');
+        if (params.get('status')) {
+          const statuses = params.get('status')?.split(',').filter(Boolean) || [];
+          setSelectedApprovalStatuses(statuses);
+        }
+        
+        // Admin-specific filters
+        if (user?.role === 'admin') {
+          if (params.get('minStock')) setMinStock(params.get('minStock') || '');
+          if (params.get('maxStock')) setMaxStock(params.get('maxStock') || '');
+          if (params.get('suppliers')) {
+            const supps = params.get('suppliers')?.split(',').filter(Boolean) || [];
+            console.log('Restoring suppliers filter from sessionStorage:', {
+              suppliersParam: params.get('suppliers'),
+              parsedSuppliers: supps,
+              suppliersLength: supps.length
+            });
+            setSelectedSuppliers(supps);
+          } else {
+            console.log('No suppliers parameter found in sessionStorage when restoring filters');
+          }
+          if (params.get('startDate')) setStartDate(params.get('startDate') || '');
+          if (params.get('endDate')) setEndDate(params.get('endDate') || '');
+        }
+        
+        // Apply the restored filters to URL
+        const newUrl = `${currentPathname}?${savedFilters}`;
+        const newState = { ...window.history.state, as: newUrl, url: newUrl };
+        window.history.replaceState(newState, '', newUrl);
+        
+        // Trigger urlchange event to update page component
+        window.dispatchEvent(new CustomEvent('urlchange', { detail: { query: savedFilters } }));
+      }
+    }
+  }, [pathname, user?.role]);
+  
   useEffect(() => {
     fetchCategories();
     if (user?.role === 'admin') {
       fetchSuppliers();
     }
+    // Mark initial mount as complete after first render
+    const timer = setTimeout(() => {
+      isInitialMount.current = false;
+    }, 100);
+    return () => clearTimeout(timer);
   }, [user?.role]);
+
+  // Note: No useEffect needed to sync with URL - filters apply immediately via onChange handlers
+  // This prevents re-renders and ensures instant response
+
+  // Auto-update function - accepts optional overrides for immediate updates
+  const applyFiltersAuto = useCallback((
+    overrideSearchQuery?: string,
+    overrideMinPrice?: string,
+    overrideMaxPrice?: string,
+    overrideMinStock?: string,
+    overrideMaxStock?: string,
+    overrideStartDate?: string,
+    overrideEndDate?: string,
+    overrideSelectedCategories?: string[],
+    overrideSelectedApprovalStatuses?: string[],
+    overrideSelectedSuppliers?: string[],
+    overrideSortBy?: string,
+    overrideSortOrder?: string
+  ) => {
+    if (isInitialMount.current) return;
+    
+    // Debug: Log all parameters to verify they're passed correctly
+    if (userRef.current?.role === 'admin') {
+      console.log('applyFiltersAuto called with parameters:', {
+        overrideSearchQuery,
+        overrideMinPrice,
+        overrideMaxPrice,
+        overrideMinStock,
+        overrideMaxStock,
+        overrideStartDate,
+        overrideEndDate,
+        overrideSelectedCategories,
+        overrideSelectedApprovalStatuses,
+        overrideSelectedSuppliers,
+        overrideSelectedSuppliersType: typeof overrideSelectedSuppliers,
+        overrideSelectedSuppliersIsArray: Array.isArray(overrideSelectedSuppliers),
+        overrideSelectedSuppliersLength: overrideSelectedSuppliers?.length,
+        overrideSortBy,
+        overrideSortOrder
+      });
+    }
+    
+    const params = new URLSearchParams();
+    
+    // Use override values if provided, otherwise use state values
+    // IMPORTANT: For arrays, check if !== undefined (empty array [] is valid, undefined means use state)
+    const currentSearchQuery = overrideSearchQuery !== undefined ? overrideSearchQuery : searchQuery;
+    const currentMinPrice = overrideMinPrice !== undefined ? overrideMinPrice : minPrice;
+    const currentMaxPrice = overrideMaxPrice !== undefined ? overrideMaxPrice : maxPrice;
+    const currentMinStock = overrideMinStock !== undefined ? overrideMinStock : minStock;
+    const currentMaxStock = overrideMaxStock !== undefined ? overrideMaxStock : maxStock;
+    const currentSelectedCategories = overrideSelectedCategories !== undefined ? overrideSelectedCategories : selectedCategories;
+    const currentSelectedApprovalStatuses = overrideSelectedApprovalStatuses !== undefined ? overrideSelectedApprovalStatuses : selectedApprovalStatuses;
+    // CRITICAL FIX: For arrays, Array(0) is a valid value, so we must check !== undefined, not truthy
+    const currentSelectedSuppliers = overrideSelectedSuppliers !== undefined ? overrideSelectedSuppliers : selectedSuppliers;
+    const currentSortBy = overrideSortBy !== undefined ? overrideSortBy : sortBy;
+    const currentSortOrder = overrideSortOrder !== undefined ? overrideSortOrder : sortOrder;
+    
+    // Debug logging for suppliers filter
+    if (overrideSelectedSuppliers !== undefined) {
+      console.log('applyFiltersAuto - Suppliers override provided:', {
+        overrideSelectedSuppliers,
+        selectedSuppliers,
+        currentSelectedSuppliers,
+        isAdmin: userRef.current?.role === 'admin'
+      });
+    }
+    
+    // Search filters - use override values if provided, otherwise use state values
+    if (currentSearchQuery.trim()) {
+      params.set('q', currentSearchQuery.trim());
+    }
+    if (currentSelectedCategories.length > 0) {
+      params.set('category', currentSelectedCategories.join(','));
+    }
+    // Price filters - set or delete based on value
+    if (currentMinPrice && currentMinPrice.trim()) {
+      params.set('minPrice', currentMinPrice.trim());
+    } else {
+      params.delete('minPrice');
+    }
+    if (currentMaxPrice && currentMaxPrice.trim()) {
+      params.set('maxPrice', currentMaxPrice.trim());
+    } else {
+      params.delete('maxPrice');
+    }
+    
+    // Debug logging for price filters
+    if (userRef.current?.role === 'admin') {
+      console.log('Price filters applied in applyFiltersAuto:', {
+        currentMinPrice,
+        currentMaxPrice,
+        hasMinPrice: params.has('minPrice'),
+        hasMaxPrice: params.has('maxPrice'),
+        minPriceParam: params.get('minPrice'),
+        maxPriceParam: params.get('maxPrice')
+      });
+    }
+    if (currentSortBy && currentSortBy !== 'createdAt') {
+      params.set('sortBy', currentSortBy);
+    }
+    if (currentSortOrder && currentSortOrder !== 'desc') {
+      params.set('sortOrder', currentSortOrder);
+    }
+    if (currentSelectedApprovalStatuses.length > 0) {
+      params.set('status', currentSelectedApprovalStatuses.join(','));
+    }
+    
+    // Admin-specific filters - use ref to avoid re-render
+    if (userRef.current?.role === 'admin') {
+      // Handle minStock and maxStock - only add if they have valid values
+      const minStockValue = (currentMinStock || '').trim();
+      const maxStockValue = (currentMaxStock || '').trim();
+      
+      if (minStockValue) {
+        params.set('minStock', minStockValue);
+      } else {
+        params.delete('minStock');
+      }
+      
+      if (maxStockValue) {
+        params.set('maxStock', maxStockValue);
+      } else {
+        params.delete('maxStock');
+      }
+      // Handle suppliers filter - IMPORTANT: Must be inside admin check
+      // CRITICAL FIX: Use overrideSelectedSuppliers if provided, otherwise use state
+      // This ensures we use the latest value passed to applyFiltersAuto, not stale state
+      const suppliersToUse = overrideSelectedSuppliers !== undefined ? overrideSelectedSuppliers : currentSelectedSuppliers;
+      
+      console.log('Applying suppliers filter (admin check):', {
+        overrideSelectedSuppliers,
+        currentSelectedSuppliers,
+        suppliersToUse,
+        length: suppliersToUse.length,
+        isAdmin: userRef.current?.role === 'admin'
+      });
+      
+      if (suppliersToUse.length > 0) {
+        const suppliersParam = suppliersToUse.join(',');
+        params.set('suppliers', suppliersParam);
+        console.log('Suppliers filter added to URL params:', { suppliersParam });
+      } else {
+        params.delete('suppliers');
+        console.log('Suppliers filter removed from URL params');
+      }
+      // Date range - use override values if provided, otherwise use state values
+      // Input type="date" always returns YYYY-MM-DD format
+      const currentStartDate = overrideStartDate !== undefined ? overrideStartDate : startDate;
+      const currentEndDate = overrideEndDate !== undefined ? overrideEndDate : endDate;
+      
+      if (currentStartDate && currentStartDate.trim()) {
+        params.set('startDate', currentStartDate.trim());
+      }
+      if (currentEndDate && currentEndDate.trim()) {
+        params.set('endDate', currentEndDate.trim());
+      }
+    }
+    
+    const queryString = params.toString();
+    const currentPathname = pathnameRef.current;
+    
+    // Debug: Log queryString to verify suppliers parameter is included
+    if (userRef.current?.role === 'admin') {
+      console.log('applyFiltersAuto - Final queryString before saving to sessionStorage:', {
+        queryString,
+        hasSuppliers: queryString.includes('suppliers'),
+        suppliersParam: params.get('suppliers'),
+        allParams: Array.from(params.entries())
+      });
+    }
+    
+    const newUrl = `${currentPathname}${queryString ? `?${queryString}` : ''}`;
+    
+    // Get current URL directly (don't use searchParams in comparison to avoid infinite loop)
+    const currentSearch = window.location.search || '';
+    const currentUrl = `${currentPathname}${currentSearch}`;
+    
+    // Compare query strings using URLSearchParams for accurate comparison
+    const currentParams = new URLSearchParams(currentSearch);
+    const newParams = new URLSearchParams(queryString);
+    
+    // Check if all key params match (especially dates)
+    const urlStartDate = currentParams.get('startDate') || '';
+    const urlEndDate = currentParams.get('endDate') || '';
+    const newStartDate = newParams.get('startDate') || '';
+    const newEndDate = newParams.get('endDate') || '';
+    
+    // Compare all relevant params - normalize empty strings and nulls
+    const normalizeParam = (val: string | null) => val || '';
+    
+    // CRITICAL FIX: Compare suppliers parameter - sort IDs to ensure consistent comparison
+    // This ensures that suppliers=id1,id2 and suppliers=id2,id1 are considered the same
+    const normalizeSuppliers = (val: string | null) => {
+      if (!val) return '';
+      const ids = val.split(',').map(id => id.trim()).filter(Boolean);
+      return ids.sort().join(',');
+    };
+    
+    const allParamsMatch = 
+      normalizeParam(currentParams.get('q')) === normalizeParam(newParams.get('q')) &&
+      normalizeParam(currentParams.get('category')) === normalizeParam(newParams.get('category')) &&
+      normalizeParam(currentParams.get('minPrice')) === normalizeParam(newParams.get('minPrice')) &&
+      normalizeParam(currentParams.get('maxPrice')) === normalizeParam(newParams.get('maxPrice')) &&
+      normalizeParam(currentParams.get('sortBy')) === normalizeParam(newParams.get('sortBy')) &&
+      normalizeParam(currentParams.get('sortOrder')) === normalizeParam(newParams.get('sortOrder')) &&
+      normalizeParam(currentParams.get('status')) === normalizeParam(newParams.get('status')) &&
+      normalizeParam(currentParams.get('minStock')) === normalizeParam(newParams.get('minStock')) &&
+      normalizeParam(currentParams.get('maxStock')) === normalizeParam(newParams.get('maxStock')) &&
+      normalizeSuppliers(currentParams.get('suppliers')) === normalizeSuppliers(newParams.get('suppliers')) &&
+      urlStartDate === newStartDate &&
+      urlEndDate === newEndDate;
+    
+    // Always update if query strings don't match exactly (including empty strings)
+    const currentQueryNormalized = currentSearch.replace(/^\?/, '');
+    const newQueryNormalized = queryString;
+    
+    if (allParamsMatch && currentQueryNormalized === newQueryNormalized) {
+      // All params match exactly, no need to update
+      return;
+    }
+    
+    // Save filters to sessionStorage - use ref to avoid re-render
+    try {
+      if (queryString) {
+        sessionStorage.setItem(`filters_${currentPathname}`, queryString);
+        // Debug: Log what was saved to sessionStorage
+        if (userRef.current?.role === 'admin') {
+          console.log('Filters saved to sessionStorage:', {
+            key: `filters_${currentPathname}`,
+            value: queryString,
+            hasSuppliers: queryString.includes('suppliers'),
+            suppliersValue: params.get('suppliers')
+          });
+        }
+      } else {
+        sessionStorage.removeItem(`filters_${currentPathname}`);
+      }
+    } catch (e) {
+      // Ignore errors
+      console.error('Error saving filters to sessionStorage:', e);
+    }
+    
+    // Update URL immediately using window.history (no router, no setTimeout)
+    // This prevents Next.js from reloading the page and triggers immediate data refresh
+    if (typeof window !== 'undefined') {
+      const newState = { ...window.history.state, as: newUrl, url: newUrl };
+      window.history.replaceState(newState, '', newUrl);
+      
+      // Trigger custom event immediately to update URL state in page component
+      // This ensures cacheKey updates immediately and data refreshes right away
+      window.dispatchEvent(new CustomEvent('urlchange', { detail: { query: queryString } }));
+    }
+  }, [searchQuery, selectedCategories, minPrice, maxPrice, sortBy, sortOrder, selectedApprovalStatuses, minStock, maxStock, selectedSuppliers, startDate, endDate]);
+
+  // Note: All filters now apply immediately via onChange handlers
+  // No useEffect needed - this ensures instant response
 
   const fetchCategories = async () => {
     try {
@@ -79,10 +547,24 @@ export default function SearchFilters({ onSearch }: SearchFiltersProps) {
   const fetchSuppliers = async () => {
     try {
       setLoadingSuppliers(true);
+      // Fetch all suppliers regardless of status - don't filter by isActive
+      // This ensures all suppliers with products are shown in the filter
       const response = await fetch('/api/admin/users?role=supplier&limit=1000');
       if (response.ok) {
         const data = await response.json();
-        setSuppliers(data.users || []);
+        // Filter out any null/undefined suppliers and ensure we have valid data
+        // Don't filter by isActive - show all suppliers that have valid data
+        const validSuppliers = (data.users || []).filter((s: Supplier) => s && s._id && (s.name || s.companyName));
+        
+        // Log for debugging
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Fetched suppliers:', validSuppliers.length, validSuppliers.map((s: Supplier) => s.name || s.companyName));
+        }
+        
+        setSuppliers(validSuppliers);
+      } else {
+        console.error('Failed to fetch suppliers:', response.statusText);
+        toast.error('حدث خطأ أثناء جلب قائمة الموردين');
       }
     } catch (error) {
       console.error('Error fetching suppliers:', error);
@@ -92,85 +574,50 @@ export default function SearchFilters({ onSearch }: SearchFiltersProps) {
     }
   };
 
-  const supplierOptions = suppliers.map((supplier) => ({
-    value: supplier._id,
-    label: supplier.companyName || supplier.name,
-  }));
+  const supplierOptions = useMemo(() => {
+    // Filter out any invalid suppliers and ensure we have valid options
+    // Display both name and companyName together
+    return suppliers
+      .filter((supplier) => supplier && supplier._id && (supplier.name || supplier.companyName))
+      .map((supplier) => {
+        const name = supplier.name || '';
+        const companyName = supplier.companyName || '';
+        // Combine name and companyName, separated by space if both exist
+        let label = '';
+        if (name && companyName) {
+          label = `${name} - ${companyName}`;
+        } else if (name) {
+          label = name;
+        } else if (companyName) {
+          label = companyName;
+        } else {
+          label = 'مورد غير محدد';
+        }
+        return {
+          value: supplier._id,
+          label,
+        };
+      });
+  }, [suppliers]);
 
-  const categoryOptions = categories.map((category) => ({
+  const categoryOptions = useMemo(() => categories.map((category) => ({
     value: category._id,
     label: category.name,
-  }));
+  })), [categories]);
 
-  const approvalStatusOptions = [
+  const approvalStatusOptions = useMemo(() => [
     { value: 'approved', label: 'معتمد' },
     { value: 'pending', label: 'في انتظار الموافقة' },
     { value: 'rejected', label: 'مرفوض' },
-  ];
+  ], []);
 
-  const handleSearch = () => {
-    const params = new URLSearchParams();
-    
-    if (searchQuery) params.set('q', searchQuery);
-    if (selectedCategories.length > 0) params.set('category', selectedCategories.join(','));
-    if (minPrice) params.set('minPrice', minPrice);
-    if (maxPrice) params.set('maxPrice', maxPrice);
-    if (inStock) params.set('inStock', 'true');
-    if (sortBy) params.set('sortBy', sortBy);
-    if (sortOrder) params.set('sortOrder', sortOrder);
-    if (selectedApprovalStatuses.length > 0) params.set('status', selectedApprovalStatuses.join(','));
-    
-    // Admin-specific filters
-    if (user?.role === 'admin') {
-      if (minStock) params.set('minStock', minStock);
-      if (maxStock) params.set('maxStock', maxStock);
-      if (selectedSuppliers.length > 0) {
-        params.set('suppliers', selectedSuppliers.join(','));
-      }
-      if (startDate) params.set('startDate', startDate);
-      if (endDate) params.set('endDate', endDate);
-    }
-    
-    const queryString = params.toString();
-    router.push(`/dashboard/products${queryString ? `?${queryString}` : ''}`);
-    
-    // Save filters to sessionStorage
-    try {
-      if (queryString) {
-        sessionStorage.setItem('filters_/dashboard/products', queryString);
-      } else {
-        sessionStorage.removeItem('filters_/dashboard/products');
-      }
-    } catch (e) {
-      // Ignore errors
-    }
-    
-    setShowFilters(false);
-    if (onSearch) {
-      onSearch({
-        q: searchQuery,
-        category: selectedCategories,
-        minPrice,
-        maxPrice,
-        inStock,
-        sortBy,
-        sortOrder,
-        status: selectedApprovalStatuses,
-        minStock,
-        maxStock,
-        suppliers: selectedSuppliers,
-        startDate,
-        endDate
-      });
-    }
-  };
+
 
   const clearFilters = () => {
     setSearchQuery('');
     setSelectedCategories([]);
     setMinPrice('');
     setMaxPrice('');
-    setInStock(false);
     setSortBy('createdAt');
     setSortOrder('desc');
     setSelectedApprovalStatuses([]);
@@ -184,24 +631,30 @@ export default function SearchFilters({ onSearch }: SearchFiltersProps) {
       setEndDate('');
     }
     
-    router.push('/dashboard/products');
-
-    // Clear stored filters so they don't interfere across reloads
+    // Clear from sessionStorage
     try {
-      sessionStorage.removeItem('filters_/dashboard/products');
+      sessionStorage.removeItem(`filters_${pathname}`);
     } catch (e) {
       // Ignore errors
     }
 
-    setShowFilters(false);
-    
-    if (onSearch) {
-      onSearch({});
+    // Update URL immediately - state updates are synchronous for clearing
+    if (typeof window !== 'undefined') {
+      const newUrl = pathname;
+      const newState = { ...window.history.state, as: newUrl, url: newUrl };
+      window.history.replaceState(newState, '', newUrl);
+      
+      // Trigger custom event immediately to update URL state in page component
+      // This ensures cacheKey updates immediately and data refreshes right away
+      window.dispatchEvent(new CustomEvent('urlchange', { detail: { query: '' } }));
     }
   };
 
-  const hasActiveFilters = searchQuery || selectedCategories.length > 0 || minPrice || maxPrice || inStock || selectedApprovalStatuses.length > 0 ||
-    (user?.role === 'admin' && (minStock || maxStock || selectedSuppliers.length > 0 || startDate || endDate));
+  const hasActiveFilters = useMemo(() => 
+    searchQuery || selectedCategories.length > 0 || minPrice || maxPrice || selectedApprovalStatuses.length > 0 ||
+    (user?.role === 'admin' && (minStock || maxStock || selectedSuppliers.length > 0 || startDate || endDate)),
+    [searchQuery, selectedCategories, minPrice, maxPrice, selectedApprovalStatuses, user?.role, minStock, maxStock, selectedSuppliers, startDate, endDate]
+  );
 
   const handleExport = async () => {
     try {
@@ -250,64 +703,85 @@ export default function SearchFilters({ onSearch }: SearchFiltersProps) {
   return (
     <div className="space-y-4">
       {/* Search Bar */}
-      <div className="flex gap-2">
+      <div className="flex flex-col sm:flex-row gap-2 sm:gap-2">
         <div className="flex-1 relative">
-          <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-slate-300 w-5 h-5" />
+          <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-slate-300 w-4 h-4 sm:w-5 sm:h-5" />
           <input
             type="text"
             placeholder="البحث عن المنتجات..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-            className="input-field pr-10"
+            onChange={(e) => {
+              const newValue = e.target.value;
+              // Update state immediately first to reflect UI change
+              setSearchQuery(newValue);
+              // Apply immediately with the new value directly
+              if (!isInitialMount.current) {
+                applyFiltersAuto(newValue);
+              }
+            }}
+            onKeyPress={(e) => {
+              // Enter key already triggers search automatically via onChange
+              // This handler is kept for potential future use
+              if (e.key === 'Enter') {
+                e.preventDefault();
+              }
+            }}
+            className="input-field pr-9 sm:pr-10 text-sm sm:text-base min-h-[44px]"
           />
         </div>
         
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className={user?.role === 'admin' && hasActiveFilters
-            ? 'flex items-center gap-2 px-4 py-2 rounded-lg transition-colors bg-[#FF9800] text-white'
-            : 'btn-secondary'}
-        >
-          <Filter className="w-5 h-5 ml-2" />
-          {user?.role === 'admin' ? 'فلاتر المنتجات' : 'فلاتر'}
-          {hasActiveFilters && (
-            <span className={`mr-2 text-xs px-1.5 py-0.5 rounded-full ${
-              user?.role === 'admin' 
-                ? 'bg-white/20 text-white' 
-                : 'bg-primary-600 text-white'
-            }`}>
-              {user?.role === 'admin'
-                ? [
-                    searchQuery,
-                    selectedCategories.length,
-                    minPrice,
-                    maxPrice,
-                    inStock,
-                    selectedApprovalStatuses.length,
-                    minStock,
-                    maxStock,
-                    selectedSuppliers.length,
-                    startDate,
-                    endDate
-                  ].filter(Boolean).length
-                : [
-                    searchQuery,
-                    selectedCategories.length,
-                    minPrice,
-                    maxPrice,
-                    inStock
-                  ].filter(Boolean).length}
-            </span>
-          )}
-        </button>
-        
-        <button
-          onClick={handleSearch}
-          className="btn-primary"
-        >
-          بحث
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const newValue = !showFilters;
+              setShowFilters(newValue);
+              // Save to sessionStorage to persist across re-renders
+              if (typeof window !== 'undefined') {
+                sessionStorage.setItem(`showFilters_${pathname}`, String(newValue));
+              }
+            }}
+            className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-2 rounded-lg transition-colors min-h-[44px] text-xs sm:text-sm ${
+              user?.role === 'admin' && hasActiveFilters
+                ? 'bg-[#FF9800] text-white'
+                : 'btn-secondary'
+            }`}
+          >
+            <Filter className="w-4 h-4 sm:w-5 sm:h-5 ml-1 sm:ml-2 flex-shrink-0" />
+            <span className="hidden sm:inline">{user?.role === 'admin' ? 'فلاتر المنتجات' : 'فلاتر'}</span>
+            <span className="sm:hidden">فلاتر</span>
+            {hasActiveFilters && (
+              <span className={`text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full ${
+                user?.role === 'admin' 
+                  ? 'bg-white/20 text-white' 
+                  : 'bg-primary-600 text-white'
+              }`}>
+                {user?.role === 'admin'
+                  ? [
+                      searchQuery,
+                      selectedCategories.length,
+                      minPrice,
+                      maxPrice,
+                      selectedApprovalStatuses.length,
+                      minStock,
+                      maxStock,
+                      selectedSuppliers.length,
+                      startDate,
+                      endDate
+                    ].filter(Boolean).length
+                  : [
+                      searchQuery,
+                      selectedCategories.length,
+                      minPrice,
+                      maxPrice
+                    ].filter(Boolean).length}
+              </span>
+            )}
+          </button>
+          
+        </div>
       </div>
 
       {/* Export Button for Admin */}
@@ -323,30 +797,48 @@ export default function SearchFilters({ onSearch }: SearchFiltersProps) {
         </div>
       )}
 
-      {/* Filters Panel */}
+      {/* Filters Panel - Mobile Drawer / Desktop Panel */}
       {showFilters && (
-        <div className="card p-6 space-y-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
-              {user?.role === 'admin' ? 'فلاتر المنتجات المتقدمة' : 'فلاتر البحث'}
-            </h3>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={clearFilters}
-                className="text-sm text-danger-600 dark:text-danger-400 hover:text-danger-700 dark:hover:text-danger-300 font-medium"
-              >
-                مسح الكل
-              </button>
-              <button
-                onClick={() => setShowFilters(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-300"
-              >
-                <X className="w-5 h-5" />
-              </button>
+        <>
+          {/* Mobile Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 z-40 sm:hidden"
+            onClick={() => {
+              setShowFilters(false);
+              if (typeof window !== 'undefined') {
+                sessionStorage.setItem(`showFilters_${pathname}`, 'false');
+              }
+            }}
+          />
+          
+          {/* Filters Panel */}
+          <div className="card p-4 sm:p-6 space-y-4 sm:space-y-6 fixed sm:relative inset-x-0 bottom-0 sm:bottom-auto sm:inset-x-auto z-50 sm:z-auto max-h-[85vh] sm:max-h-none overflow-y-auto sm:overflow-visible rounded-t-2xl sm:rounded-xl">
+            <div className="flex justify-between items-center mb-3 sm:mb-4 sticky top-0 bg-white dark:bg-slate-800 pb-3 sm:pb-0 -mt-2 sm:mt-0 pt-2 sm:pt-0">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-slate-100">
+                {user?.role === 'admin' ? 'فلاتر المنتجات المتقدمة' : 'فلاتر البحث'}
+              </h3>
+              <div className="flex items-center gap-2 sm:gap-3">
+                <button
+                  onClick={clearFilters}
+                  className="text-xs sm:text-sm text-danger-600 dark:text-danger-400 hover:text-danger-700 dark:hover:text-danger-300 font-medium min-h-[36px] sm:min-h-[44px] px-2 sm:px-3"
+                >
+                  مسح الكل
+                </button>
+                <button
+                  onClick={() => {
+                    setShowFilters(false);
+                    if (typeof window !== 'undefined') {
+                      sessionStorage.setItem(`showFilters_${pathname}`, 'false');
+                    }
+                  }}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             {/* Category Filter */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
@@ -355,7 +847,19 @@ export default function SearchFilters({ onSearch }: SearchFiltersProps) {
               <MultiSelect
                 options={categoryOptions}
                 selected={selectedCategories}
-                onChange={setSelectedCategories}
+                onChange={(value) => {
+                  // Update ref immediately for use in applyFiltersAuto
+                  categoriesRef.current = value;
+                  // Apply filters immediately with the new categories value directly (before state update)
+                  // This ensures URL updates immediately without waiting for React state update
+                  if (!isInitialMount.current) {
+                    applyFiltersAuto(undefined, undefined, undefined, undefined, undefined, undefined, undefined, value, undefined, undefined, undefined);
+                  }
+                  // Update state using startTransition to mark as non-urgent, preventing full page re-render
+                  startTransition(() => {
+                    setSelectedCategories(value);
+                  });
+                }}
                 placeholder="جميع الفئات"
               />
             </div>
@@ -369,7 +873,18 @@ export default function SearchFilters({ onSearch }: SearchFiltersProps) {
                 <MultiSelect
                   options={approvalStatusOptions}
                   selected={selectedApprovalStatuses}
-                  onChange={setSelectedApprovalStatuses}
+                  onChange={(value) => {
+                    // Update ref immediately
+                    approvalStatusesRef.current = value;
+                    // Apply immediately with the new approval statuses value directly
+                    if (!isInitialMount.current) {
+                      applyFiltersAuto(undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, value, undefined, undefined);
+                    }
+                    // Update state using startTransition to mark as non-urgent, preventing full page re-render
+                    startTransition(() => {
+                      setSelectedApprovalStatuses(value);
+                    });
+                  }}
                   placeholder="جميع الحالات"
                 />
               </div>
@@ -384,7 +899,34 @@ export default function SearchFilters({ onSearch }: SearchFiltersProps) {
                 type="number"
                 placeholder="0"
                 value={minPrice}
-                onChange={(e) => setMinPrice(e.target.value)}
+                onChange={(e) => {
+                  const newValue = e.target.value;
+                  // Update state immediately first to reflect UI change
+                  setMinPrice(newValue || '');
+                  // CRITICAL FIX: Pass both minPrice (new value) and maxPrice (current from ref) together
+                  // This ensures the API receives both values correctly for proper filtering
+                  if (!isInitialMount.current) {
+                    console.log('MinPrice onChange - applying filters with both values:', {
+                      newMinPrice: newValue || '',
+                      currentMaxPrice: maxPriceRef.current || ''
+                    });
+                    applyFiltersAuto(undefined, newValue || '', maxPriceRef.current || '');
+                  }
+                }}
+                onBlur={(e) => {
+                  // Ensure empty values are properly handled on blur
+                  const value = e.target.value || '';
+                  if (value !== (minPrice || '')) {
+                    setMinPrice(value);
+                    if (!isInitialMount.current) {
+                      console.log('MinPrice onBlur - applying filters with both values:', {
+                        newMinPrice: value,
+                        currentMaxPrice: maxPriceRef.current || ''
+                      });
+                      applyFiltersAuto(undefined, value, maxPriceRef.current || '');
+                    }
+                  }
+                }}
                 className="input-field"
               />
             </div>
@@ -397,25 +939,38 @@ export default function SearchFilters({ onSearch }: SearchFiltersProps) {
                 type="number"
                 placeholder="1000"
                 value={maxPrice}
-                onChange={(e) => setMaxPrice(e.target.value)}
+                onChange={(e) => {
+                  const newValue = e.target.value;
+                  // Update state immediately first to reflect UI change
+                  setMaxPrice(newValue || '');
+                  // CRITICAL FIX: Pass both maxPrice (new value) and minPrice (current from ref) together
+                  // This ensures the API receives both values correctly for proper filtering
+                  if (!isInitialMount.current) {
+                    console.log('MaxPrice onChange - applying filters with both values:', {
+                      currentMinPrice: minPriceRef.current || '',
+                      newMaxPrice: newValue || ''
+                    });
+                    applyFiltersAuto(undefined, minPriceRef.current || '', newValue || '');
+                  }
+                }}
+                onBlur={(e) => {
+                  // Ensure empty values are properly handled on blur
+                  const value = e.target.value || '';
+                  if (value !== (maxPrice || '')) {
+                    setMaxPrice(value);
+                    if (!isInitialMount.current) {
+                      console.log('MaxPrice onBlur - applying filters with both values:', {
+                        currentMinPrice: minPriceRef.current || '',
+                        newMaxPrice: value
+                      });
+                      applyFiltersAuto(undefined, minPriceRef.current || '', value);
+                    }
+                  }
+                }}
                 className="input-field"
               />
             </div>
 
-            {/* Stock Filter */}
-            <div className="flex items-end">
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={inStock}
-                  onChange={(e) => setInStock(e.target.checked)}
-                  className="rounded border-gray-300 dark:border-slate-600 text-primary-600 focus:ring-primary-500 ml-2"
-                />
-                <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
-                  المنتجات المتوفرة فقط
-                </span>
-              </label>
-            </div>
           </div>
 
           {/* Admin-specific Filters */}
@@ -440,8 +995,28 @@ export default function SearchFilters({ onSearch }: SearchFiltersProps) {
                         type="number"
                         min="0"
                         placeholder="0"
-                        value={minStock}
-                        onChange={(e) => setMinStock(e.target.value)}
+                        value={minStock || ''}
+                        onChange={(e) => {
+                          const newValue = e.target.value;
+                          // Update state immediately first to reflect UI change
+                          setMinStock(newValue || '');
+                          // Apply immediately with the new value directly - use callback ref to get latest maxStock
+                          if (!isInitialMount.current) {
+                            // Get current maxStock value from state ref or use current state
+                            // Pass both minStock and maxStock to ensure proper filter application
+                            applyFiltersAuto(undefined, undefined, undefined, newValue || '', maxStock || '');
+                          }
+                        }}
+                        onBlur={(e) => {
+                          // Ensure empty values are properly handled on blur
+                          const value = e.target.value || '';
+                          if (value !== (minStock || '')) {
+                            setMinStock(value);
+                            if (!isInitialMount.current) {
+                              applyFiltersAuto(undefined, undefined, undefined, value, maxStock || '');
+                            }
+                          }
+                        }}
                         className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-[#FF9800] focus:border-transparent dark:bg-slate-700 dark:text-slate-100"
                       />
                     </div>
@@ -453,8 +1028,27 @@ export default function SearchFilters({ onSearch }: SearchFiltersProps) {
                         type="number"
                         min="0"
                         placeholder="لا نهائي"
-                        value={maxStock}
-                        onChange={(e) => setMaxStock(e.target.value)}
+                        value={maxStock || ''}
+                        onChange={(e) => {
+                          const newValue = e.target.value;
+                          // Update state immediately first to reflect UI change
+                          setMaxStock(newValue || '');
+                          // Apply immediately with the new value directly (after state update for other filters)
+                          if (!isInitialMount.current) {
+                            // Pass both minStock and maxStock to ensure proper filter application
+                            applyFiltersAuto(undefined, undefined, undefined, minStock || '', newValue || '');
+                          }
+                        }}
+                        onBlur={(e) => {
+                          // Ensure empty values are properly handled on blur
+                          const value = e.target.value || '';
+                          if (value !== (maxStock || '')) {
+                            setMaxStock(value);
+                            if (!isInitialMount.current) {
+                              applyFiltersAuto(undefined, undefined, undefined, minStock || '', value);
+                            }
+                          }
+                        }}
                         className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-[#FF9800] focus:border-transparent dark:bg-slate-700 dark:text-slate-100"
                       />
                     </div>
@@ -466,7 +1060,62 @@ export default function SearchFilters({ onSearch }: SearchFiltersProps) {
                   <MultiSelect
                     options={supplierOptions}
                     selected={selectedSuppliers}
-                    onChange={setSelectedSuppliers}
+                    onChange={(value) => {
+                      console.log('MultiSelect onChange triggered:', { 
+                        value, 
+                        valueType: typeof value,
+                        valueLength: Array.isArray(value) ? value.length : 'not array',
+                        isInitialMount: isInitialMount.current,
+                        currentSelectedSuppliers: selectedSuppliers
+                      });
+                      
+                      // Update state immediately first to reflect UI change
+                      setSelectedSuppliers(value);
+                      // Update ref immediately
+                      suppliersRef.current = value;
+                      
+                      // Apply immediately with the new suppliers value directly
+                      // IMPORTANT: Pass value as overrideSelectedSuppliers (9th parameter)
+                      // Parameters order: searchQuery, minPrice, maxPrice, minStock, maxStock, startDate, endDate, categories, suppliers, sortBy, sortOrder
+                      if (!isInitialMount.current) {
+                        console.log('Suppliers filter changed - calling applyFiltersAuto:', { 
+                          value, 
+                          valueLength: value?.length,
+                          valueType: typeof value,
+                          isArray: Array.isArray(value)
+                        });
+                        // Explicitly pass value as 10th parameter (overrideSelectedSuppliers)
+                        // IMPORTANT: Parameter order:
+                        // 1. overrideSearchQuery
+                        // 2. overrideMinPrice
+                        // 3. overrideMaxPrice
+                        // 4. overrideMinStock
+                        // 5. overrideMaxStock
+                        // 6. overrideStartDate
+                        // 7. overrideEndDate
+                        // 8. overrideSelectedCategories
+                        // 9. overrideSelectedApprovalStatuses
+                        // 10. overrideSelectedSuppliers <- THIS IS THE ONE WE NEED
+                        // 11. overrideSortBy
+                        // 12. overrideSortOrder
+                        applyFiltersAuto(
+                          undefined, // overrideSearchQuery (1)
+                          undefined, // overrideMinPrice (2)
+                          undefined, // overrideMaxPrice (3)
+                          undefined, // overrideMinStock (4)
+                          undefined, // overrideMaxStock (5)
+                          undefined, // overrideStartDate (6)
+                          undefined, // overrideEndDate (7)
+                          undefined, // overrideSelectedCategories (8)
+                          undefined, // overrideSelectedApprovalStatuses (9)
+                          value,     // overrideSelectedSuppliers (10) - THIS IS THE ONE WE NEED
+                          undefined, // overrideSortBy (11)
+                          undefined  // overrideSortOrder (12)
+                        );
+                      } else {
+                        console.warn('Suppliers filter change ignored - initial mount:', { value, isInitialMount: isInitialMount.current });
+                      }
+                    }}
                     placeholder={loadingSuppliers ? 'جاري التحميل...' : 'اختر الموردين'}
                     label="المورد"
                   />
@@ -486,7 +1135,20 @@ export default function SearchFilters({ onSearch }: SearchFiltersProps) {
                       <input
                         type="date"
                         value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
+                        onChange={(e) => {
+                          const newDate = e.target.value;
+                          // Update ref immediately
+                          startDateRef.current = newDate;
+                          // Force immediate update for date changes - pass new value directly
+                          if (!isInitialMount.current && user?.role === 'admin') {
+                            // Apply immediately with the new date value and current endDate from ref
+                            applyFiltersAuto(undefined, undefined, undefined, undefined, undefined, newDate, endDateRef.current);
+                          }
+                          // Update state using startTransition to mark as non-urgent, preventing full page re-render
+                          startTransition(() => {
+                            setStartDate(newDate);
+                          });
+                        }}
                         className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-[#FF9800] focus:border-transparent dark:bg-slate-700 dark:text-slate-100"
                       />
                     </div>
@@ -497,7 +1159,20 @@ export default function SearchFilters({ onSearch }: SearchFiltersProps) {
                       <input
                         type="date"
                         value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
+                        onChange={(e) => {
+                          const newDate = e.target.value;
+                          // Update ref immediately
+                          endDateRef.current = newDate;
+                          // Force immediate update for date changes - pass new value directly
+                          if (!isInitialMount.current && userRef.current?.role === 'admin') {
+                            // Apply immediately with current startDate from ref and new date value
+                            applyFiltersAuto(undefined, undefined, undefined, undefined, undefined, startDateRef.current, newDate);
+                          }
+                          // Update state using startTransition to mark as non-urgent, preventing full page re-render
+                          startTransition(() => {
+                            setEndDate(newDate);
+                          });
+                        }}
                         className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-[#FF9800] focus:border-transparent dark:bg-slate-700 dark:text-slate-100"
                       />
                     </div>
@@ -507,50 +1182,69 @@ export default function SearchFilters({ onSearch }: SearchFiltersProps) {
             </>
           )}
 
-          {/* Sort Options */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-200 dark:border-slate-700">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                ترتيب حسب
-              </label>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="input-field"
-              >
-                <option value="createdAt">تاريخ الإضافة</option>
-                <option value="price">السعر</option>
-                <option value="name">الاسم</option>
-                <option value="stock">المخزون</option>
-              </select>
+            {/* Sort Options */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 pt-3 sm:pt-4 border-t border-gray-200 dark:border-slate-700">
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                  ترتيب حسب
+                </label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => {
+                    const newValue = e.target.value;
+                    // Apply immediately with the new sortBy value directly (before state update)
+                    if (!isInitialMount.current) {
+                      applyFiltersAuto(undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, newValue);
+                    }
+                    // Update state using startTransition to mark as non-urgent, preventing full page re-render
+                    startTransition(() => {
+                      setSortBy(newValue);
+                    });
+                  }}
+                  className="input-field text-sm sm:text-base min-h-[44px]"
+                >
+                  <option value="createdAt">تاريخ الإضافة</option>
+                  <option value="price">السعر</option>
+                  <option value="name">الاسم</option>
+                  <option value="stock">المخزون</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                  اتجاه الترتيب
+                </label>
+                <select
+                  value={sortOrder}
+                  onChange={(e) => {
+                    const newValue = e.target.value;
+                    // Apply immediately with the new sortOrder value directly (before state update)
+                    if (!isInitialMount.current) {
+                      applyFiltersAuto(undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, newValue);
+                    }
+                    // Update state using startTransition to mark as non-urgent, preventing full page re-render
+                    startTransition(() => {
+                      setSortOrder(newValue);
+                    });
+                  }}
+                  className="input-field text-sm sm:text-base min-h-[44px]"
+                >
+                  <option value="desc">تنازلي</option>
+                  <option value="asc">تصاعدي</option>
+                </select>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                اتجاه الترتيب
-              </label>
-              <select
-                value={sortOrder}
-                onChange={(e) => setSortOrder(e.target.value)}
-                className="input-field"
-              >
-                <option value="desc">تنازلي</option>
-                <option value="asc">تصاعدي</option>
-              </select>
-            </div>
           </div>
-
-          {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200 dark:border-slate-700">
-            <button
-              onClick={handleSearch}
-              className="px-6 py-2 bg-[#FF9800] hover:bg-[#F57C00] text-white rounded-lg transition-colors"
-            >
-              {user?.role === 'admin' ? 'تطبيق الفلاتر' : 'بحث'}
-            </button>
-          </div>
-        </div>
+        </>
       )}
     </div>
   );
-} 
+}
+
+// Custom comparison function to prevent unnecessary re-renders
+export default memo(SearchFilters, (prevProps, nextProps) => {
+  // Only re-render if onSearch callback reference changes
+  // Since onSearch is memoized in parent, this should prevent most re-renders
+  return prevProps.onSearch === nextProps.onSearch;
+});

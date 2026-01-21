@@ -13,7 +13,7 @@ import {
   CheckCircle, 
   XCircle, 
   AlertCircle,
-  RefreshCw,
+  RotateCw,
   Filter,
   User,
   Phone,
@@ -175,7 +175,7 @@ export default function AdminWithdrawalsPage() {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center">
-          <RefreshCw className="w-8 h-8 animate-spin text-primary-600 mx-auto mb-4" />
+          <RotateCw className="w-8 h-8 animate-spin text-primary-600 mx-auto mb-4" />
           <p className="text-gray-600 dark:text-slate-400">جاري التحميل...</p>
         </div>
       </div>
@@ -183,64 +183,64 @@ export default function AdminWithdrawalsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">إدارة طلبات السحب</h1>
-          <p className="text-gray-600 dark:text-gray-300 mt-2">مراجعة وإدارة طلبات سحب الأرباح</p>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">إدارة طلبات السحب</h1>
+          <p className="text-xs sm:text-sm md:text-base text-gray-600 dark:text-gray-300 mt-1 sm:mt-2">مراجعة وإدارة طلبات سحب الأرباح</p>
         </div>
-        <Button onClick={fetchWithdrawals} variant="outline" className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700">
-          <RefreshCw className="w-4 h-4 ml-2" />
+        <Button onClick={fetchWithdrawals} variant="outline" className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 min-h-[44px] text-sm sm:text-base px-3 sm:px-4 w-full sm:w-auto">
+          <RotateCw className="w-4 h-4 ml-1.5 sm:ml-2" />
           تحديث
         </Button>
       </div>
 
       {/* Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <Card className="border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-          <CardContent className="p-4">
+          <CardContent className="p-3 sm:p-4">
             <div className="flex items-center">
-              <Clock className="w-8 h-8 text-yellow-600 dark:text-yellow-400 ml-3" />
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-300">معلق</p>
-                <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{getStatusCount('pending')}</p>
+              <Clock className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-600 dark:text-yellow-400 ml-2 sm:ml-3 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] sm:text-xs md:text-sm text-gray-600 dark:text-gray-300 truncate">معلق</p>
+                <p className="text-lg sm:text-xl md:text-2xl font-bold text-yellow-600 dark:text-yellow-400 truncate">{getStatusCount('pending')}</p>
               </div>
             </div>
           </CardContent>
         </Card>
         
         <Card className="border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-          <CardContent className="p-4">
+          <CardContent className="p-3 sm:p-4">
             <div className="flex items-center">
-              <CheckCircle className="w-8 h-8 text-blue-600 dark:text-blue-400 ml-3" />
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-300">تمت الموافقة</p>
-                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{getStatusCount('approved')}</p>
+              <CheckCircle className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 dark:text-blue-400 ml-2 sm:ml-3 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] sm:text-xs md:text-sm text-gray-600 dark:text-gray-300 truncate">تمت الموافقة</p>
+                <p className="text-lg sm:text-xl md:text-2xl font-bold text-blue-600 dark:text-blue-400 truncate">{getStatusCount('approved')}</p>
               </div>
             </div>
           </CardContent>
         </Card>
         
         <Card className="border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-          <CardContent className="p-4">
+          <CardContent className="p-3 sm:p-4">
             <div className="flex items-center">
-              <XCircle className="w-8 h-8 text-red-600 dark:text-red-400 ml-3" />
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-300">مرفوض</p>
-                <p className="text-2xl font-bold text-red-600 dark:text-red-400">{getStatusCount('rejected')}</p>
+              <XCircle className="w-6 h-6 sm:w-8 sm:h-8 text-red-600 dark:text-red-400 ml-2 sm:ml-3 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] sm:text-xs md:text-sm text-gray-600 dark:text-gray-300 truncate">مرفوض</p>
+                <p className="text-lg sm:text-xl md:text-2xl font-bold text-red-600 dark:text-red-400 truncate">{getStatusCount('rejected')}</p>
               </div>
             </div>
           </CardContent>
         </Card>
         
         <Card className="border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-          <CardContent className="p-4">
+          <CardContent className="p-3 sm:p-4">
             <div className="flex items-center">
-              <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400 ml-3" />
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-300">مكتمل</p>
-                <p className="text-2xl font-bold text-green-600 dark:text-green-400">{getStatusCount('completed')}</p>
+              <CheckCircle className="w-6 h-6 sm:w-8 sm:h-8 text-green-600 dark:text-green-400 ml-2 sm:ml-3 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] sm:text-xs md:text-sm text-gray-600 dark:text-gray-300 truncate">مكتمل</p>
+                <p className="text-lg sm:text-xl md:text-2xl font-bold text-green-600 dark:text-green-400 truncate">{getStatusCount('completed')}</p>
               </div>
             </div>
           </CardContent>
@@ -249,16 +249,16 @@ export default function AdminWithdrawalsPage() {
 
       {/* Filters */}
       <Card className="border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-4">
+        <CardContent className="p-3 sm:p-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
             <div className="flex items-center">
-              <Filter className="w-4 h-4 ml-2 text-gray-600 dark:text-gray-300" />
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">تصفية حسب الحالة:</span>
+              <Filter className="w-3.5 h-3.5 sm:w-4 sm:h-4 ml-1.5 sm:ml-2 text-gray-600 dark:text-gray-300 flex-shrink-0" />
+              <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-200">تصفية حسب الحالة:</span>
             </div>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="input-field"
+              className="input-field text-sm sm:text-base min-h-[44px] flex-1 sm:flex-initial"
             >
               <option value="all">جميع الطلبات</option>
               <option value="pending">معلق</option>
@@ -287,48 +287,50 @@ export default function AdminWithdrawalsPage() {
           ) : (
             <div className="space-y-4">
               {withdrawals.map((withdrawal) => (
-                <div key={withdrawal._id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-800">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <User className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                        <span className="font-semibold text-gray-900 dark:text-white">
+                <div key={withdrawal._id} className="border border-gray-200 dark:border-gray-700 rounded-lg sm:rounded-xl p-3 sm:p-4 bg-white dark:bg-gray-800">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-start gap-2 sm:gap-0 mb-3 sm:mb-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+                        <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500 dark:text-gray-400 flex-shrink-0" />
+                        <span className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white truncate">
                           {withdrawal.userId.name}
                         </span>
-                        <span className="text-sm text-gray-500 dark:text-gray-400">({withdrawal.userId.role})</span>
+                        <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 flex-shrink-0">({withdrawal.userId.role})</span>
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-4 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                         <div className="flex items-center">
-                          <Mail className="w-3 h-3 ml-1" />
-                          {withdrawal.userId.email}
+                          <Mail className="w-3 h-3 ml-1 flex-shrink-0" />
+                          <span className="truncate">{withdrawal.userId.email}</span>
                         </div>
                         <div className="flex items-center">
-                          <Phone className="w-3 h-3 ml-1" />
-                          {withdrawal.userId.phone}
+                          <Phone className="w-3 h-3 ml-1 flex-shrink-0" />
+                          <span>{withdrawal.userId.phone}</span>
                         </div>
                       </div>
                     </div>
-                    {getStatusBadge(withdrawal.status)}
+                    <div className="flex-shrink-0">
+                      {getStatusBadge(withdrawal.status)}
+                    </div>
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-3 sm:mb-4">
                     <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">المبلغ:</p>
-                      <p className="text-lg font-bold text-gray-900 dark:text-white">
+                      <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-0.5">المبلغ:</p>
+                      <p className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">
                         {formatAmount(withdrawal.amount)}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">رقم المحفظة:</p>
-                      <p className="text-gray-900 dark:text-white font-mono">
+                      <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-0.5">رقم المحفظة:</p>
+                      <p className="text-sm sm:text-base text-gray-900 dark:text-white font-mono break-all">
                         {withdrawal.walletNumber}
                       </p>
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm mb-3 sm:mb-4">
                     <div>
-                      <p className="text-gray-500 dark:text-gray-400">تاريخ الطلب:</p>
+                      <p className="text-gray-500 dark:text-gray-400 mb-0.5">تاريخ الطلب:</p>
                       <p className="text-gray-900 dark:text-white">
                         {formatDate(withdrawal.requestDate)}
                       </p>
@@ -336,7 +338,7 @@ export default function AdminWithdrawalsPage() {
                     
                     {withdrawal.processedDate && (
                       <div>
-                        <p className="text-gray-500 dark:text-gray-400">تاريخ المعالجة:</p>
+                        <p className="text-gray-500 dark:text-gray-400 mb-0.5">تاريخ المعالجة:</p>
                         <p className="text-gray-900 dark:text-white">
                           {formatDate(withdrawal.processedDate)}
                         </p>
@@ -345,26 +347,26 @@ export default function AdminWithdrawalsPage() {
                   </div>
                   
                   {withdrawal.notes && (
-                    <div className="mb-4">
-                      <p className="text-sm text-gray-500 dark:text-gray-400">ملاحظات الطلب:</p>
-                      <p className="text-gray-900 dark:text-white text-sm">{withdrawal.notes}</p>
+                    <div className="mb-3 sm:mb-4 pt-2 sm:pt-3 border-t border-gray-200 dark:border-gray-700">
+                      <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1">ملاحظات الطلب:</p>
+                      <p className="text-xs sm:text-sm text-gray-900 dark:text-white text-wrap-long">{withdrawal.notes}</p>
                     </div>
                   )}
                   
                   {withdrawal.rejectionReason && (
-                    <div className="mb-4">
-                      <p className="text-sm text-red-500 dark:text-red-400">سبب الرفض:</p>
-                      <p className="text-red-600 dark:text-red-300 text-sm">{withdrawal.rejectionReason}</p>
+                    <div className="mb-3 sm:mb-4 pt-2 sm:pt-3 border-t border-gray-200 dark:border-gray-700">
+                      <p className="text-xs sm:text-sm text-red-500 dark:text-red-400 mb-1">سبب الرفض:</p>
+                      <p className="text-xs sm:text-sm text-red-600 dark:text-red-300 text-wrap-long">{withdrawal.rejectionReason}</p>
                     </div>
                   )}
                   
                   {/* Action Buttons */}
                   {withdrawal.status === 'pending' && (
-                    <div className="flex gap-2 mt-4">
+                    <div className="flex flex-col sm:flex-row gap-2 mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200 dark:border-gray-700">
                       <Button
                         onClick={() => handleStatusUpdate(withdrawal._id, 'approved')}
                         disabled={processing === withdrawal._id}
-                        className="bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600"
+                        className="bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 min-h-[44px] text-sm sm:text-base flex-1 sm:flex-initial"
                         size="sm"
                       >
                         {processing === withdrawal._id ? 'جاري...' : 'موافقة'}
@@ -372,7 +374,7 @@ export default function AdminWithdrawalsPage() {
                       <Button
                         onClick={() => handleStatusUpdate(withdrawal._id, 'completed')}
                         disabled={processing === withdrawal._id}
-                        className="bg-[#FF9800] hover:bg-[#F57C00] dark:bg-[#FF9800] dark:hover:bg-[#F57C00]"
+                        className="bg-[#FF9800] hover:bg-[#F57C00] dark:bg-[#FF9800] dark:hover:bg-[#F57C00] min-h-[44px] text-sm sm:text-base flex-1 sm:flex-initial"
                         size="sm"
                       >
                         {processing === withdrawal._id ? 'جاري...' : 'إكمال وتحويل'}
@@ -387,6 +389,7 @@ export default function AdminWithdrawalsPage() {
                         disabled={processing === withdrawal._id}
                         variant="destructive"
                         size="sm"
+                        className="min-h-[44px] text-sm sm:text-base flex-1 sm:flex-initial"
                       >
                         {processing === withdrawal._id ? 'جاري...' : 'رفض'}
                       </Button>
@@ -394,11 +397,11 @@ export default function AdminWithdrawalsPage() {
                   )}
                   
                   {withdrawal.status === 'approved' && (
-                    <div className="flex gap-2 mt-4">
+                    <div className="flex gap-2 mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200 dark:border-gray-700">
                       <Button
                         onClick={() => handleStatusUpdate(withdrawal._id, 'completed')}
                         disabled={processing === withdrawal._id}
-                        className="bg-[#FF9800] hover:bg-[#F57C00] dark:bg-[#FF9800] dark:hover:bg-[#F57C00]"
+                        className="bg-[#FF9800] hover:bg-[#F57C00] dark:bg-[#FF9800] dark:hover:bg-[#F57C00] min-h-[44px] text-sm sm:text-base w-full sm:w-auto"
                         size="sm"
                       >
                         {processing === withdrawal._id ? 'جاري...' : 'إكمال وتحويل'}
@@ -414,18 +417,18 @@ export default function AdminWithdrawalsPage() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex justify-center gap-2">
+        <div className="flex justify-center items-center gap-2 sm:gap-3 flex-wrap">
           <Button
             onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
             disabled={currentPage === 1}
             variant="outline"
             size="sm"
-            className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+            className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 min-h-[44px] text-sm sm:text-base px-3 sm:px-4"
           >
             السابق
           </Button>
           
-          <span className="flex items-center px-3 py-1 text-sm text-gray-700 dark:text-gray-300">
+          <span className="flex items-center px-2 sm:px-3 py-1 text-xs sm:text-sm text-gray-700 dark:text-gray-300">
             صفحة {currentPage} من {totalPages}
           </span>
           
@@ -434,7 +437,7 @@ export default function AdminWithdrawalsPage() {
             disabled={currentPage === totalPages}
             variant="outline"
             size="sm"
-            className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+            className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 min-h-[44px] text-sm sm:text-base px-3 sm:px-4"
           >
             التالي
           </Button>

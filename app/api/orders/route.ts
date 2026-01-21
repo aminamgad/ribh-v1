@@ -412,7 +412,12 @@ async function getOrdersHandler(req: NextRequest, user: any) {
     logger.apiRequest('GET', '/api/orders', { userId: user._id, role: user.role });
     
     const { searchParams } = new URL(req.url);
-    const status = searchParams.get('status');
+    const statusParam = searchParams.get('status');
+    // Support multiple statuses (comma-separated) - e.g., "pending,confirmed,processing"
+    const statusArray = statusParam && statusParam !== 'all' 
+      ? statusParam.split(',').map(s => s.trim()).filter(Boolean)
+      : [];
+    const status = statusArray.length > 0 ? statusArray : (statusParam === 'all' ? null : statusParam);
     const search = searchParams.get('search'); // Legacy search (backward compatibility)
     
     // New separate search fields
@@ -441,8 +446,20 @@ async function getOrdersHandler(req: NextRequest, user: any) {
       // marketer or wholesaler
       query.customerId = user._id;
     }
-    if (status && status !== 'all') {
+    // Status filter - support multiple statuses using $in operator
+    if (Array.isArray(status) && status.length > 0) {
+      query.status = { $in: status };
+      logger.debug('Order status filter applied (multiple)', { 
+        statusArray: status, 
+        queryStatus: query.status 
+      });
+    } else if (status && typeof status === 'string' && status !== 'all') {
+      // Backward compatibility: single status as string
       query.status = status;
+      logger.debug('Order status filter applied (single)', { 
+        status, 
+        queryStatus: query.status 
+      });
     }
     
     // Date range filter

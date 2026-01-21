@@ -110,6 +110,7 @@ export default function MediaDisplay({
             alt={`${title} ${selectedIndex + 1}`}
             className="w-full h-full object-cover"
             priority={selectedIndex === 0}
+            placeholder="blur"
           />
         ) : (
           <video
@@ -153,7 +154,8 @@ export default function MediaDisplay({
                       width={80}
                       height={80}
                       className="w-full h-full object-cover"
-                      priority={index === 0}
+                      priority={index === 0 || index === selectedIndex}
+                      placeholder="blur"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center relative">

@@ -146,22 +146,22 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">التحليلات المتقدمة</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">تحليل شامل لأداء المنصة</p>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100">التحليلات المتقدمة</h1>
+          <p className="text-xs sm:text-sm md:text-base text-gray-600 dark:text-gray-400 mt-1 sm:mt-2">تحليل شامل لأداء المنصة</p>
           {customDateRange && startDate && endDate && (
-                          <p className="text-sm text-[#FF9800] dark:text-[#FF9800] mt-1">
-              الفترة المحددة: من {new Date(startDate).toLocaleDateString('en-US')} إلى {new Date(endDate).toLocaleDateString('en-US')}
+            <p className="text-[10px] sm:text-xs text-[#FF9800] dark:text-[#FF9800] mt-1">
+              الفترة المحددة: من {new Date(startDate).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' })} إلى {new Date(endDate).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' })}
             </p>
           )}
         </div>
         
-        <div className="flex items-center space-x-4 space-x-reverse">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 space-x-reverse w-full sm:w-auto">
           {/* Date Range Selector */}
-          <div className="flex items-center space-x-2 space-x-reverse">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 space-x-reverse">
             <select
               value={customDateRange ? 'custom' : dateRange}
               onChange={(e) => {
@@ -172,7 +172,7 @@ export default function AnalyticsPage() {
                   setDateRange(e.target.value);
                 }
               }}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#FF9800] focus:border-[#FF9800]"
+              className="px-3 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#FF9800] focus:border-[#FF9800] min-h-[44px]"
             >
               <option value="week">آخر أسبوع</option>
               <option value="month">آخر شهر</option>
@@ -182,31 +182,31 @@ export default function AnalyticsPage() {
             </select>
             
             {customDateRange && (
-              <div className="flex items-center space-x-2 space-x-reverse">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 space-x-reverse">
                 <div className="flex items-center space-x-1 space-x-reverse">
-                  <CalendarDays className="w-4 h-4 text-gray-500" />
+                  <CalendarDays className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500 flex-shrink-0" />
                   <input
                     type="date"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
-                    className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="px-2 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white min-h-[44px] flex-1"
                     placeholder="من تاريخ"
                   />
                 </div>
-                <span className="text-gray-500">إلى</span>
+                <span className="text-xs sm:text-sm text-gray-500 text-center sm:text-right">إلى</span>
                 <div className="flex items-center space-x-1 space-x-reverse">
-                  <CalendarDays className="w-4 h-4 text-gray-500" />
+                  <CalendarDays className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500 flex-shrink-0" />
                   <input
                     type="date"
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
-                    className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="px-2 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white min-h-[44px] flex-1"
                     placeholder="إلى تاريخ"
                   />
                 </div>
                 
                 {/* Quick Date Presets */}
-                <div className="flex items-center space-x-1 space-x-reverse ml-4">
+                <div className="flex items-center space-x-1 space-x-reverse sm:ml-2 flex-wrap gap-1 sm:gap-0">
                   <button
                     onClick={() => {
                       const today = new Date();
@@ -214,7 +214,7 @@ export default function AnalyticsPage() {
                       setStartDate(lastWeek.toISOString().split('T')[0]);
                       setEndDate(today.toISOString().split('T')[0]);
                     }}
-                    className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-500"
+                    className="px-2 py-1 text-[10px] sm:text-xs bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-500 min-h-[32px] sm:min-h-[auto]"
                   >
                     آخر أسبوع
                   </button>
@@ -225,7 +225,7 @@ export default function AnalyticsPage() {
                       setStartDate(lastMonth.toISOString().split('T')[0]);
                       setEndDate(today.toISOString().split('T')[0]);
                     }}
-                    className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-500"
+                    className="px-2 py-1 text-[10px] sm:text-xs bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-500 min-h-[32px] sm:min-h-[auto]"
                   >
                     آخر شهر
                   </button>
@@ -236,7 +236,7 @@ export default function AnalyticsPage() {
                       setStartDate(lastQuarter.toISOString().split('T')[0]);
                       setEndDate(today.toISOString().split('T')[0]);
                     }}
-                    className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-500"
+                    className="px-2 py-1 text-[10px] sm:text-xs bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-500 min-h-[32px] sm:min-h-[auto]"
                   >
                     آخر 3 شهور
                   </button>
@@ -247,95 +247,96 @@ export default function AnalyticsPage() {
           
           <button
             onClick={exportReport}
-            className="px-4 py-2 bg-[#FF9800] hover:bg-[#F57C00] text-white rounded-md flex items-center space-x-2 space-x-reverse transition-colors"
+            className="px-3 sm:px-4 py-2 bg-[#FF9800] hover:bg-[#F57C00] text-white rounded-md flex items-center justify-center space-x-2 space-x-reverse transition-colors min-h-[44px] text-xs sm:text-sm"
           >
             <Download className="w-4 h-4" />
-            <span>تصدير التقرير</span>
+            <span className="hidden sm:inline">تصدير التقرير</span>
+            <span className="sm:hidden">تصدير</span>
           </button>
         </div>
       </div>
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="card">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="card p-3 sm:p-4">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">إجمالي الإيرادات</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] sm:text-xs md:text-sm text-gray-600 dark:text-gray-400 truncate">إجمالي الإيرادات</p>
+              <p className="text-base sm:text-lg md:text-2xl font-bold text-gray-900 dark:text-gray-100 truncate">
                 {analytics?.revenue.total ? new Intl.NumberFormat('en-US').format(analytics.revenue.total) : '0'} ₪
               </p>
-              <div className={`flex items-center text-sm mt-1 ${(analytics?.revenue.growth ?? 0) >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
-                {(analytics?.revenue.growth ?? 0) >= 0 ? <ArrowUp className="w-4 h-4 ml-1" /> : <ArrowDown className="w-4 h-4 ml-1" />}
+              <div className={`flex items-center text-[10px] sm:text-xs md:text-sm mt-1 ${(analytics?.revenue.growth ?? 0) >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
+                {(analytics?.revenue.growth ?? 0) >= 0 ? <ArrowUp className="w-3 h-3 sm:w-4 sm:h-4 ml-0.5 sm:ml-1" /> : <ArrowDown className="w-3 h-3 sm:w-4 sm:h-4 ml-0.5 sm:ml-1" />}
                 {Math.abs(analytics?.revenue.growth ?? 0)}%
               </div>
             </div>
-            <div className="bg-primary-100 dark:bg-primary-900 p-3 rounded-lg">
-              <DollarSign className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+            <div className="bg-primary-100 dark:bg-primary-900 p-2 sm:p-3 rounded-lg flex-shrink-0">
+              <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-primary-600 dark:text-primary-400" />
             </div>
           </div>
         </div>
 
-        <div className="card">
+        <div className="card p-3 sm:p-4">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">إجمالي الطلبات</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] sm:text-xs md:text-sm text-gray-600 dark:text-gray-400 truncate">إجمالي الطلبات</p>
+              <p className="text-base sm:text-lg md:text-2xl font-bold text-gray-900 dark:text-gray-100 truncate">
                 {analytics?.orders.total ? new Intl.NumberFormat('en-US').format(analytics.orders.total) : '0'}
               </p>
-              <div className={`flex items-center text-sm mt-1 ${(analytics?.orders.growth ?? 0) >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
-                {(analytics?.orders.growth ?? 0) >= 0 ? <ArrowUp className="w-4 h-4 ml-1" /> : <ArrowDown className="w-4 h-4 ml-1" />}
+              <div className={`flex items-center text-[10px] sm:text-xs md:text-sm mt-1 ${(analytics?.orders.growth ?? 0) >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
+                {(analytics?.orders.growth ?? 0) >= 0 ? <ArrowUp className="w-3 h-3 sm:w-4 sm:h-4 ml-0.5 sm:ml-1" /> : <ArrowDown className="w-3 h-3 sm:w-4 sm:h-4 ml-0.5 sm:ml-1" />}
                 {Math.abs(analytics?.orders.growth ?? 0)}%
               </div>
             </div>
-            <div className="bg-success-100 dark:bg-success-900 p-3 rounded-lg">
-              <ShoppingBag className="w-6 h-6 text-success-600 dark:text-success-400" />
+            <div className="bg-success-100 dark:bg-success-900 p-2 sm:p-3 rounded-lg flex-shrink-0">
+              <ShoppingBag className="w-5 h-5 sm:w-6 sm:h-6 text-success-600 dark:text-success-400" />
             </div>
           </div>
         </div>
 
-        <div className="card">
+        <div className="card p-3 sm:p-4">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">إجمالي المنتجات</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] sm:text-xs md:text-sm text-gray-600 dark:text-gray-400 truncate">إجمالي المنتجات</p>
+              <p className="text-base sm:text-lg md:text-2xl font-bold text-gray-900 dark:text-gray-100 truncate">
                 {analytics?.products.total ? new Intl.NumberFormat('en-US').format(analytics.products.total) : '0'}
               </p>
-              <div className={`flex items-center text-sm mt-1 ${(analytics?.products.growth ?? 0) >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
-                {(analytics?.products.growth ?? 0) >= 0 ? <ArrowUp className="w-4 h-4 ml-1" /> : <ArrowDown className="w-4 h-4 ml-1" />}
+              <div className={`flex items-center text-[10px] sm:text-xs md:text-sm mt-1 ${(analytics?.products.growth ?? 0) >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
+                {(analytics?.products.growth ?? 0) >= 0 ? <ArrowUp className="w-3 h-3 sm:w-4 sm:h-4 ml-0.5 sm:ml-1" /> : <ArrowDown className="w-3 h-3 sm:w-4 sm:h-4 ml-0.5 sm:ml-1" />}
                 {Math.abs(analytics?.products.growth ?? 0)}%
               </div>
             </div>
-            <div className="bg-warning-100 dark:bg-warning-900 p-3 rounded-lg">
-              <Package className="w-6 h-6 text-warning-600 dark:text-warning-400" />
+            <div className="bg-warning-100 dark:bg-warning-900 p-2 sm:p-3 rounded-lg flex-shrink-0">
+              <Package className="w-5 h-5 sm:w-6 sm:h-6 text-warning-600 dark:text-warning-400" />
             </div>
           </div>
         </div>
 
-        <div className="card">
+        <div className="card p-3 sm:p-4">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">إجمالي المستخدمين</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] sm:text-xs md:text-sm text-gray-600 dark:text-gray-400 truncate">إجمالي المستخدمين</p>
+              <p className="text-base sm:text-lg md:text-2xl font-bold text-gray-900 dark:text-gray-100 truncate">
                 {analytics?.users.total ? new Intl.NumberFormat('en-US').format(analytics.users.total) : '0'}
               </p>
-              <div className={`flex items-center text-sm mt-1 ${(analytics?.users.growth ?? 0) >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
-                {(analytics?.users.growth ?? 0) >= 0 ? <ArrowUp className="w-4 h-4 ml-1" /> : <ArrowDown className="w-4 h-4 ml-1" />}
+              <div className={`flex items-center text-[10px] sm:text-xs md:text-sm mt-1 ${(analytics?.users.growth ?? 0) >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
+                {(analytics?.users.growth ?? 0) >= 0 ? <ArrowUp className="w-3 h-3 sm:w-4 sm:h-4 ml-0.5 sm:ml-1" /> : <ArrowDown className="w-3 h-3 sm:w-4 sm:h-4 ml-0.5 sm:ml-1" />}
                 {Math.abs(analytics?.users.growth ?? 0)}%
               </div>
             </div>
-            <div className="bg-secondary-100 dark:bg-secondary-900 p-3 rounded-lg">
-              <Users className="w-6 h-6 text-secondary-600 dark:text-secondary-400" />
+            <div className="bg-secondary-100 dark:bg-secondary-900 p-2 sm:p-3 rounded-lg flex-shrink-0">
+              <Users className="w-5 h-5 sm:w-6 sm:h-6 text-secondary-600 dark:text-secondary-400" />
             </div>
           </div>
         </div>
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Revenue Chart */}
-        <div className="card">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">الإيرادات</h3>
-          <ResponsiveContainer width="100%" height={300}>
+        <div className="card p-3 sm:p-4 md:p-6">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3 sm:mb-4">الإيرادات</h3>
+          <ResponsiveContainer width="100%" height={250} className="sm:h-[300px]">
             <LineChart data={analytics?.revenue.daily}>
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
               <XAxis dataKey="date" stroke="#6B7280" />

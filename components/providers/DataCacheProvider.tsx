@@ -138,16 +138,14 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
 
   const refreshData = useCallback((key: string) => {
     setRefreshingKeys(prev => new Set(prev).add(key));
-    // Clear the cache for this key to force refresh
+    // Clear the cache for this key to force refresh - immediate, no delay
     clearCache(key);
-    // Remove from refreshing set after a short delay
-    setTimeout(() => {
-      setRefreshingKeys(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(key);
-        return newSet;
-      });
-    }, 100);
+    // Remove from refreshing set immediately (no setTimeout delay)
+    setRefreshingKeys(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(key);
+      return newSet;
+    });
   }, [clearCache]);
 
   const isRefreshing = useCallback((key: string): boolean => {

@@ -397,7 +397,7 @@ export default function ProductStatsPage() {
               <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">
                 {stats.product.name}
               </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3 mb-3">
+              <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3 mb-3 text-wrap-long">
                 {stats.product.description}
               </p>
               <div className="flex flex-wrap items-center gap-4">

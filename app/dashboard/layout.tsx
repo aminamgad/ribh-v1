@@ -1,22 +1,32 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
-import { DataCacheProvider } from '@/components/providers/DataCacheProvider';
+import { useCart } from '@/components/providers/CartProvider';
+import { useNotifications } from '@/components/providers/NotificationProvider';
+import { useChat } from '@/components/providers/ChatProvider';
+import { DataCacheProvider, useDataCache as useDataCacheContext } from '@/components/providers/DataCacheProvider';
 import DashboardSidebar from '@/components/dashboard/DashboardSidebar';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
+import BottomNavBar from '@/components/dashboard/BottomNavBar';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { Menu, X } from 'lucide-react';
+import ThemeToggle from '@/components/ui/ThemeToggle';
+import { Menu, X, RotateCw, Bell, ShoppingCart, MessageSquare, User, ChevronDown } from 'lucide-react';
+import Link from 'next/link';
+import toast from 'react-hot-toast';
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const { totalItems } = useCart();
+  const { unreadCount } = useNotifications();
+  const { totalUnread: totalUnreadChats } = useChat();
+  const { refreshData } = useDataCacheContext();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -31,11 +41,67 @@ export default function DashboardLayout({
       if (sidebarOpen && !target.closest('.sidebar-container') && !target.closest('.mobile-menu-button')) {
         setSidebarOpen(false);
       }
+      if (showUserMenu && !target.closest('.user-menu-container')) {
+        setShowUserMenu(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [sidebarOpen]);
+  }, [sidebarOpen, showUserMenu]);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      // Dispatch custom refresh event for current page
+      const eventName = `refresh-${pathname.replace('/dashboard/', '').replace(/\//g, '-') || 'dashboard'}`;
+      window.dispatchEvent(new CustomEvent(eventName));
+      
+      // Also dispatch general refresh events
+      window.dispatchEvent(new CustomEvent('refresh-dashboard'));
+      window.dispatchEvent(new CustomEvent('refresh-products'));
+      window.dispatchEvent(new CustomEvent('refresh-orders'));
+      
+      // Refresh common cache keys
+      const commonKeys = [
+        'dashboard_stats',
+        'products',
+        'orders',
+        'users',
+        'analytics',
+        'categories',
+        'wallet',
+        'withdrawals',
+        'earnings',
+        'fulfillment',
+        'messages',
+        'notifications',
+        'favorites',
+        'villages',
+        'product_stats',
+        'integrations',
+      ];
+      
+      commonKeys.forEach(key => refreshData(key));
+      
+      // Force page reload to trigger data refresh
+      router.refresh();
+      
+      toast.success('جاري تحديث البيانات...', { duration: 2000 });
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+      toast.error('حدث خطأ أثناء تحديث البيانات');
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 1000);
+    }
+  };
+
+  const roleLabels = {
+    admin: 'الإدارة',
+    supplier: 'المورد',
+    marketer: 'المسوق',
+    wholesaler: 'تاجر الجملة'
+  };
 
   // Load external chat widget for admin and marketer
   useEffect(() => {
@@ -398,72 +464,179 @@ export default function DashboardLayout({
   }
 
   return (
-    <DataCacheProvider>
-      <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
-        {/* Mobile Header */}
-        <div className="mobile-header lg:hidden">
-          <div className="flex items-center justify-between px-4 py-3">
-            <div className="flex items-center space-x-3 space-x-reverse">
-              <button
-                onClick={() => setSidebarOpen(true)}
-                className="mobile-menu-button p-2 text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 transition-colors"
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
+      {/* Mobile Header */}
+      <div className="mobile-header lg:hidden">
+        <div className="flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3">
+          <div className="flex items-center space-x-2 sm:space-x-3 space-x-reverse flex-1 min-w-0">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="mobile-menu-button p-1.5 sm:p-2 text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
+            >
+              <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
+            </button>
+            <h1 className="text-base sm:text-lg font-bold text-gray-900 dark:text-slate-100 truncate">ربح</h1>
+          </div>
+          <div className="flex items-center gap-1 sm:gap-1.5 space-x-reverse flex-shrink-0">
+            {/* Theme Toggle */}
+            <div className="min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center">
+              <ThemeToggle />
+            </div>
+
+            {/* Cart Icon for Marketer/Wholesaler */}
+            {(user?.role === 'marketer' || user?.role === 'wholesaler') && (
+              <Link 
+                href="/dashboard/cart" 
+                className="relative min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] p-1.5 sm:p-2 rounded-lg bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 shadow-sm hover:shadow-md dark:hover:shadow-slate-900/30 transition-all duration-300 group hover:scale-105 flex items-center justify-center"
               >
-                <Menu className="w-6 h-6" />
+                <ShoppingCart className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-gray-600 dark:text-slate-300 group-hover:text-[#FF9800] dark:group-hover:text-[#FF9800] transition-colors duration-300" />
+                {totalItems > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 bg-gradient-to-r from-[#FF9800] to-[#F57C00] text-white text-[9px] sm:text-[10px] rounded-full min-w-[16px] h-4 sm:min-w-[18px] sm:h-[18px] flex items-center justify-center px-0.5 sm:px-1 animate-bounce shadow-lg font-semibold">
+                    {totalItems > 99 ? '99+' : totalItems}
+                  </span>
+                )}
+              </Link>
+            )}
+
+            {/* Chat Icon */}
+            <Link 
+              href="/dashboard/chat" 
+              className="relative min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] p-1.5 sm:p-2 rounded-lg bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 shadow-sm hover:shadow-md dark:hover:shadow-slate-900/30 transition-all duration-300 group hover:scale-105 flex items-center justify-center"
+            >
+              <MessageSquare className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-gray-600 dark:text-slate-300 group-hover:text-[#4CAF50] dark:group-hover:text-[#4CAF50] transition-colors duration-300" />
+              {totalUnreadChats > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 bg-gradient-to-r from-[#4CAF50] to-[#388E3C] text-white text-[9px] sm:text-[10px] rounded-full min-w-[16px] h-4 sm:min-w-[18px] sm:h-[18px] flex items-center justify-center px-0.5 sm:px-1 animate-bounce shadow-lg font-semibold">
+                  {totalUnreadChats > 99 ? '99+' : totalUnreadChats}
+                </span>
+              )}
+            </Link>
+
+            {/* Notifications */}
+            <Link 
+              href="/dashboard/notifications" 
+              className="relative min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] p-1.5 sm:p-2 rounded-lg bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 shadow-sm hover:shadow-md dark:hover:shadow-slate-900/30 transition-all duration-300 group hover:scale-105 flex items-center justify-center"
+            >
+              <Bell className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-gray-600 dark:text-slate-300 group-hover:text-[#FF9800] dark:group-hover:text-[#FF9800] transition-colors duration-300" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 bg-gradient-to-r from-[#FF9800] to-[#F57C00] text-white text-[9px] sm:text-[10px] rounded-full min-w-[16px] h-4 sm:min-w-[18px] sm:h-[18px] flex items-center justify-center px-0.5 sm:px-1 animate-bounce shadow-lg font-semibold">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
+            </Link>
+
+            {/* User Menu */}
+            <div className="relative user-menu-container">
+              <button
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="flex items-center min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] p-1 sm:p-1.5 rounded-lg bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 shadow-sm hover:shadow-md dark:hover:shadow-slate-900/30 transition-all duration-300 group hover:scale-105"
+              >
+                <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-gradient-to-br from-[#FF9800] via-[#F57C00] to-[#E65100] flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg flex-shrink-0">
+                  <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" />
+                </div>
               </button>
-              <h1 className="text-lg font-bold text-gray-900 dark:text-slate-100">ربح</h1>
-            </div>
-            <div className="flex items-center space-x-2 space-x-reverse">
-              {/* Add mobile header actions here if needed */}
-            </div>
-          </div>
-        </div>
 
-        {/* Desktop Header */}
-        <div className="hidden lg:block">
-          <DashboardHeader />
-        </div>
-
-        {/* Spacer for fixed header */}
-        <div className="hidden lg:block h-16"></div>
-
-        <div className="flex">
-          {/* Mobile Sidebar Overlay */}
-          {sidebarOpen && (
-            <div className="mobile-drawer lg:hidden">
-              <div className="mobile-drawer-content sidebar-container">
-                <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">القائمة</h2>
-                  <button
-                    onClick={() => setSidebarOpen(false)}
-                    className="p-2 text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 transition-colors"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
+              {/* Dropdown Menu */}
+              {showUserMenu && (
+                <div className="absolute left-0 mt-2 w-56 rounded-xl shadow-2xl bg-white/95 dark:bg-slate-800/95 backdrop-blur-md border border-gray-200/50 dark:border-slate-700/50 py-2 z-50 animate-scale-in">
+                  <div className="px-4 py-3 border-b border-gray-100 dark:border-slate-700">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 truncate">{user?.name}</p>
+                    <p className="text-xs text-gray-500 dark:text-slate-300 truncate">{user?.email}</p>
+                    {user?.role !== 'marketer' && (
+                      <div className="mt-2">
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border bg-gradient-to-r from-[#FF9800]/20 to-[#F57C00]/20 dark:from-[#FF9800]/30 dark:to-[#F57C00]/30 text-[#FF9800] dark:text-[#FF9800] border-[#FF9800]/30 dark:border-[#FF9800]/40">
+                          {roleLabels[user?.role || 'marketer']}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="py-1">
+                    <Link
+                      href="/dashboard/settings"
+                      onClick={() => setShowUserMenu(false)}
+                      className="block px-4 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+                    >
+                      الإعدادات
+                    </Link>
+                  </div>
                 </div>
-                <div className="flex-1 overflow-y-auto">
-                  <DashboardSidebar onClose={() => setSidebarOpen(false)} />
-                </div>
-              </div>
+              )}
             </div>
-          )}
 
-          {/* Desktop Sidebar */}
-          <div className="hidden lg:block">
-            <DashboardSidebar />
+            {/* Refresh Button - Last element, appears on far left in RTL */}
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="relative min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] p-1.5 sm:p-2 rounded-lg bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 shadow-sm hover:shadow-md dark:hover:shadow-slate-900/30 transition-all duration-300 group hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              title="تحديث البيانات"
+            >
+              <RotateCw 
+                className={`w-4 h-4 sm:w-4.5 sm:h-4.5 text-gray-600 dark:text-slate-300 group-hover:text-[#FF9800] dark:group-hover:text-[#FF9800] transition-colors duration-300 ${isRefreshing ? 'animate-spin' : ''}`} 
+              />
+            </button>
           </div>
-
-          {/* Main Content */}
-          <main className="flex-1 min-w-0">
-            <div className="mobile-container">
-              <div className="mobile-section">
-                <ErrorBoundary>
-                  {children}
-                </ErrorBoundary>
-              </div>
-            </div>
-          </main>
         </div>
       </div>
+
+      {/* Desktop Header */}
+      <div className="hidden lg:block">
+        <DashboardHeader />
+      </div>
+
+      {/* Spacer for fixed header */}
+      <div className="hidden lg:block h-16"></div>
+
+      <div className="flex">
+        {/* Mobile Sidebar Overlay */}
+        {sidebarOpen && (
+          <div className="mobile-drawer lg:hidden">
+            <div className="mobile-drawer-content sidebar-container">
+              <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">القائمة</h2>
+                <button
+                  onClick={() => setSidebarOpen(false)}
+                  className="p-2 text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                <DashboardSidebar onClose={() => setSidebarOpen(false)} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Desktop Sidebar */}
+        <div className="hidden lg:block">
+          <DashboardSidebar />
+        </div>
+
+        {/* Main Content */}
+        <main className="flex-1 min-w-0 pb-16 lg:pb-0">
+          <div className="mobile-container">
+            <div className="mobile-section">
+              <ErrorBoundary>
+                {children}
+              </ErrorBoundary>
+            </div>
+          </div>
+        </main>
+      </div>
+
+      {/* Bottom Navigation Bar (Mobile Only) */}
+      <BottomNavBar />
+    </div>
+  );
+}
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <DataCacheProvider>
+      <DashboardLayoutContent>{children}</DashboardLayoutContent>
     </DataCacheProvider>
   );
 } 

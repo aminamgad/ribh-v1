@@ -214,12 +214,12 @@ export default function CartPage() {
 
   if (items.length === 0) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-3 sm:px-4 py-6 sm:py-8">
         <div className="text-center">
-          <ShoppingCart className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mb-2">سلة التسوق فارغة</h2>
-          <p className="text-gray-600 dark:text-slate-400 mb-6">لم تقم بإضافة أي منتجات إلى سلة التسوق بعد</p>
-          <Button onClick={() => router.push('/dashboard/products')} className="btn-primary">
+          <ShoppingCart className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400 dark:text-slate-500 mx-auto mb-3 sm:mb-4" />
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-slate-100 mb-2">سلة التسوق فارغة</h2>
+          <p className="text-sm sm:text-base text-gray-600 dark:text-slate-400 mb-4 sm:mb-6">لم تقم بإضافة أي منتجات إلى سلة التسوق بعد</p>
+          <Button onClick={() => router.push('/dashboard/products')} className="btn-primary min-h-[44px] text-sm sm:text-base px-4 sm:px-6">
             تصفح المنتجات
           </Button>
         </div>
@@ -228,156 +228,172 @@ export default function CartPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 md:py-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
         {/* Cart Items */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <ShoppingCart className="w-5 h-5 ml-2" />
+        <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+          <Card className="p-3 sm:p-4 md:p-6">
+            <CardHeader className="p-0 pb-3 sm:pb-4">
+              <CardTitle className="flex items-center text-base sm:text-lg md:text-xl">
+                <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
                 سلة التسوق ({items.length} منتج)
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3 sm:space-y-4 p-0">
               {items.map((item) => (
-                <div key={item.product._id} className="flex items-center space-x-4 space-x-reverse p-4 border border-gray-200 dark:border-slate-700 rounded-lg">
-                  <div className="flex-shrink-0">
-                    <MediaThumbnail 
-                      media={item.product.images} 
-                      alt={item.product.name}
-                      className="w-16 h-16 rounded-lg object-cover"
-                      width={64}
-                      height={64}
-                    />
+                <div key={item.product._id} className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 border border-gray-200 dark:border-slate-700 rounded-lg sm:rounded-xl">
+                  {/* Product Image and Info */}
+                  <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto flex-1 min-w-0">
+                    <div className="flex-shrink-0">
+                      <MediaThumbnail 
+                        media={item.product.images} 
+                        alt={item.product.name}
+                        className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg object-cover"
+                        width={64}
+                        height={64}
+                        priority={items.indexOf(item) < 3}
+                      />
+                    </div>
+                    
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm sm:text-base font-medium text-gray-900 dark:text-slate-100 truncate mb-1">
+                        {item.product.name}
+                      </h3>
+                      {item.selectedVariants && Object.keys(item.selectedVariants).length > 0 && (
+                        <div className="mb-1">
+                          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                            {Object.entries(item.selectedVariants).map(([name, value]) => `${name}: ${value}`).join(' - ')}
+                          </p>
+                        </div>
+                      )}
+                      <p className="text-xs sm:text-sm text-gray-500 dark:text-slate-400">
+                        المخزون: {item.variantOption ? item.variantOption.stockQuantity : item.product.stockQuantity} قطعة
+                      </p>
+                    </div>
                   </div>
                   
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-medium text-gray-900 dark:text-slate-100 truncate">
-                      {item.product.name}
-                    </h3>
-                    {item.selectedVariants && Object.keys(item.selectedVariants).length > 0 && (
-                      <div className="mt-1">
-                        <p className="text-xs text-gray-600 dark:text-gray-400">
-                          {Object.entries(item.selectedVariants).map(([name, value]) => `${name}: ${value}`).join(' - ')}
-                        </p>
-                      </div>
-                    )}
-                    <p className="text-sm text-gray-500 dark:text-slate-400">
-                      المخزون: {item.variantOption ? item.variantOption.stockQuantity : item.product.stockQuantity} قطعة
-                    </p>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2 space-x-reverse">
+                  {/* Quantity Controls */}
+                  <div className="flex items-center justify-between sm:justify-start w-full sm:w-auto gap-3 sm:gap-2">
+                    <div className="flex items-center space-x-2 space-x-reverse bg-gray-100 dark:bg-slate-700 rounded-lg p-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleQuantityChange(item.product._id, item.quantity - 1)}
+                        disabled={item.quantity <= 1}
+                        className="min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] p-0"
+                      >
+                        -
+                      </Button>
+                      <span className="w-8 sm:w-10 text-center text-sm sm:text-base font-medium">{item.quantity}</span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleQuantityChange(item.product._id, item.quantity + 1)}
+                        disabled={item.quantity >= item.product.stockQuantity}
+                        className="min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] p-0"
+                      >
+                        +
+                      </Button>
+                    </div>
+                    
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="sm"
-                      onClick={() => handleQuantityChange(item.product._id, item.quantity - 1)}
-                      disabled={item.quantity <= 1}
+                      onClick={() => handleRemove(item.product._id)}
+                      className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 min-w-[44px] min-h-[44px] p-0"
                     >
-                      -
-                    </Button>
-                    <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleQuantityChange(item.product._id, item.quantity + 1)}
-                      disabled={item.quantity >= item.product.stockQuantity}
-                    >
-                      +
+                      <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                     </Button>
                   </div>
                   
-                  <div className="text-right">
-                    <div className="flex items-center space-x-2 space-x-reverse mb-1">
+                  {/* Price and Total */}
+                  <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-3 sm:gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-200 dark:border-slate-700">
+                    <div className="flex items-center space-x-2 space-x-reverse">
                       <Input
                         type="number"
                         value={marketerPrices[item.product._id] ?? item.price}
                         onChange={(e) => handlePriceChange(item.product._id, parseFloat(e.target.value) || 0)}
-                        className="w-20 text-sm"
+                        className="w-20 sm:w-24 text-sm sm:text-base min-h-[44px]"
                         min={item.product.minimumSellingPrice || 0}
                       />
-                      <span className="text-sm text-gray-500">₪</span>
+                      <span className="text-sm sm:text-base text-gray-500 dark:text-slate-400">₪</span>
                     </div>
-                    <p className="text-sm text-gray-500 dark:text-slate-400">
-                      المجموع: {(marketerPrices[item.product._id] ?? item.price) * item.quantity}₪
-                    </p>
+                    <div className="text-left sm:text-right">
+                      <p className="text-xs sm:text-sm text-gray-500 dark:text-slate-400 mb-0.5">المجموع:</p>
+                      <p className="text-sm sm:text-base font-semibold text-gray-900 dark:text-slate-100">
+                        {(marketerPrices[item.product._id] ?? item.price) * item.quantity}₪
+                      </p>
+                    </div>
                   </div>
-                  
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleRemove(item.product._id)}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
                 </div>
               ))}
             </CardContent>
           </Card>
 
           {/* Shipping Address */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <MapPin className="w-5 h-5 ml-2" />
+          <Card className="p-3 sm:p-4 md:p-6">
+            <CardHeader className="p-0 pb-3 sm:pb-4">
+              <CardTitle className="flex items-center text-base sm:text-lg md:text-xl">
+                <MapPin className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
                 عنوان الشحن
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3 sm:space-y-4 p-0">
               {!settings?.shippingEnabled && (
-                <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg">
-                  <p className="text-yellow-800 dark:text-yellow-200 text-sm">
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 p-2.5 sm:p-3 rounded-lg">
+                  <p className="text-yellow-800 dark:text-yellow-200 text-xs sm:text-sm">
                     ⚠️ نظام الشحن غير مفعل حالياً. يرجى التواصل مع الإدارة.
                   </p>
                 </div>
               )}
               
               {settings?.shippingEnabled && (
-                <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
-                  <p className="text-blue-700 dark:text-blue-300 text-sm flex items-center gap-2">
-                    <MapPin className="w-4 h-4" />
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-2.5 sm:p-3 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <p className="text-blue-700 dark:text-blue-300 text-xs sm:text-sm flex items-center gap-2">
+                    <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
                     اختر المنطقة والقرية لحساب تكلفة الشحن تلقائياً
                   </p>
                 </div>
               )}
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <Label htmlFor="fullName">اسم العميل *</Label>
+                  <Label htmlFor="fullName" className="text-xs sm:text-sm mb-1.5 sm:mb-2">اسم العميل *</Label>
                   <Input
                     id="fullName"
                     value={shippingAddress.fullName}
                     onChange={(e) => setShippingAddress(prev => ({ ...prev, fullName: e.target.value }))}
                     placeholder="اسم العميل الكامل"
                     required
+                    className="text-sm sm:text-base min-h-[44px]"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="phone">رقم الهاتف *</Label>
+                  <Label htmlFor="phone" className="text-xs sm:text-sm mb-1.5 sm:mb-2">رقم الهاتف *</Label>
                   <Input
                     id="phone"
                     value={shippingAddress.phone}
                     onChange={(e) => setShippingAddress(prev => ({ ...prev, phone: e.target.value }))}
                     placeholder="رقم الهاتف"
                     required
+                    className="text-sm sm:text-base min-h-[44px]"
                   />
                 </div>
-                <div className="md:col-span-2">
-                  <Label htmlFor="street">عنوان الشارع *</Label>
+                <div className="sm:col-span-2">
+                  <Label htmlFor="street" className="text-xs sm:text-sm mb-1.5 sm:mb-2">عنوان الشارع *</Label>
                   <Input
                     id="street"
                     value={shippingAddress.street}
                     onChange={(e) => setShippingAddress(prev => ({ ...prev, street: e.target.value }))}
                     placeholder="عنوان الشارع أو المبنى"
                     required
+                    className="text-sm sm:text-base min-h-[44px]"
                   />
                 </div>
-                <div className="md:col-span-2">
-                  <Label htmlFor="manualVillageName">
+                <div className="sm:col-span-2">
+                  <Label htmlFor="manualVillageName" className="text-xs sm:text-sm mb-1.5 sm:mb-2">
                     القرية * 
-                    <span className="text-xs text-gray-500 mr-2">(سيتم مراجعة القرية من قبل الإدارة)</span>
+                    <span className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400 mr-1 sm:mr-2">(سيتم مراجعة القرية من قبل الإدارة)</span>
                   </Label>
                   <Input
                     id="manualVillageName"
@@ -385,28 +401,31 @@ export default function CartPage() {
                     onChange={(e) => handleManualVillageNameChange(e.target.value)}
                     placeholder="اكتب اسم القرية (مثال: الخليل - البقعة)"
                     required
+                    className="text-sm sm:text-base min-h-[44px]"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400 mt-1">
                     يرجى كتابة اسم القرية يدوياً. سيتم مراجعة العنوان واختيار القرية الصحيحة من قبل الإدارة.
                   </p>
                 </div>
-                <div>
-                  <Label htmlFor="postalCode">الرمز البريدي (اختياري)</Label>
+                <div className="sm:col-span-2">
+                  <Label htmlFor="postalCode" className="text-xs sm:text-sm mb-1.5 sm:mb-2">الرمز البريدي (اختياري)</Label>
                   <Input
                     id="postalCode"
                     value={shippingAddress.postalCode}
                     onChange={(e) => setShippingAddress(prev => ({ ...prev, postalCode: e.target.value }))}
                     placeholder="الرمز البريدي"
+                    className="text-sm sm:text-base min-h-[44px]"
                   />
                 </div>
-                <div className="md:col-span-2">
-                  <Label htmlFor="orderNotes">الملاحظات (اختياري)</Label>
+                <div className="sm:col-span-2">
+                  <Label htmlFor="orderNotes" className="text-xs sm:text-sm mb-1.5 sm:mb-2">الملاحظات (اختياري)</Label>
                   <Textarea
                     id="orderNotes"
                     value={orderNotes}
                     onChange={(e) => setOrderNotes(e.target.value)}
                     placeholder="ملاحظات عامة للطلب والتوصيل (مثل: موعد التوصيل المفضل، الطابق، رقم الشقة، تعليمات خاصة...)"
                     rows={3}
+                    className="text-sm sm:text-base min-h-[100px]"
                   />
                 </div>
               </div>
@@ -415,16 +434,16 @@ export default function CartPage() {
 
           {/* Shipping Cost Notice */}
           {settings?.shippingEnabled && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Truck className="w-5 h-5 ml-2" />
+            <Card className="p-3 sm:p-4 md:p-6">
+              <CardHeader className="p-0 pb-3 sm:pb-4">
+                <CardTitle className="flex items-center text-base sm:text-lg md:text-xl">
+                  <Truck className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
                   معلومات الشحن
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
-                  <p className="text-sm text-blue-800 dark:text-blue-200">
+              <CardContent className="p-0">
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-2.5 sm:p-3">
+                  <p className="text-xs sm:text-sm text-blue-800 dark:text-blue-200">
                     ⓘ سيتم حساب تكلفة الشحن بعد مراجعة الإدارة للقرية المحددة
                   </p>
                 </div>
@@ -434,37 +453,37 @@ export default function CartPage() {
         </div>
 
         {/* Order Summary */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Calculator className="w-5 h-5 ml-2" />
+        <div className="space-y-4 sm:space-y-6">
+          <Card className="p-3 sm:p-4 md:p-6 sticky top-4">
+            <CardHeader className="p-0 pb-3 sm:pb-4">
+              <CardTitle className="flex items-center text-base sm:text-lg md:text-xl">
+                <Calculator className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
                 ملخص الطلب
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span>المجموع الفرعي:</span>
-                  <span>{subtotal}₪</span>
+            <CardContent className="space-y-3 sm:space-y-4 p-0">
+              <div className="space-y-2 sm:space-y-3">
+                <div className="flex justify-between text-sm sm:text-base">
+                  <span className="text-gray-600 dark:text-slate-400">المجموع الفرعي:</span>
+                  <span className="font-medium text-gray-900 dark:text-slate-100">{subtotal}₪</span>
                 </div>
                 
-                <div className="flex justify-between text-gray-500">
+                <div className="flex justify-between text-xs sm:text-sm text-gray-500 dark:text-slate-400">
                   <span>الشحن:</span>
-                  <span className="text-xs">سيتم الحساب بعد مراجعة الإدارة</span>
+                  <span className="text-[10px] sm:text-xs">سيتم الحساب بعد مراجعة الإدارة</span>
                 </div>
                 
-                <div className="border-t pt-2">
-                  <div className="flex justify-between font-bold text-lg">
-                    <span>المجموع الكلي:</span>
-                    <span>{total}₪</span>
+                <div className="border-t border-gray-200 dark:border-slate-700 pt-2 sm:pt-3">
+                  <div className="flex justify-between font-bold text-base sm:text-lg md:text-xl">
+                    <span className="text-gray-900 dark:text-slate-100">المجموع الكلي:</span>
+                    <span className="text-[#FF9800] dark:text-[#FF9800]">{total}₪</span>
                   </div>
                 </div>
                 
                 {user?.role === 'marketer' && (
-                  <div className="bg-[#4CAF50]/10 dark:bg-[#4CAF50]/20 p-3 rounded-lg border border-[#4CAF50]/20 dark:border-[#4CAF50]/30">
-                    <div className="text-sm font-medium text-[#2E7D32] dark:text-[#4CAF50] mb-1">ربح المسوق</div>
-                    <div className="text-lg font-bold text-[#2E7D32] dark:text-[#4CAF50]">{totalMarketerProfit}₪</div>
+                  <div className="bg-[#4CAF50]/10 dark:bg-[#4CAF50]/20 p-2.5 sm:p-3 rounded-lg border border-[#4CAF50]/20 dark:border-[#4CAF50]/30">
+                    <div className="text-xs sm:text-sm font-medium text-[#2E7D32] dark:text-[#4CAF50] mb-1">ربح المسوق</div>
+                    <div className="text-base sm:text-lg md:text-xl font-bold text-[#2E7D32] dark:text-[#4CAF50]">{totalMarketerProfit}₪</div>
                   </div>
                 )}
               </div>
@@ -472,7 +491,7 @@ export default function CartPage() {
               <Button
                 onClick={handleCheckout}
                 disabled={isLoading || items.length === 0}
-                className="w-full btn-primary"
+                className="w-full btn-primary min-h-[44px] text-sm sm:text-base font-medium mt-4 sm:mt-6"
               >
                 {isLoading ? 'جاري إنشاء الطلب...' : 'إنشاء الطلب'}
               </Button>

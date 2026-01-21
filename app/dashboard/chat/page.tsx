@@ -22,7 +22,8 @@ import {
   Clock,
   AlertCircle,
   User,
-  Users
+  Users,
+  ArrowLeft
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -264,41 +265,44 @@ export default function ChatPage() {
     }
   };
 
+  const [showChatsList, setShowChatsList] = useState(true);
+
   return (
     <div className="flex h-[calc(100vh-4rem)] bg-gray-50 dark:bg-slate-900">
       {/* Chats List */}
-      <div className="w-80 bg-white dark:bg-slate-800 border-l border-gray-200 dark:border-slate-700 flex flex-col">
+      <div className={`${currentChat ? 'hidden md:flex' : 'flex'} w-full md:w-80 bg-white dark:bg-slate-800 border-l border-gray-200 dark:border-slate-700 flex-col ${showChatsList ? 'flex' : 'hidden'}`}>
         {/* Header */}
-        <div className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">
+        <div className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 p-3 sm:p-4">
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-slate-100">
               المحادثات
             </h2>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <button
                 onClick={() => fetchChats()}
-                className="text-sm text-[#FF9800] hover:text-[#F57C00] dark:text-[#FF9800] dark:hover:text-[#F57C00] px-3 py-1 rounded border border-[#FF9800] hover:bg-[#FF9800]/10 dark:hover:bg-[#FF9800]/20"
+                className="text-xs sm:text-sm text-[#FF9800] hover:text-[#F57C00] dark:text-[#FF9800] dark:hover:text-[#F57C00] px-2 sm:px-3 py-1 rounded border border-[#FF9800] hover:bg-[#FF9800]/10 dark:hover:bg-[#FF9800]/20 min-h-[36px] sm:min-h-[44px]"
               >
                 تحديث
               </button>
               <button
                 onClick={() => setShowNewChat(true)}
-                className="btn-primary text-sm"
+                className="btn-primary text-xs sm:text-sm min-h-[36px] sm:min-h-[44px] px-2 sm:px-3"
               >
-                محادثة جديدة
+                <span className="hidden sm:inline">محادثة جديدة</span>
+                <span className="sm:hidden">جديدة</span>
               </button>
             </div>
           </div>
 
           {/* Search */}
-          <div className="relative mb-3">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-400 pointer-events-none z-10" />
+          <div className="relative mb-2 sm:mb-3">
+            <Search className="absolute right-2.5 sm:right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 dark:text-slate-400 pointer-events-none z-10" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="بحث في المحادثات..."
-              className="input-field pr-11 text-sm"
+              className="input-field pr-9 sm:pr-11 text-xs sm:text-sm min-h-[44px]"
             />
           </div>
 
@@ -307,7 +311,7 @@ export default function ChatPage() {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="flex-1 text-sm input-field"
+              className="flex-1 text-xs sm:text-sm input-field min-h-[44px]"
             >
               <option value="all">جميع المحادثات</option>
               <option value="active">النشطة</option>
@@ -324,9 +328,9 @@ export default function ChatPage() {
               <div className="loading-spinner mx-auto"></div>
             </div>
           ) : filteredChats.length === 0 ? (
-            <div className="p-8 text-center">
-              <MessageSquare className="w-12 h-12 text-gray-400 dark:text-slate-500 mx-auto mb-4" />
-              <p className="text-gray-600 dark:text-slate-400">
+            <div className="p-6 sm:p-8 text-center">
+              <MessageSquare className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 dark:text-slate-500 mx-auto mb-3 sm:mb-4" />
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-400">
                 لا توجد محادثات
               </p>
             </div>
@@ -344,46 +348,48 @@ export default function ChatPage() {
                       const fetchedChat = await fetchChat(chat._id);
                       if (fetchedChat) {
                         setCurrentChat(fetchedChat);
+                        setShowChatsList(false); // إخفاء قائمة المحادثات على الموبايل
                       } else {
                         // في حالة الفشل، استخدم البيانات المحلية
                         setCurrentChat(chat);
+                        setShowChatsList(false); // إخفاء قائمة المحادثات على الموبايل
                       }
                     }}
-                    className={`w-full p-4 text-right hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors ${
+                    className={`w-full p-3 sm:p-4 text-right hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors active:scale-[0.98] min-h-[80px] ${
                       isSelected ? 'bg-[#FF9800]/10 dark:bg-[#FF9800]/20' : ''
                     }`}
                   >
-                    <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 bg-gray-200 dark:bg-slate-700 rounded-full flex items-center justify-center flex-shrink-0">
-                        <span className="text-sm font-medium text-gray-600 dark:text-slate-300">
+                    <div className="flex items-start gap-2 sm:gap-3">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-200 dark:bg-slate-700 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-xs sm:text-sm font-medium text-gray-600 dark:text-slate-300">
                           {otherParticipant?.name.charAt(0) || '؟'}
                         </span>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between mb-1">
-                          <div className="flex-1">
-                            <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-100 truncate">
+                        <div className="flex items-start justify-between mb-1 gap-2">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-slate-100 truncate">
                               {chat.subject}
                             </h3>
-                            <p className="text-xs text-gray-500 dark:text-slate-400">
+                            <p className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400 truncate">
                               {otherParticipant?.name} • {getRoleLabel(otherParticipant?.role || '')}
                             </p>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
                             {getStatusBadge(chat.status)}
                             {chat.unreadCount > 0 && (
-                              <span className="bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                              <span className="bg-red-500 text-white text-[10px] sm:text-xs rounded-full w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center font-medium">
                                 {chat.unreadCount}
                               </span>
                             )}
                           </div>
                         </div>
                         {chat.lastMessage && (
-                          <p className="text-xs text-gray-600 dark:text-slate-400 truncate">
+                          <p className="text-[10px] sm:text-xs text-gray-600 dark:text-slate-400 truncate mb-0.5 text-wrap-long">
                             {typeof chat.lastMessage === 'string' ? chat.lastMessage : (chat.lastMessage as any).message}
                           </p>
                         )}
-                        <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
+                        <p className="text-[10px] sm:text-xs text-gray-400 dark:text-slate-500">
                           {chat.updatedAt ? format(new Date(chat.updatedAt), 'dd/MM/yyyy HH:mm', { locale: enUS }) : 'غير محدد'}
                         </p>
                       </div>
@@ -397,64 +403,66 @@ export default function ChatPage() {
       </div>
 
       {/* Chat Area */}
-      <div className="flex-1 flex flex-col">
+      <div className={`${currentChat ? 'flex' : 'hidden md:flex'} flex-1 flex-col`}>
         {currentChat ? (
           <>
             {/* Chat Header */}
-            <div className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-[#FF9800] rounded-full flex items-center justify-center">
-                    <MessageSquare className="w-5 h-5 text-white" />
+            <div className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 p-3 sm:p-4">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                  {/* Back Button for Mobile */}
+                  <button
+                    onClick={() => {
+                      setCurrentChat(null);
+                      setShowChatsList(true);
+                    }}
+                    className="md:hidden text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 min-w-[36px] min-h-[36px] flex items-center justify-center flex-shrink-0"
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                  </button>
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-[#FF9800] rounded-full flex items-center justify-center flex-shrink-0">
+                    <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-slate-100">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-slate-100 truncate">
                       {currentChat.subject}
                     </h3>
-                    <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-slate-400">
+                    <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-gray-500 dark:text-slate-400 flex-wrap">
                       {getStatusBadge(currentChat.status)}
                       {currentChat.unreadCount > 0 && (
-                        <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                        <span className="bg-red-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full">
                           {currentChat.unreadCount} رسالة جديدة
                         </span>
                       )}
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
                   {currentChat.unreadCount > 0 && (
                     <button
                       onClick={() => markAsRead(currentChat._id)}
-                      className="text-sm text-[#FF9800] hover:text-[#F57C00] dark:text-[#FF9800] dark:hover:text-[#F57C00] px-3 py-1 rounded border border-[#FF9800] hover:bg-[#FF9800]/10 dark:hover:bg-[#FF9800]/20"
+                      className="text-xs sm:text-sm text-[#FF9800] hover:text-[#F57C00] dark:text-[#FF9800] dark:hover:text-[#F57C00] px-2 sm:px-3 py-1 rounded border border-[#FF9800] hover:bg-[#FF9800]/10 dark:hover:bg-[#FF9800]/20 min-h-[36px] sm:min-h-[44px]"
                     >
-                      تحديد كمقروءة
+                      <span className="hidden sm:inline">تحديد كمقروءة</span>
+                      <span className="sm:hidden">مقروءة</span>
                     </button>
                   )}
                   <button
                     onClick={handleCloseChat}
-                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center"
                   >
-                    <X className="w-5 h-5" />
+                    <X className="w-4 h-4 sm:w-5 sm:h-5" />
                   </button>
                 </div>
               </div>
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto p-2 sm:p-4 space-y-3 sm:space-y-4">
               {currentChat.messages && currentChat.messages.length > 0 ? (
                 currentChat.messages.map((message, index) => {
                   // تحسين تحديد الرسائل - رسائلي أم لا
                   const isMe = (message.senderId as any)?._id === user?._id || (message.senderId as any) === user?._id;
-                  
-                  // إضافة console.log للتأكد من التحديد الصحيح
-                  console.log('Message debug:', {
-                    messageId: message._id,
-                    senderId: (message.senderId as any)?._id || message.senderId,
-                    userId: user?._id,
-                    isMe: isMe,
-                    message: message.message.substring(0, 20) + '...'
-                  });
                   
                   const showDate = index === 0 || 
                     (currentChat.messages[index - 1]?.createdAt && 
@@ -464,51 +472,51 @@ export default function ChatPage() {
                   return (
                     <div key={message._id}>
                       {showDate && (
-                        <div className="text-center mb-4">
-                          <span className="text-xs text-gray-500 dark:text-slate-400 bg-gray-100 dark:bg-slate-700 px-3 py-1 rounded-full">
+                        <div className="text-center mb-2 sm:mb-4">
+                          <span className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400 bg-gray-100 dark:bg-slate-700 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full">
                             {message.createdAt ? format(new Date(message.createdAt), 'dd MMMM yyyy', { locale: enUS }) : 'غير محدد'}
                           </span>
                         </div>
                       )}
                       <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} w-full`}>
-                        <div className={`max-w-md ${isMe ? 'order-1' : 'order-2'} ${isMe ? 'ml-auto' : 'mr-auto'}`}>
-                          <div className={`rounded-lg px-4 py-2 ${
+                        <div className={`max-w-[85%] sm:max-w-md ${isMe ? 'order-1' : 'order-2'} ${isMe ? 'ml-auto' : 'mr-auto'}`}>
+                          <div className={`rounded-lg px-3 sm:px-4 py-2 ${
                             isMe 
                               ? 'bg-[#FF9800] text-white shadow-md' 
                               : 'bg-gray-100 dark:bg-slate-700 text-gray-900 dark:text-slate-100 shadow-sm'
                           }`}>
-                            <p className="text-sm whitespace-pre-wrap">{message.message}</p>
+                            <p className="text-xs sm:text-sm whitespace-pre-wrap break-words text-wrap-long">{message.message}</p>
                             
                             {/* Attachments */}
                             {message.attachments && message.attachments.length > 0 && (
-                              <div className="mt-2 space-y-1">
+                              <div className="mt-1.5 sm:mt-2 space-y-1">
                                 {message.attachments.map((attachment, i) => (
                                   <a
                                     key={i}
                                     href={attachment.url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className={`flex items-center gap-2 p-2 rounded ${
+                                    className={`flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2 rounded min-h-[36px] ${
                                       isMe
                                         ? 'bg-[#FF9800] hover:bg-[#F57C00]'
                                         : 'bg-gray-200 dark:bg-slate-600 hover:bg-gray-300 dark:hover:bg-slate-500'
                                     } transition-colors`}
                                   >
                                     {attachment.type.startsWith('image/') ? (
-                                      <Image className="w-4 h-4" />
+                                      <Image className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
                                     ) : (
-                                      <File className="w-4 h-4" />
+                                      <File className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
                                     )}
-                                    <span className="text-xs truncate flex-1">
+                                    <span className="text-[10px] sm:text-xs truncate flex-1">
                                       {attachment.name}
                                     </span>
-                                    <Download className="w-3 h-3" />
+                                    <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
                                   </a>
                                 ))}
                               </div>
                             )}
                           </div>
-                          <div className={`flex items-center gap-2 mt-1 text-xs text-gray-500 dark:text-slate-400 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                          <div className={`flex items-center gap-1.5 sm:gap-2 mt-1 text-[10px] sm:text-xs text-gray-500 dark:text-slate-400 ${isMe ? 'justify-end' : 'justify-start'}`}>
                             {!isMe && (
                               <>
                                 <span>
@@ -534,8 +542,8 @@ export default function ChatPage() {
               ) : (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">
-                    <MessageSquare className="w-12 h-12 text-gray-400 dark:text-slate-500 mx-auto mb-4" />
-                    <p className="text-gray-600 dark:text-slate-400">لا توجد رسائل في هذه المحادثة</p>
+                    <MessageSquare className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 dark:text-slate-500 mx-auto mb-3 sm:mb-4" />
+                    <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-400">لا توجد رسائل في هذه المحادثة</p>
                   </div>
                 </div>
               )}
@@ -544,13 +552,13 @@ export default function ChatPage() {
 
             {/* Message Input */}
             {currentChat.status === 'active' ? (
-              <div className="bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 p-4">
-                <div className="flex items-end gap-2">
+              <div className="bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 p-2 sm:p-4 safe-area-bottom">
+                <div className="flex items-end gap-1.5 sm:gap-2">
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-2"
+                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-1.5 sm:p-2 min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center"
                   >
-                    <Paperclip className="w-5 h-5" />
+                    <Paperclip className="w-4 h-4 sm:w-5 sm:h-5" />
                   </button>
                   <input
                     ref={fileInputRef}
@@ -566,44 +574,44 @@ export default function ChatPage() {
                     onChange={(e) => setMessageInput(e.target.value)}
                     onKeyPress={handleKeyPress}
                     placeholder="اكتب رسالتك..."
-                    className="flex-1 input-field resize-none"
+                    className="flex-1 input-field resize-none text-sm sm:text-base min-h-[44px] max-h-[120px]"
                     rows={1}
                   />
                   <button
                     onClick={handleSendMessage}
                     disabled={!messageInput.trim() || sending}
-                    className="btn-primary p-2"
+                    className="btn-primary p-1.5 sm:p-2 min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center"
                   >
                     {sending ? (
-                      <div className="loading-spinner w-5 h-5"></div>
+                      <div className="loading-spinner w-4 h-4 sm:w-5 sm:h-5"></div>
                     ) : (
-                      <Send className="w-5 h-5" />
+                      <Send className="w-4 h-4 sm:w-5 sm:h-5" />
                     )}
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="bg-yellow-900/20 border-t border-yellow-800 p-4">
-                <div className="flex items-center gap-2 text-yellow-200">
-                  <AlertCircle className="w-5 h-5" />
-                  <span className="text-sm">هذه المحادثة مغلقة</span>
+              <div className="bg-yellow-900/20 border-t border-yellow-800 p-3 sm:p-4 safe-area-bottom">
+                <div className="flex items-center gap-1.5 sm:gap-2 text-yellow-200">
+                  <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                  <span className="text-xs sm:text-sm">هذه المحادثة مغلقة</span>
                 </div>
               </div>
             )}
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center">
+          <div className="flex-1 flex items-center justify-center p-4">
             <div className="text-center">
-              <MessageSquare className="w-16 h-16 text-slate-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-slate-100 mb-2">
+              <MessageSquare className="w-12 h-12 sm:w-16 sm:h-16 text-slate-400 mx-auto mb-3 sm:mb-4" />
+              <h3 className="text-base sm:text-lg font-semibold text-slate-100 mb-1.5 sm:mb-2">
                 اختر محادثة للبدء
               </h3>
-              <p className="text-slate-400 mb-4">
+              <p className="text-xs sm:text-sm text-slate-400 mb-3 sm:mb-4">
                 اختر محادثة من القائمة أو ابدأ محادثة جديدة
               </p>
               <button
                 onClick={() => setShowNewChat(true)}
-                className="btn-primary"
+                className="btn-primary min-h-[44px] text-sm sm:text-base px-4 sm:px-6"
               >
                 بدء محادثة جديدة
               </button>
@@ -614,35 +622,46 @@ export default function ChatPage() {
 
       {/* New Chat Modal */}
       {showNewChat && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100 mb-4">
-              بدء محادثة جديدة
-            </h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4 safe-area-inset">
+          <div className="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-4 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto mobile-modal-content">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-slate-100">
+                بدء محادثة جديدة
+              </h2>
+              <button
+                onClick={() => {
+                  setShowNewChat(false);
+                  setNewChatForm({ subject: '', message: '', category: 'general' });
+                }}
+                className="text-gray-400 dark:text-slate-500 hover:text-gray-500 dark:hover:text-slate-400 min-w-[36px] min-h-[36px] flex items-center justify-center"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
             
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5 sm:mb-2">
                   الموضوع <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={newChatForm.subject}
                   onChange={(e) => setNewChatForm({ ...newChatForm, subject: e.target.value })}
-                  className="input-field"
+                  className="input-field text-sm sm:text-base min-h-[44px]"
                   placeholder="موضوع المحادثة"
                 />
               </div>
 
               {user?.role === 'admin' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5 sm:mb-2">
                     المستخدم المستلم
                   </label>
                   <select
                     value={newChatForm.recipientId || ''}
                     onChange={(e) => setNewChatForm({ ...newChatForm, recipientId: e.target.value })}
-                    className="input-field"
+                    className="input-field text-sm sm:text-base min-h-[44px]"
                   >
                     <option value="">اختر المستخدم (اختياري)</option>
                     {users.map((userItem) => (
@@ -655,13 +674,13 @@ export default function ChatPage() {
               )}
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5 sm:mb-2">
                   الفئة
                 </label>
                 <select
                   value={newChatForm.category}
                   onChange={(e) => setNewChatForm({ ...newChatForm, category: e.target.value })}
-                  className="input-field"
+                  className="input-field text-sm sm:text-base min-h-[44px]"
                 >
                   <option value="general">عام</option>
                   <option value="support">دعم فني</option>
@@ -672,27 +691,27 @@ export default function ChatPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5 sm:mb-2">
                   الرسالة <span className="text-red-500">*</span>
                 </label>
                 <textarea
                   value={newChatForm.message}
                   onChange={(e) => setNewChatForm({ ...newChatForm, message: e.target.value })}
-                  className="input-field"
+                  className="input-field text-sm sm:text-base min-h-[88px]"
                   rows={4}
                   placeholder="اكتب رسالتك..."
                 />
               </div>
 
-              <div className="flex gap-3 pt-4">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-3 sm:pt-4">
                 <button
                   onClick={handleCreateChat}
                   disabled={!newChatForm.subject || !newChatForm.message || sending}
-                  className="btn-primary flex-1"
+                  className="btn-primary flex-1 min-h-[44px] text-sm sm:text-base"
                 >
                   {sending ? (
                     <>
-                      <div className="loading-spinner w-4 h-4 ml-2"></div>
+                      <div className="loading-spinner w-4 h-4 ml-1.5 sm:ml-2"></div>
                       جاري الإنشاء...
                     </>
                   ) : (
@@ -704,7 +723,7 @@ export default function ChatPage() {
                     setShowNewChat(false);
                     setNewChatForm({ subject: '', message: '', category: 'general' });
                   }}
-                  className="btn-secondary flex-1"
+                  className="btn-secondary flex-1 min-h-[44px] text-sm sm:text-base"
                 >
                   إلغاء
                 </button>

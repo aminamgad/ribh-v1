@@ -5,6 +5,7 @@ import { Image as ImageIcon, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import { getCloudinaryThumbnailUrl, isCloudinaryUrl } from '@/lib/mediaUtils';
 import { imagePerformanceMonitor } from '@/lib/imagePerformance';
+import { getCachedImage, cacheImage, isCacheAPISupported } from '@/lib/imageCache';
 
 const DEFAULT_BLUR_DATA_URL =
   'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNlNWU3ZWIiLz48L3N2Zz4=';
@@ -63,7 +64,7 @@ export default function LazyImage({
         });
       },
       {
-        rootMargin: '50px', // Start loading 50px before image enters viewport
+        rootMargin: '100px', // Start loading 100px before image enters viewport for better perceived performance
         threshold: 0.01
       }
     );
@@ -78,19 +79,53 @@ export default function LazyImage({
   }, [priority]);
 
   const loadStartTimeRef = useRef<number | null>(null);
+  const [isFromCache, setIsFromCache] = useState(false);
+
+  // Check cache before loading
+  useEffect(() => {
+    if (isInView && isCacheAPISupported() && !loadStartTimeRef.current) {
+      loadStartTimeRef.current = performance.now();
+      
+      // Check if image is in cache
+      getCachedImage(src).then(async (cachedResponse) => {
+        if (cachedResponse && imgElementRef.current) {
+          // Use cached image
+          setIsFromCache(true);
+          const blob = await cachedResponse.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          imgElementRef.current.src = blobUrl;
+          handleLoad();
+        }
+      }).catch(() => {
+        // Cache check failed, proceed with normal load
+      });
+    }
+  }, [isInView, src]);
 
   useEffect(() => {
-    if (isInView && !loadStartTimeRef.current) {
+    if (isInView && !isFromCache && !loadStartTimeRef.current) {
       loadStartTimeRef.current = performance.now();
     }
-  }, [isInView]);
+  }, [isInView, isFromCache]);
 
-  const handleLoad = () => {
+  const handleLoad = async () => {
     setIsLoading(false);
     setRetryCount(0); // Reset retry count on success
     
-    // Measure and log load time in development
-    if (process.env.NODE_ENV === 'development' && loadStartTimeRef.current) {
+    // Cache the image if not from cache
+    if (!isFromCache && isCacheAPISupported() && imgElementRef.current) {
+      try {
+        const response = await fetch(src, { mode: 'cors' });
+        if (response.ok) {
+          await cacheImage(src, response);
+        }
+      } catch (error) {
+        // Cache failed, but image loaded successfully
+      }
+    }
+    
+    // Measure and log load time
+    if (loadStartTimeRef.current) {
       const loadTime = performance.now() - loadStartTimeRef.current;
       const imageSize = imgElementRef.current?.naturalWidth && imgElementRef.current?.naturalHeight
         ? `${imgElementRef.current.naturalWidth}x${imgElementRef.current.naturalHeight}`
@@ -104,6 +139,11 @@ export default function LazyImage({
         timestamp: Date.now(),
         retryCount
       });
+      
+      if (process.env.NODE_ENV === 'development') {
+        const cacheStatus = isFromCache ? ' (from cache)' : '';
+        console.log(`[Image Load] ${src.substring(0, 50)}... - ${loadTime.toFixed(2)}ms${cacheStatus}`);
+      }
       
       loadStartTimeRef.current = null;
     }
@@ -231,6 +271,7 @@ export default function LazyImage({
         }`}
         loading={priority ? 'eager' : 'lazy'}
         decoding="async"
+        fetchPriority={priority ? 'high' : 'auto'}
       />
     </div>
   );
@@ -247,7 +288,7 @@ export function OptimizedImage({
   className = '',
   priority = false,
   sizes,
-  quality = 75,
+  quality,
   placeholder = 'blur',
   blurDataURL = DEFAULT_BLUR_DATA_URL,
   unoptimized,
@@ -260,7 +301,7 @@ export function OptimizedImage({
   className?: string;
   priority?: boolean;
   sizes?: string;
-  quality?: number;
+  quality?: number; // If not provided, will be calculated based on priority and context
   placeholder?: 'blur' | 'empty';
   blurDataURL?: string;
   unoptimized?: boolean;
@@ -268,6 +309,66 @@ export function OptimizedImage({
   const [hasError, setHasError] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const MAX_RETRIES = 2;
+  
+  // Calculate optimal quality based on priority and size
+  // Priority images (hero/main): higher quality (85-90)
+  // List/thumbnail images: lower quality (60-70) for faster loading
+  const getOptimalQuality = (): number => {
+    if (quality !== undefined) return quality;
+    
+    if (priority) {
+      // High priority images (main product images, hero images)
+      return 85;
+    }
+    
+    // Determine if this is a thumbnail/list image based on dimensions
+    const isThumbnail = width && height && (width <= 300 || height <= 300);
+    if (isThumbnail) {
+      // Thumbnails and list images: lower quality for speed
+      return 65;
+    }
+    
+    // Default quality for medium-sized images
+    return 75;
+  };
+  
+  const optimalQuality = getOptimalQuality();
+  
+  // Preload priority images for faster initial load
+  useEffect(() => {
+    if (priority && width && height && !hasError) {
+      const cloudinaryQuality = priority ? 'auto:best' : 'auto:good';
+      const preloadSrc = getCloudinaryThumbnailUrl(src, { 
+        width, 
+        height, 
+        crop: 'fill', 
+        quality: cloudinaryQuality,
+        format: 'auto',
+        dpr: 'auto'
+      });
+      
+      // Create preload link
+      const link = document.createElement('link');
+      link.rel = 'preload';
+      link.as = 'image';
+      link.href = preloadSrc;
+      if (sizes) {
+        link.setAttribute('imagesizes', sizes);
+      }
+      if (width && height) {
+        link.setAttribute('imagesrcset', `${preloadSrc} ${width}w`);
+      }
+      
+      document.head.appendChild(link);
+      
+      return () => {
+        // Cleanup on unmount
+        if (document.head.contains(link)) {
+          document.head.removeChild(link);
+        }
+      };
+    }
+  }, [priority, src, width, height, sizes, hasError]);
 
   if (hasError || !src) {
     return (
@@ -282,11 +383,27 @@ export function OptimizedImage({
 
   // Use Next.js Image for optimization if dimensions provided
   if (width && height) {
-    const transformedSrc = getCloudinaryThumbnailUrl(src, { width, height, crop: 'fill', quality: 'auto' });
+    // Use optimized quality settings for Cloudinary
+    const cloudinaryQuality = priority ? 'auto:best' : 'auto:good';
+    const transformedSrc = getCloudinaryThumbnailUrl(src, { 
+      width, 
+      height, 
+      crop: 'fill', 
+      quality: cloudinaryQuality,
+      format: 'auto',
+      dpr: 'auto'
+    });
     const shouldUnoptimize = unoptimized ?? isCloudinaryUrl(transformedSrc);
     const currentSrc = retryCount > 0 
       ? `${transformedSrc}${transformedSrc.includes('?') ? '&' : '?'}_retry=${retryCount}&_t=${Date.now()}`
       : transformedSrc;
+    
+    // Improved responsive sizes for better performance
+    const responsiveSizes = sizes || 
+      (width <= 300 
+        ? '(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw' // Thumbnails
+        : '(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw' // Larger images
+      );
     
     return (
       <Image
@@ -298,8 +415,8 @@ export function OptimizedImage({
         className={className}
         priority={priority}
         loading={priority ? undefined : 'lazy'}
-        sizes={sizes || `(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw`}
-        quality={priority ? 85 : quality} // Higher quality for priority images
+        sizes={responsiveSizes}
+        quality={optimalQuality}
         placeholder={placeholder}
         blurDataURL={placeholder === 'blur' ? blurDataURL : undefined}
         unoptimized={shouldUnoptimize}

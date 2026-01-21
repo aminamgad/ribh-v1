@@ -412,18 +412,18 @@ export default function DashboardSidebar({ onClose }: DashboardSidebarProps) {
       )}
 
       {/* User Info */}
-      <div className="p-4 border-b border-gray-200 dark:border-slate-700">
-        <div className="flex items-center space-x-3 space-x-reverse">
-          <div className="w-10 h-10 bg-gradient-to-r from-[#FF9800] to-[#F57C00] rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-lg">
+      <div className="p-3 sm:p-4 border-b border-gray-200 dark:border-slate-700">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-r from-[#FF9800] to-[#F57C00] rounded-full flex items-center justify-center text-white font-semibold text-xs sm:text-sm shadow-lg flex-shrink-0">
             {user?.name?.charAt(0) || user?.email?.charAt(0) || 'U'}
           </div>
           {!collapsed && !onClose && (
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 truncate">
+              <p className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-slate-100 truncate">
                 {user?.name || 'المستخدم'}
               </p>
               {user?.role !== 'marketer' && (
-                <p className="text-xs text-gray-600 dark:text-slate-400 truncate">
+                <p className="text-[10px] sm:text-xs text-gray-600 dark:text-slate-400 truncate">
                   {user?.role === 'admin' && 'مدير النظام'}
                   {user?.role === 'supplier' && 'المورد'}
                 </p>
@@ -434,8 +434,8 @@ export default function DashboardSidebar({ onClose }: DashboardSidebarProps) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-4">
-        <div className="space-y-1 px-3">
+      <nav className="flex-1 overflow-y-auto py-2 sm:py-4">
+        <div className="space-y-0.5 sm:space-y-1 px-2 sm:px-3">
           {navigationItems.map((item) => {
             const isActive = pathname === item.href;
             const Icon = item.icon;
@@ -445,19 +445,19 @@ export default function DashboardSidebar({ onClose }: DashboardSidebarProps) {
                 key={item.href}
                 href={item.href}
                 onClick={(e) => handleLinkClick(item.href, e)}
-                className={`sidebar-link group relative ${
+                className={`sidebar-link group relative min-h-[44px] ${
                   isActive ? 'active' : ''
                 } ${collapsed && !onClose ? 'justify-center' : ''}`}
                 data-color={item.gradient.includes('FF9800') ? 'orange' : 'green'}
               >
-                <div className={`flex items-center space-x-3 space-x-reverse ${collapsed && !onClose ? 'justify-center' : ''}`}>
-                  <div className={`sidebar-icon w-5 h-5 transition-all duration-300 ${
+                <div className={`flex items-center gap-3 sm:gap-4 ${collapsed && !onClose ? 'justify-center' : ''}`}>
+                  <div className={`sidebar-icon w-4.5 h-4.5 sm:w-5 sm:h-5 transition-all duration-300 flex-shrink-0 ${
                     isActive ? (item.gradient.includes('FF9800') ? 'text-[#E65100] dark:text-white' : 'text-[#2E7D32] dark:text-white') : `text-gray-600 dark:text-slate-400 ${item.hoverTextColor}`
                   }`}>
-                    <Icon className="w-5 h-5" />
+                    <Icon className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
                   </div>
                   {(!collapsed || onClose) && (
-                    <span className={`text-sm font-medium transition-all duration-300 ${
+                    <span className={`text-xs sm:text-sm font-medium transition-all duration-300 ${
                       isActive ? (item.gradient.includes('FF9800') ? 'text-[#E65100] dark:text-white' : 'text-[#2E7D32] dark:text-white') : `text-gray-700 dark:text-slate-300 ${item.hoverTextColor}`
                     }`}>
                       {item.label}
@@ -467,7 +467,7 @@ export default function DashboardSidebar({ onClose }: DashboardSidebarProps) {
                 
                 {/* Active indicator */}
                 {isActive && (
-                  <div className={`absolute right-0 top-1/2 transform -translate-y-1/2 w-1 h-8 bg-gradient-to-b ${item.gradient} rounded-r-lg`} />
+                  <div className={`absolute right-0 top-1/2 transform -translate-y-1/2 w-0.5 sm:w-1 h-6 sm:h-8 bg-gradient-to-b ${item.gradient} rounded-r-lg`} />
                 )}
                 
                 {/* Hover gradient background */}
@@ -479,7 +479,7 @@ export default function DashboardSidebar({ onClose }: DashboardSidebarProps) {
       </nav>
 
       {/* Logout Button */}
-      <div className="p-4 border-t border-gray-200 dark:border-slate-700">
+      <div className="p-3 sm:p-4 border-t border-gray-200 dark:border-slate-700">
         <button
           onClick={() => {
             if (onClose) {
@@ -487,9 +487,9 @@ export default function DashboardSidebar({ onClose }: DashboardSidebarProps) {
             }
             logout();
           }}
-          className={`w-full flex items-center space-x-3 space-x-reverse px-4 py-3 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors duration-200 rounded-lg ${collapsed && !onClose ? 'justify-center' : ''}`}
+          className={`w-full flex items-center gap-3 sm:gap-4 px-3 sm:px-4 py-2.5 sm:py-3 min-h-[44px] text-xs sm:text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors duration-200 rounded-lg ${collapsed && !onClose ? 'justify-center' : ''}`}
         >
-          <LogOut className="w-5 h-5" />
+          <LogOut className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
           {(!collapsed || onClose) && (
             <span>تسجيل الخروج</span>
           )}

@@ -226,76 +226,76 @@ export default function FulfillmentDetailPage({ params }: { params: { id: string
   const StatusIcon = statusIcons[request.status];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100">
+      <div className="flex flex-col sm:flex-row justify-between items-start gap-3 sm:gap-0">
+        <div className="flex-1 min-w-0">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-slate-100">
             تفاصيل طلب التخزين
           </h1>
-          <p className="text-gray-600 dark:text-slate-400 mt-2">
+          <p className="text-xs sm:text-sm md:text-base text-gray-600 dark:text-slate-400 mt-1 sm:mt-2 truncate">
             رقم الطلب: {request._id}
           </p>
         </div>
 
         {/* Status Badge */}
-        <div className={`px-3 py-1 rounded-full text-sm font-medium ${statusColors[request.status]}`}>
-          <StatusIcon className="w-4 h-4 inline ml-1" />
+        <div className={`px-2.5 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium flex items-center gap-1 flex-shrink-0 ${statusColors[request.status]}`}>
+          <StatusIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           {statusLabels[request.status]}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Main Content */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-4 sm:space-y-6">
           {/* Products */}
-          <div className="card">
-            <div className="card-header">
-              <h3 className="card-title">
-                <Package className="w-5 h-5 ml-2" />
+          <div className="card p-4 sm:p-6">
+            <div className="card-header pb-3 sm:pb-4">
+              <h3 className="card-title text-base sm:text-lg">
+                <Package className="w-4 h-4 sm:w-5 sm:h-5 ml-1.5 sm:ml-2" />
                 المنتجات المطلوبة
               </h3>
             </div>
             <div className="card-body">
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {request.products.map((product, index) => (
-                  <div key={index} className="border rounded-lg p-4">
-                    <div className="flex items-start space-x-4">
-                      <div className="w-20 h-20 rounded-md overflow-hidden flex-shrink-0">
+                  <div key={index} className="border rounded-lg p-3 sm:p-4">
+                    <div className="flex items-start space-x-2 sm:space-x-4">
+                      <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-md overflow-hidden flex-shrink-0">
                         <MediaThumbnail
                           media={product.productImages || []}
                           alt={product.productName}
                           className="w-full h-full"
                           showTypeBadge={false}
-                          fallbackIcon={<Package className="w-10 h-10 text-gray-400" />}
+                          fallbackIcon={<Package className="w-8 h-8 sm:w-10 sm:h-10 text-gray-400" />}
                         />
                       </div>
-                      <div className="flex-1">
-                        <h4 className="font-medium text-gray-900 dark:text-slate-100 mb-2">
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm sm:text-base font-medium text-gray-900 dark:text-slate-100 mb-1.5 sm:mb-2 truncate">
                           {product.productName}
                         </h4>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 text-xs sm:text-sm">
                           <div>
-                            <span className="text-gray-600 dark:text-slate-400">الكمية:</span>
-                            <span className="font-medium text-gray-900 dark:text-slate-100 mr-2">
+                            <span className="text-gray-600 dark:text-slate-400 block sm:inline">الكمية:</span>
+                            <span className="font-medium text-gray-900 dark:text-slate-100 mr-1 sm:mr-2 block sm:inline">
                               {product.quantity} قطعة
                             </span>
                           </div>
                           <div>
-                            <span className="text-gray-600 dark:text-slate-400">المخزون الحالي:</span>
-                            <span className="font-medium text-gray-900 dark:text-slate-100 mr-2">
+                            <span className="text-gray-600 dark:text-slate-400 block sm:inline">المخزون الحالي:</span>
+                            <span className="font-medium text-gray-900 dark:text-slate-100 mr-1 sm:mr-2 block sm:inline">
                               {product.currentStock} قطعة
                             </span>
                           </div>
                           <div>
-                            <span className="text-gray-600 dark:text-slate-400">سعر التكلفة:</span>
-                            <span className="font-medium text-primary-600 dark:text-primary-400 mr-2">
+                            <span className="text-gray-600 dark:text-slate-400 block sm:inline">سعر التكلفة:</span>
+                            <span className="font-medium text-primary-600 dark:text-primary-400 mr-1 sm:mr-2 block sm:inline">
                               {product.costPrice} ₪
                             </span>
                           </div>
                           <div>
-                            <span className="text-gray-600 dark:text-slate-400">القيمة الإجمالية:</span>
-                            <span className="font-medium text-primary-600 dark:text-primary-400 mr-2">
+                            <span className="text-gray-600 dark:text-slate-400 block sm:inline">القيمة الإجمالية:</span>
+                            <span className="font-medium text-primary-600 dark:text-primary-400 mr-1 sm:mr-2 block sm:inline">
                               {new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(product.costPrice * product.quantity)} ₪
                             </span>
                           </div>
@@ -307,26 +307,26 @@ export default function FulfillmentDetailPage({ params }: { params: { id: string
               </div>
 
               {/* Summary */}
-              <div className="mt-6 p-4 bg-gray-50 dark:bg-slate-800 rounded-lg">
-                <h4 className="font-medium text-gray-900 dark:text-slate-100 mb-3">
+              <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-gray-50 dark:bg-slate-800 rounded-lg">
+                <h4 className="text-sm sm:text-base font-medium text-gray-900 dark:text-slate-100 mb-2 sm:mb-3">
                   ملخص الطلب
                 </h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 text-xs sm:text-sm">
                   <div>
                     <span className="text-gray-600 dark:text-slate-400">عدد المنتجات:</span>
-                    <span className="font-medium text-gray-900 dark:text-slate-100 mr-2">
+                    <span className="font-medium text-gray-900 dark:text-slate-100 mr-1 sm:mr-2">
                       {request.products.length}
                     </span>
                   </div>
                   <div>
                     <span className="text-gray-600 dark:text-slate-400">إجمالي القطع:</span>
-                    <span className="font-medium text-gray-900 dark:text-slate-100 mr-2">
+                    <span className="font-medium text-gray-900 dark:text-slate-100 mr-1 sm:mr-2">
                       {request.totalItems}
                     </span>
                   </div>
                   <div>
                     <span className="text-gray-600 dark:text-slate-400">القيمة الإجمالية:</span>
-                    <span className="font-medium text-primary-600 dark:text-primary-400 mr-2">
+                    <span className="font-medium text-primary-600 dark:text-primary-400 mr-1 sm:mr-2">
                       {new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(request.totalValue)} ₪
                     </span>
                   </div>
@@ -337,40 +337,40 @@ export default function FulfillmentDetailPage({ params }: { params: { id: string
 
           {/* Notes */}
           {(request.notes || request.adminNotes) && (
-            <div className="card">
-              <div className="card-header">
-                <h3 className="card-title">
-                  <AlertCircle className="w-5 h-5 ml-2" />
+            <div className="card p-4 sm:p-6">
+              <div className="card-header pb-3 sm:pb-4">
+                <h3 className="card-title text-base sm:text-lg">
+                  <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 ml-1.5 sm:ml-2" />
                   الملاحظات
                 </h3>
               </div>
-              <div className="card-body space-y-4">
+              <div className="card-body space-y-3 sm:space-y-4">
                 {request.notes && (
                   <div>
-                    <h4 className="font-medium text-gray-900 dark:text-slate-100 mb-2">
+                    <h4 className="text-sm sm:text-base font-medium text-gray-900 dark:text-slate-100 mb-1.5 sm:mb-2">
                       ملاحظات المورد:
                     </h4>
-                    <p className="text-gray-600 dark:text-slate-400 bg-gray-50 dark:bg-slate-800 p-3 rounded-md">
+                    <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-400 bg-gray-50 dark:bg-slate-800 p-2.5 sm:p-3 rounded-md">
                       {request.notes}
                     </p>
                   </div>
                 )}
                 {request.adminNotes && (
                   <div>
-                    <h4 className="font-medium text-gray-900 dark:text-slate-100 mb-2">
+                    <h4 className="text-sm sm:text-base font-medium text-gray-900 dark:text-slate-100 mb-1.5 sm:mb-2">
                       ملاحظات الإدارة:
                     </h4>
-                    <p className="text-gray-600 dark:text-slate-400 bg-gray-50 dark:bg-slate-800 p-3 rounded-md">
+                    <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-400 bg-gray-50 dark:bg-slate-800 p-2.5 sm:p-3 rounded-md">
                       {request.adminNotes}
                     </p>
                   </div>
                 )}
                 {request.rejectionReason && (
                   <div>
-                    <h4 className="font-medium text-red-600 dark:text-red-400 mb-2">
+                    <h4 className="text-sm sm:text-base font-medium text-red-600 dark:text-red-400 mb-1.5 sm:mb-2">
                       سبب الرفض:
                     </h4>
-                    <p className="text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-3 rounded-md">
+                    <p className="text-xs sm:text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-2.5 sm:p-3 rounded-md">
                       {request.rejectionReason}
                     </p>
                   </div>
@@ -381,31 +381,31 @@ export default function FulfillmentDetailPage({ params }: { params: { id: string
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Supplier Info */}
-          <div className="card">
-            <div className="card-header">
-              <h3 className="card-title">
-                <User className="w-5 h-5 ml-2" />
+          <div className="card p-4 sm:p-6">
+            <div className="card-header pb-3 sm:pb-4">
+              <h3 className="card-title text-base sm:text-lg">
+                <User className="w-4 h-4 sm:w-5 sm:h-5 ml-1.5 sm:ml-2" />
                 معلومات المورد
               </h3>
             </div>
-            <div className="card-body space-y-3">
+            <div className="card-body space-y-2 sm:space-y-3">
               <div>
-                <span className="text-gray-600 dark:text-slate-400">الاسم:</span>
-                <span className="font-medium text-gray-900 dark:text-slate-100 mr-2">
+                <span className="text-xs sm:text-sm text-gray-600 dark:text-slate-400">الاسم:</span>
+                <span className="text-sm sm:text-base font-medium text-gray-900 dark:text-slate-100 mr-1 sm:mr-2 block sm:inline">
                   {request.supplierName}
                 </span>
               </div>
               <div>
-                <span className="text-gray-600 dark:text-slate-400">البريد الإلكتروني:</span>
-                <span className="font-medium text-gray-900 dark:text-slate-100 mr-2">
+                <span className="text-xs sm:text-sm text-gray-600 dark:text-slate-400">البريد الإلكتروني:</span>
+                <span className="text-sm sm:text-base font-medium text-gray-900 dark:text-slate-100 mr-1 sm:mr-2 block sm:inline break-all">
                   {request.supplierEmail}
                 </span>
               </div>
               <div>
-                <span className="text-gray-600 dark:text-slate-400">رقم الهاتف:</span>
-                <span className="font-medium text-gray-900 dark:text-slate-100 mr-2">
+                <span className="text-xs sm:text-sm text-gray-600 dark:text-slate-400">رقم الهاتف:</span>
+                <span className="text-sm sm:text-base font-medium text-gray-900 dark:text-slate-100 mr-1 sm:mr-2 block sm:inline">
                   {request.supplierPhone}
                 </span>
               </div>
@@ -413,49 +413,49 @@ export default function FulfillmentDetailPage({ params }: { params: { id: string
           </div>
 
           {/* Request Details */}
-          <div className="card">
-            <div className="card-header">
-              <h3 className="card-title">
-                <Calendar className="w-5 h-5 ml-2" />
+          <div className="card p-4 sm:p-6">
+            <div className="card-header pb-3 sm:pb-4">
+              <h3 className="card-title text-base sm:text-lg">
+                <Calendar className="w-4 h-4 sm:w-5 sm:h-5 ml-1.5 sm:ml-2" />
                 تفاصيل الطلب
               </h3>
             </div>
-            <div className="card-body space-y-3">
+            <div className="card-body space-y-2 sm:space-y-3">
               <div>
-                <span className="text-gray-600 dark:text-slate-400">تاريخ الإنشاء:</span>
-                <span className="font-medium text-gray-900 dark:text-slate-100 mr-2">
-                  {new Date(request.createdAt).toLocaleDateString('en-US')}
+                <span className="text-xs sm:text-sm text-gray-600 dark:text-slate-400">تاريخ الإنشاء:</span>
+                <span className="text-sm sm:text-base font-medium text-gray-900 dark:text-slate-100 mr-1 sm:mr-2 block sm:inline">
+                  {new Date(request.createdAt).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' })}
                 </span>
               </div>
               {request.expectedDeliveryDate && (
                 <div>
-                  <span className="text-gray-600 dark:text-slate-400">تاريخ التسليم المتوقع:</span>
-                  <span className="font-medium text-gray-900 dark:text-slate-100 mr-2">
-                    {new Date(request.expectedDeliveryDate).toLocaleDateString('en-US')}
+                  <span className="text-xs sm:text-sm text-gray-600 dark:text-slate-400">تاريخ التسليم المتوقع:</span>
+                  <span className="text-sm sm:text-base font-medium text-gray-900 dark:text-slate-100 mr-1 sm:mr-2 block sm:inline">
+                    {new Date(request.expectedDeliveryDate).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' })}
                   </span>
                 </div>
               )}
               {request.warehouseLocation && (
                 <div>
-                  <span className="text-gray-600 dark:text-slate-400">موقع المستودع:</span>
-                  <span className="font-medium text-gray-900 dark:text-slate-100 mr-2">
+                  <span className="text-xs sm:text-sm text-gray-600 dark:text-slate-400">موقع المستودع:</span>
+                  <span className="text-sm sm:text-base font-medium text-gray-900 dark:text-slate-100 mr-1 sm:mr-2 block sm:inline">
                     {request.warehouseLocation}
                   </span>
                 </div>
               )}
               {request.approvedAt && (
                 <div>
-                  <span className="text-gray-600 dark:text-slate-400">تاريخ الموافقة:</span>
-                  <span className="font-medium text-gray-900 dark:text-slate-100 mr-2">
-                    {new Date(request.approvedAt).toLocaleDateString('en-US')}
+                  <span className="text-xs sm:text-sm text-gray-600 dark:text-slate-400">تاريخ الموافقة:</span>
+                  <span className="text-sm sm:text-base font-medium text-gray-900 dark:text-slate-100 mr-1 sm:mr-2 block sm:inline">
+                    {new Date(request.approvedAt).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' })}
                   </span>
                 </div>
               )}
               {request.rejectedAt && (
                 <div>
-                  <span className="text-gray-600 dark:text-slate-400">تاريخ الرفض:</span>
-                  <span className="font-medium text-gray-900 dark:text-slate-100 mr-2">
-                    {new Date(request.rejectedAt).toLocaleDateString('en-US')}
+                  <span className="text-xs sm:text-sm text-gray-600 dark:text-slate-400">تاريخ الرفض:</span>
+                  <span className="text-sm sm:text-base font-medium text-gray-900 dark:text-slate-100 mr-1 sm:mr-2 block sm:inline">
+                    {new Date(request.rejectedAt).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' })}
                   </span>
                 </div>
               )}
@@ -464,22 +464,22 @@ export default function FulfillmentDetailPage({ params }: { params: { id: string
 
           {/* Actions */}
           {user?.role === 'admin' && request.status === 'pending' && (
-            <div className="card">
-              <div className="card-header">
-                <h3 className="card-title">الإجراءات</h3>
+            <div className="card p-4 sm:p-6">
+              <div className="card-header pb-3 sm:pb-4">
+                <h3 className="card-title text-base sm:text-lg">الإجراءات</h3>
               </div>
-              <div className="card-body space-y-3">
+              <div className="card-body space-y-2 sm:space-y-3">
                 <button
                   onClick={handleApprove}
                   disabled={updating}
-                  className="btn-primary w-full"
+                  className="btn-primary w-full min-h-[44px] text-sm sm:text-base"
                 >
                   {updating ? 'جاري...' : 'الموافقة على الطلب'}
                 </button>
                 <button
                   onClick={handleReject}
                   disabled={updating}
-                  className="btn-danger w-full"
+                  className="btn-danger w-full min-h-[44px] text-sm sm:text-base"
                 >
                   {updating ? 'جاري...' : 'رفض الطلب'}
                 </button>
@@ -489,15 +489,15 @@ export default function FulfillmentDetailPage({ params }: { params: { id: string
 
           {/* Delete Action */}
           {(user?.role === 'supplier' || user?.role === 'admin') && request.status !== 'approved' && (
-            <div className="card">
-              <div className="card-header">
-                <h3 className="card-title">حذف الطلب</h3>
+            <div className="card p-4 sm:p-6">
+              <div className="card-header pb-3 sm:pb-4">
+                <h3 className="card-title text-base sm:text-lg">حذف الطلب</h3>
               </div>
               <div className="card-body">
                 <button
                   onClick={handleDelete}
                   disabled={updating}
-                  className="btn-danger w-full"
+                  className="btn-danger w-full min-h-[44px] text-sm sm:text-base"
                 >
                   {updating ? 'جاري...' : 'حذف الطلب'}
                 </button>

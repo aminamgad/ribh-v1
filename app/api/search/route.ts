@@ -16,7 +16,6 @@ async function searchProducts(req: NextRequest, user: any) {
     const categoryParam = searchParams.get('category'); // can be comma-separated IDs
     const minPrice = searchParams.get('minPrice');
     const maxPrice = searchParams.get('maxPrice');
-    const inStock = searchParams.get('inStock') === 'true';
     const sortBy = searchParams.get('sortBy') || 'createdAt';
     const sortOrder = searchParams.get('sortOrder') || 'desc';
     const page = parseInt(searchParams.get('page') || '1');
@@ -93,11 +92,6 @@ async function searchProducts(req: NextRequest, user: any) {
       searchQuery[priceField] = {};
       if (minPrice) searchQuery[priceField].$gte = parseFloat(minPrice);
       if (maxPrice) searchQuery[priceField].$lte = parseFloat(maxPrice);
-    }
-    
-    // Stock filter
-    if (inStock) {
-      searchQuery.stockQuantity = { $gt: 0 };
     }
     
     // Sort options

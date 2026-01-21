@@ -65,28 +65,36 @@ export function useDataCache<T = any>({
   }, [key, fetchFn, enabled, cache, onSuccess, onError]);
 
   // Get cached data on mount and fetch if needed
+  // This effect runs immediately when key changes - no delay
   useEffect(() => {
     if (!enabled) {
       setLoading(false);
       return;
     }
 
+    console.log('useDataCache - key changed, checking cache:', {
+      key,
+      hasCachedData: !!cache.getCachedData<T>(key),
+      forceRefresh
+    });
+
     const cachedData = cache.getCachedData<T>(key);
     
     if (cachedData && !forceRefresh) {
       // Use cached data - no loading needed
+      console.log('useDataCache - Using cached data:', { key });
       setData(cachedData);
       setHasFetched(true);
       setLoading(false); // Set loading to false immediately when using cache
       if (onSuccess) {
         onSuccess(cachedData);
       }
-    } else if (!hasFetched || forceRefresh) {
-      // No cached data or force refresh - fetch
-      fetchData();
     } else {
-      // Already fetched, just set loading to false
-      setLoading(false);
+      // No cached data or force refresh - fetch immediately
+      // Reset hasFetched when key changes to ensure fresh fetch
+      console.log('useDataCache - No cached data, fetching:', { key, forceRefresh });
+      setHasFetched(false);
+      fetchData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, enabled, forceRefresh]); // Only run when key, enabled, or forceRefresh changes

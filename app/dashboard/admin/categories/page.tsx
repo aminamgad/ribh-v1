@@ -307,83 +307,83 @@ export default function AdminCategoriesPage() {
     const hasSubcategories = category.subcategories && category.subcategories.length > 0;
     
     return (
-      <div key={category._id} className={`${level > 0 ? 'mr-8' : ''} mb-2`}>
+      <div key={category._id} className={`${level > 0 ? 'mr-4 sm:mr-8' : ''} mb-2`}>
         <div 
-          className="card p-4 hover:shadow-medium transition-shadow cursor-pointer"
+          className="card p-3 sm:p-4 hover:shadow-medium transition-shadow cursor-pointer active:scale-[0.98]"
           onClick={() => handleCategoryClick(category)}
         >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4 space-x-reverse flex-1">
+          <div className="flex items-center justify-between gap-2 sm:gap-4">
+            <div className="flex items-center space-x-2 sm:space-x-4 space-x-reverse flex-1 min-w-0">
               {category.image ? (
                 <OptimizedImage
                   src={category.image}
                   alt={category.name}
                   width={48}
                   height={48}
-                  className="w-12 h-12 object-cover rounded-lg"
+                  className="w-10 h-10 sm:w-12 sm:h-12 object-cover rounded-lg flex-shrink-0"
                 />
               ) : (
-                <div className="w-12 h-12 bg-gray-200 dark:bg-slate-700 rounded-lg flex items-center justify-center">
-                  <FolderOpen className="w-6 h-6 text-gray-400 dark:text-slate-500" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-200 dark:bg-slate-700 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <FolderOpen className="w-5 h-5 sm:w-6 sm:h-6 text-gray-400 dark:text-slate-500" />
                 </div>
               )}
-              <div className="flex-1">
-                <h3 className="font-semibold text-gray-900 dark:text-slate-100">
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-slate-100 truncate">
                   {category.name}
                   {category.nameEn && (
-                    <span className="text-sm text-gray-500 dark:text-slate-400 mr-2">({category.nameEn})</span>
+                    <span className="text-xs sm:text-sm text-gray-500 dark:text-slate-400 mr-1 sm:mr-2">({category.nameEn})</span>
                   )}
                 </h3>
                 {category.description && (
-                  <p className="text-sm text-gray-600 dark:text-slate-400 line-clamp-1">{category.description}</p>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-400 line-clamp-1 mt-0.5 text-wrap-long">{category.description}</p>
                 )}
-                <div className="flex items-center space-x-4 space-x-reverse text-sm text-gray-500 dark:text-slate-400 mt-1 flex-wrap">
+                <div className="flex items-center space-x-2 sm:space-x-4 space-x-reverse text-[10px] sm:text-xs md:text-sm text-gray-500 dark:text-slate-400 mt-1 flex-wrap gap-1 sm:gap-0">
                   <span>الترتيب: {category.order}</span>
                   <span className="flex items-center">
-                    <Package className="w-3 h-3 ml-1" />
+                    <Package className="w-3 h-3 ml-0.5 sm:ml-1" />
                     المنتجات: {category.productCount || 0}
                   </span>
-                  <span className={`badge ${category.isActive ? 'badge-success' : 'badge-secondary'}`}>
+                  <span className={`badge text-[10px] sm:text-xs ${category.isActive ? 'badge-success' : 'badge-secondary'}`}>
                     {category.isActive ? 'نشط' : 'غير نشط'}
                   </span>
                   {(category as any).featured && (
-                    <span className="badge badge-warning">مميز</span>
+                    <span className="badge badge-warning text-[10px] sm:text-xs">مميز</span>
                   )}
                 </div>
               </div>
             </div>
             
-            <div className="flex items-center space-x-2 space-x-reverse">
+            <div className="flex items-center space-x-1 sm:space-x-2 space-x-reverse flex-shrink-0">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   router.push(`/dashboard/products?category=${category._id}`);
                 }}
-                className="p-2 text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded transition-colors"
+                className="p-1.5 sm:p-2 text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded transition-colors min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center"
                 title="عرض المنتجات"
               >
-                <Package className="w-4 h-4" />
+                <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   handleEdit(category);
                 }}
-                className="p-2 text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 hover:bg-gray-100 dark:hover:bg-slate-700 rounded transition-colors"
+                className="p-1.5 sm:p-2 text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 hover:bg-gray-100 dark:hover:bg-slate-700 rounded transition-colors min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center"
                 title="تعديل"
               >
-                <Edit className="w-4 h-4" />
+                <Edit className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   handleDelete(category);
                 }}
-                className="p-2 text-danger-600 hover:text-danger-700 hover:bg-danger-50 dark:hover:bg-danger-900/20 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-1.5 sm:p-2 text-danger-600 hover:text-danger-700 hover:bg-danger-50 dark:hover:bg-danger-900/20 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center"
                 title={category.productCount && category.productCount > 0 ? 'لا يمكن الحذف - الفئة تحتوي على منتجات' : 'حذف'}
                 disabled={!!(category.productCount && category.productCount > 0)}
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
             </div>
           </div>
@@ -407,18 +407,18 @@ export default function AdminCategoriesPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100">إدارة الفئات</h1>
-          <p className="text-gray-600 dark:text-slate-400 mt-2">إدارة فئات المنتجات وتنظيمها</p>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-slate-100">إدارة الفئات</h1>
+          <p className="text-xs sm:text-sm md:text-base text-gray-600 dark:text-slate-400 mt-1 sm:mt-2">إدارة فئات المنتجات وتنظيمها</p>
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="btn-primary"
+          className="btn-primary min-h-[44px] text-sm sm:text-base px-3 sm:px-4 w-full sm:w-auto"
         >
-          <Plus className="w-5 h-5 ml-2" />
+          <Plus className="w-4 h-4 sm:w-5 sm:h-5 ml-1.5 sm:ml-2" />
           إضافة فئة جديدة
         </button>
       </div>
@@ -432,44 +432,44 @@ export default function AdminCategoriesPage() {
               setSelectedCategory(null);
               setCategoryProducts([]);
             }}
-            className="flex items-center text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 mb-4"
+            className="flex items-center text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 mb-3 sm:mb-4 min-h-[44px] text-sm sm:text-base"
           >
-            <ChevronLeft className="w-5 h-5 ml-2" />
+            <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 ml-1.5 sm:ml-2" />
             العودة إلى الفئات
           </button>
 
           {/* Category Info */}
-          <div className="card p-6">
-            <div className="flex items-center space-x-4 space-x-reverse mb-4">
+          <div className="card p-4 sm:p-6">
+            <div className="flex items-center space-x-3 sm:space-x-4 space-x-reverse mb-3 sm:mb-4">
               {selectedCategory.image ? (
                 <OptimizedImage
                   src={selectedCategory.image}
                   alt={selectedCategory.name}
                   width={64}
                   height={64}
-                  className="w-16 h-16 object-cover rounded-lg"
+                  className="w-12 h-12 sm:w-16 sm:h-16 object-cover rounded-lg flex-shrink-0"
                 />
               ) : (
-                <div className="w-16 h-16 bg-gray-200 dark:bg-slate-700 rounded-lg flex items-center justify-center">
-                  <FolderOpen className="w-8 h-8 text-gray-400 dark:text-slate-500" />
+                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-200 dark:bg-slate-700 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <FolderOpen className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400 dark:text-slate-500" />
                 </div>
               )}
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
+              <div className="flex-1 min-w-0">
+                <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 dark:text-slate-100 truncate">
                   {selectedCategory.name}
                   {selectedCategory.nameEn && (
-                    <span className="text-lg text-gray-500 dark:text-slate-400 mr-2">({selectedCategory.nameEn})</span>
+                    <span className="text-sm sm:text-base md:text-lg text-gray-500 dark:text-slate-400 mr-1 sm:mr-2">({selectedCategory.nameEn})</span>
                   )}
                 </h2>
                 {selectedCategory.description && (
-                  <p className="text-gray-600 dark:text-slate-400 mt-1">{selectedCategory.description}</p>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-400 mt-1 line-clamp-2">{selectedCategory.description}</p>
                 )}
-                <div className="flex items-center space-x-4 space-x-reverse mt-2">
-                  <span className="text-sm text-gray-500 dark:text-slate-400">
-                    <Package className="w-4 h-4 inline ml-1" />
+                <div className="flex items-center space-x-2 sm:space-x-4 space-x-reverse mt-2 flex-wrap gap-1 sm:gap-0">
+                  <span className="text-xs sm:text-sm text-gray-500 dark:text-slate-400">
+                    <Package className="w-3 h-3 sm:w-4 sm:h-4 inline ml-0.5 sm:ml-1" />
                     {selectedCategory.productCount || 0} منتج
                   </span>
-                  <span className={`badge ${selectedCategory.isActive ? 'badge-success' : 'badge-secondary'}`}>
+                  <span className={`badge text-[10px] sm:text-xs ${selectedCategory.isActive ? 'badge-success' : 'badge-secondary'}`}>
                     {selectedCategory.isActive ? 'نشط' : 'غير نشط'}
                   </span>
                 </div>
@@ -578,67 +578,67 @@ export default function AdminCategoriesPage() {
 
       {/* Add/Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-800 rounded-lg p-6 max-w-md w-full">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50 p-3 sm:p-4 md:p-6 safe-area-inset">
+          <div className="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-4 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto mobile-modal-content">
+            <div className="flex justify-between items-center mb-3 sm:mb-4">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-slate-100">
                 {editingCategory ? 'تعديل الفئة' : 'إضافة فئة جديدة'}
               </h2>
               <button
                 onClick={resetForm}
-                className="text-gray-400 dark:text-slate-500 hover:text-gray-500 dark:hover:text-slate-400"
+                className="text-gray-400 dark:text-slate-500 hover:text-gray-500 dark:hover:text-slate-400 min-w-[36px] min-h-[36px] flex items-center justify-center"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5 sm:mb-2">
                   اسم الفئة (عربي) *
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="input-field"
+                  className="input-field text-sm sm:text-base min-h-[44px]"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5 sm:mb-2">
                   اسم الفئة (إنجليزي)
                 </label>
                 <input
                   type="text"
                   value={formData.nameEn}
                   onChange={(e) => setFormData({ ...formData, nameEn: e.target.value })}
-                  className="input-field"
+                  className="input-field text-sm sm:text-base min-h-[44px]"
                   dir="ltr"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5 sm:mb-2">
                   الوصف
                 </label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="input-field"
+                  className="input-field text-sm sm:text-base min-h-[88px]"
                   rows={3}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5 sm:mb-2">
                   الفئة الرئيسية
                 </label>
                 <select
                   value={formData.parentId}
                   onChange={(e) => setFormData({ ...formData, parentId: e.target.value })}
-                  className="input-field"
+                  className="input-field text-sm sm:text-base min-h-[44px]"
                   disabled={!!editingCategory?.parentId}
                 >
                   <option value="">بدون (فئة رئيسية)</option>
@@ -651,19 +651,19 @@ export default function AdminCategoriesPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5 sm:mb-2">
                   الترتيب
                 </label>
                 <input
                   type="number"
                   value={formData.order}
                   onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) || 0 })}
-                  className="input-field"
+                  className="input-field text-sm sm:text-base min-h-[44px]"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5 sm:mb-2">
                   صورة الفئة
                 </label>
                 {formData.image && !imageFile && (
@@ -673,7 +673,7 @@ export default function AdminCategoriesPage() {
                       alt="Current"
                       width={80}
                       height={80}
-                      className="w-20 h-20 object-cover rounded-lg"
+                      className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg"
                     />
                   </div>
                 )}
@@ -681,35 +681,35 @@ export default function AdminCategoriesPage() {
                   type="file"
                   accept="image/*"
                   onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-                  className="block w-full text-sm text-gray-500 dark:text-slate-400 file:ml-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary-50 dark:file:bg-primary-900/30 file:text-primary-700 dark:file:text-primary-400 hover:file:bg-primary-100 dark:hover:file:bg-primary-900/50"
+                  className="block w-full text-xs sm:text-sm text-gray-500 dark:text-slate-400 file:ml-2 sm:file:ml-4 file:py-2 file:px-3 sm:file:px-4 file:rounded-full file:border-0 file:text-xs sm:file:text-sm file:font-semibold file:bg-primary-50 dark:file:bg-primary-900/30 file:text-primary-700 dark:file:text-primary-400 hover:file:bg-primary-100 dark:hover:file:bg-primary-900/50 min-h-[44px]"
                 />
               </div>
 
-              <div className="flex items-center">
+              <div className="flex items-center min-h-[44px]">
                 <input
                   type="checkbox"
                   id="isActive"
                   checked={formData.isActive}
                   onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                  className="rounded border-gray-300 dark:border-slate-600 text-primary-600 focus:ring-primary-500 ml-2"
+                  className="rounded border-gray-300 dark:border-slate-600 text-primary-600 focus:ring-primary-500 ml-2 w-4 h-4 sm:w-5 sm:h-5"
                 />
-                <label htmlFor="isActive" className="text-sm font-medium text-gray-700 dark:text-slate-300">
+                <label htmlFor="isActive" className="text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 cursor-pointer">
                   فئة نشطة
                 </label>
               </div>
 
-              <div className="flex justify-end space-x-3 space-x-reverse pt-4">
+              <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 space-y-2 sm:space-y-0 space-y-reverse sm:space-x-3 sm:space-x-reverse pt-3 sm:pt-4">
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="btn-secondary"
+                  className="btn-secondary min-h-[44px] text-sm sm:text-base w-full sm:w-auto"
                 >
                   إلغاء
                 </button>
                 <button
                   type="submit"
                   disabled={uploading}
-                  className="btn-primary"
+                  className="btn-primary min-h-[44px] text-sm sm:text-base w-full sm:w-auto"
                 >
                   {uploading ? 'جاري الرفع...' : editingCategory ? 'تحديث' : 'إضافة'}
                 </button>

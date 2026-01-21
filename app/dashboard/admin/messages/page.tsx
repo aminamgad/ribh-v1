@@ -12,7 +12,7 @@ import {
   Clock,
   Filter,
   Search,
-  RefreshCw
+  RotateCw
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -194,7 +194,7 @@ export default function AdminMessagesPage() {
             disabled={loading}
             className="btn-primary"
           >
-            <RefreshCw className={`w-4 h-4 ml-2 ${loading ? 'animate-spin' : ''}`} />
+            <RotateCw className={`w-4 h-4 ml-2 ${loading ? 'animate-spin' : ''}`} />
             تحديث
           </button>
         </div>
