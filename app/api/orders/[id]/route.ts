@@ -48,8 +48,15 @@ export const PUT = withAuth(async (req: NextRequest, user: any, ...args: unknown
       customerRole: order.customerRole
     });
 
-    // Check permissions
-    const actualSupplierId = order.supplierId._id || order.supplierId;
+    // Check permissions - safely extract supplier ID
+    let actualSupplierId: string | null = null;
+    if (order.supplierId) {
+      if (typeof order.supplierId === 'object' && order.supplierId !== null) {
+        actualSupplierId = (order.supplierId as any)._id?.toString() || (order.supplierId as any).toString();
+      } else {
+        actualSupplierId = order.supplierId.toString();
+      }
+    }
     
     // Allow admin to update shipping only without changing status
     if (updateShippingOnly) {
@@ -120,14 +127,17 @@ export const PUT = withAuth(async (req: NextRequest, user: any, ...args: unknown
       });
     }
     
-    if (
-      user.role === 'supplier' && actualSupplierId.toString() !== user._id.toString()
-      || (user.role === 'marketer' || user.role === 'wholesaler')
-    ) {
-      return NextResponse.json(
-        { error: 'غير مصرح لك بتحديث هذا الطلب' },
-        { status: 403 }
-      );
+    // Admin can update all orders
+    if (user.role !== 'admin') {
+      if (
+        (user.role === 'supplier' && actualSupplierId && actualSupplierId !== user._id.toString())
+        || (user.role === 'marketer' || user.role === 'wholesaler')
+      ) {
+        return NextResponse.json(
+          { error: 'غير مصرح لك بتحديث هذا الطلب' },
+          { status: 403 }
+        );
+      }
     }
 
     // Validate status transition (only for non-admin users)
@@ -637,7 +647,8 @@ export const GET = withAuth(async (req: NextRequest, user: any, ...args: unknown
     const order = await Order.findById(params.id)
       .populate('items.productId', 'name images marketerPrice wholesalerPrice')
       .populate('supplierId', 'name companyName')
-      .populate('customerId', 'name email phone');
+      .populate('customerId', 'name email phone')
+      .lean();
     
     if (!order) {
       return NextResponse.json(
@@ -646,21 +657,38 @@ export const GET = withAuth(async (req: NextRequest, user: any, ...args: unknown
       );
     }
 
-    // Check permissions
-    const actualSupplierId = order.supplierId._id || order.supplierId;
-    const actualCustomerId = order.customerId._id || order.customerId;
+    // Check permissions - safely extract IDs
+    let actualSupplierId: string | null = null;
+    if (order.supplierId) {
+      if (typeof order.supplierId === 'object' && order.supplierId !== null) {
+        actualSupplierId = (order.supplierId as any)._id?.toString() || (order.supplierId as any).toString();
+      } else {
+        actualSupplierId = order.supplierId.toString();
+      }
+    }
+    
+    let actualCustomerId: string | null = null;
+    if (order.customerId) {
+      if (typeof order.customerId === 'object' && order.customerId !== null) {
+        actualCustomerId = (order.customerId as any)._id?.toString() || (order.customerId as any).toString();
+      } else {
+        actualCustomerId = order.customerId.toString();
+      }
+    }
     
     logger.debug('Checking order access permissions', {
       userRole: user.role,
       userId: user._id.toString(),
-      orderSupplierId: actualSupplierId.toString(),
-      orderCustomerId: actualCustomerId.toString()
+      orderSupplierId: actualSupplierId || 'null',
+      orderCustomerId: actualCustomerId || 'null'
     });
     
-    if (
-      user.role === 'supplier' && actualSupplierId.toString() !== user._id.toString()
-      || (user.role === 'marketer' || user.role === 'wholesaler') && actualCustomerId.toString() !== user._id.toString()
-    ) {
+    // Admin can access all orders
+    if (user.role !== 'admin') {
+      if (
+        (user.role === 'supplier' && actualSupplierId && actualSupplierId !== user._id.toString())
+        || ((user.role === 'marketer' || user.role === 'wholesaler') && actualCustomerId && actualCustomerId !== user._id.toString())
+      ) {
       logger.warn('Unauthorized order access attempt', {
         userId: user._id.toString(),
         userRole: user.role,
