@@ -648,7 +648,7 @@ export const GET = withAuth(async (req: NextRequest, user: any, ...args: unknown
       .populate('items.productId', 'name images marketerPrice wholesalerPrice')
       .populate('supplierId', 'name companyName')
       .populate('customerId', 'name email phone')
-      .lean();
+      .lean() as any;
     
     if (!order) {
       return NextResponse.json(
@@ -698,6 +698,7 @@ export const GET = withAuth(async (req: NextRequest, user: any, ...args: unknown
         { error: 'غير مصرح لك بعرض هذا الطلب' },
         { status: 403 }
       );
+      }
     }
 
     logger.apiResponse('GET', `/api/orders/${params.id}`, 200);
