@@ -144,8 +144,8 @@ async function addShippingRegion(req: NextRequest, user: any) {
     
     // Get the saved region with _id (from the saved document)
     const savedRegion = settings.shippingRegions[settings.shippingRegions.length - 1];
-    const regionObj = savedRegion && typeof savedRegion.toObject === 'function' 
-      ? savedRegion.toObject() 
+    const regionObj = savedRegion && typeof (savedRegion as any).toObject === 'function' 
+      ? (savedRegion as any).toObject() 
       : savedRegion;
     
     logger.info('Shipping region added successfully', {
