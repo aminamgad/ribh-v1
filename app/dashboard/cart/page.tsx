@@ -74,12 +74,15 @@ export default function CartPage() {
 
   const fetchShippingRegions = async () => {
     try {
-      // Add cache-busting to ensure fresh data
-      const response = await fetch('/api/settings/shipping', {
+      // Add cache-busting with timestamp to ensure fresh data
+      const timestamp = new Date().getTime();
+      const response = await fetch(`/api/settings/shipping?t=${timestamp}`, {
         cache: 'no-store',
+        method: 'GET',
         headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
         }
       });
       const data = await response.json();
@@ -88,6 +91,7 @@ export default function CartPage() {
       }
     } catch (error) {
       // Silently handle errors
+      console.error('Error fetching shipping regions:', error);
     }
   };
 

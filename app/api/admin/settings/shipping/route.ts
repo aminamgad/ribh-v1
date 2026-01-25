@@ -6,6 +6,10 @@ import { z } from 'zod';
 import { logger } from '@/lib/logger';
 import { handleApiError } from '@/lib/error-handler';
 
+// Disable caching for this route - always fetch fresh data
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // Schema for shipping region
 const shippingRegionSchema = z.object({
   regionName: z.string().min(1, 'اسم المنطقة مطلوب'),
@@ -44,12 +48,20 @@ async function getShippingRegions(req: NextRequest, user: any) {
       };
     });
     
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       regions: regions,
       defaultShippingCost: settings?.defaultShippingCost || 50,
-      defaultFreeShippingThreshold: settings?.defaultFreeShippingThreshold || 500
+      defaultFreeShippingThreshold: settings?.defaultFreeShippingThreshold || 500,
+      timestamp: new Date().toISOString()
     });
+    
+    // Add cache-control headers to prevent caching
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
+    
+    return response;
   } catch (error) {
     logger.error('Error fetching shipping regions', error);
     return handleApiError(error, 'حدث خطأ أثناء جلب إعدادات التوصيل');
@@ -64,7 +76,9 @@ async function addShippingRegion(req: NextRequest, user: any) {
     const body = await req.json();
     const validatedData = shippingRegionSchema.parse(body);
     
-    let settings = await SystemSettings.findOne().sort({ createdAt: -1 });
+    // Always get the most recent settings document (without lean for saving)
+    let settings = await SystemSettings.findOne()
+      .sort({ updatedAt: -1, createdAt: -1 });
     
     if (!settings) {
       // Create new settings if none exist
@@ -74,7 +88,10 @@ async function addShippingRegion(req: NextRequest, user: any) {
     
     // Check if region name already exists
     const existingRegion = settings.shippingRegions?.find(
-      (r: any) => r.regionName === validatedData.regionName
+      (r: any) => {
+        const rObj = r && typeof r.toObject === 'function' ? r.toObject() : r;
+        return rObj.regionName === validatedData.regionName;
+      }
     );
     
     if (existingRegion) {
@@ -103,22 +120,56 @@ async function addShippingRegion(req: NextRequest, user: any) {
     
     settings.shippingRegions.push(newRegion as any);
     settings.updatedAt = new Date();
+    
+    // Mark the entire shippingRegions array as modified
     settings.markModified('shippingRegions');
+    // Also mark the parent document as modified to ensure updatedAt is saved
+    settings.markModified('updatedAt');
+    
+    logger.debug('Saving shipping region', {
+      regionName: validatedData.regionName,
+      totalRegionsBefore: settings.shippingRegions.length,
+      settingsId: settings._id?.toString()
+    });
+    
     await settings.save();
     
-    // Get the saved region with _id
-    const savedRegion = settings.shippingRegions[settings.shippingRegions.length - 1];
+    // Verify the save by reloading
+    const verifySettings = await SystemSettings.findById(settings._id);
+    logger.debug('Verification after save', {
+      totalRegionsAfter: verifySettings?.shippingRegions?.length || 0,
+      lastRegionName: verifySettings?.shippingRegions?.slice(-1)[0]?.regionName,
+      updatedAt: verifySettings?.updatedAt
+    });
     
-    logger.info('Shipping region added', {
+    // Get the saved region with _id (from the saved document)
+    const savedRegion = settings.shippingRegions[settings.shippingRegions.length - 1];
+    const regionObj = savedRegion && typeof savedRegion.toObject === 'function' 
+      ? savedRegion.toObject() 
+      : savedRegion;
+    
+    logger.info('Shipping region added successfully', {
       regionName: validatedData.regionName,
-      regionId: savedRegion._id?.toString(),
-      addedBy: user._id
+      regionId: regionObj._id?.toString(),
+      totalRegions: settings.shippingRegions.length,
+      addedBy: user._id,
+      updatedAt: settings.updatedAt
     });
     
     return NextResponse.json({
       success: true,
       message: 'تم إضافة منطقة التوصيل بنجاح',
-      region: savedRegion
+      region: {
+        _id: regionObj._id?.toString() || regionObj._id,
+        regionName: regionObj.regionName,
+        description: regionObj.description,
+        shippingCost: regionObj.shippingCost,
+        freeShippingThreshold: regionObj.freeShippingThreshold,
+        isActive: regionObj.isActive,
+        villageIds: regionObj.villageIds || [],
+        governorateName: regionObj.governorateName || '',
+        cityNames: regionObj.cityNames || []
+      }
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -150,7 +201,9 @@ async function updateShippingRegion(req: NextRequest, user: any) {
     
     const validatedData = shippingRegionSchema.partial().parse(updateData);
     
-    let settings = await SystemSettings.findOne().sort({ createdAt: -1 });
+    // Always get the most recent settings document (without lean for saving)
+    let settings = await SystemSettings.findOne()
+      .sort({ updatedAt: -1, createdAt: -1 });
     
     if (!settings || !settings.shippingRegions) {
       return NextResponse.json(
@@ -243,7 +296,9 @@ async function deleteShippingRegion(req: NextRequest, user: any) {
       );
     }
     
-    let settings = await SystemSettings.findOne().sort({ createdAt: -1 });
+    // Always get the most recent settings document (without lean for saving)
+    let settings = await SystemSettings.findOne()
+      .sort({ updatedAt: -1, createdAt: -1 });
     
     if (!settings || !settings.shippingRegions) {
       return NextResponse.json(
