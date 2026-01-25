@@ -53,7 +53,14 @@ export default function GovernorateVillageSelect({
 
   const fetchShippingRegions = async () => {
     try {
-      const response = await fetch('/api/settings/shipping');
+      // Add cache-busting to ensure fresh data
+      const response = await fetch('/api/settings/shipping', {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
       const data = await response.json();
       if (data.success && Array.isArray(data.regions)) {
         setShippingRegions(data.regions);

@@ -23,7 +23,8 @@ async function getShippingRegions(req: NextRequest, user: any) {
   try {
     await connectDB();
     
-    const settings = await SystemSettings.findOne().sort({ createdAt: -1 });
+    // Get the most recent settings document
+    const settings = await SystemSettings.findOne().sort({ updatedAt: -1, createdAt: -1 });
     
     // Convert regions to plain objects with _id
     const regions = (settings?.shippingRegions || []).map((region: any) => {
@@ -101,6 +102,7 @@ async function addShippingRegion(req: NextRequest, user: any) {
     };
     
     settings.shippingRegions.push(newRegion as any);
+    settings.updatedAt = new Date();
     settings.markModified('shippingRegions');
     await settings.save();
     
@@ -199,6 +201,7 @@ async function updateShippingRegion(req: NextRequest, user: any) {
       _id: regionObject._id || currentRegion._id // Preserve _id
     } as any;
     
+    settings.updatedAt = new Date();
     settings.markModified('shippingRegions');
     await settings.save();
     
@@ -265,6 +268,7 @@ async function deleteShippingRegion(req: NextRequest, user: any) {
       );
     }
     
+    settings.updatedAt = new Date();
     settings.markModified('shippingRegions');
     await settings.save();
     
