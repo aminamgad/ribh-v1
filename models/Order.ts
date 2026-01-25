@@ -67,15 +67,14 @@ const addressSchema = new Schema({
     trim: true
   },
   // Village-based system (new)
-  villageId: {
-    type: Number,
-    index: true
-  },
-  villageName: {
+  governorate: {
     type: String,
     trim: true
   },
-  manualVillageName: {
+  villageId: {
+    type: Number
+  },
+  villageName: {
     type: String,
     trim: true
   },
@@ -88,7 +87,7 @@ const addressSchema = new Schema({
     type: String,
     trim: true
   },
-  governorate: {
+  manualVillageName: {
     type: String,
     trim: true
   },
@@ -111,7 +110,6 @@ const generateOrderNumber = () => {
 const orderSchema = new Schema<OrderDocument>({
   orderNumber: {
     type: String,
-    unique: true,
     default: generateOrderNumber
   },
   customerId: {
@@ -187,17 +185,12 @@ const orderSchema = new Schema<OrderDocument>({
   },
   estimatedDelivery: Date,
   actualDelivery: Date,
-  trackingNumber: {
-    type: String,
-    trim: true
-  },
   shippingCompany: {
     type: String,
     trim: true
   },
   packageId: {
-    type: Number,
-    index: true
+    type: Number
   },
   cancellationReason: {
     type: String,

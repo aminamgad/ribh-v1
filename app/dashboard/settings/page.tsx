@@ -75,11 +75,6 @@ export default function SettingsPage() {
         autoWithdraw: user.settings?.autoWithdraw ?? false,
         withdrawThreshold: user.settings?.withdrawThreshold ?? 100
       }));
-      
-      console.log('📋 Loaded user settings:', {
-        user: user,
-        settings: user.settings
-      });
     }
   }, [user]);
 
@@ -104,16 +99,6 @@ export default function SettingsPage() {
       return;
     }
     
-    console.log('🔄 Starting profile update:', {
-      currentUser: user,
-      newSettings: {
-        name: settings.name,
-        phone: settings.phone,
-        companyName: settings.companyName,
-        address: settings.address
-      }
-    });
-    
     setSaving(true);
     try {
       const requestBody = {
@@ -123,8 +108,6 @@ export default function SettingsPage() {
         address: settings.address?.trim() || ''
       };
       
-      console.log('📤 Sending profile update request:', requestBody);
-      
       const response = await fetch('/api/auth/me', {
         method: 'PUT',
         headers: {
@@ -133,11 +116,8 @@ export default function SettingsPage() {
         body: JSON.stringify(requestBody),
       });
 
-      console.log('📥 Profile update response status:', response.status);
-
       if (response.ok) {
         const result = await response.json();
-        console.log('✅ Profile update result:', result);
         
         if (result.user) {
           updateUser(result.user);
@@ -156,11 +136,9 @@ export default function SettingsPage() {
         }
       } else {
         const error = await response.json();
-        console.error('❌ Profile update error:', error);
         toast.error(error.message || 'فشل في تحديث الملف الشخصي');
       }
     } catch (error) {
-      console.error('❌ Profile update exception:', error);
       toast.error('حدث خطأ أثناء تحديث الملف الشخصي');
     } finally {
       setSaving(false);
@@ -211,18 +189,6 @@ export default function SettingsPage() {
   };
 
   const handleSettingsSave = async () => {
-    console.log('🔄 Starting settings save:', {
-      currentSettings: settings,
-      settingsToSave: {
-        emailNotifications: settings.emailNotifications,
-        pushNotifications: settings.pushNotifications,
-        profileVisibility: settings.profileVisibility,
-        language: settings.language,
-        autoWithdraw: settings.autoWithdraw,
-        withdrawThreshold: settings.withdrawThreshold
-      }
-    });
-    
     setSaving(true);
     try {
       const requestBody = {
@@ -236,8 +202,6 @@ export default function SettingsPage() {
         }
       };
       
-      console.log('📤 Sending settings save request:', requestBody);
-      
       const response = await fetch('/api/auth/me', {
         method: 'PUT',
         headers: {
@@ -246,11 +210,8 @@ export default function SettingsPage() {
         body: JSON.stringify(requestBody),
       });
 
-      console.log('📥 Settings save response status:', response.status);
-
       if (response.ok) {
         const result = await response.json();
-        console.log('✅ Settings save result:', result);
         
         if (result.user) {
           updateUser(result.user);
@@ -271,11 +232,9 @@ export default function SettingsPage() {
         }
       } else {
         const error = await response.json();
-        console.error('❌ Settings save error:', error);
         toast.error(error.message || 'فشل في حفظ الإعدادات');
       }
     } catch (error) {
-      console.error('❌ Settings save exception:', error);
       toast.error('حدث خطأ أثناء حفظ الإعدادات');
     } finally {
       setSaving(false);

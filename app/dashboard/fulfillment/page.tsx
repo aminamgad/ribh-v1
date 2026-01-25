@@ -234,7 +234,6 @@ export default function FulfillmentPage() {
   };
 
   const handleCancelReject = () => {
-    console.log('Canceling rejection modal');
     setShowRejectModal(false);
     setSelectedRequestId(null);
     toast.success('تم إلغاء عملية الرفض');
@@ -242,13 +241,9 @@ export default function FulfillmentPage() {
 
   const handleViewDetails = async (requestId: string) => {
     try {
-      console.log('Navigating to fulfillment request:', requestId);
-      console.log('Available requests:', requests.map(r => ({ id: r._id, status: r.status })));
-      
       // Validate that the request exists in our current list
       const requestExists = requests.find(r => r._id === requestId);
       if (!requestExists) {
-        console.error('Request not found in current list:', requestId);
         toast.error('طلب التخزين غير موجود في القائمة الحالية');
         return;
       }
@@ -260,14 +255,12 @@ export default function FulfillmentPage() {
       
       await router.push(`/dashboard/fulfillment/${requestId}`);
     } catch (error) {
-      console.error('Navigation error:', error);
       toast.error('حدث خطأ أثناء الانتقال إلى صفحة التفاصيل');
       
       // Fallback: try using window.location if router fails
       try {
         window.location.href = `/dashboard/fulfillment/${requestId}`;
       } catch (fallbackError) {
-        console.error('Fallback navigation also failed:', fallbackError);
         toast.error('فشل في الانتقال إلى صفحة التفاصيل');
       }
     } finally {

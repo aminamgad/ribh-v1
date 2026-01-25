@@ -28,7 +28,6 @@ export interface Governorate {
 export interface ShippingRegion {
   _id?: mongoose.Types.ObjectId;
   regionName: string;
-  regionCode: string;
   description?: string;
   shippingCost: number;
   freeShippingThreshold?: number | null;
@@ -260,7 +259,6 @@ const systemSettingsSchema = new Schema<SystemSettingsDocument>({
     type: [
       {
         regionName: { type: String, required: true },
-        regionCode: { type: String, required: true, unique: true },
         description: { type: String },
         shippingCost: { type: Number, required: true, min: 0 },
         freeShippingThreshold: { type: Number, min: 0, default: null }, // null means use default

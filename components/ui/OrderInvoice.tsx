@@ -57,7 +57,6 @@ interface Order {
   createdAt: string;
   updatedAt: string;
   actualDelivery?: string;
-  trackingNumber?: string;
   shippingCompany?: string;
   adminNotes?: string;
 }
@@ -200,7 +199,7 @@ export default function OrderInvoice({ order, isVisible, onClose }: OrderInvoice
         try {
           window.print();
         } catch (error) {
-          console.error('Error triggering print:', error);
+          // Silently handle print errors
         }
         
         // Cleanup function

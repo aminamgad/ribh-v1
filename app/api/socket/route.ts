@@ -11,7 +11,6 @@ export async function GET(req: NextRequest) {
       note: 'Real-time features are not available on Vercel'
     });
   } catch (error) {
-    console.error('Socket.io GET error:', error);
     return NextResponse.json(
       { success: false, error: 'Socket.io server error' },
       { status: 500 }
@@ -25,16 +24,12 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { event, data, targetUserId, targetRole } = body;
 
-    // Log the event for debugging
-    console.log('Socket event received:', { event, data, targetUserId, targetRole });
-
     return NextResponse.json({
       success: true,
       message: 'Event logged (Socket.io disabled in Vercel)',
       note: 'Real-time features are not available on Vercel'
     });
   } catch (error) {
-    console.error('Socket.io POST error:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to process event' },
       { status: 500 }

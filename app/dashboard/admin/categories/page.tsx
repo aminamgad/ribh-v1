@@ -252,7 +252,6 @@ export default function AdminCategoriesPage() {
         toast.error(errorData.message || 'فشل في حذف الفئة');
       }
     } catch (error) {
-      console.error('Error deleting category:', error);
       toast.error('حدث خطأ أثناء حذف الفئة');
     } finally {
       setShowDeleteConfirm(false);
@@ -296,7 +295,6 @@ export default function AdminCategoriesPage() {
         toast.error('حدث خطأ أثناء جلب منتجات الفئة');
       }
     } catch (error) {
-      console.error('Error fetching category products:', error);
       toast.error('حدث خطأ أثناء جلب منتجات الفئة');
     } finally {
       setLoadingProducts(false);

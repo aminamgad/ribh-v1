@@ -150,8 +150,6 @@ const productSchema = new Schema<ProductDocument>({
   featuredUntil: Date,
   sku: {
     type: String,
-    unique: true,
-    sparse: true,
     trim: true
   },
   weight: {

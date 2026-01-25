@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useState, useMemo, useTransition, useRef, useCallback } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useCart } from '@/components/providers/CartProvider';
@@ -148,12 +150,6 @@ export default function ProductsPage() {
   const cacheKey = useMemo(() => {
     const newKey = `products_${queryString || 'default'}`;
     if (cacheKeyRef.current !== newKey) {
-      console.log('Cache key changed:', {
-        oldKey: cacheKeyRef.current,
-        newKey,
-        queryString,
-        hasSuppliers: queryString.includes('suppliers')
-      });
       cacheKeyRef.current = newKey;
     }
     return newKey;
@@ -523,7 +519,6 @@ export default function ProductsPage() {
         toast.error(errorData.message || 'فشل في قفل/إلغاء قفل المنتج');
       }
     } catch (error) {
-      console.error('Error locking/unlocking product:', error);
       toast.error('حدث خطأ أثناء قفل/إلغاء قفل المنتج');
     } finally {
       setLocking(false);
@@ -563,7 +558,6 @@ export default function ProductsPage() {
       // إشعار واحد فقط
       toast.success(`تم إضافة ${product.name} إلى السلة بنجاح`);
     } catch (error) {
-      console.error('Error adding to cart:', error);
       toast.error('حدث خطأ أثناء إضافة المنتج إلى السلة');
     }
   };
@@ -627,31 +621,13 @@ export default function ProductsPage() {
       return;
     }
     
-    console.log('🚫 Starting rejection process for:', {
-      productId: selectedProduct._id,
-      productName: selectedProduct.name,
-      currentStatus: {
-        isApproved: selectedProduct.isApproved,
-        isRejected: selectedProduct.isRejected
-      },
-      rejectionReason: rejectionReason.trim()
-    });
-    
     setProcessing(true);
     try {
-      console.log('🚫 Rejecting product:', {
-        productId: selectedProduct._id,
-        productName: selectedProduct.name,
-        rejectionReason: rejectionReason.trim()
-      });
-
       const requestBody = {
         productIds: [selectedProduct._id],
         action: 'reject',
         rejectionReason: rejectionReason.trim()
       };
-      
-      console.log('📤 Sending request body:', requestBody);
 
       const response = await fetch('/api/admin/products/approve', {
         method: 'POST',
@@ -661,26 +637,19 @@ export default function ProductsPage() {
         body: JSON.stringify(requestBody),
       });
 
-      console.log('📥 Response status:', response.status);
-      console.log('📥 Response ok:', response.ok);
-
       if (response.ok) {
         const result = await response.json();
-        console.log('✅ Rejection result:', result);
         toast.success('تم رفض المنتج بنجاح');
         
         // Add a small delay to ensure database is updated
         setTimeout(() => {
-          console.log('🔄 Refreshing products after rejection...');
           refresh();
         }, 500);
       } else {
         const error = await response.json();
-        console.error('❌ Rejection error:', error);
         toast.error(error.message || 'فشل في رفض المنتج');
       }
     } catch (error) {
-      console.error('❌ Rejection exception:', error);
       toast.error('حدث خطأ أثناء رفض المنتج');
     } finally {
       setProcessing(false);
@@ -1084,14 +1053,6 @@ export default function ProductsPage() {
                          if (user?.role === 'marketer') {
                            return null;
                          }
-                         
-                         console.log('🎯 Product status check:', {
-                           id: product._id,
-                           name: product.name,
-                           isApproved: product.isApproved,
-                           isRejected: product.isRejected,
-                           status: product.isApproved ? 'معتمد' : product.isRejected ? 'مرفوض' : 'قيد المراجعة'
-                         });
                          
                          if (product.isApproved) {
                            return <span className="badge badge-success">معتمد</span>;

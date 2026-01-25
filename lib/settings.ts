@@ -148,10 +148,10 @@ export async function calculateShippingCost(
   let shippingCost = settings.defaultShippingCost;
   let freeShippingThreshold = settings.defaultFreeShippingThreshold;
   
-  // Priority 1: Check shipping regions if region code is provided
+  // Priority 1: Check shipping regions if region name is provided
   if (shippingRegionCode && settings.shippingRegions && settings.shippingRegions.length > 0) {
     const region = settings.shippingRegions.find(
-      (r: any) => r.regionCode === shippingRegionCode && r.isActive === true
+      (r: any) => r.regionName === shippingRegionCode && r.isActive === true
     );
     
     if (region) {

@@ -16,7 +16,7 @@ export const POST = withAuth(async (req: NextRequest, user: any, ...args: unknow
     await connectDB();
     
     const body = await req.json();
-    const { action, trackingNumber, shippingCompany, notes } = body;
+    const { action, shippingCompany, notes } = body;
     
     const order = await Order.findById(params.id);
     if (!order) {
@@ -78,21 +78,21 @@ export const POST = withAuth(async (req: NextRequest, user: any, ...args: unknow
         break;
 
       case 'ship':
-        if (!trackingNumber) {
-          return NextResponse.json(
-            { error: 'رقم التتبع مطلوب عند شحن الطلب' },
-            { status: 400 }
-          );
-        }
         newStatus = 'shipped';
         updateData = {
           status: newStatus,
           shippedAt: new Date(),
           shippedBy: user._id,
-          trackingNumber,
           shippingCompany,
           updatedAt: new Date()
         };
+        
+        // IMPORTANT: Update shippingCompany in order object BEFORE creating package
+        // This ensures createPackageFromOrder can find the correct shipping company
+        if (shippingCompany) {
+          order.shippingCompany = shippingCompany;
+        }
+        
         // Ensure package exists before shipping
         if (!order.packageId) {
           try {
@@ -326,7 +326,6 @@ export const POST = withAuth(async (req: NextRequest, user: any, ...args: unknow
         orderNumber: updatedOrder.orderNumber,
         status: updatedOrder.status,
         updatedAt: updatedOrder.updatedAt,
-        trackingNumber: updatedOrder.trackingNumber,
         shippingCompany: updatedOrder.shippingCompany,
         adminNotes: updatedOrder.adminNotes
       }

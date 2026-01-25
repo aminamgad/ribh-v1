@@ -146,7 +146,7 @@ export default function EditProductPage() {
         setCategories(data.categories);
       }
     } catch (error) {
-      console.error('Error fetching categories:', error);
+      // Silently handle errors
     }
   };
 
@@ -200,7 +200,7 @@ export default function EditProductPage() {
             const error = await response.json();
             errorMessage = error.message || errorMessage;
           } catch (parseError) {
-            console.error('Error parsing response:', parseError);
+            // Silently handle parse errors
           }
           toast.error(errorMessage);
         }
@@ -211,7 +211,6 @@ export default function EditProductPage() {
         toast.success(`تم رفع ${uploadedImages.length} صورة بنجاح`);
       }
     } catch (error) {
-      console.error('Error uploading images:', error);
       toast.error('حدث خطأ أثناء رفع الصور');
     } finally {
       setUploading(false);
@@ -270,7 +269,6 @@ export default function EditProductPage() {
         toast.error(error.message || 'فشل في تحديث المنتج');
       }
     } catch (error) {
-      console.error('Error updating product:', error);
       toast.error('حدث خطأ أثناء تحديث المنتج');
     } finally {
       setSaving(false);

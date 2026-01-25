@@ -239,14 +239,7 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
           if (params.get('maxStock')) setMaxStock(params.get('maxStock') || '');
           if (params.get('suppliers')) {
             const supps = params.get('suppliers')?.split(',').filter(Boolean) || [];
-            console.log('Restoring suppliers filter from sessionStorage:', {
-              suppliersParam: params.get('suppliers'),
-              parsedSuppliers: supps,
-              suppliersLength: supps.length
-            });
             setSelectedSuppliers(supps);
-          } else {
-            console.log('No suppliers parameter found in sessionStorage when restoring filters');
           }
           if (params.get('startDate')) setStartDate(params.get('startDate') || '');
           if (params.get('endDate')) setEndDate(params.get('endDate') || '');
@@ -295,27 +288,6 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
   ) => {
     if (isInitialMount.current) return;
     
-    // Debug: Log all parameters to verify they're passed correctly
-    if (userRef.current?.role === 'admin') {
-      console.log('applyFiltersAuto called with parameters:', {
-        overrideSearchQuery,
-        overrideMinPrice,
-        overrideMaxPrice,
-        overrideMinStock,
-        overrideMaxStock,
-        overrideStartDate,
-        overrideEndDate,
-        overrideSelectedCategories,
-        overrideSelectedApprovalStatuses,
-        overrideSelectedSuppliers,
-        overrideSelectedSuppliersType: typeof overrideSelectedSuppliers,
-        overrideSelectedSuppliersIsArray: Array.isArray(overrideSelectedSuppliers),
-        overrideSelectedSuppliersLength: overrideSelectedSuppliers?.length,
-        overrideSortBy,
-        overrideSortOrder
-      });
-    }
-    
     const params = new URLSearchParams();
     
     // Use override values if provided, otherwise use state values
@@ -331,16 +303,6 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
     const currentSelectedSuppliers = overrideSelectedSuppliers !== undefined ? overrideSelectedSuppliers : selectedSuppliers;
     const currentSortBy = overrideSortBy !== undefined ? overrideSortBy : sortBy;
     const currentSortOrder = overrideSortOrder !== undefined ? overrideSortOrder : sortOrder;
-    
-    // Debug logging for suppliers filter
-    if (overrideSelectedSuppliers !== undefined) {
-      console.log('applyFiltersAuto - Suppliers override provided:', {
-        overrideSelectedSuppliers,
-        selectedSuppliers,
-        currentSelectedSuppliers,
-        isAdmin: userRef.current?.role === 'admin'
-      });
-    }
     
     // Search filters - use override values if provided, otherwise use state values
     if (currentSearchQuery.trim()) {
@@ -361,17 +323,6 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
       params.delete('maxPrice');
     }
     
-    // Debug logging for price filters
-    if (userRef.current?.role === 'admin') {
-      console.log('Price filters applied in applyFiltersAuto:', {
-        currentMinPrice,
-        currentMaxPrice,
-        hasMinPrice: params.has('minPrice'),
-        hasMaxPrice: params.has('maxPrice'),
-        minPriceParam: params.get('minPrice'),
-        maxPriceParam: params.get('maxPrice')
-      });
-    }
     if (currentSortBy && currentSortBy !== 'createdAt') {
       params.set('sortBy', currentSortBy);
     }
@@ -404,21 +355,11 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
       // This ensures we use the latest value passed to applyFiltersAuto, not stale state
       const suppliersToUse = overrideSelectedSuppliers !== undefined ? overrideSelectedSuppliers : currentSelectedSuppliers;
       
-      console.log('Applying suppliers filter (admin check):', {
-        overrideSelectedSuppliers,
-        currentSelectedSuppliers,
-        suppliersToUse,
-        length: suppliersToUse.length,
-        isAdmin: userRef.current?.role === 'admin'
-      });
-      
       if (suppliersToUse.length > 0) {
         const suppliersParam = suppliersToUse.join(',');
         params.set('suppliers', suppliersParam);
-        console.log('Suppliers filter added to URL params:', { suppliersParam });
       } else {
         params.delete('suppliers');
-        console.log('Suppliers filter removed from URL params');
       }
       // Date range - use override values if provided, otherwise use state values
       // Input type="date" always returns YYYY-MM-DD format
@@ -435,16 +376,6 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
     
     const queryString = params.toString();
     const currentPathname = pathnameRef.current;
-    
-    // Debug: Log queryString to verify suppliers parameter is included
-    if (userRef.current?.role === 'admin') {
-      console.log('applyFiltersAuto - Final queryString before saving to sessionStorage:', {
-        queryString,
-        hasSuppliers: queryString.includes('suppliers'),
-        suppliersParam: params.get('suppliers'),
-        allParams: Array.from(params.entries())
-      });
-    }
     
     const newUrl = `${currentPathname}${queryString ? `?${queryString}` : ''}`;
     
@@ -500,21 +431,11 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
     try {
       if (queryString) {
         sessionStorage.setItem(`filters_${currentPathname}`, queryString);
-        // Debug: Log what was saved to sessionStorage
-        if (userRef.current?.role === 'admin') {
-          console.log('Filters saved to sessionStorage:', {
-            key: `filters_${currentPathname}`,
-            value: queryString,
-            hasSuppliers: queryString.includes('suppliers'),
-            suppliersValue: params.get('suppliers')
-          });
-        }
       } else {
         sessionStorage.removeItem(`filters_${currentPathname}`);
       }
     } catch (e) {
       // Ignore errors
-      console.error('Error saving filters to sessionStorage:', e);
     }
     
     // Update URL immediately using window.history (no router, no setTimeout)
@@ -540,7 +461,7 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
         setCategories(data.categories);
       }
     } catch (error) {
-      console.error('Error fetching categories:', error);
+      // Silently handle errors
     }
   };
 
@@ -556,18 +477,11 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
         // Don't filter by isActive - show all suppliers that have valid data
         const validSuppliers = (data.users || []).filter((s: Supplier) => s && s._id && (s.name || s.companyName));
         
-        // Log for debugging
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Fetched suppliers:', validSuppliers.length, validSuppliers.map((s: Supplier) => s.name || s.companyName));
-        }
-        
         setSuppliers(validSuppliers);
       } else {
-        console.error('Failed to fetch suppliers:', response.statusText);
         toast.error('حدث خطأ أثناء جلب قائمة الموردين');
       }
     } catch (error) {
-      console.error('Error fetching suppliers:', error);
       toast.error('حدث خطأ أثناء جلب قائمة الموردين');
     } finally {
       setLoadingSuppliers(false);
@@ -695,7 +609,6 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
         toast.error(errorData.message || 'فشل في تصدير المنتجات');
       }
     } catch (error) {
-      console.error('Error exporting products:', error);
       toast.error('حدث خطأ أثناء تصدير المنتجات');
     }
   };
@@ -906,10 +819,6 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
                   // CRITICAL FIX: Pass both minPrice (new value) and maxPrice (current from ref) together
                   // This ensures the API receives both values correctly for proper filtering
                   if (!isInitialMount.current) {
-                    console.log('MinPrice onChange - applying filters with both values:', {
-                      newMinPrice: newValue || '',
-                      currentMaxPrice: maxPriceRef.current || ''
-                    });
                     applyFiltersAuto(undefined, newValue || '', maxPriceRef.current || '');
                   }
                 }}
@@ -919,10 +828,6 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
                   if (value !== (minPrice || '')) {
                     setMinPrice(value);
                     if (!isInitialMount.current) {
-                      console.log('MinPrice onBlur - applying filters with both values:', {
-                        newMinPrice: value,
-                        currentMaxPrice: maxPriceRef.current || ''
-                      });
                       applyFiltersAuto(undefined, value, maxPriceRef.current || '');
                     }
                   }
@@ -946,10 +851,6 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
                   // CRITICAL FIX: Pass both maxPrice (new value) and minPrice (current from ref) together
                   // This ensures the API receives both values correctly for proper filtering
                   if (!isInitialMount.current) {
-                    console.log('MaxPrice onChange - applying filters with both values:', {
-                      currentMinPrice: minPriceRef.current || '',
-                      newMaxPrice: newValue || ''
-                    });
                     applyFiltersAuto(undefined, minPriceRef.current || '', newValue || '');
                   }
                 }}
@@ -959,10 +860,6 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
                   if (value !== (maxPrice || '')) {
                     setMaxPrice(value);
                     if (!isInitialMount.current) {
-                      console.log('MaxPrice onBlur - applying filters with both values:', {
-                        currentMinPrice: minPriceRef.current || '',
-                        newMaxPrice: value
-                      });
                       applyFiltersAuto(undefined, minPriceRef.current || '', value);
                     }
                   }
@@ -1061,14 +958,6 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
                     options={supplierOptions}
                     selected={selectedSuppliers}
                     onChange={(value) => {
-                      console.log('MultiSelect onChange triggered:', { 
-                        value, 
-                        valueType: typeof value,
-                        valueLength: Array.isArray(value) ? value.length : 'not array',
-                        isInitialMount: isInitialMount.current,
-                        currentSelectedSuppliers: selectedSuppliers
-                      });
-                      
                       // Update state immediately first to reflect UI change
                       setSelectedSuppliers(value);
                       // Update ref immediately
@@ -1078,12 +967,6 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
                       // IMPORTANT: Pass value as overrideSelectedSuppliers (9th parameter)
                       // Parameters order: searchQuery, minPrice, maxPrice, minStock, maxStock, startDate, endDate, categories, suppliers, sortBy, sortOrder
                       if (!isInitialMount.current) {
-                        console.log('Suppliers filter changed - calling applyFiltersAuto:', { 
-                          value, 
-                          valueLength: value?.length,
-                          valueType: typeof value,
-                          isArray: Array.isArray(value)
-                        });
                         // Explicitly pass value as 10th parameter (overrideSelectedSuppliers)
                         // IMPORTANT: Parameter order:
                         // 1. overrideSearchQuery
@@ -1112,8 +995,6 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
                           undefined, // overrideSortBy (11)
                           undefined  // overrideSortOrder (12)
                         );
-                      } else {
-                        console.warn('Suppliers filter change ignored - initial mount:', { value, isInitialMount: isInitialMount.current });
                       }
                     }}
                     placeholder={loadingSuppliers ? 'جاري التحميل...' : 'اختر الموردين'}

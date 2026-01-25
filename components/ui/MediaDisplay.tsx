@@ -34,7 +34,6 @@ export default function MediaDisplay({
         alert('فشل في تحميل الملف. يرجى المحاولة مرة أخرى.');
       }
     } catch (error) {
-      console.error('Download failed:', error);
       alert('فشل في تحميل الملف. يرجى المحاولة مرة أخرى.');
     } finally {
       setDownloading(false);
@@ -53,7 +52,6 @@ export default function MediaDisplay({
         alert(`تم تحميل جميع الملفات بنجاح (${result.success} ملف)`);
       }
     } catch (error) {
-      console.error('Download all failed:', error);
       alert('فشل في تحميل الملفات. يرجى المحاولة مرة أخرى.');
     } finally {
       setDownloading(false);

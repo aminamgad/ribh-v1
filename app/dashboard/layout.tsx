@@ -89,7 +89,6 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       
       toast.success('جاري تحديث البيانات...', { duration: 2000 });
     } catch (error) {
-      console.error('Error refreshing data:', error);
       toast.error('حدث خطأ أثناء تحديث البيانات');
     } finally {
       setTimeout(() => setIsRefreshing(false), 1000);
@@ -309,8 +308,6 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       
       // Apply styles immediately when script loads
       script.onload = () => {
-        console.log('Chat widget script loaded, applying custom styles...');
-        
         // Function to apply styles to chat widget elements
         const applyChatStyles = () => {
           // Find all possible chat widget elements

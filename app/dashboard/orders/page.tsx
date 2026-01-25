@@ -1,12 +1,13 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useDataCache } from '@/components/hooks/useDataCache';
 import { Search, Plus, Eye, CheckCircle, Truck, Package, Clock, DollarSign, Edit, X, RotateCcw, Download, Upload, Phone, Mail, MessageCircle, Printer } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import React from 'react'; // Added for React.createElement
 import { useRouter, useSearchParams } from 'next/navigation';
 import OrderExportModal from '@/components/ui/OrderExportModal';
 import OrderImportModal from '@/components/ui/OrderImportModal';
@@ -52,7 +53,6 @@ interface Order {
     city?: string;
     governorate?: string;
   };
-  trackingNumber?: string;
   shippingCompany?: string;
 }
 
@@ -172,8 +172,45 @@ export default function OrdersPage() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
 
-  // Bulk operations state
+  // Bulk operations state - with localStorage persistence
+  // Bulk operations state - with localStorage persistence
+  const getStoredSelectedOrders = (role?: string): string[] => {
+    if (typeof window === 'undefined' || !role) return [];
+    try {
+      const stored = localStorage.getItem(`selectedOrders_${role}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        // Validate that it's an array
+        return Array.isArray(parsed) ? parsed : [];
+      }
+    } catch (error) {
+      // Silently handle localStorage errors
+    }
+    return [];
+  };
+
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+
+  // Restore selected orders from localStorage when user is loaded
+  useEffect(() => {
+    if (user?.role) {
+      const stored = getStoredSelectedOrders(user.role);
+      if (stored.length > 0) {
+        setSelectedOrderIds(stored);
+      }
+    }
+  }, [user?.role]);
+
+  // Save to localStorage whenever selectedOrderIds changes
+  useEffect(() => {
+    if (typeof window !== 'undefined' && user?.role) {
+      try {
+        localStorage.setItem(`selectedOrders_${user.role}`, JSON.stringify(selectedOrderIds));
+      } catch (error) {
+        // Silently handle localStorage errors
+      }
+    }
+  }, [selectedOrderIds, user?.role]);
 
   // WhatsApp communication functions
   const openWhatsApp = (phone: string, message: string) => {
@@ -249,11 +286,24 @@ export default function OrdersPage() {
         refresh(); // Refresh orders list
       } else {
         const error = await response.json();
-        toast.error(error.message || 'حدث خطأ أثناء تحديث الطلبات');
-        throw new Error(error.message || 'Failed to update orders');
+        
+        // FIXED: Better error handling for 403 Forbidden
+        if (response.status === 403) {
+          toast.error('ليس لديك صلاحية للوصول لهذا المورد. يرجى التأكد من أنك مسجل دخول كمدير.');
+          throw new Error('403 Forbidden - Admin access required');
+        } else if (response.status === 401) {
+          toast.error('غير مصرح لك بالوصول. يرجى تسجيل الدخول مرة أخرى.');
+          throw new Error('401 Unauthorized - Please login again');
+        } else {
+          toast.error(error.message || error.error || 'حدث خطأ أثناء تحديث الطلبات');
+          throw new Error(error.message || error.error || 'Failed to update orders');
+        }
       }
     } catch (error: any) {
-      console.error('Error updating orders:', error);
+      // Don't throw if it's already a handled error
+      if (error.message && (error.message.includes('403') || error.message.includes('401'))) {
+        return; // Error already shown to user
+      }
       throw error;
     }
   };
@@ -292,6 +342,19 @@ export default function OrdersPage() {
   const orders = ordersData?.orders || [];
   const searching = loading && orders.length > 0;
 
+  // Clean up selected orders that no longer exist in the orders list
+  useEffect(() => {
+    if (orders.length > 0 && selectedOrderIds.length > 0) {
+      const existingOrderIds = new Set(orders.map(o => o._id));
+      const validSelectedIds = selectedOrderIds.filter(id => existingOrderIds.has(id));
+      
+      if (validSelectedIds.length !== selectedOrderIds.length) {
+        // Some selected orders no longer exist, update the selection
+        setSelectedOrderIds(validSelectedIds);
+      }
+    }
+  }, [orders, selectedOrderIds]);
+
 
   // Listen for refresh events from header button
   useEffect(() => {
@@ -317,7 +380,6 @@ export default function OrdersPage() {
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
       setUpdatingOrder(orderId);
-      console.log('Updating order:', orderId, 'to:', newStatus);
       
       const response = await fetch(`/api/orders/${orderId}`, {
         method: 'PUT',
@@ -329,16 +391,13 @@ export default function OrdersPage() {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('Update success:', data);
         toast.success(data.message || 'تم تحديث حالة الطلب بنجاح');
         refresh(); // Refresh orders
       } else {
         const error = await response.json();
-        console.error('Update error:', error);
         toast.error(error.error || 'حدث خطأ أثناء تحديث الطلب');
       }
     } catch (error) {
-      console.error('Error updating order:', error);
       toast.error('حدث خطأ أثناء تحديث الطلب');
     } finally {
       setUpdatingOrder(null);
@@ -423,9 +482,10 @@ export default function OrdersPage() {
         <BulkOrdersActions
           orders={orders}
           selectedOrderIds={selectedOrderIds}
-          onSelectionChange={setSelectedOrderIds}
+          onSelectionChange={(orderIds) => setSelectedOrderIds(orderIds)}
           onBulkUpdate={handleBulkUpdate}
           onBulkPrint={handleBulkPrint}
+          onRefresh={refresh}
           isLoading={loading || searching}
           user={user}
         />
@@ -476,11 +536,13 @@ export default function OrdersPage() {
                       <SelectAllCheckbox
                         allSelected={selectedOrderIds.length === orders.length && orders.length > 0}
                         onToggle={() => {
-                          if (selectedOrderIds.length === orders.length) {
-                            setSelectedOrderIds([]);
-                          } else {
-                            setSelectedOrderIds(orders.map(o => o._id));
-                          }
+                          setSelectedOrderIds(prev => {
+                            if (prev.length === orders.length && orders.length > 0) {
+                              return [];
+                            } else {
+                              return orders.map(o => o._id);
+                            }
+                          });
                         }}
                       />
                     </th>
@@ -518,11 +580,13 @@ export default function OrdersPage() {
                               orderId={order._id}
                               isSelected={isSelected}
                               onToggle={() => {
-                                if (isSelected) {
-                                  setSelectedOrderIds(selectedOrderIds.filter(id => id !== order._id));
-                                } else {
-                                  setSelectedOrderIds([...selectedOrderIds, order._id]);
-                                }
+                                setSelectedOrderIds(prev => {
+                                  if (prev.includes(order._id)) {
+                                    return prev.filter(id => id !== order._id);
+                                  } else {
+                                    return [...prev, order._id];
+                                  }
+                                });
                               }}
                             />
                           </div>

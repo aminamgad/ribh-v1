@@ -46,7 +46,6 @@ export default function OrderExportModal({ isOpen, onClose, userRole }: OrderExp
         toast.error(errorData.message || 'فشل في تصدير الطلبات');
       }
     } catch (error) {
-      console.error('Error exporting orders:', error);
       toast.error('حدث خطأ أثناء تصدير الطلبات');
     } finally {
       setExporting(false);

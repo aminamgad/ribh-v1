@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Product } from '@/types';
 import { useAuth } from './AuthProvider';
 import toast from 'react-hot-toast';
@@ -16,7 +16,7 @@ interface FavoritesContextType {
 
 const FavoritesContext = createContext<FavoritesContextType | undefined>(undefined);
 
-export function FavoritesProvider({ children }: { children: React.ReactNode }) {
+export function FavoritesProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [favorites, setFavorites] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
@@ -40,7 +40,7 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
         setFavorites(data.favorites);
       }
     } catch (error) {
-      console.error('Error fetching favorites:', error);
+      // Silently handle errors
     } finally {
       setLoading(false);
     }

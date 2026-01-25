@@ -200,7 +200,6 @@ const AdminProductFilters = memo(function AdminProductFilters({ onFiltersChange 
         setSuppliers(data.users || []);
       }
     } catch (error) {
-      console.error('Error fetching suppliers:', error);
       toast.error('حدث خطأ أثناء جلب قائمة الموردين');
     } finally {
       setLoadingSuppliers(false);
@@ -305,7 +304,6 @@ const AdminProductFilters = memo(function AdminProductFilters({ onFiltersChange 
         toast.error(errorData.message || 'فشل في تصدير المنتجات');
       }
     } catch (error) {
-      console.error('Error exporting products:', error);
       toast.error('حدث خطأ أثناء تصدير المنتجات');
     }
   };

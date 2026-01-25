@@ -215,7 +215,6 @@ export default function ProductStatsPage() {
       return;
     }
     
-    console.log('📅 Applying custom date range:', { startDate, endDate });
     // The useEffect will automatically trigger fetchProductStats when startDate/endDate change
   };
 
@@ -249,8 +248,6 @@ export default function ProductStatsPage() {
     
     const startDateStr = start.toISOString().split('T')[0];
     const endDateStr = now.toISOString().split('T')[0];
-    
-    console.log('📅 Setting date range:', { range, startDateStr, endDateStr });
     
     setStartDate(startDateStr);
     setEndDate(endDateStr);

@@ -21,6 +21,7 @@ function parseBoolean(value: string | null | undefined, defaultValue: boolean = 
 const querySchema = z.object({
   areaId: z.number().int().positive().optional(),
   search: z.string().optional(),
+  governorate: z.string().optional(), // Filter by governorate (extracted from village_name)
   isActive: z.boolean().optional(),
   limit: z.number().int().positive().max(1000).default(100),
   page: z.number().int().positive().default(1),
@@ -36,6 +37,7 @@ export async function GET(req: NextRequest) {
     // Parse query parameters manually to avoid Zod coercion issues
     const areaIdParam = searchParams.get('area_id');
     const searchParam = searchParams.get('search');
+    const governorateParam = searchParams.get('governorate');
     const isActiveParam = searchParams.get('isActive');
     const limitParam = searchParams.get('limit');
     const pageParam = searchParams.get('page');
@@ -43,6 +45,7 @@ export async function GET(req: NextRequest) {
     const queryData = {
       areaId: parseNumber(areaIdParam),
       search: searchParam || undefined,
+      governorate: governorateParam || undefined,
       isActive: parseBoolean(isActiveParam, true),
       limit: parseNumber(limitParam, 100) || 100,
       page: parseNumber(pageParam, 1) || 1,
@@ -66,6 +69,16 @@ export async function GET(req: NextRequest) {
     // Search by village name
     if (query.search) {
       filter.villageName = { $regex: query.search, $options: 'i' };
+    }
+
+    // Filter by governorate (extract from village_name format: "governorate-village")
+    if (query.governorate) {
+      // Match villages where village_name starts with the governorate name followed by "-"
+      filter.villageName = {
+        ...(filter.villageName || {}),
+        $regex: `^${query.governorate.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-`,
+        $options: 'i'
+      };
     }
 
     // Get villages

@@ -31,7 +31,6 @@ const openCache = async (): Promise<Cache | null> => {
   try {
     return await caches.open(CACHE_NAME);
   } catch (error) {
-    console.warn('[Image Cache] Failed to open cache:', error);
     return null;
   }
 };
@@ -64,7 +63,6 @@ export const getCachedImage = async (url: string): Promise<Response | null> => {
     }
     return null;
   } catch (error) {
-    console.warn('[Image Cache] Failed to get cached image:', error);
     return null;
   }
 };
@@ -99,7 +97,6 @@ export const cacheImage = async (url: string, response: Response): Promise<boole
     await cache.put(url, modifiedResponse);
     return true;
   } catch (error) {
-    console.warn('[Image Cache] Failed to cache image:', error);
     return false;
   }
 };
@@ -131,7 +128,6 @@ export const preloadAndCacheImage = async (url: string): Promise<boolean> => {
     }
     return false;
   } catch (error) {
-    console.warn('[Image Cache] Failed to preload image:', error);
     return false;
   }
 };
@@ -196,7 +192,6 @@ export const clearExpiredCache = async (): Promise<number> => {
 
     return clearedCount;
   } catch (error) {
-    console.warn('[Image Cache] Failed to clear expired cache:', error);
     return 0;
   }
 };
@@ -213,7 +208,6 @@ export const clearImageCache = async (): Promise<boolean> => {
     const deleted = await caches.delete(CACHE_NAME);
     return deleted;
   } catch (error) {
-    console.warn('[Image Cache] Failed to clear cache:', error);
     return false;
   }
 };
@@ -243,7 +237,6 @@ export const getCacheSize = async (): Promise<number> => {
 
     return totalSize;
   } catch (error) {
-    console.warn('[Image Cache] Failed to get cache size:', error);
     return 0;
   }
 };
@@ -263,11 +256,10 @@ export const initializeImageCache = async (): Promise<void> => {
     // Check cache size and clear if too large
     const cacheSize = await getCacheSize();
     if (cacheSize > MAX_CACHE_SIZE) {
-      console.log('[Image Cache] Cache size exceeded limit, clearing...');
       await clearImageCache();
     }
   } catch (error) {
-    console.warn('[Image Cache] Failed to initialize cache:', error);
+    // Silently handle cache initialization errors
   }
 };
 

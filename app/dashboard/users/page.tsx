@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useState, useRef, useCallback, useMemo, memo } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useDataCache } from '@/components/hooks/useDataCache';
@@ -209,18 +211,11 @@ export default function AdminUsersPage() {
     try {
       if (queryString) {
         sessionStorage.setItem(`filters_${pathname}`, queryString);
-        if (user?.role === 'admin') {
-          console.log('User filters saved to sessionStorage:', {
-            key: `filters_${pathname}`,
-            value: queryString
-          });
-        }
       } else {
         sessionStorage.removeItem(`filters_${pathname}`);
       }
     } catch (e) {
       // Ignore errors
-      console.error('Error saving user filters to sessionStorage:', e);
     }
 
     // Update URL immediately using window.history (no router, no setTimeout)
@@ -263,14 +258,9 @@ export default function AdminUsersPage() {
       // Always use detail.query from custom event if available
       if (e && 'detail' in e && (e as any).detail?.query !== undefined) {
         const newQuery = (e as any).detail.query || '';
-        console.log('User filters urlchange event received:', {
-          newQuery,
-          previousQuery: urlQueryString
-        });
         // Update immediately for instant response (no startTransition delay)
         setUrlQueryString((prev) => {
           if (prev !== newQuery) {
-            console.log('Updating urlQueryString:', { prev, newQuery });
             return newQuery;
           }
           return prev;
@@ -296,13 +286,6 @@ export default function AdminUsersPage() {
       const savedFilters = sessionStorage.getItem(`filters_${pathname}`);
       if (savedFilters) {
         const params = new URLSearchParams(savedFilters);
-        
-        if (user?.role === 'admin') {
-          console.log('Restoring user filters from sessionStorage:', {
-            key: `filters_${pathname}`,
-            value: savedFilters
-          });
-        }
         
         // Restore filter states
         if (params.get('search')) {
@@ -567,7 +550,6 @@ export default function AdminUsersPage() {
                   searchTermRef.current = newValue;
                   // Apply immediately with the new value directly
                   if (!isInitialMount.current) {
-                    console.log('Search term changed - applying filters:', { newValue });
                     applyFiltersAuto(newValue, undefined, undefined);
                   }
                 }}
@@ -586,7 +568,6 @@ export default function AdminUsersPage() {
                 filterRoleRef.current = newValue;
                 // Apply immediately with the new value directly
                 if (!isInitialMount.current) {
-                  console.log('Role filter changed - applying filters:', { newValue });
                   applyFiltersAuto(undefined, newValue, undefined);
                 }
               }}
@@ -608,7 +589,6 @@ export default function AdminUsersPage() {
                 filterStatusRef.current = newValue;
                 // Apply immediately with the new value directly
                 if (!isInitialMount.current) {
-                  console.log('Status filter changed - applying filters:', { newValue });
                   applyFiltersAuto(undefined, undefined, newValue);
                 }
               }}

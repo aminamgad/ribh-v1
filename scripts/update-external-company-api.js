@@ -28,7 +28,7 @@ async function updateExternalCompanyAPI() {
 
     // Get company name from command line argument or use default
     const companyName = process.argv[2] || 'Ultra Pal';
-    const apiEndpointUrl = process.argv[3] || 'https://ultra-pal.net/api/external_company/create-package';
+    const apiEndpointUrl = process.argv[3] || 'https://ultra-pal.com/api/external_company/create-package';
     const apiToken = process.argv[4] || '115062|ak2BeovW6RvCsVOZ8HXbszmuEYl6aNuMbdAjEPge';
 
     // Find company

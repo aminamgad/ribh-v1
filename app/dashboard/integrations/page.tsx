@@ -160,7 +160,6 @@ export default function IntegrationsPage() {
       resetForm();
       fetchIntegrations();
     } catch (error: any) {
-      console.error('Error saving integration:', error);
       toast.error(error.message || 'حدث خطأ في حفظ التكامل');
     }
   };
@@ -183,7 +182,6 @@ export default function IntegrationsPage() {
       toast.success(`تمت المزامنة بنجاح: ${data.results.products} منتج، ${data.results.orders} طلب`);
       fetchIntegrations();
     } catch (error: any) {
-      console.error('Error syncing:', error);
       toast.error(error.message || 'حدث خطأ في المزامنة');
     } finally {
       setSyncingId(null);
@@ -208,7 +206,6 @@ export default function IntegrationsPage() {
       toast.success('تم حذف التكامل بنجاح');
       fetchIntegrations();
     } catch (error) {
-      console.error('Error deleting integration:', error);
       toast.error('حدث خطأ في حذف التكامل');
     } finally {
       setShowDeleteConfirm(false);

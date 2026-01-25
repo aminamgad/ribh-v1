@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAuth } from './AuthProvider';
 import toast from 'react-hot-toast';
 import { usePolling } from '@/components/hooks/usePolling';
@@ -154,7 +154,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
         );
       }
     } catch (error) {
-      console.error('Error marking notification as read:', error);
+      // Silently handle errors
     }
   };
 
@@ -170,7 +170,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
         );
       }
     } catch (error) {
-      console.error('Error marking all notifications as read:', error);
+      // Silently handle errors
     }
   };
 

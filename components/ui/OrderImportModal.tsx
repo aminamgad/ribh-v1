@@ -64,7 +64,6 @@ export default function OrderImportModal({ isOpen, onClose, onImportSuccess }: O
         toast.error(result.message || 'فشل في استيراد الطلبات');
       }
     } catch (error) {
-      console.error('Error importing orders:', error);
       toast.error('حدث خطأ أثناء استيراد الطلبات');
     } finally {
       setImporting(false);

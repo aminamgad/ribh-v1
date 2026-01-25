@@ -93,7 +93,6 @@ export async function verifyFileType(file: File, expectedMimeType: string): Prom
     // Check if header matches any signature
     return signatures.some(sig => header.startsWith(sig));
   } catch (error) {
-    console.error('Error verifying file type:', error);
     return false;
   }
 }
@@ -114,7 +113,6 @@ export async function detectFileType(file: File): Promise<string | null> {
     
     return null;
   } catch (error) {
-    console.error('Error detecting file type:', error);
     return null;
   }
 }

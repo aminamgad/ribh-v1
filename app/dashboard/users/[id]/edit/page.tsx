@@ -230,7 +230,6 @@ export default function EditUserPage() {
         toast.error(error.message || 'فشل في تحديث المستخدم');
       }
     } catch (error) {
-      console.error('Error updating user:', error);
       toast.error('حدث خطأ أثناء تحديث المستخدم');
     } finally {
       setSaving(false);

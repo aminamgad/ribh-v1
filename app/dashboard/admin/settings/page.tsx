@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+export const dynamic = 'force-dynamic';
+
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { toast } from 'react-hot-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,6 +31,7 @@ import {
   X
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
+import ConfirmationModal from '@/components/ui/ConfirmationModal';
 
 interface AdminProfitMargin {
   minPrice: number;
@@ -87,12 +90,6 @@ interface SystemSettings {
     shippingEnabled: boolean;
     defaultShippingCost: number;
     defaultFreeShippingThreshold: number;
-    governorates: {
-      name: string;
-      cities: string[];
-      shippingCost: number;
-      isActive: boolean;
-    }[];
   };
 }
 
@@ -163,8 +160,7 @@ export default function SettingsPage() {
   const [shippingData, setShippingData] = useState({
     shippingEnabled: true,
     defaultShippingCost: 50,
-    defaultFreeShippingThreshold: 500,
-    governorates: []
+    defaultFreeShippingThreshold: 500
   });
 
   // Shipping regions state
@@ -172,9 +168,10 @@ export default function SettingsPage() {
   const [loadingRegions, setLoadingRegions] = useState(false);
   const [showRegionModal, setShowRegionModal] = useState(false);
   const [editingRegion, setEditingRegion] = useState<any>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [regionToDelete, setRegionToDelete] = useState<string | null>(null);
   const [regionForm, setRegionForm] = useState({
     regionName: '',
-    regionCode: '',
     description: '',
     shippingCost: 50,
     freeShippingThreshold: null as number | null,
@@ -263,8 +260,7 @@ export default function SettingsPage() {
           setShippingData({
             shippingEnabled: data.settings.shippingEnabled !== undefined ? data.settings.shippingEnabled : true,
             defaultShippingCost: data.settings.defaultShippingCost || 50,
-            defaultFreeShippingThreshold: data.settings.defaultFreeShippingThreshold || 500,
-            governorates: data.settings.governorates || []
+            defaultFreeShippingThreshold: data.settings.defaultFreeShippingThreshold || 500
           });
 
           // Maintenance settings
@@ -277,7 +273,6 @@ export default function SettingsPage() {
         toast.error(data.message);
       }
     } catch (error) {
-      console.error('Error fetching settings:', error);
       toast.error('حدث خطأ في جلب الإعدادات');
     } finally {
       setLoading(false);
@@ -286,6 +281,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     fetchSettings();
+    fetchShippingRegions();
   }, []);
 
   // Fetch shipping regions
@@ -298,7 +294,7 @@ export default function SettingsPage() {
         setShippingRegions(data.regions || []);
       }
     } catch (error) {
-      console.error('Error fetching shipping regions:', error);
+      // Silently handle errors
     } finally {
       setLoadingRegions(false);
     }
@@ -306,8 +302,8 @@ export default function SettingsPage() {
 
   // Handle region form submit
   const handleRegionSubmit = async () => {
-    if (!regionForm.regionName.trim() || !regionForm.regionCode.trim()) {
-      toast.error('اسم المنطقة ورمز المنطقة مطلوبان');
+    if (!regionForm.regionName.trim()) {
+      toast.error('اسم المنطقة مطلوب');
       return;
     }
 
@@ -335,7 +331,6 @@ export default function SettingsPage() {
         setEditingRegion(null);
         setRegionForm({
           regionName: '',
-          regionCode: '',
           description: '',
           shippingCost: 50,
           freeShippingThreshold: null,
@@ -356,11 +351,16 @@ export default function SettingsPage() {
   };
 
   // Delete region
-  const handleDeleteRegion = async (regionId: string) => {
-    if (!confirm('هل أنت متأكد من حذف هذه المنطقة؟')) return;
+  const handleDeleteRegion = (regionId: string) => {
+    setRegionToDelete(regionId);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteRegion = async () => {
+    if (!regionToDelete) return;
 
     try {
-      const response = await fetch(`/api/admin/settings/shipping?regionId=${regionId}`, {
+      const response = await fetch(`/api/admin/settings/shipping?regionId=${regionToDelete}`, {
         method: 'DELETE'
       });
 
@@ -368,11 +368,17 @@ export default function SettingsPage() {
       if (result.success) {
         toast.success('تم حذف المنطقة بنجاح');
         fetchShippingRegions();
+        setShowDeleteConfirm(false);
+        setRegionToDelete(null);
       } else {
         toast.error(result.message || 'حدث خطأ');
+        setShowDeleteConfirm(false);
+        setRegionToDelete(null);
       }
     } catch (error) {
       toast.error('حدث خطأ أثناء حذف المنطقة');
+      setShowDeleteConfirm(false);
+      setRegionToDelete(null);
     }
   };
 
@@ -390,16 +396,9 @@ export default function SettingsPage() {
       // For financial section, ensure adminProfitMargins is included
       if (section === 'financial' && data) {
         if (!data.adminProfitMargins) {
-          console.warn('⚠️ adminProfitMargins غير موجود في البيانات، استخدام القيم الحالية');
           data.adminProfitMargins = financialData.adminProfitMargins || [];
         }
-        console.log('💾 حفظ الإعدادات المالية مع adminProfitMargins:', {
-          adminProfitMargins: data.adminProfitMargins,
-          count: data.adminProfitMargins?.length || 0
-        });
       }
-      
-      console.log('💾 حفظ الإعدادات:', { section, data: JSON.stringify(data, null, 2) });
       
       const response = await fetch('/api/admin/settings', {
         method: 'PUT',
@@ -413,9 +412,6 @@ export default function SettingsPage() {
       
       if (result.success) {
         toast.success('تم حفظ الإعدادات بنجاح');
-        console.log('✅ تم حفظ الإعدادات بنجاح:', result);
-        console.log('✅ adminProfitMargins المحفوظة:', result.settings?.adminProfitMargins);
-        console.log('✅ adminProfitMargins count:', result.settings?.adminProfitMargins?.length || 0);
         
         // Update local state immediately with saved data
         if (result.settings?.adminProfitMargins) {
@@ -428,11 +424,9 @@ export default function SettingsPage() {
         // Refresh settings after successful save
         await fetchSettings();
       } else {
-        console.error('❌ خطأ في حفظ الإعدادات:', result);
         toast.error(result.message || 'حدث خطأ في حفظ الإعدادات');
       }
     } catch (error) {
-      console.error('Error saving settings:', error);
       toast.error('حدث خطأ في حفظ الإعدادات');
     } finally {
       setSaving(false);
@@ -634,7 +628,6 @@ export default function SettingsPage() {
                       value={financialData?.withdrawalSettings?.minimumWithdrawal || 100}
                       onChange={(e) => {
                         const value = parseFloat(e.target.value) || 0;
-                        console.log('💰 تحديث الحد الأدنى للسحب:', value);
                         setFinancialData({
                           ...financialData,
                           withdrawalSettings: {
@@ -654,7 +647,6 @@ export default function SettingsPage() {
                       value={financialData?.withdrawalSettings?.maximumWithdrawal || 50000}
                       onChange={(e) => {
                         const value = parseFloat(e.target.value) || 0;
-                        console.log('💰 تحديث الحد الأقصى للسحب:', value);
                         setFinancialData({
                           ...financialData,
                           withdrawalSettings: {
@@ -674,7 +666,6 @@ export default function SettingsPage() {
                       value={financialData?.withdrawalSettings?.withdrawalFees || 0}
                       onChange={(e) => {
                         const value = parseFloat(e.target.value) || 0;
-                        console.log('💰 تحديث رسوم السحب:', value);
                         setFinancialData({
                           ...financialData,
                           withdrawalSettings: {
@@ -822,10 +813,6 @@ export default function SettingsPage() {
                     ...financialData,
                     adminProfitMargins: financialData.adminProfitMargins || []
                   };
-                  console.log('💰 حفظ الإعدادات المالية:', {
-                    ...dataToSave,
-                    adminProfitMarginsCount: dataToSave.adminProfitMargins?.length || 0
-                  });
                   saveSettings('financial', dataToSave);
                 }}
                 disabled={saving}
@@ -903,9 +890,9 @@ export default function SettingsPage() {
             <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
               <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-2">ملاحظة مهمة:</h4>
               <p className="text-sm text-blue-800 dark:text-blue-200">
-                النظام يستخدم <strong>نموذج القرى (Village Model)</strong> لتحديد تكاليف الشحن بناءً على <code>village_id</code> من ملف القرى.
-                إعدادات المحافظات (governorates) أدناه هي للتوافق مع الأنظمة القديمة فقط.
+                النظام يستخدم <strong>نموذج القرى (Village Model)</strong> و<strong>مناطق الشحن (Shipping Regions)</strong> لتحديد تكاليف الشحن.
                 للتحديث الفعلي لتكاليف الشحن، يرجى استخدام <code>node scripts/import-villages.js</code> لاستيراد/تحديث القرى من ملف villages.json.
+                يمكن إدارة مناطق الشحن من قسم "مناطق الشحن" أدناه.
               </p>
             </div>
             
@@ -951,176 +938,6 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            {/* Shipping Zones */}
-            <Card className="border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-              <CardHeader>
-                <CardTitle className="flex items-center text-gray-900 dark:text-white">
-                  <MapPin className="w-5 h-5 ml-2 text-blue-600 dark:text-blue-400" />
-                  المحافظات ومناطق الشحن
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {shippingData.governorates.map((zone, zoneIndex) => (
-                  <div key={zoneIndex} className="border border-gray-200 dark:border-gray-600 rounded-lg p-6 bg-gray-50 dark:bg-gray-700/50">
-                    {/* Governorate Header */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                      <div>
-                        <Label htmlFor={`zoneName-${zoneIndex}`} className="text-gray-700 dark:text-gray-200 font-medium">اسم المحافظة</Label>
-                        <Input
-                          id={`zoneName-${zoneIndex}`}
-                          value={(zone as any).name}
-                          onChange={(e) => {
-                            const newZones = [...shippingData.governorates];
-                            (newZones[zoneIndex] as any).name = e.target.value;
-                            setShippingData({ ...shippingData, governorates: newZones });
-                          }}
-                          className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor={`zoneShippingCost-${zoneIndex}`} className="text-gray-700 dark:text-gray-200 font-medium">تكلفة الشحن (₪)</Label>
-                        <Input
-                          id={`zoneShippingCost-${zoneIndex}`}
-                          type="number"
-                          value={(zone as any).shippingCost}
-                          onChange={(e) => {
-                            const newZones = [...shippingData.governorates];
-                            (newZones[zoneIndex] as any).shippingCost = parseFloat(e.target.value) || 0;
-                            setShippingData({ ...shippingData, governorates: newZones });
-                          }}
-                          className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                        />
-                      </div>
-                      <div className="pt-6">
-                        <Checkbox
-                          id={`zoneActive-${zoneIndex}`}
-                          checked={(zone as any).isActive}
-                          onChange={(e) => {
-                            const newZones = [...shippingData.governorates];
-                            (newZones[zoneIndex] as any).isActive = e.target.checked;
-                            setShippingData({ ...shippingData, governorates: newZones });
-                          }}
-                          label="نشط"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Cities Management */}
-                    <div className="mt-4">
-                      <div className="flex justify-between items-center mb-3">
-                        <Label className="text-gray-700 dark:text-gray-200 font-medium">المدن والمناطق</Label>
-                        <div className="flex gap-2">
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => {
-                              const newZones = [...shippingData.governorates];
-                              (newZones[zoneIndex] as any).cities = [...(newZones[zoneIndex] as any).cities, 'مدينة جديدة'];
-                              setShippingData({ ...shippingData, governorates: newZones });
-                            }}
-                            className="bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 text-sm"
-                          >
-                            <Plus className="w-3 h-3 ml-1" />
-                            إضافة مدينة
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              const bulkCities = prompt('أدخل أسماء المدن مفصولة بفواصل:\nمثال: الرياض، جدة، الدمام، مكة المكرمة');
-                              if (bulkCities) {
-                                const cities = bulkCities.split(/[،,]/).map(city => city.trim()).filter(city => city.length > 0);
-                                if (cities.length > 0) {
-                                  const newZones = [...shippingData.governorates];
-                                  (newZones[zoneIndex] as any).cities = [...(newZones[zoneIndex] as any).cities, ...cities];
-                                  setShippingData({ ...shippingData, governorates: newZones });
-                                }
-                              }
-                            }}
-                            className="text-blue-600 border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-sm"
-                          >
-                            <Plus className="w-3 h-3 ml-1" />
-                            إضافة متعددة
-                          </Button>
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {(zone as any).cities.map((city: any, cityIndex: number) => (
-                          <div key={cityIndex} className="flex items-center gap-2 bg-white dark:bg-gray-800 p-2 rounded-md border border-gray-200 dark:border-gray-600">
-                            <Input
-                              value={city}
-                              onChange={(e) => {
-                                const newZones = [...shippingData.governorates];
-                                (newZones[zoneIndex] as any).cities[cityIndex] = e.target.value;
-                                setShippingData({ ...shippingData, governorates: newZones });
-                              }}
-                              className="flex-1 text-sm border-none focus:ring-1 focus:ring-[#FF9800] bg-transparent"
-                              placeholder="اسم المدينة"
-                            />
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                const newZones = [...shippingData.governorates];
-                                (newZones[zoneIndex] as any).cities = (newZones[zoneIndex] as any).cities.filter((_: any, i: number) => i !== cityIndex);
-                                setShippingData({ ...shippingData, governorates: newZones });
-                              }}
-                              className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                      
-                      {(zone as any).cities.length === 0 && (
-                        <div className="text-center py-4 text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 rounded-md border border-dashed border-gray-300 dark:border-gray-600">
-                          لا توجد مدن مضافة. انقر على "إضافة مدينة" لبدء إضافة المدن.
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Delete Governorate Button */}
-                    <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => {
-                          const newZones = shippingData.governorates.filter((_, i) => i !== zoneIndex);
-                          setShippingData({ ...shippingData, governorates: newZones });
-                        }}
-                        className="bg-red-600 hover:bg-red-700"
-                      >
-                        <Trash2 className="w-4 h-4 ml-2" />
-                        حذف المحافظة بالكامل
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-                
-                <Button
-                  onClick={() => {
-                    const newZone = {
-                      name: 'محافظة جديدة',
-                      cities: ['مدينة جديدة'],
-                      shippingCost: 50,
-                      isActive: true
-                    };
-                    setShippingData({
-                      ...shippingData,
-                      governorates: [...shippingData.governorates, newZone] as any
-                    });
-                  }}
-                  className="bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600"
-                >
-                  <Plus className="w-4 h-4 ml-2" />
-                  إضافة محافظة جديدة
-                </Button>
-              </CardContent>
-            </Card>
 
             {/* Shipping Regions for Marketers */}
             <Card className="border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 mt-6">
@@ -1135,7 +952,6 @@ export default function SettingsPage() {
                       setEditingRegion(null);
                       setRegionForm({
                         regionName: '',
-                        regionCode: '',
                         description: '',
                         shippingCost: 50,
                         freeShippingThreshold: null,
@@ -1174,7 +990,6 @@ export default function SettingsPage() {
                       <thead>
                         <tr className="bg-gray-100 dark:bg-gray-700 border-b-2 border-gray-300 dark:border-gray-600">
                           <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 dark:text-slate-300 uppercase">المنطقة</th>
-                          <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 dark:text-slate-300 uppercase">الرمز</th>
                           <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 dark:text-slate-300 uppercase">سعر التوصيل</th>
                           <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 dark:text-slate-300 uppercase">الشحن المجاني</th>
                           <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 dark:text-slate-300 uppercase">الحالة</th>
@@ -1183,12 +998,9 @@ export default function SettingsPage() {
                       </thead>
                       <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
                         {shippingRegions.map((region) => (
-                          <tr key={region._id || region.regionCode} className="hover:bg-gray-50 dark:hover:bg-slate-800">
+                          <tr key={region._id || region.regionName} className="hover:bg-gray-50 dark:hover:bg-slate-800">
                             <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-slate-100">
                               {region.regionName}
-                            </td>
-                            <td className="px-4 py-3 text-sm text-gray-600 dark:text-slate-400">
-                              <code className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-xs">{region.regionCode}</code>
                             </td>
                             <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-slate-100">
                               {region.shippingCost} ₪
@@ -1208,11 +1020,10 @@ export default function SettingsPage() {
                                   variant="outline"
                                   onClick={() => {
                                     setEditingRegion(region);
-                                    setRegionForm({
-                                      regionName: region.regionName || '',
-                                      regionCode: region.regionCode || '',
-                                      description: region.description || '',
-                                      shippingCost: region.shippingCost || 50,
+                                  setRegionForm({
+                                    regionName: region.regionName || '',
+                                    description: region.description || '',
+                                    shippingCost: region.shippingCost || 50,
                                       freeShippingThreshold: region.freeShippingThreshold || null,
                                       isActive: region.isActive !== false,
                                       villageIds: region.villageIds || [],
@@ -1228,7 +1039,7 @@ export default function SettingsPage() {
                                 <Button
                                   size="sm"
                                   variant="destructive"
-                                  onClick={() => handleDeleteRegion(region._id)}
+                                  onClick={() => handleDeleteRegion(region._id || region.regionName)}
                                 >
                                   <Trash2 className="w-3 h-3 ml-1" />
                                   حذف
@@ -1255,6 +1066,21 @@ export default function SettingsPage() {
           </div>
         )}
 
+        {/* Delete Confirmation Modal */}
+        <ConfirmationModal
+          isOpen={showDeleteConfirm}
+          onClose={() => {
+            setShowDeleteConfirm(false);
+            setRegionToDelete(null);
+          }}
+          onConfirm={confirmDeleteRegion}
+          title="حذف منطقة التوصيل"
+          message="هل أنت متأكد من حذف هذه المنطقة؟ لا يمكن التراجع عن هذا الإجراء."
+          confirmText="حذف"
+          cancelText="إلغاء"
+          type="danger"
+        />
+
         {/* Region Modal */}
         {showRegionModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -1276,25 +1102,14 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label>اسم المنطقة <span className="text-red-500">*</span></Label>
-                      <Input
-                        value={regionForm.regionName}
-                        onChange={(e) => setRegionForm({ ...regionForm, regionName: e.target.value })}
-                        placeholder="مثال: الضفة الغربية"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label>رمز المنطقة <span className="text-red-500">*</span></Label>
-                      <Input
-                        value={regionForm.regionCode}
-                        onChange={(e) => setRegionForm({ ...regionForm, regionCode: e.target.value.toUpperCase() })}
-                        placeholder="مثال: WB-001"
-                        required
-                      />
-                    </div>
+                  <div>
+                    <Label>اسم المنطقة <span className="text-red-500">*</span></Label>
+                    <Input
+                      value={regionForm.regionName}
+                      onChange={(e) => setRegionForm({ ...regionForm, regionName: e.target.value })}
+                      placeholder="مثال: الضفة الغربية"
+                      required
+                    />
                   </div>
 
                   <div>
@@ -1353,7 +1168,7 @@ export default function SettingsPage() {
                     </Button>
                     <Button
                       onClick={handleRegionSubmit}
-                      disabled={saving || !regionForm.regionName.trim() || !regionForm.regionCode.trim()}
+                      disabled={saving || !regionForm.regionName.trim()}
                       className="bg-[#FF9800] hover:bg-[#F57C00]"
                     >
                       {saving ? 'جاري الحفظ...' : editingRegion ? 'تحديث' : 'إضافة'}

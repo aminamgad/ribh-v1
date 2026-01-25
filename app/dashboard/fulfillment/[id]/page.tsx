@@ -70,16 +70,13 @@ export default function FulfillmentDetailPage({ params }: { params: { id: string
 
   const fetchFulfillmentRequest = async () => {
     try {
-      console.log('Fetching fulfillment request with ID:', params.id);
       const response = await fetch(`/api/fulfillment/${params.id}`);
       
       if (response.ok) {
         const data = await response.json();
-        console.log('Fulfillment request data:', data);
         setRequest(data.request);
       } else {
         const errorData = await response.json();
-        console.error('API Error:', errorData);
         
         if (response.status === 404) {
           toast.error(errorData.message || 'طلب التخزين غير موجود');
@@ -95,7 +92,6 @@ export default function FulfillmentDetailPage({ params }: { params: { id: string
         }, 2000);
       }
     } catch (error) {
-      console.error('Fetch error:', error);
       toast.error('حدث خطأ أثناء جلب تفاصيل طلب التخزين');
       
       // Navigate back to the list page

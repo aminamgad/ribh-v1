@@ -46,34 +46,20 @@ export function ChatProvider({ children }: ChatProviderProps) {
   // Calculate total unread messages
   const totalUnread = chats.reduce((total, chat) => total + chat.unreadCount, 0);
 
-  // Debug: طباعة قيمة العداد
-  console.log('=== CHAT PROVIDER DEBUG ===');
-  console.log('chats count:', chats.length);
-  console.log('totalUnread:', totalUnread);
-  console.log('chats with unread:', chats.filter(chat => chat.unreadCount > 0).map(chat => ({
-    id: chat._id,
-    subject: chat.subject,
-    unreadCount: chat.unreadCount
-  })));
-  console.log('===========================');
 
   const fetchChats = useCallback(async () => {
     // Only fetch if user is properly authenticated
     if (!user || !isAuthenticated || authLoading) {
-      console.log('Skipping chat fetch: user not authenticated or still loading');
       return;
     }
 
     try {
-      console.log('Fetching chats for user:', user.email);
-      
       const response = await fetch('/api/chat', {
         credentials: 'include' // Ensure cookies are included
       });
       
       if (!response.ok) {
         if (response.status === 401) {
-          console.log('Chat fetch failed: Unauthorized. User may need to re-login.');
           // Don't show error toast for auth issues, just clear chats
           setChats([]);
           return;
@@ -84,21 +70,9 @@ export function ChatProvider({ children }: ChatProviderProps) {
       const data = await response.json();
       
       if (data.success) {
-        console.log('Chats fetched successfully:', data.chats?.length || 0, 'chats');
-        console.log('Chats with unread:', data.chats?.filter((chat: any) => chat.unreadCount > 0).map((chat: any) => ({
-          id: chat._id,
-          subject: chat.subject,
-          unreadCount: chat.unreadCount
-        })));
-        
         // تحديث فوري للحالة
         setChats(data.chats || []);
-        
-        // طباعة العداد الجديد
-        const newTotalUnread = (data.chats || []).reduce((total: number, chat: any) => total + chat.unreadCount, 0);
-        console.log('New total unread count:', newTotalUnread);
       } else {
-        console.error('API returned error:', data.message);
         setChats([]);
         // Only show error if it's not an auth issue
         if (!data.message?.includes('تسجيل الدخول')) {
@@ -106,7 +80,6 @@ export function ChatProvider({ children }: ChatProviderProps) {
         }
       }
     } catch (error) {
-      console.error('Error fetching chats:', error);
       setChats([]);
       // Only show error if it's not a network/auth issue
       const errorMessage = (error as any).message || '';
@@ -118,7 +91,6 @@ export function ChatProvider({ children }: ChatProviderProps) {
 
   const fetchChat = useCallback(async (chatId: string): Promise<Chat | null> => {
     if (!user || !isAuthenticated) {
-      console.log('Cannot fetch chat: user not authenticated');
       return null;
     }
 
@@ -191,7 +163,6 @@ export function ChatProvider({ children }: ChatProviderProps) {
         return null;
       }
     } catch (error) {
-      console.error('Error creating chat:', error);
       toast.error('حدث خطأ في إنشاء المحادثة');
       return null;
     }
@@ -303,7 +274,6 @@ export function ChatProvider({ children }: ChatProviderProps) {
         return false;
       }
     } catch (error) {
-      console.error('Error sending message:', error);
       toast.error('حدث خطأ في إرسال الرسالة');
       return false;
     }
@@ -406,7 +376,6 @@ export function ChatProvider({ children }: ChatProviderProps) {
         return false;
       }
     } catch (error) {
-      console.error('Error closing chat:', error);
       toast.error('حدث خطأ في إغلاق المحادثة');
       return false;
     }
@@ -424,16 +393,13 @@ export function ChatProvider({ children }: ChatProviderProps) {
 
     // Socket initialization logic can go here
     // For now, we'll skip it to avoid additional complexity
-    console.log('Chat socket initialization skipped for now');
   }, [user, isAuthenticated, authLoading, socket]);
 
   // Fetch chats when user is authenticated
   useEffect(() => {
     if (isAuthenticated && !authLoading && user) {
-      console.log('User authenticated, fetching chats...');
       fetchChats();
     } else {
-      console.log('User not authenticated or still loading, clearing chats');
       setChats([]);
       setCurrentChat(null);
     }
@@ -443,21 +409,10 @@ export function ChatProvider({ children }: ChatProviderProps) {
   useEffect(() => {
     if (!isAuthenticated || authLoading || !user) return;
 
-    console.log('Setting up periodic chat updates...');
-    
     // تحديث فوري عند بدء التطبيق
     fetchChats();
     
     // لا نحدث تلقائياً - نترك المستخدم يتحكم في ذلك
-    // const interval = setInterval(() => {
-    //   console.log('Periodic chat fetch...');
-    //   fetchChats();
-    // }, 3000); // تحديث كل 3 ثوانٍ
-
-    // return () => {
-    //   console.log('Clearing chat update interval');
-    //   clearInterval(interval);
-    // };
   }, [isAuthenticated, authLoading, user, fetchChats]);
 
   const value = {

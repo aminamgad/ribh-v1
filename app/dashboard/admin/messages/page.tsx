@@ -69,7 +69,6 @@ export default function AdminMessagesPage() {
         toast.error('فشل في تحميل الرسائل');
       }
     } catch (error) {
-      console.error('Error fetching messages:', error);
       toast.error('حدث خطأ أثناء تحميل الرسائل');
     } finally {
       setLoading(false);
@@ -98,7 +97,6 @@ export default function AdminMessagesPage() {
         toast.error(error.message || 'فشل في اعتماد الرسالة');
       }
     } catch (error) {
-      console.error('Error approving message:', error);
       toast.error('حدث خطأ أثناء اعتماد الرسالة');
     }
   };
@@ -125,7 +123,6 @@ export default function AdminMessagesPage() {
         toast.error(error.message || 'فشل في رفض الرسالة');
       }
     } catch (error) {
-      console.error('Error rejecting message:', error);
       toast.error('حدث خطأ أثناء رفض الرسالة');
     }
   };

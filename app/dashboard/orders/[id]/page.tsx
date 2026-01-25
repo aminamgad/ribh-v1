@@ -63,8 +63,8 @@ interface Order {
   createdAt: string;
   updatedAt: string;
   actualDelivery?: string;
-  trackingNumber?: string;
   shippingCompany?: string;
+  packageId?: number;
   adminNotes?: string;
   confirmedAt?: string;
   processingAt?: string;
@@ -162,10 +162,8 @@ export default function OrderDetailPage() {
   const [updating, setUpdating] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [newStatus, setNewStatus] = useState('');
-  const [trackingNumber, setTrackingNumber] = useState('');
   const [shippingCompany, setShippingCompany] = useState('');
   const [shippingCity, setShippingCity] = useState('');
-  const [selectedVillageId, setSelectedVillageId] = useState<number | null>(null);
   const [notes, setNotes] = useState('');
   const [sendWhatsApp, setSendWhatsApp] = useState(true); // Default to true for backward compatibility
   const [showInvoice, setShowInvoice] = useState(false);
@@ -175,11 +173,19 @@ export default function OrderDetailPage() {
   const [shippingCompanies, setShippingCompanies] = useState<Array<{
     _id: string; 
     companyName: string;
+    apiEndpointUrl?: string;
+    apiToken?: string;
     shippingCities?: Array<{cityName: string; cityCode?: string; isActive: boolean}>;
     shippingRegions?: Array<{regionName: string; regionCode?: string; cities: string[]; isActive: boolean}>;
   }>>([]);
-  const [villages, setVillages] = useState<Array<{villageId: number; villageName: string}>>([]);
+  const [villages, setVillages] = useState<Array<{villageId: number; villageName: string; deliveryCost?: number; areaId?: number}>>([]);
   const [companyCities, setCompanyCities] = useState<string[]>([]);
+  const [selectedVillageId, setSelectedVillageId] = useState<number | null>(null);
+  const [filteredVillages, setFilteredVillages] = useState<Array<{villageId: number; villageName: string; deliveryCost?: number; areaId?: number}>>([]);
+  const [loadingVillages, setLoadingVillages] = useState(false); // Loading state for villages
+  const [shippingStatus, setShippingStatus] = useState<{type: 'success' | 'error' | 'info' | null; message: string}>({type: null, message: ''});
+  const [packageStatus, setPackageStatus] = useState<'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | null>(null);
+  const [resendingPackage, setResendingPackage] = useState(false);
 
   // Check for print parameter in URL
   useEffect(() => {
@@ -272,23 +278,15 @@ export default function OrderDetailPage() {
         // Auto-select company if:
         // 1. Order already has a shipping company, OR
         // 2. No company is set and there's only one company available
-        const currentCompany = order?.shippingCompany || shippingCompany;
-        if (!currentCompany || currentCompany.trim() === '') {
-          if (order?.shippingCompany) {
-            // Use company from order if exists
-            setShippingCompany(order.shippingCompany);
-            updateCitiesForCompany(order.shippingCompany, loadedCompanies);
-          } else if (loadedCompanies.length === 1) {
-            // Auto-select if only one company exists
-            setShippingCompany(loadedCompanies[0].companyName);
-            updateCitiesForCompany(loadedCompanies[0].companyName, loadedCompanies);
-          }
-        } else {
-          // Company already selected (from order or state), just update cities
-          if (!shippingCompany || shippingCompany !== currentCompany) {
-            setShippingCompany(currentCompany);
-          }
-          updateCitiesForCompany(currentCompany, loadedCompanies);
+        // Always use UltraPal as the default shipping company
+        // This prepares the structure for future multi-company support
+        const defaultCompany = loadedCompanies.find((c: { companyName: string }) => 
+          c.companyName === 'UltraPal' || c.companyName === 'Ultra Pal'
+        ) || loadedCompanies[0];
+        
+        if (defaultCompany) {
+          setShippingCompany('UltraPal'); // Standardized name
+          updateCitiesForCompany(defaultCompany.companyName, loadedCompanies);
         }
       });
       fetchVillages();
@@ -297,10 +295,9 @@ export default function OrderDetailPage() {
 
   useEffect(() => {
     if (order) {
-      setTrackingNumber(order.trackingNumber || '');
-      setShippingCompany(order.shippingCompany || '');
-      setShippingCity(order.shippingAddress?.city || order.shippingAddress?.villageName || '');
-      setSelectedVillageId(order.shippingAddress?.villageId || null);
+      // Always set shipping company to UltraPal as it's the only supported company
+      setShippingCompany('UltraPal');
+      setShippingCity(order.shippingAddress?.villageName || order.shippingAddress?.governorate || '');
     }
   }, [order]);
 
@@ -310,24 +307,37 @@ export default function OrderDetailPage() {
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.companies) {
-          // Filter: Only companies with integration (apiEndpointUrl and apiToken)
-          const companiesWithIntegration = data.companies.filter((c: any) => 
-            c.isActive && c.apiEndpointUrl && c.apiToken && c.apiEndpointUrl.trim() !== '' && c.apiToken.trim() !== ''
+          // Currently only UltraPal is supported, but structure is ready for multiple companies
+          // Each company will have its own villages/cities configuration
+          const activeCompanies = data.companies.filter((c: any) => 
+            c.isActive && 
+            c.apiEndpointUrl && 
+            c.apiToken && 
+            c.apiEndpointUrl.trim() !== '' && 
+            c.apiToken.trim() !== ''
           );
-          setShippingCompanies(companiesWithIntegration);
           
-          // If a company is already selected, load its cities
-          if (shippingCompany) {
-            updateCitiesForCompany(shippingCompany, companiesWithIntegration);
+          // For now, prioritize UltraPal but keep structure flexible
+          const ultraPalCompany = activeCompanies.filter((c: any) => 
+            c.companyName === 'UltraPal' || c.companyName === 'Ultra Pal'
+          );
+          
+          const companies = ultraPalCompany.length > 0 ? ultraPalCompany : activeCompanies;
+          setShippingCompanies(companies);
+          
+          // Load cities for UltraPal (current default company)
+          if (companies.length > 0) {
+            const defaultCompany = companies.find((c: { companyName: string }) => 
+              c.companyName === 'UltraPal' || c.companyName === 'Ultra Pal'
+            ) || companies[0];
+            updateCitiesForCompany(defaultCompany.companyName, companies);
           }
           
-          // Return companies for use in useEffect
-          return companiesWithIntegration;
+          return companies;
         }
       }
       return [];
     } catch (error) {
-      console.error('Error fetching shipping companies:', error);
       return [];
     }
   };
@@ -359,20 +369,108 @@ export default function OrderDetailPage() {
           });
       }
       setCompanyCities(cities);
+      
+      // Filter villages based on company cities/regions
+      filterVillagesForCompany(selectedCompany);
     } else {
       setCompanyCities([]);
+      // If no company selected, show all villages
+      setFilteredVillages(villages);
     }
   };
 
-  // Update cities when shippingCompany changes (after companies are loaded)
+  // Filter villages based on company's supported cities/regions
+  const filterVillagesForCompany = (company: typeof shippingCompanies[0]) => {
+    if (!company || villages.length === 0) {
+      setFilteredVillages(villages);
+      return;
+    }
+
+    // If company has no specific cities/regions, show all villages
+    const hasCities = company.shippingCities && company.shippingCities.length > 0;
+    const hasRegions = company.shippingRegions && company.shippingRegions.length > 0;
+    
+    if (!hasCities && !hasRegions) {
+      setFilteredVillages(villages);
+      return;
+    }
+
+    // Collect all city names from company
+    const companyCityNames: string[] = [];
+    
+    // From shippingCities
+    if (company.shippingCities) {
+      company.shippingCities
+        .filter((c: any) => c.isActive !== false)
+        .forEach((c: any) => {
+          if (c.cityName) companyCityNames.push(c.cityName);
+        });
+    }
+    
+    // From shippingRegions
+    if (company.shippingRegions) {
+      company.shippingRegions
+        .filter((r: any) => r.isActive !== false)
+        .forEach((r: any) => {
+          if (r.cities && Array.isArray(r.cities)) {
+            r.cities.forEach((city: string) => {
+              if (city && !companyCityNames.includes(city)) companyCityNames.push(city);
+            });
+          }
+        });
+    }
+
+    // Filter villages: village name format is usually "المحافظة - اسم القرية"
+    // We'll match by checking if any part of the village name matches company cities
+    const filtered = villages.filter((village) => {
+      const villageName = village.villageName || '';
+      // Check if village name contains any of the company city names
+      return companyCityNames.some((cityName) => {
+        // Try exact match or partial match
+        return villageName.includes(cityName) || cityName.includes(villageName.split('-')[0]?.trim() || '');
+      });
+    });
+
+    // If filtering resulted in empty list, show all villages (company might support all)
+    setFilteredVillages(filtered.length > 0 ? filtered : villages);
+  };
+
+  // Update cities and filter villages when shippingCompany changes (after companies are loaded)
   useEffect(() => {
     if (shippingCompany && shippingCompanies.length > 0) {
       updateCitiesForCompany(shippingCompany);
+    } else if (villages.length > 0) {
+      // If no company selected, show all villages
+      setFilteredVillages(villages);
     }
-  }, [shippingCompany, shippingCompanies]);
+  }, [shippingCompany, shippingCompanies, villages]);
+
+  // Update filtered villages when villages are loaded
+  useEffect(() => {
+    if (villages.length > 0) {
+      if (shippingCompany && shippingCompanies.length > 0) {
+        const selectedCompany = shippingCompanies.find(c => c.companyName === shippingCompany);
+        if (selectedCompany) {
+          filterVillagesForCompany(selectedCompany);
+        } else {
+          setFilteredVillages(villages);
+        }
+      } else {
+        setFilteredVillages(villages);
+      }
+    }
+  }, [villages]);
+
+  // Initialize selected village when order loads
+  useEffect(() => {
+    if (order?.shippingAddress?.villageId) {
+      setSelectedVillageId(order.shippingAddress.villageId);
+    }
+  }, [order]);
 
   const fetchVillages = async () => {
     try {
+      setLoadingVillages(true);
       const response = await fetch('/api/villages?limit=1000');
       if (response.ok) {
         const data = await response.json();
@@ -380,14 +478,29 @@ export default function OrderDetailPage() {
           const sortedVillages = data.data
             .filter((v: any) => v.isActive !== false)
             .sort((a: any, b: any) => a.villageName.localeCompare(b.villageName, 'ar'))
-            .map((v: any) => ({ villageId: v.villageId, villageName: v.villageName }));
+            .map((v: any) => ({ 
+              villageId: v.villageId, 
+              villageName: v.villageName,
+              deliveryCost: v.deliveryCost,
+              areaId: v.areaId
+            }));
           setVillages(sortedVillages);
         }
       }
     } catch (error) {
-      console.error('Error fetching villages:', error);
+      toast.error('حدث خطأ أثناء جلب القرى');
+    } finally {
+      setLoadingVillages(false);
     }
   };
+
+  // Extract governorate from village name (format: "المحافظة - اسم القرية")
+  const getGovernorateFromVillageName = (villageName: string): string => {
+    if (!villageName) return '';
+    const parts = villageName.split('-');
+    return parts.length > 0 ? parts[0].trim() : '';
+  };
+
 
   const handleUpdateShipping = async () => {
     if (!order) return;
@@ -397,38 +510,68 @@ export default function OrderDetailPage() {
       return;
     }
     
-    if (!selectedVillageId && !order.shippingAddress?.villageId) {
-      toast.error('يرجى اختيار القرية من القائمة');
+    // Use selectedVillageId if changed, otherwise use villageId from order
+    const finalVillageId = selectedVillageId || order.shippingAddress?.villageId;
+    
+    if (!finalVillageId) {
+      toast.error('يرجى اختيار القرية. القرية مطلوبة لإتمام عملية الشحن.');
       return;
+    }
+
+    // Validate village exists in filtered list (if company has restrictions)
+    if (shippingCompany && filteredVillages.length > 0) {
+      const villageExists = filteredVillages.some(v => v.villageId === finalVillageId);
+      if (!villageExists) {
+        toast.error('القرية المختارة غير متاحة لشركة الشحن المحددة. يرجى اختيار قرية أخرى.');
+        return;
+      }
     }
 
     try {
       setUpdatingShipping(true);
+      
+      // Get village name for update
+      const selectedVillage = villages.find(v => v.villageId === finalVillageId);
+      const villageName = selectedVillage?.villageName || order.shippingAddress?.villageName || '';
+      
       const response = await fetch(`/api/orders/${order._id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          trackingNumber: trackingNumber ? trackingNumber.trim() : '',
           shippingCompany: shippingCompany.trim(),
           shippingCity: shippingCity.trim(),
-          villageId: selectedVillageId || order.shippingAddress?.villageId || undefined,
+          villageId: finalVillageId,
+          villageName: villageName,
           updateShippingOnly: true // Flag to update shipping without changing status
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
+        setShippingStatus({
+          type: 'success',
+          message: '✅ تم حفظ معلومات الشحن بنجاح'
+        });
         toast.success('تم تحديث معلومات الشحن بنجاح');
         // Don't close modal after updating - allow user to ship immediately
         fetchOrder(order._id);
       } else {
         const error = await response.json();
-        toast.error(error.error || 'حدث خطأ أثناء تحديث معلومات الشحن');
+        const errorMessage = error.error || error.message || 'حدث خطأ أثناء تحديث معلومات الشحن';
+        setShippingStatus({
+          type: 'error',
+          message: `❌ ${errorMessage}`
+        });
+        toast.error(errorMessage);
       }
     } catch (error) {
-      console.error('Error updating shipping:', error);
+      const errorMessage = error instanceof Error ? error.message : 'حدث خطأ أثناء تحديث معلومات الشحن';
+      setShippingStatus({
+        type: 'error',
+        message: `❌ ${errorMessage}`
+      });
       toast.error('حدث خطأ أثناء تحديث معلومات الشحن');
     } finally {
       setUpdatingShipping(false);
@@ -438,59 +581,60 @@ export default function OrderDetailPage() {
   const handleShipToCompany = async () => {
     if (!order) return;
     
-    console.log('handleShipToCompany called', {
-      shippingCompany,
-      selectedVillageId,
-      orderVillageId: order.shippingAddress?.villageId,
-      shippingCity
-    });
-    
     // Validate required fields
     if (!shippingCompany || !shippingCompany.trim()) {
       toast.error('يرجى اختيار شركة الشحن');
+      setShippingStatus({
+        type: 'error',
+        message: '❌ يرجى اختيار شركة الشحن أولاً'
+      });
       return;
     }
     
+    // Use selectedVillageId if changed, otherwise use villageId from order
     const finalVillageId = selectedVillageId || order.shippingAddress?.villageId;
+    
     if (!finalVillageId) {
-      toast.error('يرجى اختيار القرية من القائمة');
+      toast.error('يرجى اختيار القرية. القرية مطلوبة لإتمام عملية الشحن.');
+      setShippingStatus({
+        type: 'error',
+        message: '❌ يرجى اختيار القرية أولاً'
+      });
       return;
     }
 
-    // Get city from village if not set
-    let finalShippingCity = shippingCity;
-    if (!finalShippingCity || !finalShippingCity.trim()) {
-      // Try to get city from selected village
-      const selectedVillage = villages.find(v => v.villageId === finalVillageId);
-      if (selectedVillage) {
-        finalShippingCity = selectedVillage.villageName;
-      } else if (order.shippingAddress?.villageName) {
-        finalShippingCity = order.shippingAddress.villageName;
-      } else if (order.shippingAddress?.city) {
-        finalShippingCity = order.shippingAddress.city;
-      } else {
-        toast.error('يرجى اختيار القرية من القائمة');
+    // Validate village exists in filtered list (if company has restrictions)
+    if (shippingCompany && filteredVillages.length > 0) {
+      const villageExists = filteredVillages.some(v => v.villageId === finalVillageId);
+      if (!villageExists) {
+        toast.error('القرية المختارة غير متاحة لشركة الشحن المحددة. يرجى اختيار قرية أخرى.');
+        setShippingStatus({
+          type: 'error',
+          message: '❌ القرية المختارة غير متاحة لشركة الشحن المحددة'
+        });
         return;
       }
     }
 
+    // Get village name
+    const selectedVillage = villages.find(v => v.villageId === finalVillageId);
+    const villageName = selectedVillage?.villageName || order.shippingAddress?.villageName || '';
+    let finalShippingCity = shippingCity.trim() || villageName || order.shippingAddress?.governorate || 'غير محدد';
+
     try {
       setUpdatingShipping(true);
       
-      // First, update shipping info
-      // Ensure villageId is a number
-      const villageIdForUpdate = finalVillageId ? parseInt(String(finalVillageId), 10) : undefined;
-      
+      // First, update shipping info with selected village
       const updateResponse = await fetch(`/api/orders/${order._id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          trackingNumber: trackingNumber ? trackingNumber.trim() : '',
           shippingCompany: shippingCompany.trim(),
           shippingCity: finalShippingCity.trim(),
-          villageId: villageIdForUpdate,
+          villageId: finalVillageId,
+          villageName: villageName,
           updateShippingOnly: true
         }),
       });
@@ -505,6 +649,8 @@ export default function OrderDetailPage() {
       // Ensure villageId is a number
       const villageIdToSend = finalVillageId ? parseInt(String(finalVillageId), 10) : undefined;
       
+      setShippingStatus({type: 'info', message: 'جاري إرسال الطلب إلى شركة الشحن...'});
+      
       const shipResponse = await fetch(`/api/orders/${order._id}`, {
         method: 'PUT',
         headers: {
@@ -512,7 +658,6 @@ export default function OrderDetailPage() {
         },
         body: JSON.stringify({
           status: 'shipped',
-          trackingNumber: trackingNumber ? trackingNumber.trim() : '',
           shippingCompany: shippingCompany.trim(),
           shippingCity: finalShippingCity.trim(),
           villageId: villageIdToSend
@@ -520,23 +665,94 @@ export default function OrderDetailPage() {
       });
 
       if (shipResponse.ok) {
-        const data = await shipResponse.json();
-        toast.success('✅ تم شحن الطلب وإرساله إلى شركة الشحن بنجاح!');
-        setShowShippingModal(false);
-        // Reset form fields
-        setTrackingNumber('');
-        setShippingCompany('');
-        setShippingCity('');
-        setSelectedVillageId(null);
+        const shipData = await shipResponse.json();
+        
+        // Check if package was created and sent successfully
+        const packageId = shipData.order?.packageId;
+        const selectedCompany = shippingCompanies.find(c => c.companyName === shippingCompany);
+        const hasApiIntegration = selectedCompany?.apiEndpointUrl;
+        
+        if (packageId) {
+          // Fetch package status to check if it was sent successfully
+          const statusResponse = await fetch(`/api/packages?packageId=${packageId}`);
+          let currentStatus = 'pending';
+          if (statusResponse.ok) {
+            const statusData = await statusResponse.json();
+            if (statusData.success && statusData.package) {
+              currentStatus = statusData.package.status;
+              setPackageStatus(currentStatus as any);
+            }
+          }
+          
+          const statusMessage = currentStatus === 'pending' 
+            ? `⚠️ تم إنشاء الطرد (${packageId}) لكن فشل إرساله إلى شركة الشحن. يمكنك إعادة المحاولة.`
+            : `✅ تم شحن الطلب بنجاح! رقم الطرد: ${packageId}${hasApiIntegration ? ' - تم إرساله إلى شركة الشحن' : ''}`;
+          
+          setShippingStatus({
+            type: currentStatus === 'pending' ? 'error' : 'success',
+            message: statusMessage
+          });
+          
+          if (currentStatus === 'pending') {
+            toast(`⚠️ تم إنشاء الطرد (${packageId}) لكن فشل إرساله. يمكنك إعادة المحاولة.`, {
+              icon: '⚠️',
+              duration: 5000
+            });
+          } else {
+            toast.success(`✅ تم شحن الطلب بنجاح! رقم الطرد: ${packageId}`);
+            
+            // Close modal after short delay to show success message (only if successful)
+            setTimeout(() => {
+              setShowShippingModal(false);
+              setShippingCompany('');
+              setShippingCity('');
+              setSelectedVillageId(null);
+              setShippingStatus({type: null, message: ''});
+            }, 2000);
+          }
+        } else {
+          setShippingStatus({
+            type: 'success',
+            message: '✅ تم تحديث حالة الطلب إلى "تم الشحن"'
+          });
+          toast.success('✅ تم تحديث حالة الطلب إلى "تم الشحن"');
+          
+          // Close modal after short delay
+          setTimeout(() => {
+            setShowShippingModal(false);
+            setShippingCompany('');
+            setShippingCity('');
+            setSelectedVillageId(null);
+            setShippingStatus({type: null, message: ''});
+          }, 2000);
+        }
+        
         fetchOrder(order._id);
       } else {
         const errorData = await shipResponse.json().catch(() => ({ error: 'خطأ غير معروف' }));
-        console.error('Ship response error:', errorData);
-        toast.error(errorData.error || 'حدث خطأ أثناء شحن الطلب إلى شركة الشحن');
+        
+        // Parse error message for better user experience
+        let userFriendlyMessage = errorData.error || errorData.message || 'حدث خطأ أثناء شحن الطلب';
+        if (userFriendlyMessage.includes('villageId') || userFriendlyMessage.includes('village')) {
+          userFriendlyMessage = 'خطأ في بيانات القرية. يرجى التأكد من اختيار قرية صحيحة.';
+        } else if (userFriendlyMessage.includes('API') || userFriendlyMessage.includes('api')) {
+          userFriendlyMessage = 'فشل الاتصال بشركة الشحن. يرجى المحاولة مرة أخرى أو الاتصال بالدعم الفني.';
+        }
+        
+        setShippingStatus({
+          type: 'error',
+          message: `❌ ${userFriendlyMessage}`
+        });
+        toast.error(userFriendlyMessage);
       }
     } catch (error) {
-      console.error('Error shipping order to company:', error);
-      toast.error('حدث خطأ أثناء شحن الطلب إلى شركة الشحن');
+      const errorMessage = error instanceof Error ? error.message : 'حدث خطأ غير متوقع';
+      
+      setShippingStatus({
+        type: 'error',
+        message: `❌ خطأ في الاتصال: ${errorMessage}`
+      });
+      toast.error('حدث خطأ أثناء شحن الطلب. يرجى المحاولة مرة أخرى.');
     } finally {
       setUpdatingShipping(false);
     }
@@ -561,7 +777,7 @@ export default function OrderDetailPage() {
     if (!order) return;
 
     // Validate required fields
-    const finalVillageId = order.shippingAddress?.villageId || selectedVillageId;
+    const finalVillageId = order.shippingAddress?.villageId;
     if (!finalVillageId) {
       toast.error('يرجى تحديد القرية من بيانات الشحن أولاً');
       // Open shipping modal to add village
@@ -584,7 +800,6 @@ export default function OrderDetailPage() {
         },
         body: JSON.stringify({
           status: 'shipped',
-          trackingNumber: order.trackingNumber || (trackingNumber ? trackingNumber.trim() : '') || '',
           shippingCompany: order.shippingCompany || (shippingCompany ? shippingCompany.trim() : '') || '',
           shippingCity: order.shippingAddress?.city || (shippingCity ? shippingCity.trim() : '') || '',
           villageId: villageIdToSend
@@ -600,7 +815,6 @@ export default function OrderDetailPage() {
         toast.error(error.error || 'حدث خطأ أثناء شحن الطلب');
       }
     } catch (error) {
-      console.error('Error shipping order:', error);
       toast.error('حدث خطأ أثناء شحن الطلب');
     } finally {
       setUpdating(false);
@@ -609,27 +823,97 @@ export default function OrderDetailPage() {
 
   const fetchOrder = async (orderId: string) => {
     try {
-      console.log('Fetching order:', orderId);
       const response = await fetch(`/api/orders/${orderId}`);
-      console.log('Order response status:', response.status);
       
       if (response.ok) {
         const data = await response.json();
-        console.log('Order data:', data);
-        console.log('Shipping address:', data.order?.shippingAddress);
-        console.log('Manual village name:', data.order?.shippingAddress?.manualVillageName);
         setOrder(data.order);
+        
+        // Fetch package status if packageId exists
+        if (data.order?.packageId) {
+          fetchPackageStatus(data.order.packageId);
+        } else {
+          setPackageStatus(null);
+        }
       } else {
         const errorData = await response.json();
-        console.error('Order fetch error:', errorData);
         toast.error(errorData.error || 'الطلب غير موجود');
         router.push('/dashboard/orders');
       }
     } catch (error) {
-      console.error('Error fetching order:', error);
       toast.error('حدث خطأ أثناء جلب تفاصيل الطلب');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Fetch package status
+  const fetchPackageStatus = async (packageId: number): Promise<string | null> => {
+    try {
+      const response = await fetch(`/api/packages?packageId=${packageId}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.package) {
+          setPackageStatus(data.package.status);
+          return data.package.status;
+        }
+      }
+    } catch (error) {
+      // Silently handle errors
+    }
+    return null;
+  };
+
+  // Resend package to shipping company
+  const handleResendPackage = async () => {
+    if (!order?._id) return;
+    
+    try {
+      setResendingPackage(true);
+      setShippingStatus({type: 'info', message: 'جاري إعادة إرسال الطرد...'});
+      
+      const response = await fetch(`/api/orders/${order._id}/resend-package`, {
+        method: 'POST'
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setPackageStatus('confirmed');
+        setShippingStatus({
+          type: 'success',
+          message: `✅ تم إعادة إرسال الطرد بنجاح! رقم الطرد: ${data.packageId}`
+        });
+        toast.success(`✅ تم إعادة إرسال الطرد بنجاح! رقم الطرد: ${data.packageId}`);
+        fetchOrder(order._id);
+      } else {
+        // Check if it's a retryable error (503, 502, 504, or other 5xx errors)
+        const isRetryable = data.canRetry || (data.statusCode && data.statusCode >= 500);
+        const errorMessage = data.message || 'خطأ غير معروف';
+        
+        setShippingStatus({
+          type: 'error',
+          message: `❌ ${errorMessage}${isRetryable ? ' يمكنك المحاولة مرة أخرى.' : ''}`
+        });
+        
+        if (isRetryable) {
+          toast(errorMessage + ' يمكنك المحاولة مرة أخرى بعد قليل.', {
+            icon: '⚠️',
+            duration: 5000
+          });
+        } else {
+          toast.error(errorMessage);
+        }
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'حدث خطأ غير متوقع';
+      setShippingStatus({
+        type: 'error',
+        message: `❌ خطأ في الاتصال: ${errorMessage}`
+      });
+      toast.error('حدث خطأ أثناء إعادة إرسال الطرد');
+    } finally {
+      setResendingPackage(false);
     }
   };
 
@@ -647,17 +931,13 @@ export default function OrderDetailPage() {
     
     try {
       setUpdating(true);
-      console.log('Updating order status:', order._id, 'from:', order.status, 'to:', newStatus);
       
       const updateData: any = {
         status: newStatus
       };
       
-             // Add tracking info for shipped status (optional)
+             // Add shipping company for shipped status (optional)
        if (newStatus === 'shipped' || newStatus === 'out_for_delivery') {
-         if (trackingNumber.trim()) {
-           updateData.trackingNumber = trackingNumber.trim();
-         }
          if (shippingCompany.trim()) {
            updateData.shippingCompany = shippingCompany.trim();
          }
@@ -676,15 +956,11 @@ export default function OrderDetailPage() {
         body: JSON.stringify(updateData),
       });
 
-      console.log('Update response status:', response.status);
-
       if (response.ok) {
         const data = await response.json();
-        console.log('Update success:', data);
         toast.success(data.message || 'تم تحديث حالة الطلب بنجاح');
         setShowStatusModal(false);
         setNewStatus('');
-        setTrackingNumber('');
         setShippingCompany('');
         setNotes('');
         fetchOrder(order._id); // Refresh order data
@@ -701,11 +977,9 @@ export default function OrderDetailPage() {
         setSendWhatsApp(true);
       } else {
         const error = await response.json();
-        console.error('Update error:', error);
         toast.error(error.error || 'حدث خطأ أثناء تحديث الطلب');
       }
     } catch (error) {
-      console.error('Error updating order:', error);
       toast.error('حدث خطأ أثناء تحديث الطلب');
     } finally {
       setUpdating(false);
@@ -761,8 +1035,7 @@ export default function OrderDetailPage() {
 
   const openStatusModal = (status: string) => {
     setNewStatus(status);
-    setTrackingNumber(order?.trackingNumber || '');
-    setShippingCompany(order?.shippingCompany || '');
+    setShippingCompany('UltraPal'); // Always use UltraPal as default
     setNotes(order?.adminNotes || '');
     setShowStatusModal(true);
   };
@@ -1242,46 +1515,42 @@ export default function OrderDetailPage() {
                 إدارة الشحن
               </h3>
               
-              {/* Show manual village name if exists (entered by marketer) */}
-              {order.shippingAddress?.manualVillageName && !order.shippingAddress?.villageId && (
-                <div className="mb-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                  <div className="flex items-start">
-                    <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 ml-2 mt-0.5 flex-shrink-0" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-yellow-900 dark:text-yellow-200 mb-1">
-                        اسم القرية المدخل من المسوق:
-                      </p>
-                      <p className="text-base font-semibold text-yellow-800 dark:text-yellow-300">
-                        {order.shippingAddress.manualVillageName}
-                      </p>
-                      <p className="text-xs text-yellow-700 dark:text-yellow-400 mt-2">
-                        ⚠️ يرجى مراجعة العنوان واختيار القرية الصحيحة من القائمة أدناه
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {/* Show current shipping info if exists */}
-              {(order.trackingNumber || order.shippingCompany || order.shippingAddress?.city || order.shippingAddress?.villageName) && (
+              {(order.shippingCompany || order.shippingAddress?.governorate || order.shippingAddress?.villageName) && (
                 <div className="mb-4 p-4 bg-gray-50 dark:bg-slate-700 rounded-lg space-y-2">
-                  {order.trackingNumber && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">رقم التتبع:</span>
-                      <span className="font-medium text-gray-900 dark:text-white">{order.trackingNumber}</span>
-                    </div>
-                  )}
                   {order.shippingCompany && (
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-600 dark:text-gray-400">شركة الشحن:</span>
                       <span className="font-medium text-gray-900 dark:text-white">{order.shippingCompany}</span>
                     </div>
                   )}
-                  {(order.shippingAddress?.city || order.shippingAddress?.villageName) && (
+                  {order.shippingAddress?.governorate && (
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">القرية المحددة:</span>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">المحافظة:</span>
                       <span className="font-medium text-gray-900 dark:text-white">
-                        {order.shippingAddress?.villageName || order.shippingAddress?.city}
+                        {order.shippingAddress.governorate}
+                      </span>
+                    </div>
+                  )}
+                  {order.shippingAddress?.villageName && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">القرية:</span>
+                      <span className="font-medium text-gray-900 dark:text-white">
+                        {order.shippingAddress.villageName}
+                        {order.shippingAddress?.villageId && (
+                          <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">
+                            (ID: {order.shippingAddress.villageId})
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  {/* Legacy support for manualVillageName */}
+                  {order.shippingAddress?.manualVillageName && !order.shippingAddress?.villageName && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-yellow-600 dark:text-yellow-400">اسم القرية (يدوي):</span>
+                      <span className="font-medium text-yellow-700 dark:text-yellow-300">
+                        {order.shippingAddress.manualVillageName}
                       </span>
                     </div>
                   )}
@@ -1294,7 +1563,7 @@ export default function OrderDetailPage() {
                   className="btn-secondary w-full flex items-center justify-center"
                 >
                   <Edit className="w-4 h-4 ml-2" />
-                  {order.trackingNumber ? 'تحديث معلومات الشحن' : 'إضافة معلومات الشحن'}
+                  إدارة معلومات الشحن
                 </button>
 
                 {/* Ship Order Button - Only if ready for shipping */}
@@ -1322,21 +1591,15 @@ export default function OrderDetailPage() {
             </div>
           )}
 
-          {/* Tracking Info - For Non-Admin */}
-          {user?.role !== 'admin' && order.trackingNumber && (
+          {/* Shipping Info - For Non-Admin */}
+          {user?.role !== 'admin' && order.shippingCompany && (
             <div className="card">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">معلومات الشحن</h3>
               <div className="space-y-2">
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">رقم التتبع</p>
-                  <p className="font-medium text-gray-900 dark:text-white">{order.trackingNumber}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">شركة الشحن</p>
+                  <p className="font-medium text-gray-900 dark:text-white">{order.shippingCompany}</p>
                 </div>
-                {order.shippingCompany && (
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">شركة الشحن</p>
-                    <p className="font-medium text-gray-900 dark:text-white">{order.shippingCompany}</p>
-                  </div>
-                )}
               </div>
             </div>
           )}
@@ -1360,14 +1623,6 @@ export default function OrderDetailPage() {
                     </span>
                   </div>
                   
-                  {order.trackingNumber && (
-                    <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">رقم التتبع</span>
-                      <span className="font-mono text-sm font-medium text-gray-900 dark:text-white">
-                        {order.trackingNumber}
-                      </span>
-                    </div>
-                  )}
                   
                   {order.shippingCompany && (
                     <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
@@ -1525,21 +1780,19 @@ export default function OrderDetailPage() {
                  <div className="flex-1">
                    <p className="text-gray-900 dark:text-white">
                      {order.shippingAddress?.street}
-                     {order.shippingAddress?.manualVillageName && (
-                       <span className="text-yellow-700 dark:text-yellow-400 font-semibold">
-                         {' - '}{order.shippingAddress.manualVillageName}
-                       </span>
-                     )}
-                     {order.shippingAddress?.villageName && !order.shippingAddress?.manualVillageName && (
+                     {order.shippingAddress?.villageName && (
                        <span>{', '}{order.shippingAddress.villageName}</span>
-                     )}
-                     {order.shippingAddress?.city && !order.shippingAddress?.manualVillageName && !order.shippingAddress?.villageName && (
-                       <span>{', '}{order.shippingAddress.city}</span>
                      )}
                      {order.shippingAddress?.governorate && (
                        <span>{', '}{order.shippingAddress.governorate}</span>
                      )}
                      {order.shippingAddress?.postalCode && ` - ${order.shippingAddress.postalCode}`}
+                     {/* Legacy support for manualVillageName */}
+                     {order.shippingAddress?.manualVillageName && !order.shippingAddress?.villageName && (
+                       <span className="text-yellow-700 dark:text-yellow-400 font-semibold">
+                         {' - '}{order.shippingAddress.manualVillageName} (يدوي)
+                       </span>
+                     )}
                    </p>
                  </div>
                </div>
@@ -1594,36 +1847,39 @@ export default function OrderDetailPage() {
                 <p className="font-medium text-gray-900 dark:text-white">{order.shippingAddress.street}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">المدينة</p>
-                {order.shippingAddress?.manualVillageName ? (
+                <p className="text-sm text-gray-600 dark:text-gray-400">المحافظة</p>
+                <p className="font-medium text-gray-900 dark:text-white">
+                  {order.shippingAddress?.governorate || 'غير محدد'}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">القرية</p>
+                {order.shippingAddress?.villageName ? (
+                  <p className="font-medium text-gray-900 dark:text-white">
+                    {order.shippingAddress.villageName}
+                    {order.shippingAddress?.villageId && (
+                      <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">
+                        (ID: {order.shippingAddress.villageId})
+                      </span>
+                    )}
+                  </p>
+                ) : order.shippingAddress?.manualVillageName ? (
                   <>
-                    <p className="font-medium text-gray-900 dark:text-white">
-                      {order.shippingAddress.manualVillageName}
+                    <p className="font-medium text-yellow-700 dark:text-yellow-400">
+                      {order.shippingAddress.manualVillageName} (يدوي)
                     </p>
                     <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
                       ⚠️ عنوان القرية المدخل يدوياً من المسوق. يرجى مراجعة العنوان واختيار القرية الصحيحة من قسم "إدارة الشحن"
                     </p>
                   </>
-                ) : order.shippingAddress?.villageName ? (
-                  <p className="font-medium text-gray-900 dark:text-white">
-                    {order.shippingAddress.villageName}
-                  </p>
-                ) : order.shippingAddress?.city ? (
-                  <p className="font-medium text-gray-900 dark:text-white">
-                    {order.shippingAddress.city}
-                  </p>
                 ) : (
                   <>
                     <p className="font-medium text-gray-900 dark:text-white">غير محدد</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      ℹ️ لم يتم تحديد عنوان القرية بعد
+                      ℹ️ لم يتم تحديد القرية بعد
                     </p>
                   </>
                 )}
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">المحافظة</p>
-                <p className="font-medium text-gray-900 dark:text-white">{order.shippingAddress.governorate || 'غير محدد'}</p>
               </div>
               {order.shippingAddress.postalCode && (
                 <div>
@@ -1872,34 +2128,29 @@ export default function OrderDetailPage() {
                  </select>
                </div>
 
-               {/* Tracking Information - Required for shipped and out_for_delivery statuses */}
+               {/* Shipping Company - Required for shipped and out_for_delivery statuses */}
                {(newStatus === 'shipped' || newStatus === 'out_for_delivery') && (
-                 <div className="space-y-4 mb-4">
-                   <div>
-                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                       رقم التتبع (اختياري)
-                     </label>
+                 <div className="mb-4">
+                   <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                     شركة الشحن
+                   </label>
+                   <div className="relative">
                      <input
                        type="text"
-                       value={trackingNumber}
-                       onChange={(e) => setTrackingNumber(e.target.value)}
-                       placeholder="أدخل رقم التتبع (اختياري)"
-                       className="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-[#FF9800] focus:border-transparent"
+                       value="UltraPal"
+                       readOnly
+                       className="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-lg bg-gray-100 dark:bg-slate-600 text-gray-700 dark:text-gray-300 cursor-not-allowed"
+                       title="شركة الشحن الحالية - UltraPal"
                      />
+                     <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                       <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                       </svg>
+                     </div>
                    </div>
-                   
-                   <div>
-                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                       شركة الشحن
-                     </label>
-                     <input
-                       type="text"
-                       value={shippingCompany}
-                       onChange={(e) => setShippingCompany(e.target.value)}
-                       placeholder="أدخل اسم شركة الشحن"
-                       className="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-[#FF9800] focus:border-transparent"
-                     />
-                   </div>
+                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                     شركة الشحن الافتراضية. يمكن إضافة شركات أخرى لاحقاً مع قرى مختلفة.
+                   </p>
                  </div>
                )}
 
@@ -1986,9 +2237,10 @@ export default function OrderDetailPage() {
                 <button
                   onClick={() => {
                     setShowShippingModal(false);
-                    setTrackingNumber(order.trackingNumber || '');
                     setShippingCompany(order.shippingCompany || '');
                     setShippingCity(order.shippingAddress?.city || order.shippingAddress?.villageName || '');
+                    setSelectedVillageId(order.shippingAddress?.villageId || null);
+                    setShippingStatus({type: null, message: ''});
                   }}
                   className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
                 >
@@ -1999,120 +2251,122 @@ export default function OrderDetailPage() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                    شركة الشحن <span className="text-red-500">*</span>
+                    شركة الشحن
                   </label>
-                  {shippingCompanies.length > 0 ? (
-                    <select
-                      value={shippingCompany}
-                      onChange={(e) => {
-                        const newCompany = e.target.value;
-                        setShippingCompany(newCompany);
-                        updateCitiesForCompany(newCompany);
-                        // Clear city when company changes
-                        if (shippingCompany !== newCompany) {
-                          setShippingCity('');
-                        }
-                      }}
-                      className="input-field"
-                      required
-                    >
-                      <option value="">اختر شركة الشحن</option>
-                      {shippingCompanies.map((company) => (
-                        <option key={company._id} value={company.companyName}>
-                          {company.companyName}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <>
-                      <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 mb-3">
-                        <p className="text-sm text-yellow-800 dark:text-yellow-300 mb-2">
-                          لا توجد شركات شحن مع integration في القائمة. يمكنك إدخال اسم الشركة يدوياً.
-                        </p>
-                      </div>
-                      <input
-                        type="text"
-                        value={shippingCompany}
-                        onChange={(e) => setShippingCompany(e.target.value)}
-                        placeholder="أدخل اسم شركة الشحن"
-                        className="input-field"
-                        required
-                      />
-                    </>
-                  )}
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value="UltraPal"
+                      readOnly
+                      className="input-field bg-gray-100 dark:bg-slate-600 text-gray-700 dark:text-gray-300 cursor-not-allowed"
+                      title="شركة الشحن الحالية - UltraPal"
+                    />
+                    <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                      <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                      </svg>
+                    </div>
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    شركة الشحن الافتراضية. يمكن إضافة شركات أخرى لاحقاً مع قرى مختلفة.
+                  </p>
                 </div>
 
-                {/* Village Selection - Required for admin */}
+                {/* Village Selection - Admin can select/change village */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                     القرية <span className="text-red-500">*</span>
-                    {order.shippingAddress?.manualVillageName && !order.shippingAddress?.villageId && (
-                      <span className="text-xs text-yellow-600 dark:text-yellow-400 mr-2">
-                        (المدخل: {order.shippingAddress.manualVillageName})
-                      </span>
-                    )}
                   </label>
-                  {villages.length > 0 ? (
-                    <select
-                      value={selectedVillageId || order.shippingAddress?.villageId || ''}
-                      onChange={(e) => {
-                        const villageId = parseInt(e.target.value);
-                        setSelectedVillageId(villageId);
-                        const selectedVillage = villages.find(v => v.villageId === villageId);
-                        if (selectedVillage) {
-                          setShippingCity(selectedVillage.villageName);
-                        }
-                      }}
-                      className="input-field"
-                      required
-                    >
-                      <option value="">اختر القرية من القائمة</option>
-                      {villages.map((village) => (
-                        <option key={village.villageId} value={village.villageId}>
-                          {village.villageName}
+                  {loadingVillages ? (
+                    // Show loader while villages are loading
+                    <div className="relative">
+                      <select
+                        disabled
+                        className="input-field bg-gray-50 dark:bg-slate-700 cursor-wait"
+                      >
+                        <option value="">جاري تحميل القرى...</option>
+                      </select>
+                      <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                        <div className="loading-spinner w-4 h-4"></div>
+                      </div>
+                    </div>
+                  ) : filteredVillages.length > 0 ? (
+                    <>
+                      <select
+                        value={selectedVillageId || order.shippingAddress?.villageId || ''}
+                        onChange={(e) => {
+                          const villageId = e.target.value ? parseInt(e.target.value) : null;
+                          setSelectedVillageId(villageId);
+                        }}
+                        className="input-field"
+                        required
+                      >
+                        <option value="">
+                          {order.shippingAddress?.villageId 
+                            ? `القرية الحالية: ${order.shippingAddress?.villageName || 'غير محدد'} (ID: ${order.shippingAddress.villageId})`
+                            : 'اختر القرية'}
                         </option>
-                      ))}
-                    </select>
+                        {filteredVillages.map((village) => (
+                          <option key={village.villageId} value={village.villageId}>
+                            {village.villageName} (ID: {village.villageId})
+                          </option>
+                        ))}
+                      </select>
+                      {order.shippingAddress?.villageId && (
+                        <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                          ℹ️ القرية الحالية محددة من قبل المسوق. يمكنك تغييرها إذا لزم الأمر.
+                        </p>
+                      )}
+                      {shippingCompany && filteredVillages.length < villages.length && (
+                        <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                          ✓ تم تصفية القرى حسب شركة الشحن المختارة ({filteredVillages.length} قرية متاحة)
+                        </p>
+                      )}
+                    </>
                   ) : (
-                    <input
-                      type="text"
-                      value={shippingCity}
-                      onChange={(e) => setShippingCity(e.target.value)}
-                      placeholder="أدخل اسم القرية"
-                      className="input-field"
-                      required
-                    />
+                    <>
+                      <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                        <p className="text-sm text-yellow-800 dark:text-yellow-300">
+                          {villages.length === 0 
+                            ? 'لا توجد قرى متاحة'
+                            : shippingCompany 
+                              ? 'لا توجد قرى متاحة لشركة الشحن المختارة. سيتم عرض جميع القرى.'
+                              : 'يرجى اختيار شركة الشحن أولاً'}
+                        </p>
+                      </div>
+                      {order.shippingAddress?.villageId && (
+                        <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600">
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                            القرية الحالية: {order.shippingAddress?.villageName || 'غير محدد'} (ID: {order.shippingAddress.villageId})
+                          </p>
+                        </div>
+                      )}
+                    </>
                   )}
                   {order.shippingAddress?.manualVillageName && !order.shippingAddress?.villageId && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      ⓘ تم إدخال "{order.shippingAddress.manualVillageName}" من قبل المسوق. يرجى اختيار القرية الصحيحة من القائمة أعلاه.
-                    </p>
+                    <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded border border-yellow-200 dark:border-yellow-800">
+                      <p className="text-xs text-yellow-800 dark:text-yellow-300">
+                        ⚠️ تم إدخال اسم القرية يدوياً: {order.shippingAddress.manualVillageName}
+                      </p>
+                      <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
+                        يرجى اختيار القرية الصحيحة من القائمة أعلاه.
+                      </p>
+                    </div>
                   )}
                 </div>
 
-                {/* City/Village Name - Show company cities when company is selected */}
+                {/* City/Village Name - Show company cities when company is selected (optional) */}
                 {shippingCompany && companyCities.length > 0 && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                      المدينة/القرية (لشركة الشحن) <span className="text-red-500">*</span>
+                      المدينة/القرية (لشركة الشحن) <span className="text-xs text-gray-500">(اختياري)</span>
                     </label>
                     <select
                       value={shippingCity}
-                      onChange={(e) => {
-                        setShippingCity(e.target.value);
-                        // Try to find matching village from villages list
-                        const matchingVillage = villages.find(v => 
-                          v.villageName.toLowerCase().includes(e.target.value.toLowerCase()) ||
-                          e.target.value.toLowerCase().includes(v.villageName.toLowerCase())
-                        );
-                        if (matchingVillage) {
-                          setSelectedVillageId(matchingVillage.villageId);
-                        }
-                      }}
+                      onChange={(e) => setShippingCity(e.target.value)}
                       className="input-field"
-                      required
                     >
-                      <option value="">اختر المدينة أو القرية من قائمة شركة الشحن</option>
+                      <option value="">اختر المدينة أو القرية من قائمة شركة الشحن (اختياري)</option>
                       {companyCities.map((city, idx) => (
                         <option key={idx} value={city}>
                           {city}
@@ -2120,29 +2374,69 @@ export default function OrderDetailPage() {
                       ))}
                     </select>
                     <p className="text-xs text-gray-500 mt-1">
-                      ⓘ اختر المدينة أو القرية من قائمة المدن المتاحة لشركة الشحن المحددة
+                      ⓘ اختياري: يمكنك اختيار المدينة من قائمة المدن المتاحة لشركة الشحن. القرية المحفوظة في الطلب: {order.shippingAddress?.villageName || 'غير محدد'}
                     </p>
                   </div>
                 )}
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                    رقم التتبع
-                  </label>
-                  <input
-                    type="text"
-                    value={trackingNumber}
-                    onChange={(e) => setTrackingNumber(e.target.value)}
-                    placeholder="أدخل رقم التتبع (اختياري)"
-                    className="input-field"
-                  />
-                </div>
+                {/* Package Status Display */}
+                {order?.packageId && (
+                  <div className="p-3 rounded-lg border bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-700 dark:text-slate-300">
+                          رقم الطرد: {order.packageId}
+                        </p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                          الحالة: {
+                            packageStatus === 'pending' ? '⏳ في انتظار الإرسال' :
+                            packageStatus === 'confirmed' ? '✅ تم الإرسال بنجاح' :
+                            packageStatus === 'processing' ? '🔄 قيد المعالجة' :
+                            packageStatus === 'shipped' ? '📦 تم الشحن' :
+                            packageStatus === 'delivered' ? '✓ تم التسليم' :
+                            packageStatus === 'cancelled' ? '❌ ملغي' :
+                            'غير محدد'
+                          }
+                        </p>
+                      </div>
+                      {packageStatus === 'pending' && (
+                        <button
+                          onClick={handleResendPackage}
+                          disabled={resendingPackage}
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white text-sm font-medium rounded-lg transition-colors"
+                        >
+                          {resendingPackage ? 'جاري الإرسال...' : 'إعادة الإرسال'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Shipping Status Display */}
+                {shippingStatus.type && shippingStatus.message && (
+                  <div className={`p-3 rounded-lg border ${
+                    shippingStatus.type === 'success' 
+                      ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+                      : shippingStatus.type === 'error'
+                      ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+                      : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
+                  }`}>
+                    <p className={`text-sm ${
+                      shippingStatus.type === 'success'
+                        ? 'text-green-800 dark:text-green-200'
+                        : shippingStatus.type === 'error'
+                        ? 'text-red-800 dark:text-red-200'
+                        : 'text-blue-800 dark:text-blue-200'
+                    }`}>
+                      {shippingStatus.message}
+                    </p>
+                  </div>
+                )}
 
                 <div className="flex justify-end space-x-3 space-x-reverse pt-4 border-t border-gray-200 dark:border-slate-700">
                   <button
                     onClick={() => {
                       setShowShippingModal(false);
-                      setTrackingNumber(order.trackingNumber || '');
                       setShippingCompany(order.shippingCompany || '');
                       setShippingCity(order.shippingAddress?.city || order.shippingAddress?.villageName || '');
                     }}
@@ -2153,7 +2447,7 @@ export default function OrderDetailPage() {
                   </button>
                   <button
                     onClick={handleUpdateShipping}
-                    disabled={updatingShipping || !shippingCompany || !shippingCompany.trim() || (!selectedVillageId && !order.shippingAddress?.villageId)}
+                    disabled={updatingShipping || !shippingCompany || !shippingCompany.trim() || !(selectedVillageId || order.shippingAddress?.villageId)}
                     className="btn-secondary flex items-center"
                   >
                     {updatingShipping ? (
@@ -2170,7 +2464,7 @@ export default function OrderDetailPage() {
                   </button>
                   <button
                     onClick={handleShipToCompany}
-                    disabled={updatingShipping || !shippingCompany || !shippingCompany.trim() || (!selectedVillageId && !order.shippingAddress?.villageId)}
+                    disabled={updatingShipping || !shippingCompany || !shippingCompany.trim() || !(selectedVillageId || order.shippingAddress?.villageId)}
                     className="btn-primary flex items-center"
                   >
                     {updatingShipping ? (
@@ -2242,12 +2536,6 @@ export default function OrderDetailPage() {
                       <span className="font-semibold text-gray-900 dark:text-white">
                         {order.shippingAddress.city}
                       </span>
-                    </div>
-                  )}
-                  {order.trackingNumber && (
-                    <div className="flex items-center justify-between p-2 bg-gray-50 dark:bg-slate-700 rounded">
-                      <span className="text-gray-600 dark:text-gray-400">رقم التتبع:</span>
-                      <span className="font-semibold text-gray-900 dark:text-white">{order.trackingNumber}</span>
                     </div>
                   )}
                 </div>

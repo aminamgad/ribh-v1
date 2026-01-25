@@ -28,16 +28,6 @@ export default function DashboardHeader() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Debug: طباعة قيمة العداد
-  console.log('=== DASHBOARD HEADER DEBUG ===');
-  console.log('totalUnreadChats:', totalUnreadChats);
-  console.log('user:', user?.name);
-  console.log('=============================');
-
-  // مراقبة التغييرات في العداد
-  useEffect(() => {
-    console.log('Header: totalUnreadChats changed to:', totalUnreadChats);
-  }, [totalUnreadChats]);
 
   useEffect(() => {
     setMounted(true);
@@ -100,7 +90,6 @@ export default function DashboardHeader() {
       
       toast.success('جاري تحديث البيانات...', { duration: 2000 });
     } catch (error) {
-      console.error('Error refreshing data:', error);
       toast.error('حدث خطأ أثناء تحديث البيانات');
     } finally {
       setTimeout(() => setIsRefreshing(false), 1000);

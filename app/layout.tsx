@@ -73,7 +73,7 @@ export default function RootLayout({
                     document.documentElement.classList.remove('dark');
                   }
                 } catch (e) {
-                  console.log('Theme initialization error:', e);
+                  // Silently handle theme initialization errors
                 }
               })();
             `,

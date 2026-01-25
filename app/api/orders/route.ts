@@ -26,21 +26,21 @@ const shippingAddressSchema = z.object({
   fullName: z.string().min(1, 'الاسم الكامل مطلوب'),
   phone: z.string().min(1, 'رقم الهاتف مطلوب'),
   street: z.string().min(1, 'عنوان الشارع مطلوب'),
-  manualVillageName: z.string().optional(), // Manual village name entered by marketer (for admin review)
-  villageId: z.number().int().positive().optional(), // Optional - set by admin after review
-  villageName: z.string().optional(), // Optional - set by admin after review
-  deliveryCost: z.number().optional(),
+  governorate: z.string().min(1, 'المحافظة مطلوبة').optional(), // Governorate selected by marketer
+  villageId: z.number().int().positive().optional(), // Village ID selected by marketer
+  villageName: z.string().optional(), // Village name selected by marketer
+  deliveryCost: z.number().optional(), // Delivery cost from village
   postalCode: z.string().optional(),
   notes: z.string().optional(),
   shippingRegionCode: z.string().optional(), // New: Shipping region code from SystemSettings
   // Legacy fields for backward compatibility
   city: z.string().optional(),
-  governorate: z.string().optional()
+  manualVillageName: z.string().optional() // Deprecated - kept for backward compatibility
 }).refine(
-  (data) => data.manualVillageName || data.villageId || data.shippingRegionCode || data.governorate,
+  (data) => data.governorate || data.villageId || data.shippingRegionCode || data.manualVillageName,
   {
-    message: 'يجب تحديد منطقة التوصيل: إما اسم القرية اليدوي (manualVillageName) أو معرف القرية (villageId) أو رمز منطقة التوصيل (shippingRegionCode) أو المحافظة (governorate)',
-    path: ['manualVillageName']
+    message: 'يجب تحديد منطقة التوصيل: إما المحافظة (governorate) أو معرف القرية (villageId) أو رمز منطقة التوصيل (shippingRegionCode)',
+    path: ['governorate']
   }
 );
 
@@ -187,36 +187,16 @@ async function createOrderHandler(req: NextRequest, user: any) {
     let finalShippingCost = 0;
     
     // Validate shipping region or village is provided
-    // Allow manualVillageName from marketer (will be reviewed by admin)
-    if (!orderData.shippingAddress.manualVillageName && !orderData.shippingAddress.villageId && !orderData.shippingAddress.shippingRegionCode && !orderData.shippingAddress.governorate) {
+    // Priority: villageId (from GovernorateVillageSelect) > shippingRegionCode > governorate > manualVillageName (legacy)
+    if (!orderData.shippingAddress.villageId && !orderData.shippingAddress.shippingRegionCode && !orderData.shippingAddress.governorate && !orderData.shippingAddress.manualVillageName) {
       return NextResponse.json(
-        { success: false, message: 'يجب تحديد منطقة التوصيل: إما اسم القرية اليدوي أو معرف القرية أو رمز منطقة التوصيل أو المحافظة' },
+        { success: false, message: 'يجب تحديد منطقة التوصيل: إما المحافظة والقرية أو رمز منطقة التوصيل' },
         { status: 400 }
       );
     }
     
-    // If manualVillageName is provided (marketer entered manually), use it and set shipping cost to 0
-    // Admin will review and set actual villageId later
-    if (orderData.shippingAddress.manualVillageName && !orderData.shippingAddress.villageId) {
-      finalShippingCost = 0; // Will be calculated by admin after selecting actual village
-      villageName = orderData.shippingAddress.manualVillageName;
-    }
-    // Priority 1: Use shippingRegionCode if provided (new system) - only if not using manualVillageName
-    else if (orderData.shippingAddress.shippingRegionCode) {
-      finalShippingCost = await calculateShippingCost(
-        subtotal,
-        undefined, // villageId not needed when using region code
-        orderData.shippingAddress.shippingRegionCode
-      );
-      
-      // Get region name for display
-      const region = systemSettings?.shippingRegions?.find(
-        (r: any) => r.regionCode === orderData.shippingAddress.shippingRegionCode && r.isActive
-      );
-      villageName = region?.regionName || orderData.shippingAddress.shippingRegionCode;
-    }
-    // Priority 2: Use villageId (existing system)
-    else if (orderData.shippingAddress.villageId) {
+    // Priority 1: Use villageId (from GovernorateVillageSelect) - preferred method
+    if (orderData.shippingAddress.villageId) {
       const village = await Village.findOne({ 
         villageId: orderData.shippingAddress.villageId,
         isActive: true 
@@ -229,14 +209,33 @@ async function createOrderHandler(req: NextRequest, user: any) {
         );
       }
       
+      // Use delivery cost from village if provided, otherwise calculate
+      if (orderData.shippingAddress.deliveryCost !== undefined && orderData.shippingAddress.deliveryCost > 0) {
+        finalShippingCost = orderData.shippingAddress.deliveryCost;
+      } else {
+        finalShippingCost = await calculateShippingCost(
+          subtotal,
+          orderData.shippingAddress.villageId,
+          undefined
+        );
+      }
+      villageName = orderData.shippingAddress.villageName || (village as any).villageName || 'غير محدد';
+    }
+    // Priority 2: Use shippingRegionCode if provided (new system)
+    else if (orderData.shippingAddress.shippingRegionCode) {
       finalShippingCost = await calculateShippingCost(
         subtotal,
-        orderData.shippingAddress.villageId,
-        undefined
+        undefined, // villageId not needed when using region code
+        orderData.shippingAddress.shippingRegionCode
       );
-      villageName = (village as any).villageName || orderData.shippingAddress.villageName || 'غير محدد';
+      
+      // Get region name for display
+      const region = systemSettings?.shippingRegions?.find(
+        (r: any) => r.regionName === orderData.shippingAddress.shippingRegionCode && r.isActive
+      );
+      villageName = region?.regionName || orderData.shippingAddress.shippingRegionCode;
     }
-    // Priority 3: Fallback to legacy governorate-based system
+    // Priority 3: Fallback to governorate-based system (if villageId not provided)
     else if (orderData.shippingAddress.governorate) {
       if (!systemSettings?.governorates || systemSettings.governorates.length === 0) {
         finalShippingCost = systemSettings?.defaultShippingCost || 0;
@@ -251,9 +250,15 @@ async function createOrderHandler(req: NextRequest, user: any) {
         finalShippingCost = governorate.shippingCost;
       }
       villageName = orderData.shippingAddress.governorate;
+    }
+    // Priority 4: Legacy manualVillageName (deprecated - kept for backward compatibility)
+    else if (orderData.shippingAddress.manualVillageName) {
+      finalShippingCost = 0; // Will be calculated by admin after selecting actual village
+      villageName = orderData.shippingAddress.manualVillageName;
     } else {
       // This should not happen due to validation, but keep as fallback
       finalShippingCost = systemSettings?.defaultShippingCost || 0;
+      villageName = 'غير محدد';
     }
 
     const finalShippingMethod = 'الشحن الأساسي';
@@ -502,7 +507,6 @@ async function getOrdersHandler(req: NextRequest, user: any) {
         { 'shippingAddress.street': searchRegex },
         { 'shippingAddress.city': searchRegex },
         { 'shippingAddress.governorate': searchRegex },
-        { trackingNumber: searchRegex },
         { shippingCompany: searchRegex }
       );
       
@@ -622,8 +626,7 @@ async function getOrdersHandler(req: NextRequest, user: any) {
           }
         }
         
-        // Check tracking number
-        if (order.trackingNumber?.toLowerCase().includes(searchLower)) return true;
+        // Check shipping company
         if (order.shippingCompany?.toLowerCase().includes(searchLower)) return true;
         
         return false;

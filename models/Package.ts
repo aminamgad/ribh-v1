@@ -16,15 +16,16 @@ export interface PackageDocument extends Document {
   note?: string;
   barcode: string; // Must be unique
   status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  deliveryCost?: number; // Delivery cost from shipping company API (may differ from village delivery cost)
+  qrCode?: string; // QR code from shipping company API
   createdAt: Date;
   updatedAt: Date;
 }
 
 const packageSchema = new Schema<PackageDocument>({
   packageId: {
-    type: Number,
-    unique: true,
-    sparse: true // Allow multiple null values, but enforce uniqueness for non-null values
+    type: Number
+    // unique and sparse are defined in schema.index() below
   },
   externalCompanyId: {
     type: Schema.Types.ObjectId,
@@ -89,7 +90,6 @@ const packageSchema = new Schema<PackageDocument>({
   barcode: {
     type: String,
     required: [true, 'الباركود مطلوب'],
-    unique: true,
     trim: true,
     maxlength: [100, 'الباركود لا يمكن أن يتجاوز 100 حرف']
   },
@@ -98,6 +98,15 @@ const packageSchema = new Schema<PackageDocument>({
     enum: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'],
     default: 'pending',
     index: true
+  },
+  deliveryCost: {
+    type: Number,
+    min: [0, 'تكلفة التوصيل يجب أن تكون أكبر من أو تساوي صفر']
+  },
+  qrCode: {
+    type: String,
+    trim: true,
+    maxlength: [200, 'رمز QR لا يمكن أن يتجاوز 200 حرف']
   }
 }, {
   timestamps: true
@@ -124,7 +133,7 @@ packageSchema.pre('save', async function(next) {
 
 // Indexes
 packageSchema.index({ packageId: 1 }, { unique: true, sparse: true }); // Sparse index allows multiple null values
-packageSchema.index({ barcode: 1 });
+packageSchema.index({ barcode: 1 }, { unique: true }); // Unique index for barcode
 packageSchema.index({ externalCompanyId: 1, status: 1 });
 packageSchema.index({ villageId: 1, status: 1 });
 packageSchema.index({ orderId: 1 });

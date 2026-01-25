@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 
 interface SystemSettings {
   _id: string;
@@ -87,7 +87,7 @@ interface SettingsContextType {
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
-export function SettingsProvider({ children }: { children: React.ReactNode }) {
+export function SettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<SystemSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -106,7 +106,6 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         throw new Error('فشل في جلب إعدادات النظام');
       }
     } catch (err) {
-      console.error('Error fetching settings:', err);
       setError(err instanceof Error ? err.message : 'حدث خطأ غير متوقع');
       setSettings(null);
     } finally {
@@ -136,7 +135,6 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         throw new Error(errorData.message || 'فشل في تحديث الإعدادات');
       }
     } catch (err) {
-      console.error('Error updating settings:', err);
       setError(err instanceof Error ? err.message : 'حدث خطأ غير متوقع');
       throw err;
     }

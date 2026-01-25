@@ -162,7 +162,6 @@ export const GET = withAuth(async (req: NextRequest, user: any) => {
       }
     });
   } catch (error) {
-    console.error('Error exporting analytics:', error);
     return NextResponse.json(
       { success: false, message: 'حدث خطأ أثناء تصدير التقرير التحليلي' },
       { status: 500 }

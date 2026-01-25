@@ -97,16 +97,6 @@ export default function DashboardSidebar({ onClose }: DashboardSidebarProps) {
             hoverTextColor: 'group-hover:text-[#2E7D32] dark:group-hover:text-[#81C784]',
           },
           {
-            href: '/dashboard/admin/villages',
-            label: 'إدارة القرى',
-            icon: MapPin,
-            gradient: 'from-[#2196F3] to-[#1976D2]',
-            bgGradient: 'from-[#2196F3]/10 to-[#1976D2]/10 dark:from-[#2196F3]/20 dark:to-[#1976D2]/20',
-            borderColor: 'border-[#2196F3]/20 dark:border-[#2196F3]/30',
-            textColor: 'text-[#1565C0] dark:text-[#64B5F6]',
-            hoverTextColor: 'group-hover:text-[#1565C0] dark:group-hover:text-[#64B5F6]',
-          },
-          {
             href: '/dashboard/admin/categories',
             label: 'إدارة الفئات',
             icon: FileText,

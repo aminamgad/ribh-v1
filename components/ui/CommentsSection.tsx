@@ -66,7 +66,6 @@ export default function CommentsSection({ entityType, entityId, className = '' }
         toast.error('فشل في جلب التعليقات');
       }
     } catch (error) {
-      console.error('Error fetching comments:', error);
       toast.error('حدث خطأ أثناء جلب التعليقات');
     } finally {
       setLoading(false);
@@ -101,7 +100,6 @@ export default function CommentsSection({ entityType, entityId, className = '' }
         toast.error(errorData.message || 'فشل في إضافة التعليق');
       }
     } catch (error) {
-      console.error('Error adding comment:', error);
       toast.error('حدث خطأ أثناء إضافة التعليق');
     }
   };
@@ -135,7 +133,6 @@ export default function CommentsSection({ entityType, entityId, className = '' }
         toast.error(errorData.message || 'فشل في إضافة الرد');
       }
     } catch (error) {
-      console.error('Error adding reply:', error);
       toast.error('حدث خطأ أثناء إضافة الرد');
     }
   };
@@ -164,7 +161,6 @@ export default function CommentsSection({ entityType, entityId, className = '' }
         toast.error(errorData.message || 'فشل في تحديث التعليق');
       }
     } catch (error) {
-      console.error('Error updating comment:', error);
       toast.error('حدث خطأ أثناء تحديث التعليق');
     }
   };
@@ -185,7 +181,6 @@ export default function CommentsSection({ entityType, entityId, className = '' }
         toast.error(errorData.message || 'فشل في حذف التعليق');
       }
     } catch (error) {
-      console.error('Error deleting comment:', error);
       toast.error('حدث خطأ أثناء حذف التعليق');
     }
   };

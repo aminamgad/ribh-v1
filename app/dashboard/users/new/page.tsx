@@ -178,7 +178,6 @@ export default function CreateUserPage() {
         toast.error(error.message || 'فشل في إنشاء المستخدم');
       }
     } catch (error) {
-      console.error('Error creating user:', error);
       toast.error('حدث خطأ أثناء إنشاء المستخدم');
     } finally {
       setSaving(false);

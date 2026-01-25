@@ -196,7 +196,6 @@ export const downloadMedia = async (url: string, filename: string): Promise<bool
     
     return true;
   } catch (error) {
-    console.error('Download failed:', error);
     return false;
   }
 };

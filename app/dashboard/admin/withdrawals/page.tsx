@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useDataCache } from '@/components/hooks/useDataCache';
 import { toast } from 'react-hot-toast';
@@ -127,7 +127,6 @@ export default function AdminWithdrawalsPage() {
         toast.error(data.message);
       }
     } catch (error) {
-      console.error('Error updating withdrawal request:', error);
       toast.error('حدث خطأ في تحديث طلب السحب');
     } finally {
       setProcessing(null);

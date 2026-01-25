@@ -28,16 +28,7 @@ class ImagePerformanceMonitor {
       const { url, loadTime, size, retryCount } = metric;
       const shortUrl = url.length > 50 ? url.substring(0, 50) + '...' : url;
       
-      console.log(`[Image Performance] ${shortUrl}`, {
-        loadTime: `${loadTime.toFixed(2)}ms`,
-        size: size || 'unknown',
-        retryCount: retryCount || 0
-      });
-
-      // Warn on slow loads
-      if (loadTime > 1000) {
-        console.warn(`[Image Performance] ⚠️ Slow load: ${loadTime.toFixed(2)}ms for ${shortUrl}`);
-      }
+      // Warn on slow loads (silently handled)
     }
   }
 
@@ -137,22 +128,13 @@ class ImagePerformanceMonitor {
           const imgUrl = (lastEntry.element as HTMLImageElement).src;
           const loadTime = lastEntry.renderTime || lastEntry.loadTime || 0;
           
-          if (process.env.NODE_ENV === 'development') {
-            console.log('[Image Performance] LCP Image detected:', {
-              url: imgUrl.substring(0, 50) + '...',
-              loadTime: `${loadTime.toFixed(2)}ms`,
-              size: `${lastEntry.size || 'unknown'}`
-            });
-          }
+          // LCP Image detected (silently handled)
         }
       });
 
       observer.observe({ entryTypes: ['largest-contentful-paint'] });
     } catch (e) {
       // PerformanceObserver not supported or error
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('[Image Performance] LCP measurement not available');
-      }
     }
   }
 }

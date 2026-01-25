@@ -72,17 +72,10 @@ export function useDataCache<T = any>({
       return;
     }
 
-    console.log('useDataCache - key changed, checking cache:', {
-      key,
-      hasCachedData: !!cache.getCachedData<T>(key),
-      forceRefresh
-    });
-
     const cachedData = cache.getCachedData<T>(key);
     
     if (cachedData && !forceRefresh) {
       // Use cached data - no loading needed
-      console.log('useDataCache - Using cached data:', { key });
       setData(cachedData);
       setHasFetched(true);
       setLoading(false); // Set loading to false immediately when using cache
@@ -92,7 +85,6 @@ export function useDataCache<T = any>({
     } else {
       // No cached data or force refresh - fetch immediately
       // Reset hasFetched when key changes to ensure fresh fetch
-      console.log('useDataCache - No cached data, fetching:', { key, forceRefresh });
       setHasFetched(false);
       fetchData();
     }

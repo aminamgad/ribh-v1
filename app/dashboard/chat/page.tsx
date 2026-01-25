@@ -91,7 +91,6 @@ export default function ChatPage() {
   //         } : null);
   //       }
   //     } catch (error) {
-  //       console.error('Error refreshing messages:', error);
   //     }
   //   }, 3000);
 
@@ -102,7 +101,6 @@ export default function ChatPage() {
   useEffect(() => {
     if (currentChat && currentChat.unreadCount > 0) {
       // لا نستدعي markAsRead تلقائياً - فقط عند فتح المحادثة يدوياً
-      console.log('Chat opened with unread messages:', currentChat.unreadCount, 'but not marking as read automatically');
     }
   }, [currentChat]);
 
@@ -125,7 +123,7 @@ export default function ChatPage() {
         setUsers(data.users.filter((u: any) => u._id !== user?._id));
       }
     } catch (error) {
-      console.error('Error fetching users:', error);
+      // Silently handle errors
     }
   };
 
@@ -176,7 +174,6 @@ export default function ChatPage() {
         setMessageInput(messageToSend);
       }
     } catch (error) {
-      console.error('Error sending message:', error);
       toast.error('حدث خطأ أثناء إرسال الرسالة');
       // إعادة النص في حالة الفشل
       setMessageInput(messageToSend);
@@ -566,7 +563,6 @@ export default function ChatPage() {
                     className="hidden"
                     onChange={(e) => {
                       // Handle file upload
-                      console.log('File selected:', e.target.files?.[0]);
                     }}
                   />
                   <textarea

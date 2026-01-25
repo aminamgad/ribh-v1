@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User } from '@/types';
 
 interface AuthContextType {
@@ -23,7 +23,7 @@ export function useAuth() {
   return context;
 }
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(data.user);
       }
     } catch (error) {
-      console.error('Auth check failed:', error);
+      // Silently handle auth check errors
     } finally {
       setLoading(false);
     }
@@ -106,7 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       setUser(null);
     } catch (error) {
-      console.error('Logout failed:', error);
+      // Silently handle logout errors
     }
   };
 

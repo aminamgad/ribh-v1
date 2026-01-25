@@ -117,16 +117,10 @@ export default function MessagesPage() {
       const otherUserId = selectedConversation.otherUser._id;
       const conversationId = [user?._id, otherUserId].sort().join('-');
       
-      console.log('🔍 Frontend: Fetching messages for conversation:', conversationId);
-      console.log('🔍 Frontend: User ID:', user?._id);
-      console.log('🔍 Frontend: Other user ID:', otherUserId);
-      
       const response = await fetch(`/api/messages/conversations/${conversationId}`);
-      console.log('🔍 Frontend: Messages response status:', response.status);
       
       if (response.ok) {
         const data = await response.json();
-        console.log('🔍 Frontend: Messages data:', data);
         setMessages(data.messages || []);
         
         // Mark messages as read
@@ -138,11 +132,9 @@ export default function MessagesPage() {
         fetchConversations();
       } else {
         const errorData = await response.json();
-        console.error('🔍 Frontend: Messages error:', errorData);
         toast.error('فشل في جلب الرسائل');
       }
     } catch (error) {
-      console.error('Error fetching messages:', error);
       toast.error('حدث خطأ أثناء جلب الرسائل');
     }
   };
@@ -175,7 +167,6 @@ export default function MessagesPage() {
         toast.error(errorData.message || 'فشل في إرسال الرسالة');
       }
     } catch (error) {
-      console.error('Error sending message:', error);
       toast.error('حدث خطأ أثناء إرسال الرسالة');
     } finally {
       setSendingMessage(false);

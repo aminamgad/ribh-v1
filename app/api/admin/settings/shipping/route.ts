@@ -9,7 +9,6 @@ import { handleApiError } from '@/lib/error-handler';
 // Schema for shipping region
 const shippingRegionSchema = z.object({
   regionName: z.string().min(1, 'اسم المنطقة مطلوب'),
-  regionCode: z.string().min(1, 'رمز المنطقة مطلوب'),
   description: z.string().optional(),
   shippingCost: z.number().min(0, 'سعر التوصيل يجب أن يكون أكبر من أو يساوي صفر'),
   freeShippingThreshold: z.number().min(0).nullable().optional(),
@@ -26,9 +25,27 @@ async function getShippingRegions(req: NextRequest, user: any) {
     
     const settings = await SystemSettings.findOne().sort({ createdAt: -1 });
     
+    // Convert regions to plain objects with _id
+    const regions = (settings?.shippingRegions || []).map((region: any) => {
+      const regionObj = region && typeof region.toObject === 'function' 
+        ? region.toObject() 
+        : region;
+      return {
+        _id: regionObj._id?.toString() || regionObj._id,
+        regionName: regionObj.regionName,
+        description: regionObj.description,
+        shippingCost: regionObj.shippingCost,
+        freeShippingThreshold: regionObj.freeShippingThreshold,
+        isActive: regionObj.isActive !== undefined ? regionObj.isActive : true,
+        villageIds: regionObj.villageIds || [],
+        governorateName: regionObj.governorateName || '',
+        cityNames: regionObj.cityNames || []
+      };
+    });
+    
     return NextResponse.json({
       success: true,
-      regions: settings?.shippingRegions || [],
+      regions: regions,
       defaultShippingCost: settings?.defaultShippingCost || 50,
       defaultFreeShippingThreshold: settings?.defaultFreeShippingThreshold || 500
     });
@@ -54,14 +71,14 @@ async function addShippingRegion(req: NextRequest, user: any) {
       await settings.save();
     }
     
-    // Check if region code already exists
+    // Check if region name already exists
     const existingRegion = settings.shippingRegions?.find(
-      (r: any) => r.regionCode === validatedData.regionCode
+      (r: any) => r.regionName === validatedData.regionName
     );
     
     if (existingRegion) {
       return NextResponse.json(
-        { success: false, message: 'رمز المنطقة موجود بالفعل' },
+        { success: false, message: 'اسم المنطقة موجود بالفعل' },
         { status: 400 }
       );
     }
@@ -71,19 +88,35 @@ async function addShippingRegion(req: NextRequest, user: any) {
       settings.shippingRegions = [];
     }
     
-    settings.shippingRegions.push(validatedData as any);
+    // Create new region object with proper structure
+    const newRegion = {
+      regionName: validatedData.regionName,
+      description: validatedData.description || '',
+      shippingCost: validatedData.shippingCost,
+      freeShippingThreshold: validatedData.freeShippingThreshold || null,
+      isActive: validatedData.isActive !== undefined ? validatedData.isActive : true,
+      villageIds: validatedData.villageIds || [],
+      governorateName: validatedData.governorateName || '',
+      cityNames: validatedData.cityNames || []
+    };
+    
+    settings.shippingRegions.push(newRegion as any);
+    settings.markModified('shippingRegions');
     await settings.save();
     
+    // Get the saved region with _id
+    const savedRegion = settings.shippingRegions[settings.shippingRegions.length - 1];
+    
     logger.info('Shipping region added', {
-      regionCode: validatedData.regionCode,
       regionName: validatedData.regionName,
+      regionId: savedRegion._id?.toString(),
       addedBy: user._id
     });
     
     return NextResponse.json({
       success: true,
       message: 'تم إضافة منطقة التوصيل بنجاح',
-      region: validatedData
+      region: savedRegion
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -126,7 +159,10 @@ async function updateShippingRegion(req: NextRequest, user: any) {
     
     // Find region by ID (MongoDB _id)
     const regionIndex = settings.shippingRegions.findIndex(
-      (r: any) => r._id?.toString() === regionId
+      (r: any) => {
+        const rId = r._id?.toString() || r._id;
+        return rId === regionId;
+      }
     );
     
     if (regionIndex === -1) {
@@ -136,15 +172,15 @@ async function updateShippingRegion(req: NextRequest, user: any) {
       );
     }
     
-    // Check if region code is being changed and already exists
-    if (validatedData.regionCode && validatedData.regionCode !== settings.shippingRegions[regionIndex].regionCode) {
+    // Check if region name is being changed and already exists
+    if (validatedData.regionName && validatedData.regionName !== settings.shippingRegions[regionIndex].regionName) {
       const existingRegion = settings.shippingRegions.find(
-        (r: any) => r.regionCode === validatedData.regionCode && r._id?.toString() !== regionId
+        (r: any) => r.regionName === validatedData.regionName && r._id?.toString() !== regionId
       );
       
       if (existingRegion) {
         return NextResponse.json(
-          { success: false, message: 'رمز المنطقة موجود بالفعل' },
+          { success: false, message: 'اسم المنطقة موجود بالفعل' },
           { status: 400 }
         );
       }
@@ -155,11 +191,15 @@ async function updateShippingRegion(req: NextRequest, user: any) {
     const regionObject = currentRegion && typeof (currentRegion as any).toObject === 'function' 
       ? (currentRegion as any).toObject() 
       : currentRegion;
+    
+    // Update region with validated data
     settings.shippingRegions[regionIndex] = {
       ...regionObject,
-      ...validatedData
+      ...validatedData,
+      _id: regionObject._id || currentRegion._id // Preserve _id
     } as any;
     
+    settings.markModified('shippingRegions');
     await settings.save();
     
     logger.info('Shipping region updated', {
@@ -209,11 +249,23 @@ async function deleteShippingRegion(req: NextRequest, user: any) {
       );
     }
     
-    // Remove region
+    // Remove region by ID
+    const initialLength = settings.shippingRegions.length;
     settings.shippingRegions = settings.shippingRegions.filter(
-      (r: any) => r._id?.toString() !== regionId
+      (r: any) => {
+        const rId = r._id?.toString() || r._id;
+        return rId !== regionId;
+      }
     );
     
+    if (settings.shippingRegions.length === initialLength) {
+      return NextResponse.json(
+        { success: false, message: 'المنطقة غير موجودة' },
+        { status: 404 }
+      );
+    }
+    
+    settings.markModified('shippingRegions');
     await settings.save();
     
     logger.info('Shipping region deleted', {

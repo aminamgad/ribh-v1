@@ -185,7 +185,7 @@ if (!shippingAddress.villageId) {
 - ✅ `village_id` كـ string
 - ✅ `total_cost` كـ string
 - ✅ `Authorization: Bearer ${apiToken}`
-- ✅ نفس URL: `https://ultra-pal.net/api/external_company/create-package`
+- ✅ نفس URL: `https://ultra-pal.com/api/external_company/create-package`
 
 **الكود:**
 ```typescript
@@ -255,7 +255,7 @@ if (response.ok && responseData.code === 200 && responseData.state === 'success'
 - `Content-Type`: ✅ `application/json`
 
 ### ✅ **API Endpoint:**
-- URL: ✅ من `externalCompany.apiEndpointUrl` (يجب أن يكون: `https://ultra-pal.net/api/external_company/create-package`)
+- URL: ✅ من `externalCompany.apiEndpointUrl` (يجب أن يكون: `https://ultra-pal.com/api/external_company/create-package`)
 - Method: ✅ `POST`
 
 ---

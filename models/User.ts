@@ -16,7 +16,6 @@ const userSchema = new Schema<UserDocument>({
   email: {
     type: String,
     required: [true, 'البريد الإلكتروني مطلوب'],
-    unique: true,
     lowercase: true,
     trim: true,
     match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'البريد الإلكتروني غير صحيح']

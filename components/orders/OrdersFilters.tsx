@@ -458,12 +458,6 @@ export default function OrdersFilters({ onFiltersChange }: OrdersFiltersProps) {
                 filterStatusRef.current = value;
                 // Apply immediately with the new status array directly
                 if (!isInitialMount.current) {
-                  console.log('Order status filter changed - calling applyFiltersAuto:', {
-                    value,
-                    valueLength: value?.length,
-                    valueType: typeof value,
-                    isArray: Array.isArray(value)
-                  });
                   applyFiltersAuto(undefined, undefined, undefined, undefined, undefined, value);
                 }
               }}

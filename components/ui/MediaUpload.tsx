@@ -79,44 +79,18 @@ export default function MediaUpload({
       
              // Note: Using auto endpoint, so no need to specify resource_type
 
-             // Debug: Log what we're sending to Cloudinary
-       console.log('=== UPLOAD DEBUG ===');
-       console.log('Uploading to Cloudinary with params:', {
-         api_key: apiKey,
-         timestamp: timestamp.toString(),
-         signature,
-         folder,
-         public_id: returnedPublicId,
-         resource_type: resource_type,
-         cloudName,
-         fileName: file.name,
-         fileSize: file.size,
-         fileType: file.type
-       });
-       console.log('FormData entries:');
-               Array.from(formData.entries()).forEach(([key, value]) => {
-          console.log(`${key}:`, value);
-        });
-       console.log('=== END UPLOAD DEBUG ===');
-
-             // Upload directly to Cloudinary
-       // Always use 'auto' endpoint and let Cloudinary detect the resource type
-       console.log('Making request to Cloudinary...');
-       const uploadResponse = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
-         method: 'POST',
-         body: formData,
-       });
-       console.log('Cloudinary response status:', uploadResponse.status);
+            // Upload directly to Cloudinary
+      // Always use 'auto' endpoint and let Cloudinary detect the resource type
+      const uploadResponse = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
+        method: 'POST',
+        body: formData,
+      });
 
       if (uploadResponse.ok) {
         const result = await uploadResponse.json();
-        console.log('Upload successful:', result);
         return { success: true, url: result.secure_url };
       } else {
         const errorText = await uploadResponse.text();
-        console.error('Cloudinary upload error response:', errorText);
-        console.error('Response status:', uploadResponse.status);
-        console.error('Response headers:', Object.fromEntries(uploadResponse.headers.entries()));
         
         let error;
         try {
@@ -127,7 +101,6 @@ export default function MediaUpload({
         return { success: false, error: error.error?.message || error.message || 'Upload failed' };
       }
     } catch (error) {
-      console.error('Direct upload error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Upload failed';
       return { success: false, error: errorMessage };
     }
@@ -138,23 +111,12 @@ export default function MediaUpload({
   const handleFileUpload = async (files: FileList) => {
     if (files.length === 0) return;
 
-    console.log('=== FILE UPLOAD DEBUG ===');
-    console.log('Files to upload:', files.length);
-    console.log('Accept type:', accept);
-    console.log('Max size:', maxSize);
 
     const validFiles: File[] = [];
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      console.log(`File ${i + 1}:`, {
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        sizeMB: new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(file.size / (1024 * 1024)) + 'MB'
-      });
       
       const validation = validateMediaFile(file, accept, maxSize);
-      console.log('Validation result:', validation);
       
       if (validation.valid) {
         validFiles.push(file);
@@ -162,9 +124,6 @@ export default function MediaUpload({
         toast.error(validation.error || 'خطأ في تحديد الملف');
       }
     }
-    
-    console.log('Valid files:', validFiles.length);
-    console.log('=== END FILE UPLOAD DEBUG ===');
 
     if (validFiles.length === 0) return;
 
@@ -180,15 +139,12 @@ export default function MediaUpload({
       for (const file of validFiles) {
         // Use direct Cloudinary upload for files larger than 4MB
         const isLargeFile = file.size > 4 * 1024 * 1024; // 4MB threshold
-        console.log(`Processing file: ${file.name}, isLargeFile: ${isLargeFile}, size: ${new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(file.size / (1024 * 1024))}MB`);
         
         if (isLargeFile) {
-          console.log(`Using direct Cloudinary upload for: ${file.name}`);
           // Direct Cloudinary upload for large files
           setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
           const uploadResult = await uploadToCloudinaryDirect(file);
           setUploadProgress(prev => ({ ...prev, [file.name]: 100 }));
-          console.log(`Upload result for ${file.name}:`, uploadResult);
           if (uploadResult.success) {
             if (uploadResult.url) {
               uploadedUrls.push(uploadResult.url);
@@ -197,7 +153,6 @@ export default function MediaUpload({
             toast.error(`فشل رفع ${file.name}: ${uploadResult.error}`);
           }
         } else {
-          console.log(`Using regular API upload for: ${file.name}`);
           // Regular API upload for smaller files
           const formData = new FormData();
           formData.append('file', file);
@@ -221,7 +176,7 @@ export default function MediaUpload({
               const error = await response.json();
               errorMessage = error.message || errorMessage;
             } catch (parseError) {
-              console.error('Error parsing response:', parseError);
+              // Silently handle parse errors
             }
             toast.error(errorMessage);
           }
@@ -234,7 +189,6 @@ export default function MediaUpload({
         toast.success(`تم رفع ${uploadedUrls.length} ${mediaType} بنجاح`);
       }
     } catch (error) {
-      console.error('Error uploading files:', error);
       toast.error('حدث خطأ أثناء رفع الملفات');
     } finally {
       setUploading(false);
@@ -333,7 +287,6 @@ export default function MediaUpload({
                          toast.success(`تم تحميل جميع الملفات بنجاح (${result.success} ملف)`);
                        }
                      } catch (error) {
-                       console.error('Download all error:', error);
                        toast.error('فشل في تحميل الملفات');
                      }
                    }}
@@ -401,7 +354,6 @@ export default function MediaUpload({
                                toast.error('فشل في تحميل الملف');
                              }
                            } catch (error) {
-                             console.error('Download error:', error);
                              toast.error('فشل في تحميل الملف');
                            }
                          }}

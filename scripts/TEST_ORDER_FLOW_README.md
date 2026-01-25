@@ -123,7 +123,7 @@ node scripts/test-order-flow-3-create-package.js <orderId>
 
 ### التحقق من وجود شركة الشحن:
 ```bash
-node scripts/update-external-company-api.js "Ultra Pal" "https://ultra-pal.net/api/external_company/create-package" "115062|ak2BeovW6RvCsVOZ8HXbszmuEYl6aNuMbdAjEPge"
+node scripts/update-external-company-api.js "Ultra Pal" "https://ultra-pal.com/api/external_company/create-package" "115062|ak2BeovW6RvCsVOZ8HXbszmuEYl6aNuMbdAjEPge"
 ```
 
 ---

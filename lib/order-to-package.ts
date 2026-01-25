@@ -12,7 +12,7 @@ import { logger } from './logger';
  * @param packageData - Package data to send
  * @returns Object with success status and packageId or error message
  */
-async function callExternalShippingCompanyAPI(
+export async function callExternalShippingCompanyAPI(
   apiEndpointUrl: string,
   apiToken: string,
   packageData: {
@@ -27,7 +27,14 @@ async function callExternalShippingCompanyAPI(
     note?: string;
     barcode: string;
   }
-): Promise<{ success: boolean; packageId?: number; error?: string }> {
+): Promise<{ 
+  success: boolean; 
+  packageId?: number; 
+  deliveryCost?: number;
+  qrCode?: string;
+  error?: string;
+  errors?: any;
+}> {
   try {
     // Handle token with or without "Bearer" prefix (same as test script)
     const token = apiToken.startsWith('Bearer ') ? apiToken : `Bearer ${apiToken}`;
@@ -65,10 +72,23 @@ async function callExternalShippingCompanyAPI(
         note: 'API server may be temporarily unavailable'
       });
       
-      return {
-        success: false,
-        error: `API returned non-JSON response: ${response.status} ${response.statusText}`
-      };
+      // Provide more user-friendly error messages based on status code
+      let errorMessage = `API returned non-JSON response: ${response.status} ${response.statusText}`;
+      
+      if (response.status === 503) {
+        errorMessage = 'خادم شركة الشحن غير متاح مؤقتاً (503 Service Unavailable). يرجى المحاولة مرة أخرى لاحقاً.';
+      } else if (response.status === 502) {
+        errorMessage = 'خطأ في بوابة شركة الشحن (502 Bad Gateway). يرجى المحاولة مرة أخرى لاحقاً.';
+      } else if (response.status === 504) {
+        errorMessage = 'انتهت مهلة الاتصال بشركة الشحن (504 Gateway Timeout). يرجى المحاولة مرة أخرى.';
+      } else if (response.status >= 500) {
+        errorMessage = `خطأ في خادم شركة الشحن (${response.status}). يرجى المحاولة مرة أخرى لاحقاً.`;
+      }
+      
+          return {
+            success: false,
+            error: errorMessage
+          };
     }
     
     // Log response details (for debugging - matches test script format)
@@ -77,26 +97,60 @@ async function callExternalShippingCompanyAPI(
       responseData: responseData
     });
 
+    // Check both code and state (based on test results: API returns code 200 even for validation errors)
     if (response.ok && responseData.code === 200 && responseData.state === 'success') {
+      // Success - extract all relevant data
+      const packageId = responseData.data?.package_id;
+      const deliveryCost = responseData.data?.delivery_cost;
+      const qrCode = responseData.data?.qr_code;
+      
+      logger.info('✅ Package created successfully via external API', {
+        packageId: packageId,
+        deliveryCost: deliveryCost,
+        qrCode: qrCode,
+        apiEndpoint: apiEndpointUrl
+      });
+      
       return {
         success: true,
-        packageId: responseData.data?.package_id
+        packageId: packageId,
+        deliveryCost: deliveryCost,
+        qrCode: qrCode
       };
     } else {
-      // Handle error response
-      const errorMessage = responseData.message || 
-                          responseData.errors ? JSON.stringify(responseData.errors) : 
-                          `API returned status ${response.status}`;
+      // Handle error response (code 302 for validation errors, or other error codes)
+      const errors = responseData.errors || responseData.data || {};
+      const errorMessages: string[] = [];
       
-      logger.warn('External shipping company API returned error', {
+      // Extract error messages from errors object
+      if (typeof errors === 'object' && !Array.isArray(errors)) {
+        Object.entries(errors).forEach(([field, messages]) => {
+          if (Array.isArray(messages)) {
+            messages.forEach((msg: string) => errorMessages.push(`${field}: ${msg}`));
+          } else if (typeof messages === 'string') {
+            errorMessages.push(`${field}: ${messages}`);
+          }
+        });
+      }
+      
+      const errorMessage = errorMessages.length > 0 
+        ? errorMessages.join('; ')
+        : responseData.message || 
+          `API returned code ${responseData.code || response.status} with state ${responseData.state || 'unknown'}`;
+      
+      logger.warn('⚠️ External shipping company API returned error', {
         status: response.status,
-        response: responseData,
+        code: responseData.code,
+        state: responseData.state,
+        errors: errors,
+        errorMessage: errorMessage,
         apiEndpoint: apiEndpointUrl
       });
 
       return {
         success: false,
-        error: errorMessage
+        error: errorMessage,
+        errors: errors
       };
     }
   } catch (error: unknown) {
@@ -311,7 +365,7 @@ export async function createPackageFromOrder(orderId: string): Promise<number | 
           villageName: shippingAddress.villageName,
           city: shippingAddress.city
         },
-        note: 'Admin must select village from list before shipping'
+        note: 'Marketer must select governorate and village when creating order'
       });
       return null;
     }
@@ -407,15 +461,15 @@ export async function createPackageFromOrder(orderId: string): Promise<number | 
     });
 
     // Call external shipping company API if endpoint URL is configured
-    // NOTE: apiEndpointUrl should match the test script URL: 'https://ultra-pal.net/api/external_company/create-package'
+    // NOTE: apiEndpointUrl should match the test script URL: 'https://ultra-pal.com/api/external_company/create-package'
     if (externalCompany.apiEndpointUrl && externalCompany.apiToken) {
       try {
-        // Log API endpoint being used (should match test script)
+        // Log API endpoint being used (should match API documentation)
+        // Note: The correct URL is https://ultra-pal.com (not .net)
         logger.info('🔗 Using shipping company API endpoint', {
           apiEndpoint: externalCompany.apiEndpointUrl,
           companyName: externalCompany.companyName,
-          expectedUrl: 'https://ultra-pal.net/api/external_company/create-package',
-          match: externalCompany.apiEndpointUrl === 'https://ultra-pal.net/api/external_company/create-package'
+          note: 'If getting 503 errors, verify the correct API endpoint URL with the shipping company'
         });
         
         // Prepare package data exactly as in test script
@@ -447,34 +501,50 @@ export async function createPackageFromOrder(orderId: string): Promise<number | 
           packageData
         );
 
-        if (apiResponse.success) {
+        if (apiResponse.success && apiResponse.packageId) {
           // Update package status to 'confirmed' when successfully sent to API
-          await Package.findByIdAndUpdate(savedPackage._id, {
+          // Also update with delivery cost and QR code if provided by API
+          const updateData: any = {
             status: 'confirmed'
-          });
+          };
+          
+          // Update delivery cost if API returned a different value
+          if (apiResponse.deliveryCost !== undefined) {
+            updateData.deliveryCost = apiResponse.deliveryCost;
+          }
+          
+          // Store QR code if provided
+          if (apiResponse.qrCode) {
+            updateData.qrCode = apiResponse.qrCode;
+          }
+          
+          await Package.findByIdAndUpdate(savedPackage._id, updateData);
           
           logger.business('✅ ORDER SENT TO SHIPPING COMPANY API - Package sent successfully via external API', {
             orderId: order._id.toString(),
             orderNumber: orderNumber,
             packageId: packageIdNumber,
             externalPackageId: apiResponse.packageId,
+            deliveryCost: apiResponse.deliveryCost,
+            qrCode: apiResponse.qrCode,
             externalCompanyId: externalCompanyId.toString(),
-        externalCompanyName: externalCompany.companyName,
-        apiEndpoint: externalCompany.apiEndpointUrl,
-        barcode: barcode,
-        timestamp: new Date().toISOString()
-      });
-    } else {
-      // Keep package status as 'pending' when API call fails (so we can retry later)
-      // Package status remains 'pending' - indicating it hasn't been sent to shipping company yet
-      
-      logger.warn('⚠️ FAILED TO SEND ORDER TO SHIPPING COMPANY API - API call failed', {
-        orderId: order._id.toString(),
-        orderNumber: orderNumber,
-        packageId: packageIdNumber,
-        externalCompanyName: externalCompany.companyName,
-        apiEndpoint: externalCompany.apiEndpointUrl,
+            externalCompanyName: externalCompany.companyName,
+            apiEndpoint: externalCompany.apiEndpointUrl,
+            barcode: barcode,
+            timestamp: new Date().toISOString()
+          });
+        } else {
+          // Keep package status as 'pending' when API call fails (so we can retry later)
+          // Package status remains 'pending' - indicating it hasn't been sent to shipping company yet
+          
+          logger.warn('⚠️ FAILED TO SEND ORDER TO SHIPPING COMPANY API - API call failed', {
+            orderId: order._id.toString(),
+            orderNumber: orderNumber,
+            packageId: packageIdNumber,
+            externalCompanyName: externalCompany.companyName,
+            apiEndpoint: externalCompany.apiEndpointUrl,
             error: apiResponse.error,
+            errors: apiResponse.errors,
             timestamp: new Date().toISOString(),
             note: 'Package was created in database but API call to shipping company failed. Package status is "pending" - can be resent when API is available.'
           });

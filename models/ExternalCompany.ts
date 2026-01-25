@@ -34,7 +34,6 @@ const externalCompanySchema = new Schema<ExternalCompanyDocument>({
     type: String,
     required: [true, 'اسم الشركة مطلوب'],
     trim: true,
-    unique: true,
     maxlength: [200, 'اسم الشركة لا يمكن أن يتجاوز 200 حرف']
   },
   apiKey: {
@@ -116,7 +115,7 @@ externalCompanySchema.methods.verifyApiKey = function(apiKey: string): boolean {
 
 // Indexes
 externalCompanySchema.index({ apiKey: 1, isActive: 1 });
-externalCompanySchema.index({ companyName: 1 });
+externalCompanySchema.index({ companyName: 1 }, { unique: true }); // Unique index for companyName
 
 const ExternalCompany = mongoose.models.ExternalCompany || mongoose.model<ExternalCompanyDocument>('ExternalCompany', externalCompanySchema);
 

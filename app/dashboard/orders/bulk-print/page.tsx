@@ -456,19 +456,12 @@ export default function BulkPrintPage() {
       const contentDiv = printRef.current;
       
       if (!bulkPage || !contentDiv) {
-        console.warn('Bulk print elements not ready yet');
         return false;
       }
 
       // Check if all invoices are rendered
       const invoiceContents = contentDiv.querySelectorAll('.invoice-content');
       const renderedCount = invoiceContents.length;
-      
-      console.log('Auto-print check:', {
-        ordersCount: orders.length,
-        renderedCount: renderedCount,
-        match: renderedCount === orders.length
-      });
 
       if (renderedCount === orders.length && renderedCount > 0) {
         // Verify first invoice has actual content (not just empty div)
@@ -477,8 +470,6 @@ export default function BulkPrintPage() {
           const hasTextContent = firstInvoice.textContent && firstInvoice.textContent.trim().length > 0;
           
           if (hasTextContent) {
-            console.log('All invoices rendered, preparing print container...');
-            
             // Mark as triggered to prevent multiple calls
             printTriggered = true;
             
@@ -526,13 +517,11 @@ export default function BulkPrintPage() {
                 // Fallback cleanup after 2 seconds
                 setTimeout(cleanup, 2000);
               } catch (error) {
-                console.error('Error triggering print:', error);
+                // Silently handle print errors
               }
             }, 300);
             
             return true;
-          } else {
-            console.warn('First invoice is empty');
           }
         }
       }
@@ -557,8 +546,6 @@ export default function BulkPrintPage() {
       if (!success && attempts < maxAttempts) {
         // Retry after delay - React needs time to render
         setTimeout(tryPrint, 300 * attempts); // Exponential backoff
-      } else if (!success && attempts >= maxAttempts) {
-        console.error('Failed to auto-print after', maxAttempts, 'attempts');
       }
     };
 
@@ -619,7 +606,7 @@ export default function BulkPrintPage() {
                 window.addEventListener('afterprint', cleanup, { once: true });
                 setTimeout(cleanup, 2000);
               } catch (error) {
-                console.error('Error triggering print from keyboard shortcut:', error);
+                // Silently handle print errors
               }
             }, 300);
           }
@@ -673,13 +660,6 @@ export default function BulkPrintPage() {
       
       // Ensure items are properly formatted
       const formattedOrders = data.orders.map((order: any) => {
-        // Debug: Log order items
-        if (!order.items || !Array.isArray(order.items) || order.items.length === 0) {
-          console.warn(`Order ${order.orderNumber} has no items:`, order.items);
-        } else {
-          console.log(`Order ${order.orderNumber} has ${order.items.length} items:`, order.items);
-        }
-        
         // Ensure items array is properly formatted and validated
         const formattedItems = Array.isArray(order.items) 
           ? order.items
@@ -726,7 +706,6 @@ export default function BulkPrintPage() {
         };
       });
       
-      console.log('Formatted orders for display:', formattedOrders);
       setOrders(formattedOrders);
       
       // Note: Auto-print will be handled by useEffect that watches orders state
@@ -905,12 +884,10 @@ export default function BulkPrintPage() {
                   // Fallback cleanup after 2 seconds
                   setTimeout(cleanup, 2000);
                 } catch (error) {
-                  console.error('Error triggering print:', error);
                   toast.error('حدث خطأ أثناء محاولة الطباعة');
                 }
               }, 300);
             } catch (error) {
-              console.error('Error preparing print:', error);
               toast.error('حدث خطأ أثناء محاولة الطباعة');
             }
           }}

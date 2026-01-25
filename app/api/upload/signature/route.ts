@@ -44,14 +44,6 @@ export const POST = withAuth(async (req: NextRequest, user: any) => {
     if (finalPublicId) paramsToSign.public_id = finalPublicId;
     if (timestamp) paramsToSign.timestamp = timestamp;
 
-    console.log('=== SIGNATURE GENERATION DEBUG ===');
-    console.log('Signature generation params:', paramsToSign);
-    console.log('API Secret (last 4 chars):', cloudinaryConfig.api_secret?.slice(-4));
-    console.log('Cloudinary config:', {
-      cloud_name: cloudinaryConfig.cloud_name,
-      api_key: cloudinaryConfig.api_key ? '***' + cloudinaryConfig.api_key.slice(-4) : 'undefined'
-    });
-
     // Generate signature for direct upload - include all parameters that will be sent
     // Use manual signature generation to ensure compatibility
     const stringToSign = Object.keys(paramsToSign)
@@ -64,10 +56,6 @@ export const POST = withAuth(async (req: NextRequest, user: any) => {
       .update(stringToSign + cloudinaryConfig.api_secret)
       .digest('hex');
 
-    console.log('Generated signature:', signature);
-    console.log('String that was signed:', stringToSign);
-    console.log('=== END SIGNATURE DEBUG ===');
-
     return NextResponse.json({
       success: true,
       signature,
@@ -77,7 +65,6 @@ export const POST = withAuth(async (req: NextRequest, user: any) => {
       public_id: finalPublicId,
     });
   } catch (error) {
-    console.error('Error generating upload signature:', error);
     return NextResponse.json(
       { success: false, message: 'Failed to generate upload signature' },
       { status: 500 }

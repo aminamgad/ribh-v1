@@ -40,14 +40,11 @@ export default function MultiSelect({
   }, []);
 
   const handleToggle = (value: string) => {
-    console.log('MultiSelect handleToggle called:', { value, selected, isSelected: selected.includes(value) });
     if (selected.includes(value)) {
       const newValue = selected.filter((item) => item !== value);
-      console.log('MultiSelect removing item, calling onChange:', { newValue });
       onChange(newValue);
     } else {
       const newValue = [...selected, value];
-      console.log('MultiSelect adding item, calling onChange:', { newValue });
       onChange(newValue);
     }
   };
@@ -55,7 +52,6 @@ export default function MultiSelect({
   const handleRemove = (value: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const newValue = selected.filter((item) => item !== value);
-    console.log('MultiSelect handleRemove called, calling onChange:', { value, newValue });
     onChange(newValue);
   };
 

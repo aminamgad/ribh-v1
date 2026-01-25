@@ -11,10 +11,9 @@ const orderUpdateSchema = z.object({
   orderIds: z.array(z.string()).min(1, 'يجب اختيار طلب واحد على الأقل'),
   action: z.enum(['confirm', 'process', 'ship', 'deliver', 'cancel', 'return', 'update-shipping']),
   adminNotes: z.string().optional(),
-  trackingNumber: z.string().optional(),
   shippingCompany: z.string().optional(),
   shippingCity: z.string().optional(),
-  villageId: z.number().int().positive().optional(),
+  villageId: z.union([z.number().int().positive(), z.null()]).optional(), // FIXED: Allow null for villageId
   cancellationReason: z.string().optional(),
   returnReason: z.string().optional(),
   updateShippingOnly: z.boolean().optional()
@@ -68,7 +67,6 @@ async function manageOrders(req: NextRequest, user: any) {
 
       const updatePromises = orders.map(async (order) => {
         const updateData: any = {
-          trackingNumber: validatedData.trackingNumber || order.trackingNumber,
           shippingCompany: validatedData.shippingCompany,
         };
 
@@ -82,11 +80,29 @@ async function manageOrders(req: NextRequest, user: any) {
             city: validatedData.shippingCity
           };
         }
+        
+        // FIXED: Update villageId if provided
+        if (validatedData.villageId !== undefined && validatedData.villageId !== null) {
+          const Village = (await import('@/models/Village')).default;
+          const village = await Village.findOne({ villageId: validatedData.villageId, isActive: true }).lean();
+          if (village) {
+            if (!updateData.shippingAddress) {
+              updateData.shippingAddress = order.shippingAddress?.toObject() || {};
+            }
+            updateData.shippingAddress.villageId = validatedData.villageId;
+            updateData.shippingAddress.villageName = (village as any).villageName;
+            // Also update city if not already set
+            if (!validatedData.shippingCity) {
+              updateData.shippingAddress.city = (village as any).villageName;
+            }
+          }
+        }
 
         await Order.findByIdAndUpdate(order._id, updateData, { new: true });
         logger.info('Updated shipping info for order', {
           orderId: order._id.toString(),
-          orderNumber: order.orderNumber
+          orderNumber: order.orderNumber,
+          villageId: validatedData.villageId
         });
       });
 
@@ -135,7 +151,6 @@ async function manageOrders(req: NextRequest, user: any) {
         case 'ship':
           updateData.shippedAt = new Date();
           updateData.shippedBy = user._id;
-          updateData.trackingNumber = validatedData.trackingNumber;
           updateData.shippingCompany = validatedData.shippingCompany;
           // Update shipping city if provided (save to shippingAddress.city)
           if (validatedData.shippingCity) {
@@ -393,7 +408,6 @@ async function manageOrders(req: NextRequest, user: any) {
         status: order.status,
         total: order.total,
         adminNotes: order.adminNotes,
-        trackingNumber: order.trackingNumber,
         shippingCompany: order.shippingCompany,
         cancellationReason: order.cancellationReason,
         returnReason: order.returnReason,

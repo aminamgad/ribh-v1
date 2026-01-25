@@ -96,7 +96,6 @@ export default function NewFulfillmentPage() {
         setCategories(data.categories || []);
       }
     } catch (error) {
-      console.error('Error fetching categories:', error);
     }
   };
 

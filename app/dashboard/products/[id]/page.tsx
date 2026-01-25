@@ -207,42 +207,17 @@ export default function ProductDetailPage() {
 
   const fetchProduct = async () => {
     try {
-      console.log('🔍 Fetching product with user:', {
-        userId: user?._id,
-        userRole: user?.role,
-        userName: user?.name,
-        productId: params.id
-      });
-      
       const response = await fetch(`/api/products/${params.id}`);
-      console.log('📥 Product API response status:', response.status);
       
       if (response.ok) {
         const data = await response.json();
-        console.log('🔍 Product data received:', {
-          id: data.product._id,
-          name: data.product.name,
-          isApproved: data.product.isApproved,
-          isRejected: data.product.isRejected,
-          rejectionReason: data.product.rejectionReason,
-          supplierId: data.product.supplierId,
-          status: data.product.isApproved ? 'معتمد' : data.product.isRejected ? 'مرفوض' : 'قيد المراجعة',
-          // Add variant debugging
-          hasVariants: data.product.hasVariants,
-          variantsCount: data.product.variants?.length || 0,
-          variantOptionsCount: data.product.variantOptions?.length || 0,
-          variants: data.product.variants,
-          variantOptions: data.product.variantOptions
-        });
         setProduct(data.product);
       } else {
         const errorData = await response.json();
-        console.log('❌ Product fetch failed:', errorData);
         toast.error(errorData.message || 'المنتج غير موجود');
         router.push('/dashboard/products');
       }
     } catch (error) {
-      console.error('❌ Error fetching product:', error);
       toast.error('حدث خطأ أثناء جلب تفاصيل المنتج');
       router.push('/dashboard/products');
     } finally {
@@ -305,7 +280,6 @@ export default function ProductDetailPage() {
         toast.error(errorData.message || 'فشل في قفل/إلغاء قفل المنتج');
       }
     } catch (error) {
-      console.error('Error locking/unlocking product:', error);
       toast.error('حدث خطأ أثناء قفل/إلغاء قفل المنتج');
     } finally {
       setLocking(false);
@@ -378,7 +352,6 @@ export default function ProductDetailPage() {
         addToCart(product as any, 1, selectedVariants, selectedOption);
         toast.success(`تم إضافة ${product.name} (${selectedOption.variantName}) إلى السلة بنجاح`);
       } catch (error) {
-        console.error('Error adding to cart:', error);
         toast.error('حدث خطأ أثناء إضافة المنتج إلى السلة');
       }
     } else {
@@ -392,7 +365,6 @@ export default function ProductDetailPage() {
         addToCart(product as any);
         toast.success(`تم إضافة ${product.name} إلى السلة بنجاح`);
       } catch (error) {
-        console.error('Error adding to cart:', error);
         toast.error('حدث خطأ أثناء إضافة المنتج إلى السلة');
       }
     }
@@ -409,61 +381,33 @@ export default function ProductDetailPage() {
       // Get the supplier ID correctly
       const supplierId = typeof product?.supplierId === 'object' ? product?.supplierId?._id : product?.supplierId;
       if (!supplierId || !user?._id) {
-        console.log('❌ Cannot fetch messages:', { 
-          hasSupplierId: !!supplierId, 
-          hasUserId: !!user?._id,
-          supplierId: supplierId,
-          userId: user?._id 
-        });
         return;
       }
       
       // Create conversation ID by combining user IDs
       const conversationId = [user._id, supplierId].sort().join('-');
-      console.log('🔍 Fetching messages for conversation:', conversationId);
       
       const response = await fetch(`/api/messages/conversations/${conversationId}`);
-      console.log('📥 Messages response status:', response.status);
       
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ Messages fetched successfully:', data);
         setMessages(data.messages || []);
-      } else {
-        const errorData = await response.json();
-        console.log('❌ Failed to fetch messages:', errorData);
       }
     } catch (error) {
-      console.error('❌ Error fetching messages:', error);
+      // Silently handle errors
     }
   };
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !product?.supplierId) {
-      console.log('❌ Cannot send message:', { 
-        hasMessage: !!newMessage.trim(), 
-        hasSupplierId: !!product?.supplierId,
-        supplierId: product?.supplierId 
-      });
       return;
     }
     
     // Get the supplier ID correctly
     const supplierId = typeof product?.supplierId === 'object' ? product?.supplierId?._id : product?.supplierId;
     if (!supplierId) {
-      console.log('❌ No supplier ID found:', { 
-        supplierIdFromProduct: product?.supplierId,
-        supplierIdExtracted: supplierId 
-      });
       return;
     }
-    
-    console.log('📤 Sending message:', {
-      receiverId: supplierId,
-      subject: `استفسار بخصوص ${product.name}`,
-      content: newMessage,
-      productId: product._id
-    });
     
     setSendingMessage(true);
     try {
@@ -480,21 +424,16 @@ export default function ProductDetailPage() {
         }),
       });
       
-      console.log('📥 Response status:', response.status);
-      
       if (response.ok) {
         const responseData = await response.json();
-        console.log('✅ Message sent successfully:', responseData);
         setNewMessage('');
         await fetchMessages();
         toast.success('تم إرسال الرسالة بنجاح');
       } else {
         const errorData = await response.json();
-        console.log('❌ Message send failed:', errorData);
         toast.error(errorData.message || 'فشل في إرسال الرسالة');
       }
     } catch (error) {
-      console.error('❌ Error sending message:', error);
       toast.error('حدث خطأ أثناء إرسال الرسالة');
     } finally {
       setSendingMessage(false);
@@ -507,7 +446,6 @@ export default function ProductDetailPage() {
   };
 
   const confirmApprove = async () => {
-    console.log('🔍 Starting product approval process for product:', params.id);
     setApproving(true);
     try {
       const response = await fetch(`/api/products/${params.id}/approve`, {
@@ -516,21 +454,16 @@ export default function ProductDetailPage() {
           'Content-Type': 'application/json',
         },
       });
-
-      console.log('📥 Approval response status:', response.status);
       
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ Approval successful:', data);
         toast.success('تم الموافقة على المنتج بنجاح');
         await fetchProduct(); // Refresh product data
       } else {
         const error = await response.json();
-        console.log('❌ Approval failed:', error);
         toast.error(error.message || 'فشل في الموافقة على المنتج');
       }
     } catch (error) {
-      console.error('❌ Error during approval:', error);
       toast.error('حدث خطأ أثناء الموافقة على المنتج');
     } finally {
       setApproving(false);
@@ -581,7 +514,6 @@ export default function ProductDetailPage() {
       return;
     }
     
-    console.log('🔍 Starting product rejection process for product:', params.id);
     setRejecting(true);
     try {
       const response = await fetch(`/api/products/${params.id}/reject`, {
@@ -593,23 +525,18 @@ export default function ProductDetailPage() {
           rejectionReason: rejectionReason.trim()
         }),
       });
-
-      console.log('📥 Rejection response status:', response.status);
       
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ Rejection successful:', data);
         toast.success('تم رفض المنتج بنجاح');
         setShowRejectModal(false);
         setRejectionReason('');
         await fetchProduct(); // Refresh product data
       } else {
         const error = await response.json();
-        console.log('❌ Rejection failed:', error);
         toast.error(error.message || 'فشل في رفض المنتج');
       }
     } catch (error) {
-      console.error('❌ Error during rejection:', error);
       toast.error('حدث خطأ أثناء رفض المنتج');
     } finally {
       setRejecting(false);
@@ -684,17 +611,6 @@ export default function ProductDetailPage() {
   };
 
   const currentPrice = user?.role === 'wholesaler' ? product.wholesalerPrice : product.marketerPrice;
-
-  // Debug user role
-  console.log('🔍 User role check:', {
-    userId: user?._id,
-    userRole: user?.role,
-    userName: user?.name,
-    isAdmin: user?.role === 'admin',
-    isSupplier: user?.role === 'supplier',
-    isMarketer: user?.role === 'marketer',
-    isWholesaler: user?.role === 'wholesaler'
-  });
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
@@ -790,14 +706,6 @@ export default function ProductDetailPage() {
 
             {/* Admin Approval Actions */}
             {(() => {
-              console.log('🔍 Admin approval buttons visibility check:', {
-                userRole: user?.role,
-                isAdmin: user?.role === 'admin',
-                productIsApproved: product.isApproved,
-                productIsRejected: product.isRejected,
-                shouldShowButtons: user?.role === 'admin' && !product.isApproved && !product.isRejected
-              });
-              
               return user?.role === 'admin' && !product.isApproved && !product.isRejected ? (
                 <>
                   <button
@@ -825,14 +733,6 @@ export default function ProductDetailPage() {
 
                         {/* Admin can reverse decisions */}
             {(() => {
-              console.log('🔍 Admin review button visibility check:', {
-                userRole: user?.role,
-                isAdmin: user?.role === 'admin',
-                productIsApproved: product.isApproved,
-                productIsRejected: product.isRejected,
-                shouldShowButton: user?.role === 'admin' && (product.isApproved || product.isRejected)
-              });
-              
               return user?.role === 'admin' && (product.isApproved || product.isRejected) ? (
                 <button
                   onClick={() => {
@@ -881,15 +781,6 @@ export default function ProductDetailPage() {
                     if (user?.role === 'marketer') {
                       return null;
                     }
-                    
-                    console.log('🎯 Product status check:', {
-                      id: product._id,
-                      name: product.name,
-                      isApproved: product.isApproved,
-                      isRejected: product.isRejected,
-                      rejectionReason: product.rejectionReason,
-                      status: product.isApproved ? 'معتمد' : product.isRejected ? 'مرفوض' : 'قيد المراجعة'
-                    });
                     
                     if (product.isApproved) {
                       return (
@@ -1093,7 +984,6 @@ export default function ProductDetailPage() {
                               toast.error('فشل في إضافة المتغيرات');
                             }
                           } catch (error) {
-                            console.error('Error adding test variants:', error);
                             toast.error('حدث خطأ أثناء إضافة المتغيرات');
                           }
                         }}

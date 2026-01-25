@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Product, ProductVariantOption } from '@/types';
 import toast from 'react-hot-toast';
 
@@ -26,7 +26,7 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-export function CartProvider({ children }: { children: React.ReactNode }) {
+export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
 
   // Load cart from localStorage on mount
@@ -40,30 +40,24 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         const validItems = parsedCart.filter((item: any) => {
           // Check if item has required fields
           if (!item || !item.product || !item.product._id) {
-            console.warn('Invalid cart item found, removing:', item);
             return false;
           }
           
           // Ensure price is valid
           if (item.price === undefined || item.price === null || isNaN(item.price) || item.price <= 0) {
-            console.warn('Invalid price found for item:', item.product.name, 'Price:', item.price);
             return false;
           }
           
           // Ensure quantity is valid
           if (!item.quantity || item.quantity <= 0) {
-            console.warn('Invalid quantity found for item:', item.product.name);
             return false;
           }
           
-          console.log('Valid cart item:', item.product.name, 'Price:', item.price, 'Quantity:', item.quantity);
           return true;
         });
         
-        console.log('Loaded cart items:', validItems.length);
         setItems(validItems);
       } catch (error) {
-        console.error('Error loading cart:', error);
         // Clear invalid cart data
         localStorage.removeItem('ribh-cart');
       }
@@ -73,16 +67,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   // Save cart to localStorage whenever it changes
   useEffect(() => {
     if (items.length > 0) {
-      console.log('Saving cart items:', items.map(item => ({
-        name: item.product.name,
-        price: item.price,
-        quantity: item.quantity
-      })));
       localStorage.setItem('ribh-cart', JSON.stringify(items));
-      console.log('Saved cart items:', items.length);
     } else {
       localStorage.removeItem('ribh-cart');
-      console.log('Cleared cart from localStorage');
     }
   }, [items]);
 
@@ -92,13 +79,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     const itemQuantity = item.quantity || 0;
     const itemTotal = itemPrice * itemQuantity;
     
-    console.log('Calculating total for item:', item.product.name, 'Price:', itemPrice, 'Quantity:', itemQuantity, 'Total:', itemTotal);
     
     return sum + (isNaN(itemTotal) ? 0 : itemTotal);
   }, 0);
 
   const addToCart = (product: Product, quantity: number = 1, selectedVariants?: Record<string, string>, variantOption?: any) => {
-    console.log('Adding product to cart:', product, 'with variants:', selectedVariants);
     
     // Create a unique cart item ID that includes variant information
     const cartItemId = selectedVariants && Object.keys(selectedVariants).length > 0 
@@ -151,14 +136,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         // Get the appropriate price based on user role
         if (finalPrice === undefined || finalPrice === null || isNaN(finalPrice) || finalPrice <= 0) {
           finalPrice = product.wholesalerPrice;
-          console.log('Using wholesaler price:', finalPrice);
         }
         if (finalPrice === undefined || finalPrice === null || isNaN(finalPrice) || finalPrice <= 0) {
           finalPrice = 0;
-          console.error('No valid price found for product:', product.name);
         }
-        
-        console.log('Final price for product:', product.name, 'Price:', finalPrice, 'Variants:', selectedVariants);
         
         // Ensure we have all required product data with fallbacks
         const cartProduct = {
@@ -186,7 +167,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           variantOptions: product.variantOptions || []
         };
         
-        console.log('Adding product to cart:', cartProduct.name, 'Price:', finalPrice, 'Variants:', selectedVariants);
         // لا إشعار هنا - الصفحة ستتعامل مع الإشعار
         return [...currentItems, { 
           product: cartProduct, 
@@ -203,7 +183,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setItems(currentItems => {
       const item = currentItems.find(item => item.product._id === productId);
       if (item) {
-        console.log('Removing product from cart:', item.product.name);
         toast.success('تم إزالة المنتج من السلة');
       }
       return currentItems.filter(item => item.product._id !== productId);
@@ -219,7 +198,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setItems(currentItems => {
       const item = currentItems.find(item => item.product._id === productId);
       if (!item) {
-        console.warn('Product not found in cart:', productId);
         return currentItems;
       }
 
@@ -228,8 +206,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         toast.error('الكمية المطلوبة غير متوفرة في المخزون');
         return currentItems;
       }
-
-      console.log('Updating quantity for product:', item.product.name, 'Old quantity:', item.quantity, 'New quantity:', quantity, 'Price:', item.price);
       return currentItems.map(item =>
         item.product._id === productId
           ? { ...item, quantity }
@@ -239,7 +215,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
 
   const clearCart = () => {
-    console.log('Clearing cart');
     setItems([]);
     localStorage.removeItem('ribh-cart');
     toast.success('تم تفريغ السلة');
@@ -266,19 +241,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     getItemQuantity
   };
 
-  // Debug logging
-  useEffect(() => {
-    console.log('Cart state updated:', {
-      itemsCount: items.length,
-      totalItems,
-      totalPrice,
-      items: items.map(item => ({
-        name: item.product.name,
-        price: item.price,
-        quantity: item.quantity
-      }))
-    });
-  }, [items, totalItems, totalPrice]);
 
   return (
     <CartContext.Provider value={value}>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react';
 
 interface CacheEntry<T> {
   data: T;
@@ -28,7 +28,7 @@ export function useDataCache() {
   return context;
 }
 
-export function DataCacheProvider({ children }: { children: React.ReactNode }) {
+export function DataCacheProvider({ children }: { children: ReactNode }) {
   const [cache, setCache] = useState<Map<string, CacheEntry<unknown>>>(new Map());
   const [refreshingKeys, setRefreshingKeys] = useState<Set<string>>(new Set());
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -48,7 +48,7 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
         setCache(cacheMap);
       }
     } catch (error) {
-      console.error('Error loading cache from sessionStorage:', error);
+      // Silently handle cache loading errors
     }
   }, []);
 
@@ -68,7 +68,7 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
         });
         sessionStorage.setItem('ribh_data_cache', JSON.stringify(cacheObject));
       } catch (error) {
-        console.error('Error saving cache to sessionStorage:', error);
+        // Silently handle cache saving errors
       }
     }, 300); // Save after 300ms of no changes
 
@@ -115,14 +115,14 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
           sessionStorage.setItem('ribh_data_cache', JSON.stringify(parsedCache));
         }
       } catch (error) {
-        console.error('Error clearing cache from sessionStorage:', error);
+        // Silently handle cache clearing errors
       }
     } else {
       setCache(new Map());
       try {
         sessionStorage.removeItem('ribh_data_cache');
       } catch (error) {
-        console.error('Error clearing all cache from sessionStorage:', error);
+        // Silently handle cache clearing errors
       }
     }
   }, []);
@@ -132,7 +132,7 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
     try {
       sessionStorage.removeItem('ribh_data_cache');
     } catch (error) {
-      console.error('Error clearing all cache from sessionStorage:', error);
+      // Silently handle cache clearing errors
     }
   }, []);
 

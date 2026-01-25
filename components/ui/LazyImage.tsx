@@ -140,10 +140,6 @@ export default function LazyImage({
         retryCount
       });
       
-      if (process.env.NODE_ENV === 'development') {
-        const cacheStatus = isFromCache ? ' (from cache)' : '';
-        console.log(`[Image Load] ${src.substring(0, 50)}... - ${loadTime.toFixed(2)}ms${cacheStatus}`);
-      }
       
       loadStartTimeRef.current = null;
     }
@@ -167,10 +163,6 @@ export default function LazyImage({
     } else {
       setIsLoading(false);
       setHasError(true);
-      // Log error for debugging (only in development)
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('Image failed to load after retries:', src, { retryCount });
-      }
       if (onError) onError();
     }
   };
@@ -440,15 +432,9 @@ export function OptimizedImage({
             // Retry with exponential backoff
             setTimeout(() => {
               setRetryCount(prev => prev + 1);
-              if (process.env.NODE_ENV === 'development') {
-                console.warn('[Image Performance] Retrying image load:', currentSrc, { retryCount: retryCount + 1 });
-              }
             }, (retryCount + 1) * 500);
           } else {
             setHasError(true);
-            if (process.env.NODE_ENV === 'development') {
-              console.warn('[Image Performance] Image failed to load after retries:', transformedSrc);
-            }
           }
         }}
         {...props}
@@ -463,9 +449,6 @@ export function OptimizedImage({
       // Retry will be handled by src change
     } else {
       setHasError(true);
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('Image failed to load after retries:', src);
-      }
     }
   };
 

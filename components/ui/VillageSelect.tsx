@@ -60,16 +60,13 @@ export default function VillageSelect({
           const sortedVillages = data.data.sort((a: Village, b: Village) =>
             a.villageName.localeCompare(b.villageName, 'ar')
           );
-          console.log('✅ Villages loaded:', sortedVillages.length, 'villages');
           setVillages(sortedVillages);
           setError(null);
         }
       } else {
-        console.error('❌ Failed to fetch villages:', data);
         setError(data.message || 'فشل في جلب القرى');
       }
     } catch (error) {
-      console.error('Error fetching villages:', error);
       setError('حدث خطأ أثناء جلب القرى');
     } finally {
       setLoading(false);
@@ -172,22 +169,38 @@ export default function VillageSelect({
 
         {/* Search Input */}
         <div className="relative">
-          <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 z-10" />
-          <input
-            ref={searchInputRef}
-            type="text"
-            placeholder="ابحث عن قرية (اكتب اسم القرية)..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onFocus={() => {
-              if (!loading && filteredVillages.length > 0) {
-                setShowDropdown(true);
-              }
-            }}
-            onKeyDown={handleKeyDown}
-            disabled={disabled || loading}
-            className="w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-          />
+          {loading ? (
+            <>
+              <input
+                type="text"
+                placeholder="جاري تحميل القرى..."
+                disabled
+                className="w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-wait"
+              />
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 z-10">
+                <div className="loading-spinner w-5 h-5"></div>
+              </div>
+            </>
+          ) : (
+            <>
+              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 z-10" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="ابحث عن قرية (اكتب اسم القرية)..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onFocus={() => {
+                  if (!loading && filteredVillages.length > 0) {
+                    setShowDropdown(true);
+                  }
+                }}
+                onKeyDown={handleKeyDown}
+                disabled={disabled}
+                className="w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+            </>
+          )}
           
           {/* Dropdown List */}
           {showDropdown && !loading && filteredVillages.length > 0 && (
@@ -225,12 +238,7 @@ export default function VillageSelect({
           )}
         </div>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-4 border border-gray-300 dark:border-gray-600 rounded-lg mt-2">
-            <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
-            <span className="mr-2 text-sm text-gray-500">جاري تحميل القرى...</span>
-          </div>
-        ) : error ? (
+        {error ? (
           <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg mt-2">
             <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
             <button

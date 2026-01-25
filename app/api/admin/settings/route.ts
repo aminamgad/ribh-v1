@@ -353,11 +353,22 @@ async function updateAdminSettingsHandler(req: NextRequest, user: any) {
         settings.shippingEnabled = shippingData.shippingEnabled;
         settings.defaultShippingCost = shippingData.defaultShippingCost;
         settings.defaultFreeShippingThreshold = shippingData.defaultFreeShippingThreshold;
-        settings.governorates = shippingData.governorates;
+        
+        // Ensure governorates array is properly set with isActive
+        const governoratesToSave = shippingData.governorates.map((gov: any) => ({
+          name: gov.name.trim(),
+          cities: gov.cities.map((c: string) => c.trim()).filter((c: string) => c.length > 0),
+          shippingCost: Number(gov.shippingCost) || 0,
+          isActive: gov.isActive !== undefined ? Boolean(gov.isActive) : true
+        }));
+        
+        settings.set('governorates', governoratesToSave);
+        settings.markModified('governorates');
         
         logger.debug('Shipping settings updated', {
           shippingEnabled: settings.shippingEnabled,
-          governoratesCount: settings.governorates.length
+          governoratesCount: settings.governorates.length,
+          activeGovernorates: governoratesToSave.filter((g: any) => g.isActive).length
         });
         break;
         

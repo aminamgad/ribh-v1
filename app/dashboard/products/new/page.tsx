@@ -113,7 +113,6 @@ export default function NewProductPage() {
         toast.error('فشل في جلب الفئات');
       }
     } catch (error) {
-      console.error('Error fetching categories:', error);
       toast.error('حدث خطأ أثناء جلب الفئات');
     }
   };
@@ -124,11 +123,9 @@ export default function NewProductPage() {
       if (response.ok) {
         const data = await response.json();
         setSuppliers(data.users || []);
-      } else {
-        console.error('Failed to fetch suppliers');
       }
     } catch (error) {
-      console.error('Error fetching suppliers:', error);
+      // Silently handle errors
     }
   };
 
@@ -191,8 +188,6 @@ export default function NewProductPage() {
         ...(user?.role === 'admin' && selectedSupplierId ? { supplierId: selectedSupplierId } : {})
       };
 
-      console.log('Sending product data:', productData);
-
       const response = await fetch('/api/products', {
         method: 'POST',
         headers: {
@@ -207,7 +202,6 @@ export default function NewProductPage() {
         toast.success(result.message || 'تم إضافة المنتج بنجاح');
         router.push('/dashboard/products');
       } else {
-        console.error('API Error:', result);
         toast.error(result.message || 'حدث خطأ أثناء إضافة المنتج');
         
         // Show validation errors if available
@@ -218,7 +212,6 @@ export default function NewProductPage() {
         }
       }
     } catch (error) {
-      console.error('Submit error:', error);
       toast.error('حدث خطأ في الاتصال');
     } finally {
       setLoading(false);

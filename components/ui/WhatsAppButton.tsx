@@ -35,7 +35,7 @@ export default function WhatsAppButton({
       
       window.open(whatsappUrl, '_blank');
     } catch (error) {
-      console.error('Error opening WhatsApp:', error);
+      // Silently handle errors
     } finally {
       setIsLoading(false);
     }

@@ -138,7 +138,7 @@ export default function WalletPage() {
         setWithdrawalRequests(data.withdrawalRequests);
       }
     } catch (error) {
-      console.error('خطأ في جلب طلبات السحب:', error);
+      // Silently handle errors
     }
   };
 
@@ -151,7 +151,7 @@ export default function WalletPage() {
         setSystemSettings(data.settings);
       }
     } catch (error) {
-      console.error('خطأ في جلب إعدادات النظام:', error);
+      // Silently handle errors
     }
   };
 
@@ -222,7 +222,6 @@ export default function WalletPage() {
         toast.error(data.message || 'حدث خطأ في إرسال طلب السحب');
       }
     } catch (error) {
-      console.error('خطأ في إرسال طلب السحب:', error);
       toast.error('حدث خطأ في إرسال طلب السحب');
     } finally {
       setIsSubmitting(false);

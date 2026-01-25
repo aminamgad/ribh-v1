@@ -133,7 +133,6 @@ export const GET = withRole(['admin'])(async (req: NextRequest, user: any) => {
       }
     });
   } catch (error) {
-    console.error('Error exporting earnings:', error);
     return NextResponse.json(
       { success: false, message: 'حدث خطأ أثناء تصدير تقرير الأرباح' },
       { status: 500 }

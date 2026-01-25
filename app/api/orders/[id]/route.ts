@@ -18,7 +18,7 @@ export const PUT = withAuth(async (req: NextRequest, user: any, ...args: unknown
     logger.apiRequest('PUT', `/api/orders/${params.id}`, { userId: user._id, role: user.role });
     
     const body = await req.json();
-    const { status, trackingNumber, shippingCompany, shippingCity, notes, updateShippingOnly, villageId } = body;
+    const { status, shippingCompany, shippingCity, notes, updateShippingOnly, villageId } = body;
     
     logger.debug('Updating order status', { orderId: params.id, status, userId: user._id });
     
@@ -60,7 +60,6 @@ export const PUT = withAuth(async (req: NextRequest, user: any, ...args: unknown
         );
       }
       // Update shipping info only
-      if (trackingNumber !== undefined) order.trackingNumber = trackingNumber;
       if (shippingCompany !== undefined) order.shippingCompany = shippingCompany;
       if (shippingCity !== undefined) {
         if (!order.shippingAddress) {
@@ -115,7 +114,6 @@ export const PUT = withAuth(async (req: NextRequest, user: any, ...args: unknown
         order: {
           _id: order._id,
           orderNumber: order.orderNumber,
-          trackingNumber: order.trackingNumber,
           shippingCompany: order.shippingCompany,
           shippingAddress: order.shippingAddress
         }
@@ -232,7 +230,6 @@ export const PUT = withAuth(async (req: NextRequest, user: any, ...args: unknown
         case 'shipped':
           order.shippedAt = new Date();
           order.shippedBy = user._id;
-          if (trackingNumber) order.trackingNumber = trackingNumber;
           if (shippingCompany) order.shippingCompany = shippingCompany;
           if (shippingCity) {
             if (!order.shippingAddress) {
@@ -618,9 +615,9 @@ export const PUT = withAuth(async (req: NextRequest, user: any, ...args: unknown
         orderNumber: order.orderNumber,
         status: order.status,
         updatedAt: order.updatedAt,
-        trackingNumber: order.trackingNumber,
         shippingCompany: order.shippingCompany,
-        adminNotes: order.adminNotes
+        adminNotes: order.adminNotes,
+        packageId: order.packageId // Include packageId in response
       }
     });
   } catch (error) {

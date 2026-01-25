@@ -209,7 +209,6 @@ async function importOrders(req: NextRequest, user: any) {
     });
     
   } catch (error) {
-    console.error('Error importing orders:', error);
     return NextResponse.json(
       { success: false, message: 'حدث خطأ أثناء استيراد الطلبات' },
       { status: 500 }

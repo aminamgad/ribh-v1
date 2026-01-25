@@ -145,7 +145,6 @@ export async function getMaintenanceStatus(): Promise<{
       message: settings?.maintenanceMessage || 'المنصة تحت الصيانة. يرجى المحاولة لاحقاً.'
     };
   } catch (error) {
-    console.error('Error getting maintenance status:', error);
     return {
       maintenanceMode: false,
       message: 'المنصة تحت الصيانة. يرجى المحاولة لاحقاً.'

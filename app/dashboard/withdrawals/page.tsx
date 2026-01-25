@@ -198,7 +198,6 @@ export default function WithdrawalsPage() {
         toast.error(data.message || 'حدث خطأ في إرسال طلب السحب');
       }
     } catch (error) {
-      console.error('خطأ في إرسال طلب السحب:', error);
       toast.error('حدث خطأ في إرسال طلب السحب');
     } finally {
       setIsSubmitting(false);

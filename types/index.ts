@@ -188,7 +188,6 @@ export interface Order {
   deliveryNotes?: string;
   estimatedDelivery?: Date;
   actualDelivery?: Date;
-  trackingNumber?: string;
   shippingCompany?: string;
   cancellationReason?: string;
   returnReason?: string;
