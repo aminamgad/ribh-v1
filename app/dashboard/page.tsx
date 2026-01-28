@@ -729,13 +729,20 @@ export default function DashboardPage() {
                         <p className="font-semibold text-gray-900 dark:text-slate-100 mb-2">{product.name}</p>
                         <div className="flex items-center space-x-3 space-x-reverse">
                           <span className={`text-xs px-3 py-1 rounded-full ${
-                            product.stockQuantity > 10 
+                            (product.hasVariants && product.variantOptions && product.variantOptions.length > 0
+                              ? product.variantOptions.reduce((sum: number, opt: any) => sum + (opt.stockQuantity || 0), 0)
+                              : product.stockQuantity) > 10 
                               ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                              : product.stockQuantity > 0 
+                              : (product.hasVariants && product.variantOptions && product.variantOptions.length > 0
+                                ? product.variantOptions.reduce((sum: number, opt: any) => sum + (opt.stockQuantity || 0), 0)
+                                : product.stockQuantity) > 0 
                               ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
                               : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
                           }`}>
-                            المخزون: {product.stockQuantity}
+                            المخزون: {product.hasVariants && product.variantOptions && product.variantOptions.length > 0
+                              ? `${product.variantOptions.reduce((sum: number, opt: any) => sum + (opt.stockQuantity || 0), 0)} (${product.variantOptions.length} متغير${product.variantOptions.length > 1 ? 'ات' : ''})`
+                              : product.stockQuantity
+                            }
                           </span>
                           
                           {/* Quick Edit Button */}

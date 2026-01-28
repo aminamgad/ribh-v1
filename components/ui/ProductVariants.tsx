@@ -77,31 +77,9 @@ export default function ProductVariants({
   const [selectedOptions, setSelectedOptions] = useState<Set<string>>(new Set());
   const [bulkEditMode, setBulkEditMode] = useState<'price' | 'stock' | null>(null);
   const [bulkValue, setBulkValue] = useState<string>('');
+  const [simpleMode, setSimpleMode] = useState(true); // Simple mode by default
 
-  // Predefined templates
-  const variantTemplates = [
-    {
-      name: 'اللون',
-      values: ['أحمر', 'أزرق', 'أخضر', 'أسود', 'أبيض']
-    },
-    {
-      name: 'الحجم',
-      values: ['صغير', 'متوسط', 'كبير', 'كبير جداً']
-    },
-    {
-      name: 'المادة',
-      values: ['قطن', 'بوليستر', 'حرير', 'صوف']
-    },
-    {
-      name: 'النمط',
-      values: ['كلاسيكي', 'حديث', 'رياضي', 'أنيق']
-    }
-  ];
-
-  const applyTemplate = (template: typeof variantTemplates[0]) => {
-    setNewVariantName(template.name);
-    setNewVariantValues(template.values.map(v => ({ value: v, stockQuantity: 0, customPrice: marketerPrice > 0 ? marketerPrice : undefined })));
-  };
+  // Removed predefined templates for simplicity
 
   useEffect(() => {
     setLocalHasVariants(hasVariants);
@@ -109,13 +87,13 @@ export default function ProductVariants({
     setLocalVariantOptions(variantOptions);
   }, [hasVariants, variants, variantOptions]);
 
-  // Update default price when marketerPrice changes
+  // Update default price when marketerPrice changes - auto-fill empty prices
   useEffect(() => {
     if (marketerPrice > 0 && newVariantValues.length > 0) {
-      // Update empty customPrice fields to use marketerPrice
+      // Update empty or zero customPrice fields to use marketerPrice
       const updated = newVariantValues.map(v => ({
         ...v,
-        customPrice: v.customPrice === undefined ? marketerPrice : v.customPrice
+        customPrice: (v.customPrice === undefined || v.customPrice === 0) ? marketerPrice : v.customPrice
       }));
       setNewVariantValues(updated);
     }
@@ -159,16 +137,19 @@ export default function ProductVariants({
     generateVariantOptions(updatedVariants);
     
     setNewVariantName('');
-    setNewVariantValues([{value: '', stockQuantity: 0, customPrice: marketerPrice > 0 ? marketerPrice : undefined}]);
+    // Auto-fill customPrice with marketerPrice
+    setNewVariantValues([{value: '', stockQuantity: 0, customPrice: marketerPrice > 0 ? marketerPrice : 0}]);
   };
 
   const addValueField = () => {
-    setNewVariantValues([...newVariantValues, {value: '', stockQuantity: 0, customPrice: marketerPrice > 0 ? marketerPrice : undefined}]);
+    // Auto-fill customPrice with marketerPrice when adding new value
+    setNewVariantValues([...newVariantValues, {value: '', stockQuantity: 0, customPrice: marketerPrice > 0 ? marketerPrice : 0}]);
   };
 
   const removeValueField = (index: number) => {
     const updated = newVariantValues.filter((_, i) => i !== index);
-    setNewVariantValues(updated.length > 0 ? updated : [{value: '', stockQuantity: 0, customPrice: marketerPrice > 0 ? marketerPrice : undefined}]);
+    // Auto-fill customPrice with marketerPrice
+    setNewVariantValues(updated.length > 0 ? updated : [{value: '', stockQuantity: 0, customPrice: marketerPrice > 0 ? marketerPrice : 0}]);
   };
 
   const updateValueField = (index: number, field: 'value' | 'stockQuantity' | 'customPrice', newValue: string | number | undefined) => {
@@ -178,7 +159,11 @@ export default function ProductVariants({
     } else if (field === 'stockQuantity') {
       updated[index] = { ...updated[index], stockQuantity: (newValue as number) || 0 };
     } else if (field === 'customPrice') {
-      updated[index] = { ...updated[index], customPrice: newValue !== '' && newValue !== undefined ? (newValue as number) : undefined };
+      // Auto-fill with marketerPrice if empty or zero
+      const priceValue = newValue !== '' && newValue !== undefined && newValue !== 0 
+        ? (newValue as number) 
+        : (marketerPrice > 0 ? marketerPrice : 0);
+      updated[index] = { ...updated[index], customPrice: priceValue };
     }
     setNewVariantValues(updated);
   };
@@ -427,108 +412,96 @@ export default function ProductVariants({
           </label>
         </div>
 
-        {/* Help Text */}
-        <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-          <p className="text-sm text-blue-800 dark:text-blue-300 flex items-start gap-2">
-            <Sparkles className="w-4 h-4 mt-0.5 flex-shrink-0" />
-            <span>
-              <strong>نصيحة:</strong> استخدم المتغيرات إذا كان المنتج له خيارات متعددة (مثل: أحمر/أزرق، صغير/كبير). 
-              سيتم إنشاء جميع التركيبات الممكنة تلقائياً مع إمكانية تحديد السعر والمخزون لكل تركيبة.
-            </span>
+        {/* Simplified Help Text */}
+        <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+          <p className="text-sm text-blue-800 dark:text-blue-300">
+            <strong>نصيحة:</strong> المتغيرات مثل الألوان أو الأحجام. سيتم إنشاء جميع التركيبات تلقائياً.
           </p>
         </div>
       </div>
 
       {localHasVariants === true && (
         <div className="space-y-6">
-          {/* Add New Variant */}
-          <div className="card">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                إضافة متغير جديد
-              </h3>
-              {localVariantOptions.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setShowPreview(!showPreview)}
-                  className="btn-secondary text-sm flex items-center gap-2"
-                >
-                  <Eye className="w-4 h-4" />
-                  {showPreview ? 'إخفاء' : 'عرض'} المعاينة
-                </button>
-              )}
-            </div>
-            
-            {/* Templates */}
-            <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                قوالب جاهزة
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {variantTemplates.map((template, idx) => (
+          {/* Simple Summary - Always Visible */}
+          {localVariants.length > 0 && (
+            <div className="card bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-semibold text-green-900 dark:text-green-100 mb-1">
+                    ملخص المتغيرات
+                  </h3>
+                  <p className="text-sm text-green-800 dark:text-green-300">
+                    {localVariants.length} متغير • {localVariantOptions.length} خيار • 
+                    إجمالي المخزون: {localVariantOptions.reduce((sum, opt) => sum + (opt.stockQuantity || 0), 0)} قطعة
+                  </p>
+                </div>
+                {localVariantOptions.length > 0 && (
                   <button
-                    key={idx}
                     type="button"
-                    onClick={() => applyTemplate(template)}
-                    className="px-3 py-1.5 text-sm bg-white dark:bg-gray-800 border border-blue-300 dark:border-blue-700 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+                    onClick={() => setShowPreview(!showPreview)}
+                    className="btn-secondary text-sm px-4 py-2 flex items-center gap-2"
                   >
-                    {template.name}
+                    <Eye className="w-4 h-4" />
+                    {showPreview ? 'إخفاء' : 'عرض'} التفاصيل
                   </button>
-                ))}
+                )}
               </div>
             </div>
+          )}
+
+          {/* Add New Variant */}
+          <div className="card">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+              إضافة متغير جديد
+            </h3>
             
             <div className="mb-4">
-              {/* Custom Variant */}
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    متغير مخصص
+              {/* Simplified Custom Variant */}
+              <div className="space-y-4">
+                {/* Variant Name */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    اسم المتغير
                   </label>
-                  <Tooltip 
-                    content="أدخل اسم المتغير (مثل: اللون، الحجم) ثم أضف القيم الممكنة مع الكميات والأسعار لكل قيمة."
-                    icon
+                  <input
+                    type="text"
+                    value={newVariantName}
+                    onChange={(e) => setNewVariantName(e.target.value)}
+                    placeholder="مثل: اللون، الحجم، المادة"
+                    className="w-full px-4 py-3 text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 min-h-[48px]"
                   />
                 </div>
-                <input
-                  type="text"
-                  value={newVariantName}
-                  onChange={(e) => setNewVariantName(e.target.value)}
-                  placeholder="اسم المتغير (مثل: النمط)"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                />
                 
-                {/* Value Fields */}
-                <div className="mt-3 space-y-4">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                {/* Value Fields - Simplified */}
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                     قيم المتغير
                   </label>
                   {newVariantValues.map((valueItem, index) => (
-                    <div key={index} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-3">
+                    <div key={index} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3 bg-gray-50 dark:bg-gray-800/50">
                       <div className="flex items-center gap-2">
                         <input
                           type="text"
                           value={valueItem.value}
                           onChange={(e) => updateValueField(index, 'value', e.target.value)}
                           placeholder={`اسم القيمة ${index + 1}`}
-                          className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                          className="flex-1 px-4 py-3 text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 min-h-[48px]"
                         />
                         {newVariantValues.length > 1 && (
                           <button
                             type="button"
                             onClick={() => removeValueField(index)}
-                            className="p-2 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
+                            className="p-3 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors min-h-[48px]"
                             title="حذف القيمة"
                           >
-                            <X className="w-4 h-4" />
+                            <X className="w-5 h-5" />
                           </button>
                         )}
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                            الكمية المتوفرة
+                          <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+                            الكمية
                           </label>
                           <input
                             type="number"
@@ -536,21 +509,26 @@ export default function ProductVariants({
                             value={valueItem.stockQuantity}
                             onChange={(e) => updateValueField(index, 'stockQuantity', parseInt(e.target.value) || 0)}
                             placeholder="0"
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                            className="w-full px-4 py-3 text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 min-h-[48px]"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                            السعر المخصص (₪)
+                          <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+                            السعر (₪)
+                            {marketerPrice > 0 && (
+                              <span className="text-xs text-gray-500 dark:text-gray-400 mr-1">
+                                (افتراضي: {marketerPrice.toFixed(2)})
+                              </span>
+                            )}
                           </label>
                           <input
                             type="number"
                             step="0.01"
                             min="0"
-                            value={valueItem.customPrice || ''}
-                            onChange={(e) => updateValueField(index, 'customPrice', e.target.value ? parseFloat(e.target.value) : undefined)}
-                            placeholder="السعر المخصص (اختياري)"
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                            value={valueItem.customPrice || marketerPrice || ''}
+                            onChange={(e) => updateValueField(index, 'customPrice', e.target.value ? parseFloat(e.target.value) : (marketerPrice > 0 ? marketerPrice : 0))}
+                            placeholder={marketerPrice > 0 ? marketerPrice.toFixed(2) : "السعر"}
+                            className="w-full px-4 py-3 text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 min-h-[48px]"
                           />
                         </div>
                       </div>
@@ -559,9 +537,9 @@ export default function ProductVariants({
                   <button
                     type="button"
                     onClick={addValueField}
-                    className="w-full mt-2 px-3 py-2 text-sm border border-dashed border-gray-300 dark:border-gray-600 rounded-md hover:border-primary-500 dark:hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors flex items-center justify-center gap-2"
+                    className="w-full px-4 py-3 text-base border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-primary-500 dark:hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors flex items-center justify-center gap-2 min-h-[48px]"
                   >
-                    <Plus className="w-4 h-4" />
+                    <Plus className="w-5 h-5" />
                     إضافة قيمة جديدة
                   </button>
                 </div>
@@ -569,7 +547,7 @@ export default function ProductVariants({
                 {newVariantName && newVariantValues.some(v => v.value.trim()) && (
                   <button
                     onClick={addVariant}
-                    className="mt-3 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+                    className="w-full px-6 py-3 text-base bg-primary-600 text-white rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 font-medium min-h-[48px]"
                   >
                     إضافة المتغير
                   </button>
@@ -774,39 +752,48 @@ export default function ProductVariants({
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                   خيارات المتغيرات ({localVariantOptions.length} خيار)
                 </h3>
-                {selectedOptions.size > 0 && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">
-                      {selectedOptions.size} محدد
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setBulkEditMode(bulkEditMode === 'price' ? null : 'price');
-                        setBulkValue('');
-                      }}
-                      className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1"
-                    >
-                      <Edit2 className="w-3 h-3" />
-                      تعديل السعر
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setBulkEditMode(bulkEditMode === 'stock' ? null : 'stock');
-                        setBulkValue('');
-                      }}
-                      className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1"
-                    >
-                      <Edit2 className="w-3 h-3" />
-                      تعديل الكمية
-                    </button>
-                  </div>
-                )}
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setSimpleMode(!simpleMode)}
+                    className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
+                  >
+                    {simpleMode ? 'عرض الخيارات المتقدمة' : 'الوضع البسيط'}
+                  </button>
+                  {!simpleMode && selectedOptions.size > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        {selectedOptions.size} محدد
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBulkEditMode(bulkEditMode === 'price' ? null : 'price');
+                          setBulkValue('');
+                        }}
+                        className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1"
+                      >
+                        <Edit2 className="w-3 h-3" />
+                        تعديل السعر
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBulkEditMode(bulkEditMode === 'stock' ? null : 'stock');
+                          setBulkValue('');
+                        }}
+                        className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1"
+                      >
+                        <Edit2 className="w-3 h-3" />
+                        تعديل الكمية
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Bulk Edit Bar */}
-              {bulkEditMode && selectedOptions.size > 0 && (
+              {/* Bulk Edit Bar - Hidden in Simple Mode */}
+              {!simpleMode && bulkEditMode && selectedOptions.size > 0 && (
                 <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -842,110 +829,148 @@ export default function ProductVariants({
                 </div>
               )}
               
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 dark:bg-gray-800">
-                    <tr>
-                      <th className="px-4 py-2 text-right text-sm font-medium text-gray-900 dark:text-gray-100 w-12">
-                        <button
-                          type="button"
-                          onClick={selectAll}
-                          className="hover:text-primary-600 dark:hover:text-primary-400"
-                        >
-                          {selectedOptions.size === localVariantOptions.length ? (
-                            <CheckSquare className="w-4 h-4" />
-                          ) : (
-                            <Square className="w-4 h-4" />
-                          )}
-                        </button>
-                      </th>
-                      <th className="px-4 py-2 text-right text-sm font-medium text-gray-900 dark:text-gray-100">
-                        الخيار
-                      </th>
-                      <th className="px-4 py-2 text-right text-sm font-medium text-gray-900 dark:text-gray-100">
-                        السعر الكامل (₪)
-                      </th>
-                      <th className="px-4 py-2 text-right text-sm font-medium text-gray-900 dark:text-gray-100">
-                        الكمية المتوفرة
-                      </th>
-                      <th className="px-4 py-2 text-right text-sm font-medium text-gray-900 dark:text-gray-100">
-                        رمز المنتج (SKU)
-                      </th>
-                      <th className="px-4 py-2 text-right text-sm font-medium text-gray-900 dark:text-gray-100">
-                        إجراءات
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {localVariantOptions.map((option) => {
-                      const isSelected = selectedOptions.has(option.variantId);
-                      return (
-                        <tr 
-                          key={option.variantId} 
-                          className={`hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
-                            isSelected ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-                          }`}
-                        >
-                          <td className="px-4 py-3">
-                            <button
-                              type="button"
-                              onClick={() => toggleSelectOption(option.variantId)}
-                              className="hover:text-primary-600 dark:hover:text-primary-400"
-                            >
-                              {isSelected ? (
-                                <CheckSquare className="w-4 h-4 text-primary-600 dark:text-primary-400" />
-                              ) : (
-                                <Square className="w-4 h-4 text-gray-400 dark:text-gray-600" />
-                              )}
-                            </button>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
-                            {option.variantName}
-                          </td>
-                          <td className="px-4 py-3">
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={option.price || ''}
-                              onChange={(e) => updateVariantOption(option.variantId, 'price', e.target.value ? parseFloat(e.target.value) : undefined)}
-                              placeholder="السعر الكامل"
-                              className={`w-28 px-2 py-1 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-                                isSelected ? 'border-primary-300 dark:border-primary-700 bg-primary-50 dark:bg-primary-900/20' : 'border-gray-300 dark:border-gray-600'
-                              }`}
-                            />
-                          </td>
-                          <td className="px-4 py-3">
-                            <input
-                              type="number"
-                              value={option.stockQuantity}
-                              onChange={(e) => updateVariantOption(option.variantId, 'stockQuantity', parseInt(e.target.value) || 0)}
-                              min="0"
-                              className={`w-24 px-2 py-1 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-                                isSelected ? 'border-primary-300 dark:border-primary-700 bg-primary-50 dark:bg-primary-900/20' : 'border-gray-300 dark:border-gray-600'
-                              }`}
-                            />
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className="text-sm text-gray-600 dark:text-gray-400 font-mono">
-                              {option.sku || 'قيد التوليد...'}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <button
-                              onClick={() => removeVariantOption(option.variantId)}
-                              className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-                              title="حذف الخيار"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              {/* Simple View - Show only essential info */}
+              {simpleMode ? (
+                <div className="space-y-3">
+                  {localVariantOptions.map((option) => (
+                    <div key={option.variantId} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-800/50">
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          {option.variantName}
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">السعر (₪)</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={option.price || ''}
+                            onChange={(e) => updateVariantOption(option.variantId, 'price', e.target.value ? parseFloat(e.target.value) : undefined)}
+                            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">الكمية</label>
+                          <input
+                            type="number"
+                            value={option.stockQuantity}
+                            onChange={(e) => updateVariantOption(option.variantId, 'stockQuantity', parseInt(e.target.value) || 0)}
+                            min="0"
+                            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 dark:bg-gray-800">
+                      <tr>
+                        <th className="px-4 py-2 text-right text-sm font-medium text-gray-900 dark:text-gray-100 w-12">
+                          <button
+                            type="button"
+                            onClick={selectAll}
+                            className="hover:text-primary-600 dark:hover:text-primary-400"
+                          >
+                            {selectedOptions.size === localVariantOptions.length ? (
+                              <CheckSquare className="w-4 h-4" />
+                            ) : (
+                              <Square className="w-4 h-4" />
+                            )}
+                          </button>
+                        </th>
+                        <th className="px-4 py-2 text-right text-sm font-medium text-gray-900 dark:text-gray-100">
+                          الخيار
+                        </th>
+                        <th className="px-4 py-2 text-right text-sm font-medium text-gray-900 dark:text-gray-100">
+                          السعر الكامل (₪)
+                        </th>
+                        <th className="px-4 py-2 text-right text-sm font-medium text-gray-900 dark:text-gray-100">
+                          الكمية المتوفرة
+                        </th>
+                        <th className="px-4 py-2 text-right text-sm font-medium text-gray-900 dark:text-gray-100">
+                          رمز المنتج (SKU)
+                        </th>
+                        <th className="px-4 py-2 text-right text-sm font-medium text-gray-900 dark:text-gray-100">
+                          إجراءات
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                      {localVariantOptions.map((option) => {
+                        const isSelected = selectedOptions.has(option.variantId);
+                        return (
+                          <tr 
+                            key={option.variantId} 
+                            className={`hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
+                              isSelected ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                            }`}
+                          >
+                            <td className="px-4 py-3">
+                              <button
+                                type="button"
+                                onClick={() => toggleSelectOption(option.variantId)}
+                                className="hover:text-primary-600 dark:hover:text-primary-400"
+                              >
+                                {isSelected ? (
+                                  <CheckSquare className="w-4 h-4 text-primary-600 dark:text-primary-400" />
+                                ) : (
+                                  <Square className="w-4 h-4 text-gray-400 dark:text-gray-600" />
+                                )}
+                              </button>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                              {option.variantName}
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={option.price || ''}
+                                onChange={(e) => updateVariantOption(option.variantId, 'price', e.target.value ? parseFloat(e.target.value) : undefined)}
+                                placeholder="السعر الكامل"
+                                className={`w-28 px-2 py-1 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                                  isSelected ? 'border-primary-300 dark:border-primary-700 bg-primary-50 dark:bg-primary-900/20' : 'border-gray-300 dark:border-gray-600'
+                                }`}
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="number"
+                                value={option.stockQuantity}
+                                onChange={(e) => updateVariantOption(option.variantId, 'stockQuantity', parseInt(e.target.value) || 0)}
+                                min="0"
+                                className={`w-24 px-2 py-1 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                                  isSelected ? 'border-primary-300 dark:border-primary-700 bg-primary-50 dark:bg-primary-900/20' : 'border-gray-300 dark:border-gray-600'
+                                }`}
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="text-sm text-gray-600 dark:text-gray-400 font-mono">
+                                {option.sku || 'قيد التوليد...'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <button
+                                onClick={() => removeVariantOption(option.variantId)}
+                                className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                                title="حذف الخيار"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
         </div>

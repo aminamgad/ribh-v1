@@ -5,6 +5,7 @@ import { Package, ShoppingCart, Heart, ArrowLeft } from 'lucide-react';
 import MediaThumbnail from '@/components/ui/MediaThumbnail';
 import { OptimizedImage } from '@/components/ui/LazyImage';
 import { getCloudinaryThumbnailUrl, isCloudinaryUrl } from '@/lib/mediaUtils';
+import { getStockBadgeText, calculateVariantStockQuantity } from '@/lib/product-helpers';
 
 interface Product {
   _id: string;
@@ -18,6 +19,16 @@ interface Product {
   sales?: number;
   minimumSellingPrice?: number;
   isMinimumPriceMandatory?: boolean;
+  hasVariants?: boolean;
+  variantOptions?: Array<{
+    variantId: string;
+    variantName: string;
+    value: string;
+    price?: number;
+    stockQuantity: number;
+    sku?: string;
+    images?: string[];
+  }>;
 }
 
 interface ProductSectionProps {
@@ -171,21 +182,36 @@ const ProductSection = memo(function ProductSection({
                 )}
               </div>
 
+              {/* Stock Info */}
+              {product.hasVariants && product.variantOptions && product.variantOptions.length > 0 && (
+                <div className="text-xs text-gray-500 dark:text-slate-400 text-center">
+                  {getStockBadgeText(product.stockQuantity, product.hasVariants, product.variantOptions)}
+                </div>
+              )}
+
               {/* Add to Cart Button */}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onAddToCart(product);
                 }}
-                disabled={product.stockQuantity <= 0 || !product.isApproved}
+                disabled={
+                  (product.hasVariants && product.variantOptions && product.variantOptions.length > 0
+                    ? calculateVariantStockQuantity(product.variantOptions)
+                    : product.stockQuantity) <= 0 || !product.isApproved
+                }
                 className={`w-full py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center ${
-                  product.stockQuantity > 0 && product.isApproved
+                  (product.hasVariants && product.variantOptions && product.variantOptions.length > 0
+                    ? calculateVariantStockQuantity(product.variantOptions)
+                    : product.stockQuantity) > 0 && product.isApproved
                     ? 'bg-emerald-600 hover:bg-emerald-700 text-white dark:bg-emerald-500 dark:hover:bg-emerald-600'
                     : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
                 }`}
               >
                 <ShoppingCart className="w-4 h-4 ml-1" />
-                {product.stockQuantity > 0 && product.isApproved ? 'إضافة للسلة' : 'غير متوفر'}
+                {(product.hasVariants && product.variantOptions && product.variantOptions.length > 0
+                  ? calculateVariantStockQuantity(product.variantOptions)
+                  : product.stockQuantity) > 0 && product.isApproved ? 'إضافة للسلة' : 'غير متوفر'}
               </button>
             </div>
           </div>

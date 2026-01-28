@@ -6,16 +6,12 @@ import { useAuth } from '@/components/providers/AuthProvider';
 import { useForm, type FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Save, Maximize2, Minimize2, Package, ImageIcon, DollarSign, Warehouse, Layers, Eye, FileText, Cloud, CloudOff, ChevronLeft, ChevronRight, X, AlertCircle, CheckCircle2, Info, AlertTriangle, Lightbulb, Sparkles, Zap, BarChart2, Clock, Star, Search, Plus, Trash2, Tag, Upload } from 'lucide-react';
+import { Save, Package, ImageIcon, DollarSign, Warehouse, Layers, Eye, ChevronLeft, ChevronRight, X, AlertCircle, CheckCircle2, Info, Search, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import MediaUpload from '@/components/ui/MediaUpload';
 import ProductVariants from '@/components/ui/ProductVariants';
 import Tooltip from '@/components/ui/Tooltip';
-import DraftRestoreModal from '@/components/ui/DraftRestoreModal';
-import TemplateNameModal from '@/components/ui/TemplateNameModal';
-import TemplateLoadConfirmModal from '@/components/ui/TemplateLoadConfirmModal';
-import TemplateDeleteConfirmModal from '@/components/ui/TemplateDeleteConfirmModal';
-import UnsavedChangesModal from '@/components/ui/UnsavedChangesModal';
+// Removed complex modals for simplicity
 import { ProductVariant, ProductVariantOption } from '@/types';
 
 const productSchema = z.object({
@@ -44,14 +40,13 @@ interface Supplier {
   email: string;
 }
 
-// Steps configuration
+// Steps configuration - 5 steps with Variants as separate step
 const STEPS = [
   { id: 1, name: 'المعلومات الأساسية', icon: Package, key: 'basic' },
   { id: 2, name: 'الوسائط', icon: ImageIcon, key: 'media' },
-  { id: 3, name: 'الأسعار', icon: DollarSign, key: 'pricing' },
-  { id: 4, name: 'المخزون', icon: Warehouse, key: 'inventory' },
-  { id: 5, name: 'المتغيرات', icon: Layers, key: 'variants' },
-  { id: 6, name: 'المراجعة', icon: Eye, key: 'review' },
+  { id: 3, name: 'الأسعار والمخزون', icon: DollarSign, key: 'pricing' },
+  { id: 4, name: 'المتغيرات', icon: Layers, key: 'variants' },
+  { id: 5, name: 'المراجعة', icon: Eye, key: 'review' },
 ];
 
 export default function NewProductPage() {
@@ -82,28 +77,12 @@ export default function NewProductPage() {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  // Tags and Specifications
-  const [tags, setTags] = useState<string[]>([]);
-  const [tagInput, setTagInput] = useState('');
-  const [specifications, setSpecifications] = useState<Array<{key: string, value: string}>>([]);
+  // Tags and Specifications removed for simplicity
   const [showErrors, setShowErrors] = useState(false);
   const [suggestedSku, setSuggestedSku] = useState<string>('');
   const [skuError, setSkuError] = useState<string>('');
-  const [showTemplateModal, setShowTemplateModal] = useState(false);
-  const [savedTemplates, setSavedTemplates] = useState<any[]>([]);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [quickEditMode, setQuickEditMode] = useState(false);
-  // Draft restore modal
-  const [showDraftModal, setShowDraftModal] = useState(false);
-  const [draftData, setDraftData] = useState<any>(null);
-  const [isRestoringDraft, setIsRestoringDraft] = useState(false);
-  // Template modals
-  const [showTemplateNameModal, setShowTemplateNameModal] = useState(false);
-  const [showTemplateLoadModal, setShowTemplateLoadModal] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
-  const [showTemplateDeleteModal, setShowTemplateDeleteModal] = useState(false);
-  const [templateToDelete, setTemplateToDelete] = useState<string | null>(null);
-  // Unsaved changes modal
+  // Removed: showTemplateModal, savedTemplates, isFullscreen, quickEditMode for simplicity
+  // Simplified modals
   const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
   const [unsavedChangesAction, setUnsavedChangesAction] = useState<(() => void) | null>(null);
 
@@ -143,53 +122,7 @@ export default function NewProductPage() {
     }
   }, []);
 
-  // Generate tag suggestions based on product name and category
-  const generateTagSuggestions = (): string[] => {
-    const suggestions: string[] = [];
-    const productName = watch('name') || '';
-    const categoryName = categories.find(c => c._id === watch('categoryId'))?.name || '';
-    
-    if (productName) {
-      const words = productName.split(' ').filter(w => w.length > 2);
-      suggestions.push(...words);
-    }
-    
-    if (categoryName) {
-      suggestions.push(categoryName);
-    }
-    
-    // Common tags
-    const commonTags = ['جديد', 'عرض خاص', 'الأكثر مبيعاً', 'مميز', 'عالي الجودة'];
-    suggestions.push(...commonTags);
-    
-    return Array.from(new Set(suggestions)).slice(0, 10);
-  };
-
-  const addTag = (tag: string) => {
-    const trimmedTag = tag.trim();
-    if (trimmedTag && !tags.includes(trimmedTag) && tags.length < 10) {
-      setTags([...tags, trimmedTag]);
-      setTagInput('');
-    }
-  };
-
-  const removeTag = (tagToRemove: string) => {
-    setTags(tags.filter(tag => tag !== tagToRemove));
-  };
-
-  const addSpecification = () => {
-    setSpecifications([...specifications, { key: '', value: '' }]);
-  };
-
-  const updateSpecification = (index: number, field: 'key' | 'value', value: string) => {
-    const updated = [...specifications];
-    updated[index] = { ...updated[index], [field]: value };
-    setSpecifications(updated);
-  };
-
-  const removeSpecification = (index: number) => {
-    setSpecifications(specifications.filter((_, i) => i !== index));
-  };
+  // Removed Tags and Specifications functions - no longer used
 
   // Scroll to error field
   const scrollToError = (fieldName: string) => {
@@ -474,27 +407,29 @@ export default function NewProductPage() {
         return !!(formData.name && formData.name.length >= 3);
       case 2: // Media
         return images.length > 0;
-      case 3: // Pricing
-        return !!(formData.marketerPrice && formData.marketerPrice > 0);
-      case 4: // Inventory
-        // If product has variants, check that variant options have stock
+      case 3: // Pricing & Inventory (merged)
+        // Validate pricing
+        if (!(formData.marketerPrice && formData.marketerPrice > 0)) return false;
+        // Validate inventory (only if no variants)
+        if (hasVariants === false) {
+          return formData.stockQuantity >= 0;
+        }
+        return true;
+      case 4: // Variants
+        // Must decide if product has variants or not
+        if (hasVariants === null) return false;
+        // If variants enabled, must have at least one variant with options and stock
         if (hasVariants === true) {
           return variantOptions.length > 0 && variantOptions.some(option => (option.stockQuantity || 0) > 0);
         }
-        // If no variants, check main stock quantity
-        return formData.stockQuantity >= 0;
-      case 5: // Variants
-        if (hasVariants === true) {
-          // If variants enabled, must have at least one variant with options
-          return variants.length > 0 && variantOptions.length > 0;
-        }
-        return hasVariants !== null;
-      case 6: // Review
+        // If no variants, validation passes
+        return true;
+      case 5: // Review
         return true;
       default:
         return false;
     }
-  }, [getValues, images, hasVariants, variants, variantOptions]);
+  }, [getValues, images, hasVariants, variantOptions]);
 
   // Mark step as completed
   const markStepCompleted = useCallback((stepId: number) => {
@@ -587,21 +522,10 @@ export default function NewProductPage() {
     return () => clearInterval(interval);
   }, [hasUnsavedChanges, saveDraft]);
 
-  // Load saved templates
-  useEffect(() => {
-    const templates = localStorage.getItem('product-templates');
-    if (templates) {
-      try {
-        setSavedTemplates(JSON.parse(templates));
-      } catch (error) {
-        console.error('Failed to load templates:', error);
-      }
-    }
-  }, []);
+  // Removed template loading for simplicity
 
-  // Load draft or duplicate on mount
+  // Load duplicate on mount (simplified - removed draft restoration)
   useEffect(() => {
-    // Check for duplicate first (higher priority)
     const duplicate = localStorage.getItem('product-duplicate');
     if (duplicate) {
       try {
@@ -614,32 +538,31 @@ export default function NewProductPage() {
         setSelectedSupplierId(duplicateData.selectedSupplierId || '');
         setPrimaryImageIndex(duplicateData.primaryImageIndex || 0);
         setCurrentStep(duplicateData.currentStep || 1);
-        setTags(duplicateData.tags || []);
-        setSpecifications(duplicateData.specifications || []);
+        // Tags and specifications removed
         localStorage.removeItem('product-duplicate');
         toast.success('تم تحميل نسخة المنتج');
-        return;
       } catch (error) {
         console.error('Failed to load duplicate:', error);
         localStorage.removeItem('product-duplicate');
       }
     }
     
-    // Check for draft
+    // Simplified: Auto-load draft without modal (silent restore)
     const savedDraft = localStorage.getItem('product-draft');
     if (savedDraft) {
       try {
         const parsedDraft = JSON.parse(savedDraft);
-        // Check if user has set "don't ask again"
-        const dontAsk = localStorage.getItem('draft-restore-dont-ask');
-        if (dontAsk === 'true') {
-          // Auto-dismiss if user chose not to be asked
-          localStorage.removeItem('product-draft');
-          return;
-        }
-        // Show modal with draft data
-        setDraftData(parsedDraft);
-        setShowDraftModal(true);
+        reset(parsedDraft);
+        setImages(parsedDraft.images || []);
+        setHasVariants(parsedDraft.hasVariants || null);
+        setVariants(parsedDraft.variants || []);
+        setVariantOptions(parsedDraft.variantOptions || []);
+        setSelectedSupplierId(parsedDraft.selectedSupplierId || '');
+        setPrimaryImageIndex(parsedDraft.primaryImageIndex || 0);
+        setCurrentStep(parsedDraft.currentStep || 1);
+        // Tags and specifications removed
+        setHasUnsavedChanges(false);
+        toast.success('تم استعادة المسودة تلقائياً', { duration: 2000 });
       } catch (error) {
         console.error('Failed to load draft:', error);
         localStorage.removeItem('product-draft');
@@ -647,181 +570,9 @@ export default function NewProductPage() {
     }
   }, []);
 
-  // Handle draft restore
-  const handleRestoreDraft = useCallback(() => {
-    if (!draftData) return;
-    
-    setIsRestoringDraft(true);
-    try {
-      reset(draftData);
-      setImages(draftData.images || []);
-      setHasVariants(draftData.hasVariants || null);
-      setVariants(draftData.variants || []);
-      setVariantOptions(draftData.variantOptions || []);
-      setSelectedSupplierId(draftData.selectedSupplierId || '');
-      setPrimaryImageIndex(draftData.primaryImageIndex || 0);
-      setCurrentStep(draftData.currentStep || 1);
-      setTags(draftData.tags || []);
-      setSpecifications(draftData.specifications || []);
-      setHasUnsavedChanges(false);
-      
-      // Small delay to show loading state
-      setTimeout(() => {
-        setIsRestoringDraft(false);
-        setShowDraftModal(false);
-        setDraftData(null);
-        toast.success('تم استعادة المسودة بنجاح', {
-          duration: 3000,
-          icon: '✅'
-        });
-      }, 500);
-    } catch (error) {
-      console.error('Failed to restore draft:', error);
-      setIsRestoringDraft(false);
-      toast.error('فشل في استعادة المسودة');
-    }
-  }, [draftData, reset]);
+  // Removed draft restore handlers - now handled automatically in useEffect
 
-  // Handle draft dismiss
-  const handleDismissDraft = useCallback(() => {
-    setShowDraftModal(false);
-    setDraftData(null);
-    localStorage.removeItem('product-draft');
-  }, []);
-
-  // Handle draft delete
-  const handleDeleteDraft = useCallback(() => {
-    localStorage.removeItem('product-draft');
-    setShowDraftModal(false);
-    setDraftData(null);
-    toast.success('تم حذف المسودة', { duration: 2000 });
-  }, []);
-
-  // Save as template
-  const saveAsTemplate = () => {
-    setShowTemplateNameModal(true);
-  };
-
-  const handleTemplateNameConfirm = (templateName: string) => {
-    const formData = getValues();
-    const template = {
-      id: `template_${Date.now()}`,
-      name: templateName,
-      createdAt: new Date().toISOString(),
-      data: {
-        ...formData,
-        images: images,
-        hasVariants,
-        variants,
-        variantOptions,
-        selectedSupplierId,
-        tags,
-        specifications
-      }
-    };
-
-    const templates = [...savedTemplates, template];
-    localStorage.setItem('product-templates', JSON.stringify(templates));
-    setSavedTemplates(templates);
-    setShowTemplateNameModal(false);
-    toast.success('تم حفظ القالب بنجاح', { duration: 3000, icon: '✅' });
-  };
-
-  // Load template
-  const loadTemplate = (template: any) => {
-    setSelectedTemplate(template);
-    setShowTemplateLoadModal(true);
-  };
-
-  const handleTemplateLoadConfirm = () => {
-    if (!selectedTemplate) return;
-    
-    reset(selectedTemplate.data);
-    setImages(selectedTemplate.data.images || []);
-    setHasVariants(selectedTemplate.data.hasVariants || null);
-    setVariants(selectedTemplate.data.variants || []);
-    setVariantOptions(selectedTemplate.data.variantOptions || []);
-    setSelectedSupplierId(selectedTemplate.data.selectedSupplierId || '');
-    setPrimaryImageIndex(selectedTemplate.data.primaryImageIndex || 0);
-    setCurrentStep(selectedTemplate.data.currentStep || 1);
-    setTags(selectedTemplate.data.tags || []);
-    setSpecifications(selectedTemplate.data.specifications || []);
-    setShowTemplateModal(false);
-    setShowTemplateLoadModal(false);
-    setSelectedTemplate(null);
-    toast.success(`تم تحميل القالب "${selectedTemplate.name}"`, { duration: 3000, icon: '✅' });
-  };
-
-  // Delete template
-  const deleteTemplate = (templateId: string) => {
-    const template = savedTemplates.find(t => t.id === templateId);
-    if (template) {
-      setTemplateToDelete(templateId);
-      setSelectedTemplate(template);
-      setShowTemplateDeleteModal(true);
-    }
-  };
-
-  const handleTemplateDeleteConfirm = () => {
-    if (!templateToDelete) return;
-    
-    const updated = savedTemplates.filter(t => t.id !== templateToDelete);
-    setSavedTemplates(updated);
-    localStorage.setItem('product-templates', JSON.stringify(updated));
-    setShowTemplateDeleteModal(false);
-    setTemplateToDelete(null);
-    setSelectedTemplate(null);
-    toast.success('تم حذف القالب', { duration: 2000, icon: '✅' });
-  };
-
-  // Predefined templates
-  const predefinedTemplates = [
-    {
-      id: 'electronics',
-      name: 'إلكترونيات',
-      description: 'قالب جاهز للمنتجات الإلكترونية',
-      data: {
-        categoryId: '',
-        marketerPrice: 0,
-        stockQuantity: 0,
-        tags: ['إلكترونيات', 'جديد', 'عالي الجودة'],
-        specifications: [
-          { key: 'الضمان', value: 'سنة واحدة' },
-          { key: 'الجهد', value: '220 فولت' }
-        ]
-      }
-    },
-    {
-      id: 'clothing',
-      name: 'ملابس',
-      description: 'قالب جاهز للملابس',
-      data: {
-        categoryId: '',
-        marketerPrice: 0,
-        stockQuantity: 0,
-        tags: ['ملابس', 'موضة', 'أنيق'],
-        specifications: [
-          { key: 'المادة', value: 'قطن' },
-          { key: 'العناية', value: 'غسيل آمن' }
-        ]
-      }
-    },
-    {
-      id: 'food',
-      name: 'أطعمة',
-      description: 'قالب جاهز للمنتجات الغذائية',
-      data: {
-        categoryId: '',
-        marketerPrice: 0,
-        stockQuantity: 0,
-        tags: ['طعام', 'طبيعي', 'صحي'],
-        specifications: [
-          { key: 'تاريخ الصلاحية', value: '6 أشهر' },
-          { key: 'التخزين', value: 'مكان جاف وبارد' }
-        ]
-      }
-    }
-  ];
+  // Removed template functions and predefined templates for simplicity
 
   // Clear draft on successful submit
   const handleSuccessfulSubmit = () => {
@@ -843,14 +594,7 @@ export default function NewProductPage() {
   }, [hasUnsavedChanges]);
 
 
-  // Handle fullscreen change
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
+  // Removed fullscreen functionality for simplicity
 
   // Calculate statistics
   const calculateStatistics = useCallback(() => {
@@ -884,9 +628,7 @@ export default function NewProductPage() {
     if (hasVariants !== null) completedFields++;
     if (hasVariants === true && variants.length > 0) completedFields++;
     
-    // Tags & Specs
-    if (tags.length > 0) completedFields++;
-    if (specifications.length > 0) completedFields++;
+    // Tags & Specs removed - no longer used
     
     const completionRate = Math.round((completedFields / totalFields) * 100);
     
@@ -901,7 +643,7 @@ export default function NewProductPage() {
       estimatedMinutes,
       quality: completionRate >= 80 ? 'ممتاز' : completionRate >= 60 ? 'جيد' : completionRate >= 40 ? 'متوسط' : 'يحتاج تحسين'
     };
-  }, [getValues, images, hasVariants, variants, tags, specifications, user?.role]);
+  }, [getValues, images, hasVariants, variants, user?.role]);
 
   const onSubmit = async (data: ProductFormData) => {
     console.log('Form submitted', { data, images, hasVariants, variants, variantOptions });
@@ -915,7 +657,7 @@ export default function NewProductPage() {
           color: '#fff'
         }
       });
-      setCurrentStep(5); // Go to variants step
+      setCurrentStep(4); // Go to variants step
       return;
     }
     
@@ -966,7 +708,7 @@ export default function NewProductPage() {
             color: '#fff'
           }
         });
-        setCurrentStep(5); // Go to variants step
+        setCurrentStep(4); // Go to variants step
         return;
       }
       const totalVariantStock = variantOptions.reduce((sum, option) => sum + (option.stockQuantity || 0), 0);
@@ -978,7 +720,7 @@ export default function NewProductPage() {
             color: '#fff'
           }
         });
-        setCurrentStep(5); // Go to variants step
+        setCurrentStep(4); // Go to variants step
         return;
       }
     } else if (hasVariants === false) {
@@ -991,7 +733,7 @@ export default function NewProductPage() {
             color: '#fff'
           }
         });
-        setCurrentStep(4); // Go to inventory step
+        setCurrentStep(3); // Go to pricing & inventory step
         return;
       }
     }
@@ -1018,13 +760,8 @@ export default function NewProductPage() {
         images: images,
         // SKU - only for non-suppliers
         ...(!isSupplier && { sku: data.sku?.trim() || '' }),
-        tags: tags,
-        specifications: specifications.reduce((acc, spec) => {
-          if (spec.key && spec.value) {
-            acc[spec.key] = spec.value;
-          }
-          return acc;
-        }, {} as Record<string, string>),
+        tags: [], // Removed tags for simplicity
+        specifications: {}, // Removed specifications for simplicity
         // Product variants
         hasVariants: hasVariants === true,
         variants: hasVariants === true ? variants : [],
@@ -1145,15 +882,7 @@ export default function NewProductPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentStep, hasUnsavedChanges, handleSubmit, onSubmit, onError, saveDraft, router, nextStep, prevStep]);
 
-  // Toggle fullscreen mode
-  const toggleFullscreen = () => {
-    setIsFullscreen(!isFullscreen);
-    if (!isFullscreen) {
-      document.documentElement.requestFullscreen?.();
-    } else {
-      document.exitFullscreen?.();
-    }
-  };
+  // Removed toggleFullscreen function for simplicity
 
   const marketerPrice = watch('marketerPrice') || 0;
   const wholesalerPrice = watch('wholesalerPrice') || undefined;
@@ -1192,171 +921,22 @@ export default function NewProductPage() {
   }
 
   return (
-    <div className={`space-y-4 sm:space-y-6 max-w-[1920px] mx-auto px-2 sm:px-4 md:px-6 transition-all duration-300 ${isFullscreen ? 'fixed inset-0 bg-white dark:bg-slate-900 z-50 overflow-y-auto p-4' : ''}`}>
-      {/* Header */}
+    <div className="space-y-4 sm:space-y-6 max-w-[1920px] mx-auto px-2 sm:px-4 md:px-6">
+      {/* Header - Simplified */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100">إضافة منتج جديد</h1>
-          <p className="text-xs sm:text-sm md:text-base text-gray-600 dark:text-gray-400 mt-1 sm:mt-2">أضف منتجك الجديد إلى المنصة</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">إضافة منتج جديد</h1>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">أضف منتجك الجديد إلى المنصة</p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Quick Edit Mode Toggle */}
-          <button
-            type="button"
-            onClick={() => setQuickEditMode(!quickEditMode)}
-            className={`text-sm px-3 py-2 flex items-center gap-2 transition-colors ${
-              quickEditMode 
-                ? 'bg-primary-600 text-white hover:bg-primary-700' 
-                : 'btn-secondary'
-            }`}
-            title={quickEditMode ? 'الوضع العادي' : 'التحرير السريع'}
-          >
-            <Zap className="w-4 h-4" />
-            <span className="hidden sm:inline">{quickEditMode ? 'الوضع العادي' : 'التحرير السريع'}</span>
-          </button>
-          
-          {/* Fullscreen Toggle */}
-          <button
-            type="button"
-            onClick={toggleFullscreen}
-            className="btn-secondary text-sm px-3 py-2 flex items-center gap-2"
-            title={isFullscreen ? 'تصغير' : 'ملء الشاشة'}
-          >
-            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-            <span className="hidden sm:inline">{isFullscreen ? 'تصغير' : 'ملء الشاشة'}</span>
-          </button>
-          
-          {/* Templates Button */}
-          <button
-            type="button"
-            onClick={() => setShowTemplateModal(true)}
-            className="btn-secondary text-sm px-3 py-2 flex items-center gap-2"
-            title="القوالب"
-          >
-            <FileText className="w-4 h-4" />
-            <span className="hidden sm:inline">القوالب</span>
-          </button>
-          
-          {/* Auto-save indicator */}
-          {isSaving ? (
-            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-              <div className="loading-spinner w-4 h-4"></div>
-              <span className="hidden sm:inline">جاري الحفظ...</span>
-            </div>
-          ) : lastSaved ? (
-            <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
-              <Cloud className="w-4 h-4" />
-              <span className="hidden sm:inline">آخر حفظ: {lastSaved.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}</span>
-            </div>
-          ) : hasUnsavedChanges ? (
-            <div className="flex items-center gap-2 text-sm text-yellow-600 dark:text-yellow-400">
-              <CloudOff className="w-4 h-4" />
-              <span className="hidden sm:inline">غير محفوظ</span>
-            </div>
-          ) : null}
-        </div>
+        {isSaving && (
+          <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+            <div className="loading-spinner w-4 h-4"></div>
+            <span className="hidden sm:inline">جاري الحفظ...</span>
+          </div>
+        )}
       </div>
 
-      {/* Templates Modal */}
-      {showTemplateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" onClick={() => setShowTemplateModal(false)}>
-          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                  <FileText className="w-5 h-5" />
-                  القوالب
-                </h2>
-                <button
-                  onClick={() => setShowTemplateModal(false)}
-                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-            
-            <div className="p-6 space-y-4">
-              {/* Save Current as Template */}
-              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-1">حفظ كقالب</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">احفظ المنتج الحالي كقالب للاستخدام لاحقاً</p>
-                  </div>
-                  <button
-                    onClick={saveAsTemplate}
-                    className="btn-primary text-sm px-4 py-2 flex items-center gap-2"
-                  >
-                    <Save className="w-4 h-4" />
-                    حفظ
-                  </button>
-                </div>
-              </div>
-
-              {/* Predefined Templates */}
-              <div>
-                <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">قوالب جاهزة</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {predefinedTemplates.map((template) => (
-                    <button
-                      key={template.id}
-                      onClick={() => {
-                        reset(template.data);
-                        setTags(template.data.tags || []);
-                        setSpecifications(template.data.specifications || []);
-                        setShowTemplateModal(false);
-                        toast.success(`تم تحميل القالب "${template.name}"`);
-                      }}
-                      className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-primary-500 dark:hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors text-right"
-                    >
-                      <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-1">{template.name}</h4>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">{template.description}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Saved Templates */}
-              {savedTemplates.length > 0 && (
-                <div>
-                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">القوالب المحفوظة</h3>
-                  <div className="space-y-2">
-                    {savedTemplates.map((template) => (
-                      <div
-                        key={template.id}
-                        className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                      >
-                        <div>
-                          <h4 className="font-medium text-gray-900 dark:text-gray-100">{template.name}</h4>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {new Date(template.createdAt).toLocaleDateString('ar-SA')}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => loadTemplate(template)}
-                            className="btn-primary text-xs px-3 py-1.5 flex items-center gap-1"
-                          >
-                            <Upload className="w-3 h-3" />
-                            تحميل
-                          </button>
-                          <button
-                            onClick={() => deleteTemplate(template.id)}
-                            className="btn-secondary text-xs px-3 py-1.5 text-red-600 dark:text-red-400"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Templates Modal - Removed for simplicity */}
 
       {/* Errors Summary */}
       {showErrors && Object.keys(errors).length > 0 && (
@@ -1401,73 +981,23 @@ export default function NewProductPage() {
         </div>
       )}
 
-      {/* Progress Bar & Statistics */}
-      <div className="card p-4 sm:p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
-              <span className="text-sm font-bold text-primary-600 dark:text-primary-400">{progress}%</span>
-            </div>
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">التقدم: {progress}%</span>
-          </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">
+      {/* Simplified Progress & Steps Navigation - Mobile Optimized */}
+      <div className="card p-3 sm:p-6">
+        <div className="flex items-center justify-between mb-3 sm:mb-4">
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
             الخطوة {currentStep} من {STEPS.length}
+          </span>
+          <div className="flex-1 mx-3 bg-gray-200 dark:bg-gray-700 rounded-full h-2 max-w-[120px]">
+            <div 
+              className="bg-primary-600 h-2 rounded-full transition-all duration-300"
+              style={{ width: `${progress}%` }}
+            />
           </div>
-        </div>
-        
-        {/* Quick Statistics */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4">
-          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 border border-blue-200 dark:border-blue-800">
-            <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">الحقول المكتملة</p>
-            <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
-              {stats.completedFields}/{stats.totalFields}
-            </p>
-          </div>
-          <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 border border-green-200 dark:border-green-800">
-            <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">نسبة الإكمال</p>
-            <p className="text-lg font-bold text-green-600 dark:text-green-400">
-              {stats.completionRate}%
-            </p>
-          </div>
-          <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 border border-purple-200 dark:border-purple-800">
-            <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">الوقت المقدر</p>
-            <p className="text-lg font-bold text-purple-600 dark:text-purple-400">
-              {stats.estimatedMinutes} دقيقة
-            </p>
-          </div>
-          <div className={`rounded-lg p-3 border ${
-            stats.quality === 'ممتاز' 
-              ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
-              : stats.quality === 'جيد'
-              ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
-              : stats.quality === 'متوسط'
-              ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800'
-              : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
-          }`}>
-            <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">الجودة</p>
-            <p className={`text-lg font-bold ${
-              stats.quality === 'ممتاز' 
-                ? 'text-green-600 dark:text-green-400'
-                : stats.quality === 'جيد'
-                ? 'text-blue-600 dark:text-blue-400'
-                : stats.quality === 'متوسط'
-                ? 'text-yellow-600 dark:text-yellow-400'
-                : 'text-red-600 dark:text-red-400'
-            }`}>
-              {stats.quality}
-            </p>
-          </div>
-        </div>
-        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mb-6">
-          <div 
-            className="bg-primary-600 h-2.5 rounded-full transition-all duration-500 ease-out"
-            style={{ width: `${progress}%` }}
-          />
         </div>
 
-        {/* Steps Navigation */}
-        <div className="flex flex-wrap gap-2 sm:gap-4 justify-center sm:justify-between">
-          {STEPS.map((step, index) => {
+        {/* Simplified Steps Navigation - Mobile Friendly */}
+        <div className="flex gap-1 sm:gap-2 justify-center overflow-x-auto pb-2">
+          {STEPS.map((step) => {
             const StepIcon = step.icon;
             const isActive = currentStep === step.id;
             const isCompleted = isStepCompleted(step.id);
@@ -1480,194 +1010,57 @@ export default function NewProductPage() {
                 onClick={() => canAccess && goToStep(step.id)}
                 disabled={!canAccess}
                 className={`
-                  flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-3 rounded-lg transition-all duration-200
+                  flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 rounded-lg transition-all text-xs sm:text-sm whitespace-nowrap
                   ${isActive 
-                    ? 'bg-primary-600 text-white shadow-lg scale-105' 
+                    ? 'bg-primary-600 text-white' 
                     : isCompleted 
-                      ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/30' 
+                      ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400' 
                       : canAccess
-                        ? 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                        ? 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
                         : 'bg-gray-50 dark:bg-gray-900 text-gray-400 dark:text-gray-600 cursor-not-allowed opacity-50'
                   }
-                  ${canAccess ? 'cursor-pointer' : 'cursor-not-allowed'}
                 `}
+                title={step.name}
               >
                 {isCompleted && !isActive ? (
-                  <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                  <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
                 ) : (
-                  <StepIcon className={`w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 ${isActive ? 'text-white' : ''}`} />
+                  <StepIcon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
                 )}
-                <span className="text-xs sm:text-sm font-medium hidden sm:inline">{step.name}</span>
-                <span className="text-xs sm:text-sm font-medium sm:hidden">{step.id}</span>
+                <span className="hidden sm:inline">{step.name}</span>
+                <span className="sm:hidden">{step.id}</span>
               </button>
             );
           })}
         </div>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit, onError)} className="space-y-4 sm:space-y-6">
-        {/* Quick Edit Mode */}
-        {quickEditMode ? (
-          <div className="card p-4 sm:p-6 animate-fade-in">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <Zap className="w-6 h-6 text-primary-600 dark:text-primary-400" />
-                <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100">التحرير السريع</h2>
-              </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/20 px-3 py-1 rounded-full">
-                وضع مبسط للمستخدمين المتقدمين
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Essential Fields Only */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  <span className="text-red-500 mr-1">*</span>
-                  اسم المنتج
-                </label>
-                <input
-                  type="text"
-                  {...register('name')}
-                  className={`input-field ${errors.name ? 'border-red-500' : ''}`}
-                  placeholder="اسم المنتج"
-                />
-                {errors.name && <p className="text-red-600 text-xs mt-1">{errors.name.message}</p>}
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  <span className="text-red-500 mr-1">*</span>
-                  سعر المسوق
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  {...register('marketerPrice', { valueAsNumber: true })}
-                  className={`input-field ${errors.marketerPrice ? 'border-red-500' : ''}`}
-                  placeholder="0.00"
-                />
-                {errors.marketerPrice && <p className="text-red-600 text-xs mt-1">{errors.marketerPrice.message}</p>}
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  الكمية
-                </label>
-                <input
-                  type="number"
-                  {...register('stockQuantity', { valueAsNumber: true })}
-                  className="input-field"
-                  placeholder="0"
-                />
-              </div>
-              
-              {user?.role !== 'supplier' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    الفئة
-                  </label>
-                  <select {...register('categoryId')} className="input-field">
-                    <option value="">اختر الفئة</option>
-                    {categories.map((category) => (
-                      <option key={category._id} value={category._id}>
-                        {category.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-              
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  الوصف
-                </label>
-                <textarea
-                  {...register('description')}
-                  rows={3}
-                  className="input-field"
-                  placeholder="وصف المنتج (اختياري)"
-                />
-              </div>
-              
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  الصور
-                </label>
-                <MediaUpload
-                  onUpload={(urls) => setImages(urls)}
-                  uploadedMedia={images}
-                  onRemove={(index) => setImages(images.filter((_, i) => i !== index))}
-                  uploading={uploading}
-                  setUploading={setUploading}
-                  accept="images"
-                  maxFiles={10}
-                  onReorder={(reordered) => setImages(reordered)}
-                  onSetPrimary={setPrimaryImageIndex}
-                  primaryIndex={primaryImageIndex}
-                  showPrimaryOption={true}
-                />
-              </div>
-            </div>
-            
-            <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  💡 في وضع التحرير السريع، يمكنك إضافة المنتج بسرعة باستخدام الحقول الأساسية فقط
-                </p>
-                <button
-                  type="submit"
-                  disabled={loading || uploading || images.length === 0}
-                  className="btn-primary px-6 py-2"
-                >
-                  {loading ? 'جاري الإضافة...' : 'إضافة المنتج'}
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : (
-          /* Step Content */
-          <div className="transition-all duration-300 ease-in-out">
+      <form onSubmit={handleSubmit(onSubmit, onError)} className="space-y-4">
+        {/* Step Content */}
+        <div className="transition-all duration-300 ease-in-out">
             {/* Step 1: Basic Information */}
             {currentStep === 1 && (
-            <div className="card p-4 sm:p-6 animate-fade-in">
-              <div className="flex items-center gap-3 mb-4">
-                <Package className="w-6 h-6 text-primary-600 dark:text-primary-400" />
-                <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100">المعلومات الأساسية</h2>
-              </div>
+            <div className="card p-4 sm:p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">المعلومات الأساسية</h2>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     <span className="text-red-500 dark:text-red-400 mr-1">*</span>
                     اسم المنتج
-                    <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">(مطلوب)</span>
                   </label>
                   <input
                     type="text"
                     {...register('name')}
-                    className={`input-field text-sm sm:text-base min-h-[44px] ${
+                    className={`input-field text-base sm:text-base min-h-[48px] sm:min-h-[44px] ${
                       errors.name ? 'border-red-500 dark:border-red-500 focus:ring-red-500' : 
                       watch('name') && watch('name').length >= 3 ? 'border-green-500 dark:border-green-500' : ''
                     }`}
                     placeholder="أدخل اسم المنتج"
                   />
                   {errors.name && (
-                    <p className="text-red-600 dark:text-red-400 text-xs sm:text-sm mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" />
+                    <p className="text-red-600 dark:text-red-400 text-xs mt-1">
                       {errors.name.message}
-                    </p>
-                  )}
-                  {watch('name') && watch('name').length > 0 && watch('name').length < 3 && !errors.name && (
-                    <p className="text-yellow-600 dark:text-yellow-400 text-xs sm:text-sm mt-1 flex items-center gap-1">
-                      <Info className="w-3 h-3" />
-                      يجب أن يكون اسم المنتج 3 أحرف على الأقل ({watch('name').length}/3)
-                    </p>
-                  )}
-                  {watch('name') && watch('name').length >= 3 && !duplicateWarning && (
-                    <p className="text-green-600 dark:text-green-400 text-xs sm:text-sm mt-1 flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3" />
-                      اسم المنتج صحيح
                     </p>
                   )}
                   {duplicateWarning && (
@@ -1875,156 +1268,20 @@ export default function NewProductPage() {
                 )}
               </div>
 
-              {/* Tags Section */}
-              <div className="mt-4 sm:mt-6">
-                <div className="flex items-center gap-2 mb-2">
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
-                    العلامات (Tags)
-                    <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">(اختياري)</span>
-                  </label>
-                  <Tooltip 
-                    content="العلامات تساعد في تحسين البحث والتصنيف. يمكنك إضافة حتى 10 علامات."
-                    icon
-                  />
-                </div>
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={tagInput}
-                      onChange={(e) => setTagInput(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          addTag(tagInput);
-                        }
-                      }}
-                      placeholder="أدخل علامة واضغط Enter"
-                      className="input-field text-sm sm:text-base min-h-[44px] flex-1"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => addTag(tagInput)}
-                      className="btn-secondary min-h-[44px] px-4"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
-                  </div>
-                  
-                  {/* Tag Suggestions */}
-                  {tagInput.length === 0 && generateTagSuggestions().length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      <span className="text-xs text-gray-500 dark:text-gray-400">اقتراحات:</span>
-                      {generateTagSuggestions().slice(0, 5).map((suggestion) => (
-                        <button
-                          key={suggestion}
-                          type="button"
-                          onClick={() => addTag(suggestion)}
-                          className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                        >
-                          + {suggestion}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  
-                  {/* Tags Display */}
-                  {tags.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="inline-flex items-center gap-1 px-3 py-1 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 rounded-full text-sm"
-                        >
-                          <Tag className="w-3 h-3" />
-                          {tag}
-                          <button
-                            type="button"
-                            onClick={() => removeTag(tag)}
-                            className="hover:text-primary-900 dark:hover:text-primary-100"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Specifications Section */}
-              <div className="mt-4 sm:mt-6">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
-                      المواصفات الإضافية
-                      <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">(اختياري)</span>
-                    </label>
-                    <Tooltip 
-                      content="أضف مواصفات إضافية للمنتج مثل الأبعاد، الوزن، المادة، إلخ."
-                      icon
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={addSpecification}
-                    className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1"
-                  >
-                    <Plus className="w-3 h-3" />
-                    إضافة مواصفة
-                  </button>
-                </div>
-                
-                {specifications.length > 0 && (
-                  <div className="space-y-2">
-                    {specifications.map((spec, index) => (
-                      <div key={index} className="grid grid-cols-1 sm:grid-cols-5 gap-2 items-center">
-                        <input
-                          type="text"
-                          value={spec.key}
-                          onChange={(e) => updateSpecification(index, 'key', e.target.value)}
-                          placeholder="اسم المواصفة (مثل: الوزن)"
-                          className="input-field text-sm sm:text-base min-h-[44px] sm:col-span-2"
-                        />
-                        <input
-                          type="text"
-                          value={spec.value}
-                          onChange={(e) => updateSpecification(index, 'value', e.target.value)}
-                          placeholder="القيمة (مثل: 500 جرام)"
-                          className="input-field text-sm sm:text-base min-h-[44px] sm:col-span-2"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeSpecification(index)}
-                          className="btn-secondary min-h-[44px] px-3 flex items-center justify-center"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              {/* Tags and Specifications removed for simplicity */}
 
             </div>
           )}
 
           {/* Step 2: Media */}
           {currentStep === 2 && (
-            <div className="card p-4 sm:p-6 animate-fade-in">
-              <div className="flex items-center gap-3 mb-4">
-                <ImageIcon className="w-6 h-6 text-primary-600 dark:text-primary-400" />
-                <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100">وسائط المنتج</h2>
-              </div>
-              <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                <div className="flex items-start gap-2">
-                  <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-                  <div className="text-sm text-blue-800 dark:text-blue-300">
-                    <p className="font-medium mb-1">نصيحة:</p>
-                    <p>أضف صورة واحدة على الأقل للمنتج. يمكنك رفع صور وفيديوهات بحد أقصى 10 ملفات.</p>
-                  </div>
-                </div>
-              </div>
+            <div className="card p-4 sm:p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">وسائط المنتج</h2>
+              {images.length === 0 && (
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                  أضف صورة واحدة على الأقل للمنتج
+                </p>
+              )}
               <MediaUpload
                 onUpload={(urls) => setImages(prev => [...prev, ...urls])}
                 uploadedMedia={images}
@@ -2043,7 +1300,7 @@ export default function NewProductPage() {
             </div>
           )}
 
-          {/* Step 3: Pricing */}
+          {/* Step 3: Pricing & Inventory (Merged) */}
           {currentStep === 3 && (
             <div className="card p-4 sm:p-6 animate-fade-in">
               <div className="flex items-center gap-3 mb-4">
@@ -2053,10 +1310,9 @@ export default function NewProductPage() {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                   <div>
-                    <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       <span className="text-red-500 dark:text-red-400 mr-1">*</span>
-                      سعر المسوق (السعر الأساسي)
-                      <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">(مطلوب)</span>
+                      سعر المسوق
                     </label>
                   <div className="relative">
                     <input
@@ -2075,120 +1331,54 @@ export default function NewProductPage() {
                     <span className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400 text-sm sm:text-base">₪</span>
                   </div>
                   {errors.marketerPrice && (
-                    <p className="text-red-600 dark:text-red-400 text-xs sm:text-sm mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" />
+                    <p className="text-red-600 dark:text-red-400 text-xs mt-1">
                       {errors.marketerPrice.message}
                     </p>
                   )}
                   {wholesalerPrice && marketerPrice <= wholesalerPrice && marketerPrice > 0 && (
-                    <p className="text-red-600 dark:text-red-400 text-xs sm:text-sm mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" />
+                    <p className="text-red-600 dark:text-red-400 text-xs mt-1">
                       يجب أن يكون سعر المسوق أكبر من سعر الجملة
                     </p>
                   )}
-                  {marketerPrice > 0 && (!wholesalerPrice || marketerPrice > wholesalerPrice) && !errors.marketerPrice && (
-                    <p className="text-green-600 dark:text-green-400 text-xs sm:text-sm mt-1 flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3" />
-                      السعر صحيح
-                    </p>
-                  )}
-                    <div className="flex items-center gap-1 mt-1">
-                      <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">
-                        السعر الأساسي للمسوق - يحدد ربحه عند الطلب
-                      </p>
-                      <Tooltip 
-                        content="هذا هو السعر الذي يدفعه المسوق عند الطلب. المسوق يحدد سعر البيع للمستهلك النهائي وربحه هو الفرق بين السعرين."
-                        icon
-                      />
-                    </div>
                 </div>
               </div>
 
-              {/* Profit Calculator */}
-              {marketerPrice > 0 && (
-                <div className="mt-4 sm:mt-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
-                    <DollarSign className="w-5 h-5 text-green-600 dark:text-green-400" />
-                    حاسبة الأرباح
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
-                    <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-green-200 dark:border-green-700">
-                      <div className="flex items-center justify-between mb-1">
-                        <p className="text-xs text-gray-600 dark:text-gray-400">سعر المسوق</p>
-                      </div>
-                      <p className={`text-lg font-bold ${
-                        isMinimumPriceMandatory && minimumSellingPrice > 0
-                          ? 'text-orange-600 dark:text-orange-400'
-                          : 'text-gray-900 dark:text-gray-100'
-                      }`}>{marketerPrice.toFixed(2)} ₪</p>
-                    </div>
-                    {minimumSellingPrice > 0 && marketerPrice < minimumSellingPrice && (
-                      <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-green-200 dark:border-green-700">
-                        <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">السعر الأدنى للبيع</p>
-                        <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{minimumSellingPrice.toFixed(2)} ₪</p>
-                      </div>
-                    )}
-                    {minimumSellingPrice > 0 && marketerPrice < minimumSellingPrice && (
-                      <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-green-200 dark:border-green-700">
-                        <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">هامش الربح المحتمل</p>
-                        <p className="text-lg font-bold text-green-600 dark:text-green-400">
-                          {((minimumSellingPrice - marketerPrice) / marketerPrice * 100).toFixed(1)}%
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          {(minimumSellingPrice - marketerPrice).toFixed(2)} ₪ لكل منتج
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                  {minimumSellingPrice === 0 && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-3">
-                      <Info className="w-4 h-4 inline ml-1" />
-                      المسوق يحدد ربحه بحرية عند الطلب
-                    </p>
-                  )}
+              {/* Simplified Profit Info */}
+              {marketerPrice > 0 && minimumSellingPrice > 0 && marketerPrice < minimumSellingPrice && (
+                <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                    <span className="font-medium">هامش الربح المحتمل:</span> {((minimumSellingPrice - marketerPrice) / marketerPrice * 100).toFixed(1)}% 
+                    ({(minimumSellingPrice - marketerPrice).toFixed(2)} ₪ لكل منتج)
+                  </p>
                 </div>
               )}
 
-              {/* Minimum Selling Price Section */}
-              <div className="mt-4 sm:mt-6 p-4 sm:p-5 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-                    <Info className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                  </div>
-                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">السعر الأدنى للبيع</h3>
-                </div>
+              {/* Minimum Selling Price Section - Simplified */}
+              <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-4">السعر الأدنى للبيع</h3>
                 
-                <div className="space-y-4 sm:space-y-5">
-                  {/* Checkbox Section - Improved Spacing */}
-                  <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 pt-0.5">
-                        <input
-                          type="checkbox"
-                          id="isMinimumPriceMandatory"
-                          {...register('isMinimumPriceMandatory')}
-                          className="w-5 h-5 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 cursor-pointer transition-all"
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <label htmlFor="isMinimumPriceMandatory" className="block text-sm sm:text-base font-medium text-gray-900 dark:text-gray-100 cursor-pointer mb-1">
-                          جعل السعر الأدنى للبيع إلزامياً
-                        </label>
-                        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
-                          عند تفعيل هذا الخيار، لن يتمكن المسوق من بيع المنتج بسعر أقل من السعر المحدد أدناه.
-                        </p>
-                        {watch('isMinimumPriceMandatory') && (
-                          <div className="mt-2 text-xs text-orange-600 dark:text-orange-400 font-medium">
-                            السعر الأدنى أصبح إلزامياً
-                          </div>
-                        )}
-                      </div>
+                <div className="space-y-4">
+                  {/* Checkbox */}
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      id="isMinimumPriceMandatory"
+                      {...register('isMinimumPriceMandatory')}
+                      className="w-5 h-5 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 cursor-pointer mt-0.5"
+                    />
+                    <div className="flex-1">
+                      <label htmlFor="isMinimumPriceMandatory" className="block text-sm font-medium text-gray-900 dark:text-gray-100 cursor-pointer mb-1">
+                        جعل السعر الأدنى للبيع إلزامياً
+                      </label>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        عند تفعيل هذا الخيار، لن يتمكن المسوق من بيع المنتج بسعر أقل من السعر المحدد أدناه.
+                      </p>
                     </div>
                   </div>
                   
-                  {/* Price Input Section */}
-                  <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                    <label className="block text-sm sm:text-base font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  {/* Price Input */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       السعر الأدنى للبيع
                       <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">(اختياري)</span>
                     </label>
@@ -2198,74 +1388,34 @@ export default function NewProductPage() {
                         step="0.01"
                         min="0.01"
                         {...register('minimumSellingPrice', { valueAsNumber: true })}
-                        className={`input-field text-sm sm:text-base pr-10 min-h-[48px] ${
+                        className={`input-field text-sm sm:text-base pr-10 min-h-[48px] sm:min-h-[44px] ${
                           errors.minimumSellingPrice || (minimumSellingPrice > 0 && marketerPrice >= minimumSellingPrice)
-                            ? 'border-red-500 dark:border-red-500 focus:ring-red-500' : 
-                            minimumSellingPrice > 0 && marketerPrice < minimumSellingPrice
-                              ? 'border-green-500 dark:border-green-500 focus:ring-green-500' : ''
+                            ? 'border-red-500 dark:border-red-500' : ''
                         }`}
                         placeholder="0.00"
                       />
                       <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400 text-base font-medium">₪</span>
                     </div>
                     
-                    {/* Validation Messages */}
-                    <div className="mt-2 space-y-1">
-                      {errors.minimumSellingPrice && (
-                        <p className="text-red-600 dark:text-red-400 text-xs sm:text-sm flex items-center gap-1.5">
-                          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
-                          {errors.minimumSellingPrice.message}
-                        </p>
-                      )}
-                      {minimumSellingPrice > 0 && marketerPrice >= minimumSellingPrice && !errors.minimumSellingPrice && (
-                        <p className="text-red-600 dark:text-red-400 text-xs sm:text-sm flex items-center gap-1.5">
-                          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
-                          يجب أن يكون السعر الأدنى للبيع أكبر من سعر المسوق
-                        </p>
-                      )}
-                      {minimumSellingPrice > 0 && marketerPrice < minimumSellingPrice && !errors.minimumSellingPrice && (
-                        <p className="text-green-600 dark:text-green-400 text-xs sm:text-sm flex items-center gap-1.5">
-                          <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
-                          السعر الأدنى للبيع صحيح
-                        </p>
-                      )}
-                    </div>
-                    
-                    {/* Help Text */}
-                    <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                      <div className="flex items-start gap-2">
-                        <Info className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0 mt-0.5" />
-                        <div className="flex-1">
-                          <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
-                            {watch('isMinimumPriceMandatory') ? (
-                              <>
-                                <span className="font-medium text-orange-600 dark:text-orange-400">إلزامي:</span> المسوق لا يمكنه بيع المنتج بأقل من هذا السعر. المسوق يحدد ربحه عند الطلب.
-                              </>
-                            ) : (
-                              <>
-                                المسوق يمكنه بيع المنتج بأي سعر يريده. هذا السعر هو مجرد إرشاد. المسوق يحدد ربحه عند الطلب.
-                              </>
-                            )}
-                          </p>
-                          <Tooltip 
-                            content="السعر الأدنى للبيع يضمن عدم بيع المنتج بسعر أقل من المحدد. إذا كان إلزامياً، لن يتمكن المسوق من بيع المنتج بأقل من هذا السعر حتى لو أراد ذلك."
-                            icon
-                          />
-                        </div>
-                      </div>
-                    </div>
+                    {errors.minimumSellingPrice && (
+                      <p className="text-red-600 dark:text-red-400 text-xs mt-1">
+                        {errors.minimumSellingPrice.message}
+                      </p>
+                    )}
+                    {minimumSellingPrice > 0 && marketerPrice >= minimumSellingPrice && !errors.minimumSellingPrice && (
+                      <p className="text-red-600 dark:text-red-400 text-xs mt-1">
+                        يجب أن يكون السعر الأدنى للبيع أكبر من سعر المسوق
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
-            </div>
-          )}
 
-          {/* Step 4: Inventory */}
-          {currentStep === 4 && (
-            <div className="card p-4 sm:p-6 animate-fade-in">
+              {/* Inventory Section - Added to Step 3 */}
+              <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
               <div className="flex items-center gap-3 mb-4">
-                <Warehouse className="w-6 h-6 text-primary-600 dark:text-primary-400" />
-                <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100">المخزون والمواصفات</h2>
+                  <Warehouse className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">المخزون</h3>
               </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
@@ -2351,34 +1501,147 @@ export default function NewProductPage() {
                 )}
               </div>
             </div>
-          )}
-
-          {/* Step 5: Variants */}
-          {currentStep === 5 && (
-            <div className="card p-4 sm:p-6 animate-fade-in">
-              <div className="flex items-center gap-3 mb-4">
-                <Layers className="w-6 h-6 text-primary-600 dark:text-primary-400" />
-                <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100">متغيرات المنتج</h2>
-              </div>
-              <ProductVariants
-                hasVariants={hasVariants}
-                variants={variants}
-                variantOptions={variantOptions}
-                onVariantsChange={handleVariantsChange}
-                marketerPrice={watch('marketerPrice') || 0}
-              />
             </div>
           )}
 
-          {/* Step 6: Review */}
-          {currentStep === 6 && (
+          {/* Step 4: Variants */}
+          {currentStep === 4 && (
+            <div className="card p-4 sm:p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-6">متغيرات المنتج</h2>
+              
+              {/* Simple Question: Does product have variants? */}
+              {hasVariants === null && (
+                <div className="space-y-6">
+                  <div className="text-center py-8">
+                    <Layers className="w-16 h-16 mx-auto mb-4 text-primary-600 dark:text-primary-400" />
+                    <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                      هل المنتج له متغيرات؟
+                    </h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                      المتغيرات مثل الألوان، الأحجام، أو أي خصائص أخرى تختلف بين وحدات المنتج
+                    </p>
+                    
+                    <div className="flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto">
+                      <button
+                        type="button"
+                        onClick={() => setHasVariants(true)}
+                        className="btn-primary px-8 py-4 text-lg flex items-center justify-center gap-3"
+                      >
+                        <CheckCircle2 className="w-5 h-5" />
+                        نعم، له متغيرات
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setHasVariants(false)}
+                        className="btn-secondary px-8 py-4 text-lg flex items-center justify-center gap-3"
+                      >
+                        <X className="w-5 h-5" />
+                        لا، منتج بسيط
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Variants Configuration */}
+              {hasVariants !== null && (
+                <div className="space-y-4">
+                  {/* Option to change decision */}
+                  <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      {hasVariants ? (
+                        <>
+                          <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
+                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                            المنتج له متغيرات
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <X className="w-5 h-5 text-gray-400" />
+                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                            المنتج بسيط (بدون متغيرات)
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setHasVariants(null);
+                        setVariants([]);
+                        setVariantOptions([]);
+                      }}
+                      className="text-xs text-primary-600 dark:text-primary-400 hover:underline"
+                    >
+                      تغيير القرار
+                    </button>
+                  </div>
+
+                  {/* Variants Form */}
+                  {hasVariants === true && (
+                    <div className="mt-6">
+                      <ProductVariants
+                        hasVariants={hasVariants}
+                        variants={variants}
+                        variantOptions={variantOptions}
+                        onVariantsChange={handleVariantsChange}
+                        marketerPrice={watch('marketerPrice') || 0}
+                      />
+                    </div>
+                  )}
+
+                  {hasVariants === false && (
+                    <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                      <p className="text-sm text-blue-800 dark:text-blue-300">
+                        <Info className="w-4 h-4 inline ml-2" />
+                        المنتج بسيط بدون متغيرات. يمكنك إضافة الكمية مباشرة في خطوة الأسعار والمخزون.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Quick Preview of Variants */}
+                  {hasVariants === true && variants.length > 0 && variantOptions.length > 0 && (
+                    <div className="mt-6 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                      <h4 className="text-sm font-semibold text-green-900 dark:text-green-100 mb-2 flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4" />
+                        ملخص المتغيرات
+                      </h4>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex items-center justify-between">
+                          <span className="text-green-800 dark:text-green-300">عدد المتغيرات:</span>
+                          <span className="font-medium text-green-900 dark:text-green-100">{variants.length}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-green-800 dark:text-green-300">إجمالي الخيارات:</span>
+                          <span className="font-medium text-green-900 dark:text-green-100">{variantOptions.length}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-green-800 dark:text-green-300">إجمالي المخزون:</span>
+                          <span className="font-medium text-green-900 dark:text-green-100">
+                            {variantOptions.reduce((sum, option) => sum + (option.stockQuantity || 0), 0)} قطعة
+                          </span>
+                        </div>
+                        <div className="pt-2 border-t border-green-200 dark:border-green-700">
+                          <span className="text-green-800 dark:text-green-300">المتغيرات:</span>
+                          <p className="text-green-900 dark:text-green-100 font-medium mt-1">
+                            {variants.map(v => v.name).join('، ')}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Step 5: Review */}
+          {currentStep === 5 && (
             <div className="space-y-6">
               {/* Live Preview */}
-              <div className="card p-4 sm:p-6 animate-fade-in">
-                <div className="flex items-center gap-3 mb-4">
-                  <Eye className="w-6 h-6 text-primary-600 dark:text-primary-400" />
-                  <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100">معاينة المنتج</h2>
-                </div>
+              <div className="card p-4 sm:p-6">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">معاينة المنتج</h2>
                 <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Product Image */}
@@ -2487,14 +1750,11 @@ export default function NewProductPage() {
                 </div>
               </div>
               
-              {/* Review Details */}
-              <div className="card p-4 sm:p-6 animate-fade-in">
-                <div className="flex items-center gap-3 mb-6">
-                  <Info className="w-6 h-6 text-primary-600 dark:text-primary-400" />
-                  <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100">تفاصيل المراجعة</h2>
-                </div>
+              {/* Review Details - Simplified */}
+              <div className="card p-4 sm:p-6">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">تفاصيل المراجعة</h2>
               
-              <div className="space-y-6">
+              <div className="space-y-3">
                 {/* Basic Info Review */}
                 <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
                   <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
@@ -2593,7 +1853,7 @@ export default function NewProductPage() {
                   </div>
                 </div>
 
-                {/* Variants Review */}
+                {/* Variants Summary - Read Only */}
                 {hasVariants === true && variants.length > 0 && (
                   <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
                     <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
@@ -2605,60 +1865,61 @@ export default function NewProductPage() {
                     </div>
                   </div>
                 )}
+                {hasVariants === false && (
+                  <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                    <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 flex items-center gap-2">
+                      <Layers className="w-4 h-4" />
+                      المتغيرات
+                    </h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">منتج بسيط بدون متغيرات</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
           )}
           </div>
-        )}
       </form>
 
-      {/* Navigation Buttons - Hide in Quick Edit Mode */}
-      {!quickEditMode && (
-        <div className="flex flex-col sm:flex-row justify-between gap-2 sm:gap-3 space-y-2 sm:space-y-0 space-y-reverse sm:space-x-3 sm:space-x-reverse sticky bottom-0 bg-white dark:bg-slate-900 p-3 sm:p-4 -mx-2 sm:-mx-4 md:-mx-6 border-t border-gray-200 dark:border-slate-700 z-10 shadow-lg">
-          <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
-            {currentStep > 1 && (
-              <button
-                type="button"
-                onClick={prevStep}
-                className="btn-secondary min-h-[44px] text-sm sm:text-base flex items-center justify-center gap-2 w-full sm:w-auto"
-              >
-                <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
-                السابق
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => {
-                if (hasUnsavedChanges) {
-                  setUnsavedChangesAction(() => () => {
-                    localStorage.removeItem('product-draft');
-                    router.back();
-                  });
-                  setShowUnsavedChangesModal(true);
-                } else {
-                  localStorage.removeItem('product-draft');
-                  router.back();
-                }
-              }}
-              className="btn-secondary min-h-[44px] text-sm sm:text-base w-full sm:w-auto"
-            >
-              إلغاء
-            </button>
-          </div>
-          
-          <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
-            {currentStep < STEPS.length ? (
-              <>
+      {/* Navigation Buttons - Mobile Optimized */}
+      <div className="sticky bottom-0 bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-700 z-10 shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 py-3">
+          <div className="flex flex-col sm:flex-row gap-3">
+            {/* Left Side - Back/Cancel */}
+            <div className="flex gap-2 sm:gap-3 flex-1 sm:flex-initial">
+              {currentStep > 1 && (
                 <button
                   type="button"
-                  onClick={saveDraft}
-                  className="btn-secondary min-h-[44px] text-sm sm:text-base flex items-center justify-center gap-2 w-full sm:w-auto"
-                  title="حفظ المسودة (Ctrl+S)"
+                  onClick={prevStep}
+                  className="btn-secondary min-h-[48px] sm:min-h-[44px] text-base sm:text-sm flex items-center justify-center gap-2 flex-1 sm:flex-initial px-4"
                 >
-                  <Save className="w-4 h-4" />
-                  <span className="hidden sm:inline">حفظ مسودة</span>
+                  <ChevronRight className="w-5 h-5" />
+                  السابق
                 </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  if (hasUnsavedChanges) {
+                    setUnsavedChangesAction(() => () => {
+                      localStorage.removeItem('product-draft');
+                      router.back();
+                    });
+                    setShowUnsavedChangesModal(true);
+                  } else {
+                    localStorage.removeItem('product-draft');
+                    router.back();
+                  }
+                }}
+                className="btn-secondary min-h-[48px] sm:min-h-[44px] text-base sm:text-sm flex-1 sm:flex-initial px-4"
+              >
+                إلغاء
+              </button>
+            </div>
+            
+            {/* Right Side - Next/Save */}
+            <div className="flex gap-2 sm:gap-3 flex-1 sm:flex-initial">
+              {currentStep < STEPS.length ? (
                 <button
                   type="button"
                   onClick={() => {
@@ -2666,102 +1927,74 @@ export default function NewProductPage() {
                     nextStep();
                   }}
                   disabled={!validateStep(currentStep)}
-                  className="btn-primary min-h-[44px] text-sm sm:text-base flex items-center justify-center gap-2 w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="التالي (Ctrl+→)"
+                  className="btn-primary min-h-[48px] sm:min-h-[44px] text-base sm:text-sm flex items-center justify-center gap-2 flex-1 sm:flex-initial px-4 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   التالي
-                  <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <ChevronLeft className="w-5 h-5" />
                 </button>
-              </>
-            ) : (
-              <button
-                type="button"
-                onClick={() => handleSubmit(onSubmit, onError)()}
-                disabled={loading || uploading || !validateStep(6)}
-                className="btn-primary min-h-[44px] text-sm sm:text-base flex items-center justify-center gap-2 w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
-                title="حفظ المنتج (Ctrl+S)"
-              >
-                {loading ? (
-                  <>
-                    <div className="loading-spinner w-4 h-4"></div>
-                    جاري الحفظ...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4 sm:w-5 sm:h-5" />
-                    حفظ المنتج
-                  </>
-                )}
-              </button>
-            )}
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleSubmit(onSubmit, onError)()}
+                  disabled={loading || uploading || !validateStep(5)}
+                  className="btn-primary min-h-[48px] sm:min-h-[44px] text-base sm:text-sm flex items-center justify-center gap-2 flex-1 sm:flex-initial px-4 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? (
+                    <>
+                      <div className="loading-spinner w-5 h-5"></div>
+                      جاري الحفظ...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-5 h-5" />
+                      حفظ المنتج
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Draft Restore Modal */}
-      <DraftRestoreModal
-        isOpen={showDraftModal}
-        onClose={() => setShowDraftModal(false)}
-        onRestore={handleRestoreDraft}
-        onDismiss={handleDismissDraft}
-        onDelete={handleDeleteDraft}
-        draftData={draftData}
-        loading={isRestoringDraft}
-      />
-
-      {/* Template Name Modal */}
-      <TemplateNameModal
-        isOpen={showTemplateNameModal}
-        onClose={() => setShowTemplateNameModal(false)}
-        onConfirm={handleTemplateNameConfirm}
-        existingNames={savedTemplates.map(t => t.name)}
-      />
-
-      {/* Template Load Confirm Modal */}
-      <TemplateLoadConfirmModal
-        isOpen={showTemplateLoadModal}
-        onClose={() => {
-          setShowTemplateLoadModal(false);
-          setSelectedTemplate(null);
-        }}
-        onConfirm={handleTemplateLoadConfirm}
-        template={selectedTemplate}
-      />
-
-      {/* Template Delete Confirm Modal */}
-      <TemplateDeleteConfirmModal
-        isOpen={showTemplateDeleteModal}
-        onClose={() => {
-          setShowTemplateDeleteModal(false);
-          setTemplateToDelete(null);
-          setSelectedTemplate(null);
-        }}
-        onConfirm={handleTemplateDeleteConfirm}
-        template={selectedTemplate}
-      />
-
-      {/* Unsaved Changes Modal */}
-      <UnsavedChangesModal
-        isOpen={showUnsavedChangesModal}
-        onClose={() => {
+      {/* Simplified Modals - Removed complex draft restoration and template modals */}
+      
+      {/* Simplified Unsaved Changes Warning */}
+      {showUnsavedChangesModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+              لديك تغييرات غير محفوظة
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+              هل تريد المتابعة دون حفظ التغييرات؟
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
           setShowUnsavedChangesModal(false);
           setUnsavedChangesAction(null);
         }}
-        onDiscard={() => {
+                className="btn-secondary px-4 py-2"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={() => {
           if (unsavedChangesAction) {
             unsavedChangesAction();
           }
-        }}
-        onSaveDraft={() => {
-          saveDraft();
-          if (unsavedChangesAction) {
-            setTimeout(() => {
-              unsavedChangesAction();
-            }, 500);
-          }
-        }}
-        hasDraft={hasUnsavedChanges}
-      />
+                  setShowUnsavedChangesModal(false);
+                  setUnsavedChangesAction(null);
+                }}
+                className="btn-primary px-4 py-2"
+              >
+                متابعة
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

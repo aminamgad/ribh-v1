@@ -87,7 +87,7 @@ async function getProducts(req: NextRequest, user: any) {
   try {
     await connectDB();
     
-    logger.apiRequest('GET', '/api/products', { userId: user._id, role: user.role });
+    logger.apiRequest('GET', '/api/products', { userId: user._id, role: user.role, userEmail: user.email });
     
     // Test database connection and get product count
     const totalProductCount = await Product.countDocuments({});
@@ -115,7 +115,15 @@ async function getProducts(req: NextRequest, user: any) {
     
     // Role-based filtering
     if (user.role === 'supplier') {
+      // CRITICAL: Ensure supplierId is set and matches user._id exactly
+      // Simple equality check - MongoDB will automatically exclude null/undefined
       query.supplierId = user._id;
+      logger.debug('Supplier filter applied', { 
+        userId: user._id.toString(), 
+        userEmail: user.email,
+        querySupplierId: user._id.toString(),
+        querySupplierIdType: typeof user._id
+      });
     }
     
     // Additional filters
@@ -428,7 +436,7 @@ async function getProducts(req: NextRequest, user: any) {
     // Fetch from database with optimized query
     // Use select to only get needed fields
     const products = await Product.find(query)
-      .select('name description images marketerPrice wholesalerPrice minimumSellingPrice isMinimumPriceMandatory stockQuantity isActive isApproved isRejected rejectionReason adminNotes approvedAt approvedBy rejectedAt rejectedBy isFulfilled isLocked lockedAt lockedBy lockReason sku weight dimensions tags createdAt categoryId supplierId')
+      .select('name description images marketerPrice wholesalerPrice minimumSellingPrice isMinimumPriceMandatory stockQuantity isActive isApproved isRejected rejectionReason adminNotes approvedAt approvedBy rejectedAt rejectedBy isFulfilled isLocked lockedAt lockedBy lockReason sku weight dimensions tags createdAt categoryId supplierId hasVariants variants variantOptions')
       .populate('categoryId', 'name')
       .populate('supplierId', 'name companyName')
       .sort({ createdAt: -1 })
@@ -436,12 +444,75 @@ async function getProducts(req: NextRequest, user: any) {
       .limit(limit)
       .lean();
     
+    // CRITICAL: Additional server-side validation for suppliers
+    // Filter out any products that don't belong to the supplier (defensive check)
+    // NOTE: This is a safety check - the query should already filter correctly
+    let filteredProducts = products;
+    if (user.role === 'supplier') {
+      const userSupplierId = user._id.toString();
+      filteredProducts = products.filter((product: any) => {
+        // Handle both populated and non-populated supplierId
+        let productSupplierId: string | null = null;
+        if (product.supplierId) {
+          if (typeof product.supplierId === 'object' && product.supplierId !== null) {
+            // Populated supplierId (object with _id)
+            productSupplierId = product.supplierId._id?.toString() || product.supplierId.toString();
+          } else {
+            // Non-populated supplierId (string/ObjectId)
+            productSupplierId = product.supplierId.toString();
+          }
+        }
+        
+        const matches = productSupplierId === userSupplierId;
+        if (!matches) {
+          logger.warn('Product filtered out - supplier mismatch', {
+            productId: product._id,
+            productName: product.name,
+            productSupplierId: productSupplierId,
+            userSupplierId: userSupplierId,
+            userEmail: user.email,
+            supplierIdType: typeof product.supplierId,
+            supplierIdValue: product.supplierId
+          });
+        }
+        return matches;
+      });
+      
+      // Log filtered results for debugging
+      logger.debug('Supplier products filtered', {
+        userId: user._id.toString(),
+        userEmail: user.email,
+        originalCount: products.length,
+        filteredCount: filteredProducts.length,
+        filteredProductIds: filteredProducts.map((p: any) => p._id),
+        allProductSupplierIds: products.map((p: any) => {
+          if (p.supplierId) {
+            return typeof p.supplierId === 'object' ? p.supplierId._id?.toString() : p.supplierId.toString();
+          }
+          return null;
+        })
+      });
+    }
+    
     // Use estimatedDocumentCount for better performance if exact count not critical
     // Or use countDocuments with same query for accuracy
-    const total = await Product.countDocuments(query);
+    // For suppliers, use filtered count instead of query count for accuracy
+    const total = user.role === 'supplier' 
+      ? filteredProducts.length 
+      : await Product.countDocuments(query);
     
     // Transform products for frontend
-    const transformedProducts = products.map(product => {
+    const transformedProducts = filteredProducts.map((product: any) => {
+      // Extract supplierId as string for consistent comparison
+      let supplierIdString: string | null = null;
+      if (product.supplierId) {
+        if (typeof product.supplierId === 'object' && product.supplierId !== null) {
+          supplierIdString = product.supplierId._id?.toString() || product.supplierId.toString();
+        } else {
+          supplierIdString = product.supplierId.toString();
+        }
+      }
+      
       const baseProduct = {
         _id: product._id,
         name: product.name,
@@ -467,11 +538,16 @@ async function getProducts(req: NextRequest, user: any) {
         lockedBy: product.lockedBy,
         lockReason: product.lockReason,
         categoryName: product.categoryId?.name,
+        supplierId: supplierIdString, // Always return as string for consistent comparison
         sku: product.sku,
         weight: product.weight,
         dimensions: product.dimensions,
         tags: product.tags,
-        createdAt: product.createdAt
+        createdAt: product.createdAt,
+        // Product variants
+        hasVariants: product.hasVariants || false,
+        variants: product.variants || [],
+        variantOptions: product.variantOptions || []
       };
       
       // Only include supplierName for admin and supplier roles

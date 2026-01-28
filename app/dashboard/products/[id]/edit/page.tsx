@@ -708,17 +708,23 @@ export default function EditProductPage() {
   // Calculate statistics
   const calculateStatistics = useCallback(() => {
     const formData = getValues();
-    const totalFields = 15;
+    const isSupplier = user?.role === 'supplier';
+    
+    // Calculate total fields based on user role
+    // For suppliers: exclude category and SKU (2 fields less)
+    const totalFields = isSupplier ? 13 : 15;
     let completedFields = 0;
     
     if (formData.name && formData.name.length >= 3) completedFields++;
-    if (formData.categoryId) completedFields++;
+    // Category - only for non-suppliers
+    if (!isSupplier && formData.categoryId) completedFields++;
     if (formData.description) completedFields++;
     if (images.length > 0) completedFields++;
     if (formData.marketerPrice > 0) completedFields++;
     if (formData.minimumSellingPrice && formData.minimumSellingPrice > 0) completedFields++;
     if (formData.stockQuantity >= 0) completedFields++;
-    if (formData.sku) completedFields++;
+    // SKU - only for non-suppliers
+    if (!isSupplier && formData.sku) completedFields++;
     if (hasVariants !== null) completedFields++;
     if (hasVariants === true && variants.length > 0) completedFields++;
     if (tags.length > 0) completedFields++;
@@ -735,7 +741,7 @@ export default function EditProductPage() {
       estimatedMinutes,
       quality: completionRate >= 80 ? 'ممتاز' : completionRate >= 60 ? 'جيد' : completionRate >= 40 ? 'متوسط' : 'يحتاج تحسين'
     };
-  }, [getValues, images, hasVariants, variants, tags, specifications]);
+  }, [getValues, images, hasVariants, variants, tags, specifications, user?.role]);
 
   const onSubmit = async (data: ProductFormData) => {
     // Validate hasVariants
@@ -810,10 +816,12 @@ export default function EditProductPage() {
     setSaving(true);
 
     try {
-      const productData = {
+      const isSupplier = user?.role === 'supplier';
+      const productData: any = {
         name: data.name.trim(),
         description: data.description?.trim() || '',
-        categoryId: data.categoryId && data.categoryId !== '' ? data.categoryId : null,
+        // Category - only for non-suppliers
+        ...(!isSupplier && { categoryId: data.categoryId && data.categoryId !== '' ? data.categoryId : null }),
         marketerPrice: Number(data.marketerPrice),
         wholesalerPrice: data.wholesalerPrice && !isNaN(Number(data.wholesalerPrice)) 
           ? Number(data.wholesalerPrice) 
@@ -824,7 +832,8 @@ export default function EditProductPage() {
           ? variantOptions.reduce((sum, option) => sum + (option.stockQuantity || 0), 0)
           : Number(data.stockQuantity),
         images,
-        sku: data.sku?.trim() || '',
+        // SKU - only for non-suppliers
+        ...(!isSupplier && { sku: data.sku?.trim() || '' }),
         tags,
         specifications: specifications.reduce((acc, spec) => {
           if (spec.key && spec.value) {
@@ -1283,70 +1292,72 @@ export default function EditProductPage() {
                 )}
               </div>
 
-                <div>
-                  <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
-                    <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
-                      الفئة
-                      <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">(اختياري)</span>
-                    </label>
-                    <Tooltip 
-                      content="اختر فئة المنتج لتسهيل البحث والتصنيف. يمكنك البحث في الفئات باستخدام حقل البحث أدناه."
-                      icon
-                    />
-                  </div>
-                  <div className="relative" ref={categoryDropdownRef}>
-                    <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500 z-10" />
-                    <input
-                      type="text"
-                      value={categorySearch}
-                      onChange={(e) => {
-                        setCategorySearch(e.target.value);
-                        if (e.target.value.trim()) {
-                          setShowCategoryDropdown(true);
-                        }
-                      }}
-                      onFocus={() => {
-                        if (categorySearch && filteredCategories.length > 0) {
-                          setShowCategoryDropdown(true);
-                        }
-                      }}
-                      placeholder="ابحث عن فئة..."
-                      className="input-field text-sm sm:text-base min-h-[44px] pr-10 mb-2"
-                    />
-                    {showCategoryDropdown && filteredCategories.length > 0 && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
-                        {filteredCategories.map((category) => (
-                          <button
-                            key={category._id}
-                            type="button"
-                            onClick={() => {
-                              setValue('categoryId', category._id);
-                              setCategorySearch(category.name);
-                              setShowCategoryDropdown(false);
-                            }}
-                            className="w-full text-right px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm text-gray-900 dark:text-gray-100"
-                          >
-                            {category.name}
-                          </button>
-                        ))}
-                      </div>
+                {user?.role !== 'supplier' && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
+                        الفئة
+                        <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">(اختياري)</span>
+                      </label>
+                      <Tooltip 
+                        content="اختر فئة المنتج لتسهيل البحث والتصنيف. يمكنك البحث في الفئات باستخدام حقل البحث أدناه."
+                        icon
+                      />
+                    </div>
+                    <div className="relative" ref={categoryDropdownRef}>
+                      <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500 z-10" />
+                      <input
+                        type="text"
+                        value={categorySearch}
+                        onChange={(e) => {
+                          setCategorySearch(e.target.value);
+                          if (e.target.value.trim()) {
+                            setShowCategoryDropdown(true);
+                          }
+                        }}
+                        onFocus={() => {
+                          if (categorySearch && filteredCategories.length > 0) {
+                            setShowCategoryDropdown(true);
+                          }
+                        }}
+                        placeholder="ابحث عن فئة..."
+                        className="input-field text-sm sm:text-base min-h-[44px] pr-10 mb-2"
+                      />
+                      {showCategoryDropdown && filteredCategories.length > 0 && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+                          {filteredCategories.map((category) => (
+                            <button
+                              key={category._id}
+                              type="button"
+                              onClick={() => {
+                                setValue('categoryId', category._id);
+                                setCategorySearch(category.name);
+                                setShowCategoryDropdown(false);
+                              }}
+                              className="w-full text-right px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm text-gray-900 dark:text-gray-100"
+                            >
+                              {category.name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <select {...register('categoryId')} className="input-field text-sm sm:text-base min-h-[44px]">
+                      <option value="">اختر الفئة</option>
+                      {filteredCategories.map((category) => (
+                        <option key={category._id} value={category._id}>
+                          {category.name}
+                        </option>
+                      ))}
+                    </select>
+                    {categorySearch && filteredCategories.length === 0 && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">لم يتم العثور على فئات مطابقة</p>
+                    )}
+                    {errors.categoryId && (
+                      <p className="text-danger-600 dark:text-danger-400 text-xs sm:text-sm mt-1">{errors.categoryId.message}</p>
                     )}
                   </div>
-                  <select {...register('categoryId')} className="input-field text-sm sm:text-base min-h-[44px]">
-                    <option value="">اختر الفئة</option>
-                    {filteredCategories.map((category) => (
-                      <option key={category._id} value={category._id}>
-                        {category.name}
-                      </option>
-                    ))}
-                  </select>
-                  {categorySearch && filteredCategories.length === 0 && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">لم يتم العثور على فئات مطابقة</p>
-                  )}
-                  {errors.categoryId && (
-                    <p className="text-danger-600 dark:text-danger-400 text-xs sm:text-sm mt-1">{errors.categoryId.message}</p>
-                  )}
-                </div>
+                )}
 
                 {/* Supplier Selection - Only for Admin */}
                 {user?.role === 'admin' && (
@@ -1883,56 +1894,58 @@ export default function EditProductPage() {
               )}
             </div>
 
-                <div>
-                  <div className="flex items-center justify-between mb-1.5 sm:mb-2">
-                    <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
-                      SKU
-                      <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">(اختياري)</span>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={generateSKU}
-                      className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1"
-                    >
-                      <Plus className="w-3 h-3" />
-                      توليد SKU
-                    </button>
-          </div>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      {...register('sku')}
-                      onChange={(e) => {
-                        setValue('sku', e.target.value);
-                        checkSKU(e.target.value);
-                      }}
-                      className={`input-field text-sm sm:text-base min-h-[44px] ${
-                        skuError ? 'border-red-500 dark:border-red-500' : ''
-                      }`}
-                      placeholder="أدخل SKU أو اضغط على توليد SKU"
-                    />
-                    {suggestedSku && watch('sku') === suggestedSku && (
-                      <div className="absolute left-2 top-1/2 transform -translate-y-1/2">
-                        <CheckCircle2 className="w-4 h-4 text-green-500" />
-                      </div>
+                {user?.role !== 'supplier' && (
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
+                        SKU
+                        <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">(اختياري)</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={generateSKU}
+                        className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1"
+                      >
+                        <Plus className="w-3 h-3" />
+                        توليد SKU
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        {...register('sku')}
+                        onChange={(e) => {
+                          setValue('sku', e.target.value);
+                          checkSKU(e.target.value);
+                        }}
+                        className={`input-field text-sm sm:text-base min-h-[44px] ${
+                          skuError ? 'border-red-500 dark:border-red-500' : ''
+                        }`}
+                        placeholder="أدخل SKU أو اضغط على توليد SKU"
+                      />
+                      {suggestedSku && watch('sku') === suggestedSku && (
+                        <div className="absolute left-2 top-1/2 transform -translate-y-1/2">
+                          <CheckCircle2 className="w-4 h-4 text-green-500" />
+                        </div>
+                      )}
+                    </div>
+                    {skuError && (
+                      <p className="text-red-600 dark:text-red-400 text-xs sm:text-sm mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />
+                        {skuError}
+                      </p>
                     )}
+                    {suggestedSku && !skuError && (
+                      <p className="text-green-600 dark:text-green-400 text-xs sm:text-sm mt-1 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" />
+                        SKU متاح: {suggestedSku}
+                      </p>
+                    )}
+                    <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {!watch('sku') && 'سيتم توليد SKU تلقائياً عند إدخال اسم المنتج (الفئة اختيارية)'}
+                    </p>
                   </div>
-                  {skuError && (
-                    <p className="text-red-600 dark:text-red-400 text-xs sm:text-sm mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" />
-                      {skuError}
-                    </p>
-                  )}
-                  {suggestedSku && !skuError && (
-                    <p className="text-green-600 dark:text-green-400 text-xs sm:text-sm mt-1 flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3" />
-                      SKU متاح: {suggestedSku}
-                    </p>
-                  )}
-                  <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    {!watch('sku') && 'سيتم توليد SKU تلقائياً عند إدخال اسم المنتج (الفئة اختيارية)'}
-                  </p>
-                </div>
+                )}
               </div>
             </div>
           )}

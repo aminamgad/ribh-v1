@@ -28,8 +28,15 @@ async function searchProducts(req: NextRequest, user: any) {
     
     // Role-based filtering
     if (user.role === 'supplier') {
+      // CRITICAL: Ensure supplierId is set and matches user._id exactly
+      // Use simple equality check - MongoDB will handle null/undefined automatically
       searchQuery.supplierId = user._id;
       // Suppliers can see their own products regardless of approval status
+      logger.debug('Supplier search filter applied', { 
+        userId: user._id.toString(), 
+        userEmail: user.email,
+        querySupplierId: user._id.toString()
+      });
     } else if (user.role === 'marketer' || user.role === 'wholesaler') {
       // Marketers and wholesalers only see approved products
       searchQuery.isApproved = true;
@@ -114,19 +121,50 @@ async function searchProducts(req: NextRequest, user: any) {
     
     const skip = (page - 1) * limit;
     
-    logger.apiRequest('GET', '/api/search', { userId: user._id, role: user.role });
+    logger.apiRequest('GET', '/api/search', { userId: user._id, role: user.role, userEmail: user.email });
     logger.debug('Search query', { query, category: categoryParam, hasPriceRange: !!(minPrice || maxPrice) });
     
     // Execute search
     const [products, total] = await Promise.all([
       Product.find(searchQuery)
         .populate('categoryId', 'name nameEn')
+        .populate('supplierId', 'name companyName')
         .sort(sortOptions)
         .skip(skip)
         .limit(limit)
         .lean(),
       Product.countDocuments(searchQuery)
     ]);
+    
+    // CRITICAL: Additional server-side validation for suppliers
+    // Filter out any products that don't belong to the supplier (defensive check)
+    let filteredProducts = products;
+    if (user.role === 'supplier') {
+      filteredProducts = products.filter((product: any) => {
+        const productSupplierId = product.supplierId?._id?.toString() || product.supplierId?.toString() || product.supplierId;
+        const userSupplierId = user._id.toString();
+        const matches = productSupplierId === userSupplierId;
+        if (!matches) {
+          logger.warn('Product filtered out in search - supplier mismatch', {
+            productId: product._id,
+            productName: product.name,
+            productSupplierId: productSupplierId,
+            userSupplierId: userSupplierId,
+            userEmail: user.email
+          });
+        }
+        return matches;
+      });
+      
+      // Log filtered results for debugging
+      logger.debug('Supplier products filtered in search', {
+        userId: user._id.toString(),
+        userEmail: user.email,
+        originalCount: products.length,
+        filteredCount: filteredProducts.length,
+        filteredProductIds: filteredProducts.map((p: any) => p._id)
+      });
+    }
     
     // Get aggregated data for filters
     const aggregations = await Product.aggregate([
@@ -154,7 +192,7 @@ async function searchProducts(req: NextRequest, user: any) {
     
     return NextResponse.json({
       success: true,
-      products: products.map(product => ({
+      products: filteredProducts.map((product: any) => ({
         _id: product._id,
         name: product.name,
         description: product.description,
@@ -170,8 +208,8 @@ async function searchProducts(req: NextRequest, user: any) {
       pagination: {
         page,
         limit,
-        total,
-        pages: Math.ceil(total / limit)
+        total: user.role === 'supplier' ? filteredProducts.length : total,
+        pages: Math.ceil((user.role === 'supplier' ? filteredProducts.length : total) / limit)
       },
       filters: {
         priceRange: {

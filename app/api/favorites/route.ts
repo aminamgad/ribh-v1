@@ -74,6 +74,14 @@ async function addToFavorites(req: NextRequest, user: any) {
       );
     }
     
+    // Prevent suppliers from adding their own products to favorites
+    if (user.role === 'supplier' && product.supplierId && product.supplierId.toString() === user._id.toString()) {
+      return NextResponse.json(
+        { success: false, message: 'لا يمكنك إضافة منتجاتك الخاصة إلى المفضلة' },
+        { status: 400 }
+      );
+    }
+    
     // Check if already favorited
     const existing = await Favorite.findOne({
       userId: user._id,

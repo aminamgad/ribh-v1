@@ -6,6 +6,7 @@ import Link from 'next/link';
 import MediaThumbnail from '@/components/ui/MediaThumbnail';
 import { Package } from 'lucide-react';
 import { getCloudinaryThumbnailUrl, isCloudinaryUrl } from '@/lib/mediaUtils';
+import { getStockDisplayText } from '@/lib/product-helpers';
 
 interface Product {
   _id: string;
@@ -24,6 +25,15 @@ interface Product {
   categoryName?: string;
   isLocked?: boolean;
   hasVariants?: boolean;
+  variantOptions?: Array<{
+    variantId: string;
+    variantName: string;
+    value: string;
+    price?: number;
+    stockQuantity: number;
+    sku?: string;
+    images?: string[];
+  }>;
 }
 
 interface AdminProductsTableViewProps {
@@ -112,11 +122,21 @@ const AdminProductsTableView = memo(function AdminProductsTableView({
     }
   };
 
-  const getStockStatus = (stockQuantity: number) => {
-    if (stockQuantity > 10) {
-      return <span className="text-green-600 dark:text-green-400 font-medium">{stockQuantity} قطعة</span>;
-    } else if (stockQuantity > 0) {
-      return <span className="text-yellow-600 dark:text-yellow-400 font-medium">{stockQuantity} قطعة</span>;
+  const getStockStatus = (product: Product) => {
+    const totalStock = product.hasVariants && product.variantOptions && product.variantOptions.length > 0
+      ? product.variantOptions.reduce((sum, opt) => sum + (opt.stockQuantity || 0), 0)
+      : product.stockQuantity;
+    
+    const displayText = getStockDisplayText(
+      product.stockQuantity,
+      product.hasVariants,
+      product.variantOptions
+    );
+    
+    if (totalStock > 10) {
+      return <span className="text-green-600 dark:text-green-400 font-medium">{displayText}</span>;
+    } else if (totalStock > 0) {
+      return <span className="text-yellow-600 dark:text-yellow-400 font-medium">{displayText}</span>;
     } else {
       return <span className="text-red-600 dark:text-red-400 font-medium">غير متوفر</span>;
     }
@@ -190,7 +210,7 @@ const AdminProductsTableView = memo(function AdminProductsTableView({
                     </div>
                     <div>
                       <span className="text-gray-600 dark:text-slate-400">المخزون: </span>
-                      {getStockStatus(product.stockQuantity)}
+                      {getStockStatus(product)}
                     </div>
                     <div>
                       <span className="text-gray-600 dark:text-slate-400">سعر المورد: </span>
@@ -407,7 +427,7 @@ const AdminProductsTableView = memo(function AdminProductsTableView({
                     {/* Stock */}
                     <td className="px-4 py-3 whitespace-nowrap border-r border-gray-200 dark:border-slate-700">
                       <div className="text-sm">
-                        {getStockStatus(product.stockQuantity)}
+                        {getStockStatus(product)}
                       </div>
                     </td>
 

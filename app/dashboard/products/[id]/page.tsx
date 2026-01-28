@@ -38,6 +38,7 @@ import ProductVariantSelector from '@/components/ui/ProductVariantSelector';
 import CommentsSection from '@/components/ui/CommentsSection';
 import { ProductVariant, ProductVariantOption } from '@/types';
 import { getCloudinaryThumbnailUrl, isCloudinaryUrl } from '@/lib/mediaUtils';
+import { getStockDisplayText, calculateVariantStockQuantity } from '@/lib/product-helpers';
 
 interface Product {
   _id: string;
@@ -1053,9 +1054,20 @@ export default function ProductDetailPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="text-center p-3 bg-gray-100 dark:bg-slate-700 rounded-lg">
                   <p className="text-sm text-gray-600 dark:text-slate-400">الكمية المتوفرة</p>
-                  <p className={`text-xl font-bold ${product.stockQuantity > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                    {new Intl.NumberFormat('en-US').format(product.stockQuantity)}
-                  </p>
+                  {product.hasVariants && product.variantOptions && product.variantOptions.length > 0 ? (
+                    <>
+                      <p className={`text-xl font-bold ${calculateVariantStockQuantity(product.variantOptions) > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                        {new Intl.NumberFormat('en-US').format(calculateVariantStockQuantity(product.variantOptions))}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        لعدد {product.variantOptions.length} متغير{product.variantOptions.length > 1 ? 'ات' : ''}
+                      </p>
+                    </>
+                  ) : (
+                    <p className={`text-xl font-bold ${product.stockQuantity > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                      {new Intl.NumberFormat('en-US').format(product.stockQuantity)}
+                    </p>
+                  )}
                 </div>
                 <div className="text-center p-3 bg-gray-100 dark:bg-slate-700 rounded-lg">
                   <p className="text-sm text-gray-600 dark:text-slate-400">الحالة</p>

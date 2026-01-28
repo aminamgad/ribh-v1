@@ -37,6 +37,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.ok) {
         const data = await response.json();
         setUser(data.user);
+        // Clear cache when user is authenticated to ensure fresh data based on user role
+        try {
+          if (typeof window !== 'undefined') {
+            sessionStorage.removeItem('ribh_data_cache');
+          }
+        } catch (error) {
+          // Silently handle cache clearing errors
+        }
       }
     } catch (error) {
       // Silently handle auth check errors
@@ -59,6 +67,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (response.ok) {
         setUser(data.user);
+        // Clear cache when user logs in to ensure fresh data based on user role
+        try {
+          if (typeof window !== 'undefined') {
+            sessionStorage.removeItem('ribh_data_cache');
+          }
+        } catch (error) {
+          // Silently handle cache clearing errors
+        }
         return { success: true, user: data.user };
       } else {
         // Check if it's a maintenance mode response
@@ -105,6 +121,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         method: 'POST',
       });
       setUser(null);
+      // Clear cache when user logs out
+      try {
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('ribh_data_cache');
+        }
+      } catch (error) {
+        // Silently handle cache clearing errors
+      }
     } catch (error) {
       // Silently handle logout errors
     }

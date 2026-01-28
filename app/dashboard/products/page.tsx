@@ -41,6 +41,7 @@ import MediaThumbnail from '@/components/ui/MediaThumbnail';
 import { useRouter } from 'next/navigation';
 import ProductSection from '@/components/products/ProductSection';
 import AdminProductsTableView from '@/components/products/AdminProductsTableView';
+import { getStockBadgeText } from '@/lib/product-helpers';
 
 interface Product {
   _id: string;
@@ -66,6 +67,18 @@ interface Product {
   isLocked?: boolean;
   lockedBy?: string;
   lockedAt?: string;
+  // Product variants
+  hasVariants?: boolean;
+  variants?: any[];
+  variantOptions?: Array<{
+    variantId: string;
+    variantName: string;
+    value: string;
+    price?: number;
+    stockQuantity: number;
+    sku?: string;
+    images?: string[];
+  }>;
 }
 
 export default function ProductsPage() {
@@ -342,7 +355,67 @@ export default function ProductsPage() {
     forceRefresh: false
   });
 
-  const products = productsData?.products || [];
+  // CRITICAL: Client-side defensive check - filter products by supplierId for suppliers
+  // NOTE: This is a safety check - the API should already filter correctly
+  // API now returns supplierId as string, so comparison should be straightforward
+  const products = useMemo(() => {
+    const allProducts = productsData?.products || [];
+    if (user?.role === 'supplier' && user._id) {
+      const userSupplierId = user._id.toString();
+      const filtered = allProducts.filter((product: Product) => {
+        // API now returns supplierId as string, but handle both cases for safety
+        let productSupplierId: string | null = null;
+        if (product.supplierId) {
+          if (typeof product.supplierId === 'object' && product.supplierId !== null) {
+            // Object with _id property (shouldn't happen if API is correct, but handle it)
+            const supplierIdObj = product.supplierId as any;
+            productSupplierId = supplierIdObj._id?.toString() || String(supplierIdObj);
+          } else if (typeof product.supplierId === 'string') {
+            // String (expected from API)
+            productSupplierId = product.supplierId;
+          } else {
+            // Fallback for any other type
+            productSupplierId = String(product.supplierId);
+          }
+        }
+        
+        const matches = productSupplierId === userSupplierId;
+        if (!matches && productSupplierId) {
+          console.warn('Product filtered out in client - supplier mismatch', {
+            productId: product._id,
+            productName: product.name,
+            productSupplierId,
+            userSupplierId,
+            supplierIdType: typeof product.supplierId
+          });
+        }
+        return matches;
+      });
+      
+      // Log for debugging only if there's a mismatch
+      if (allProducts.length > 0 && filtered.length === 0) {
+        console.warn('All products filtered out for supplier', {
+          userSupplierId,
+          totalProducts: allProducts.length,
+          allSupplierIds: allProducts.map((p: Product) => {
+            if (p.supplierId) {
+              return typeof p.supplierId === 'object' ? (p.supplierId as any)._id?.toString() : p.supplierId.toString();
+            }
+            return null;
+          }),
+          firstProduct: allProducts[0] ? {
+            id: allProducts[0]._id,
+            name: allProducts[0].name,
+            supplierId: allProducts[0].supplierId,
+            supplierIdType: typeof allProducts[0].supplierId
+          } : null
+        });
+      }
+      
+      return filtered;
+    }
+    return allProducts;
+  }, [productsData?.products, user?.role, user?._id]);
   
   
   useEffect(() => {
@@ -1091,13 +1164,21 @@ export default function ProductsPage() {
                       )}
                       <div className="flex items-center flex-wrap gap-1.5 sm:gap-2 space-x-reverse mt-1.5 sm:mt-2">
                         <span className={`text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full ${
-                          product.stockQuantity > 10 
+                          (product.hasVariants && product.variantOptions && product.variantOptions.length > 0
+                            ? product.variantOptions.reduce((sum: number, opt: any) => sum + (opt.stockQuantity || 0), 0)
+                            : product.stockQuantity) > 10 
                             ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                            : product.stockQuantity > 0 
+                            : (product.hasVariants && product.variantOptions && product.variantOptions.length > 0
+                              ? product.variantOptions.reduce((sum: number, opt: any) => sum + (opt.stockQuantity || 0), 0)
+                              : product.stockQuantity) > 0 
                             ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
                             : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
                         }`}>
-                          {product.stockQuantity > 0 ? `متوفر (${product.stockQuantity})` : 'غير متوفر'}
+                          {getStockBadgeText(
+                            product.stockQuantity,
+                            product.hasVariants,
+                            product.variantOptions
+                          )}
                         </span>
                          
                          {/* Quick Edit Indicator for Suppliers */}
