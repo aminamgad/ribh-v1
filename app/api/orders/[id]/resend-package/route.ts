@@ -87,7 +87,7 @@ async function resendPackageHandler(req: NextRequest, user: any, ...args: unknow
       barcode: barcode
     };
 
-    // Call external API
+    // Call external API with retry mechanism
     logger.info('🔄 Resending package to shipping company API', {
       orderId: order._id.toString(),
       orderNumber: orderNumber,
@@ -96,17 +96,123 @@ async function resendPackageHandler(req: NextRequest, user: any, ...args: unknow
       apiEndpoint: externalCompany.apiEndpointUrl
     });
 
-    const apiResponse = await callExternalShippingCompanyAPI(
-      externalCompany.apiEndpointUrl,
-      externalCompany.apiToken,
-      packageData
-    );
+    // Retry mechanism: try up to 3 times with exponential backoff
+    const maxRetries = 3;
+    let apiResponse: any = null;
+    let lastError: string | undefined = undefined;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        apiResponse = await callExternalShippingCompanyAPI(
+          externalCompany.apiEndpointUrl,
+          externalCompany.apiToken,
+          packageData
+        );
+        
+        // If successful, break out of retry loop
+        if (apiResponse.success && apiResponse.packageId) {
+          if (attempt > 1) {
+            logger.info(`✅ Package resent successfully on retry attempt ${attempt}`, {
+              orderId: order._id.toString(),
+              orderNumber: orderNumber,
+              packageId: existingPackage.packageId,
+              attempt: attempt
+            });
+          }
+          break;
+        } else {
+          lastError = apiResponse.error;
+          
+          // Check if error is retryable (server errors like 503, 502, 504)
+          const isRetryable = apiResponse.error && (
+            apiResponse.error.includes('503') ||
+            apiResponse.error.includes('502') ||
+            apiResponse.error.includes('504') ||
+            apiResponse.error.includes('Service Unavailable') ||
+            apiResponse.error.includes('Gateway') ||
+            apiResponse.error.includes('Timeout')
+          );
+          
+          if (!isRetryable || attempt === maxRetries) {
+            // Non-retryable error or last attempt - break
+            break;
+          }
+          
+          // Wait before retry (exponential backoff: 1s, 2s, 4s)
+          const delayMs = Math.pow(2, attempt - 1) * 1000;
+          logger.warn(`⚠️ Resend API call failed, retrying in ${delayMs}ms (attempt ${attempt}/${maxRetries})`, {
+            orderId: order._id.toString(),
+            orderNumber: orderNumber,
+            packageId: existingPackage.packageId,
+            attempt: attempt,
+            maxRetries: maxRetries,
+            error: apiResponse.error,
+            delayMs: delayMs
+          });
+          
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+        }
+      } catch (error) {
+        lastError = error instanceof Error ? error.message : 'Unknown error';
+        
+        // Check if error is retryable
+        const isRetryable = lastError.includes('503') ||
+          lastError.includes('502') ||
+          lastError.includes('504') ||
+          lastError.includes('ECONNREFUSED') ||
+          lastError.includes('ETIMEDOUT');
+        
+        if (!isRetryable || attempt === maxRetries) {
+          // Non-retryable error or last attempt
+          throw error;
+        }
+        
+        // Wait before retry (exponential backoff)
+        const delayMs = Math.pow(2, attempt - 1) * 1000;
+        logger.warn(`⚠️ Resend API call exception, retrying in ${delayMs}ms (attempt ${attempt}/${maxRetries})`, {
+          orderId: order._id.toString(),
+          orderNumber: orderNumber,
+          packageId: existingPackage.packageId,
+          attempt: attempt,
+          maxRetries: maxRetries,
+          error: lastError,
+          delayMs: delayMs
+        });
+        
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
+    
+    // Use the last response (or null if all retries failed)
+    if (!apiResponse) {
+      apiResponse = {
+        success: false,
+        error: lastError || 'فشل إعادة إرسال الطرد بعد عدة محاولات'
+      };
+    }
 
     if (apiResponse.success) {
-      // Update package status to 'confirmed'
-      await Package.findByIdAndUpdate(existingPackage._id, {
+      // Update package status to 'confirmed' and store external package ID
+      const updateData: any = {
         status: 'confirmed'
-      });
+      };
+      
+      // Store external package ID from API response (package_id from shipping company)
+      if (apiResponse.packageId) {
+        updateData.externalPackageId = apiResponse.packageId;
+      }
+      
+      // Update delivery cost if API returned a different value
+      if (apiResponse.deliveryCost !== undefined) {
+        updateData.deliveryCost = apiResponse.deliveryCost;
+      }
+      
+      // Store QR code if provided
+      if (apiResponse.qrCode) {
+        updateData.qrCode = apiResponse.qrCode;
+      }
+      
+      await Package.findByIdAndUpdate(existingPackage._id, updateData);
 
       logger.business('✅ PACKAGE RESENT TO SHIPPING COMPANY API - Package resent successfully', {
         orderId: order._id.toString(),
@@ -122,7 +228,10 @@ async function resendPackageHandler(req: NextRequest, user: any, ...args: unknow
         success: true,
         message: 'تم إعادة إرسال الطرد بنجاح',
         packageId: existingPackage.packageId,
-        status: 'confirmed'
+        status: 'confirmed',
+        externalPackageId: apiResponse.packageId,
+        deliveryCost: apiResponse.deliveryCost,
+        qrCode: apiResponse.qrCode
       });
     } else {
       // Keep package status as 'pending'

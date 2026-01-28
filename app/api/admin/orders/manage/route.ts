@@ -198,13 +198,14 @@ async function manageOrders(req: NextRequest, user: any) {
           if (!order.packageId) {
             try {
               const { createPackageFromOrder } = await import('@/lib/order-to-package');
-              const packageId = await createPackageFromOrder(order._id.toString());
-              if (packageId) {
-                updateData.packageId = packageId;
+              const packageResult = await createPackageFromOrder(order._id.toString());
+              if (packageResult && packageResult.packageId) {
+                updateData.packageId = packageResult.packageId;
                 logger.info('Package created automatically before bulk shipping', {
                   orderId: order._id.toString(),
                   orderNumber: order.orderNumber,
-                  packageId: packageId,
+                  packageId: packageResult.packageId,
+                  apiSuccess: packageResult.apiSuccess,
                   shippingCompany: validatedData.shippingCompany
                 });
               } else {

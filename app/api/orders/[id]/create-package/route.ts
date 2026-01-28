@@ -55,9 +55,9 @@ async function createPackageHandler(req: NextRequest, user: any, ...args: unknow
     }
 
     // Create package
-    const packageId = await createPackageFromOrder(orderId);
+    const packageResult = await createPackageFromOrder(orderId);
 
-    if (!packageId) {
+    if (!packageResult || !packageResult.packageId) {
       return NextResponse.json(
         {
           success: false,
@@ -70,14 +70,19 @@ async function createPackageHandler(req: NextRequest, user: any, ...args: unknow
     logger.business('Package created manually from order', {
       orderId: orderId,
       orderNumber: (order as any).orderNumber,
-      packageId: packageId,
+      packageId: packageResult.packageId,
+      apiSuccess: packageResult.apiSuccess,
       createdBy: user._id.toString()
     });
 
     return NextResponse.json({
       success: true,
-      packageId: packageId,
-      message: 'تم إنشاء Package بنجاح',
+      packageId: packageResult.packageId,
+      apiSuccess: packageResult.apiSuccess,
+      message: packageResult.apiSuccess 
+        ? 'تم إنشاء Package بنجاح وإرساله إلى شركة الشحن' 
+        : 'تم إنشاء Package لكن فشل إرساله إلى شركة الشحن',
+      error: packageResult.error,
       orderId: orderId,
       orderNumber: (order as any).orderNumber
     });

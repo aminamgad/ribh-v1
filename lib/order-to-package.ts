@@ -170,9 +170,15 @@ export async function callExternalShippingCompanyAPI(
  * Convert an Order to a Package for shipping company
  * This function is called automatically when order status changes to ready_for_shipping
  * @param orderId - The Order ID to convert
- * @returns Package ID if successful, null if failed
+ * @returns Object with packageId and apiSuccess status, or null if failed
  */
-export async function createPackageFromOrder(orderId: string): Promise<number | null> {
+export interface CreatePackageResult {
+  packageId: number;
+  apiSuccess: boolean; // true if successfully sent to shipping company API, false if API call failed
+  error?: string;
+}
+
+export async function createPackageFromOrder(orderId: string): Promise<CreatePackageResult | null> {
   try {
     await connectDB();
 
@@ -460,6 +466,10 @@ export async function createPackageFromOrder(orderId: string): Promise<number | 
       packageId: packageIdNumber
     });
 
+    // Track API success status
+    let apiSuccess = false;
+    let apiError: string | undefined = undefined;
+
     // Call external shipping company API if endpoint URL is configured
     // NOTE: apiEndpointUrl should match the test script URL: 'https://ultra-pal.com/api/external_company/create-package'
     if (externalCompany.apiEndpointUrl && externalCompany.apiToken) {
@@ -495,30 +505,155 @@ export async function createPackageFromOrder(orderId: string): Promise<number | 
           companyName: externalCompany.companyName
         });
         
-        const apiResponse = await callExternalShippingCompanyAPI(
-          externalCompany.apiEndpointUrl,
-          externalCompany.apiToken,
-          packageData
-        );
+        // Retry mechanism: try up to 3 times with exponential backoff
+        const maxRetries = 3;
+        let apiResponse: any = null;
+        let lastError: string | undefined = undefined;
+        
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+          try {
+            apiResponse = await callExternalShippingCompanyAPI(
+              externalCompany.apiEndpointUrl,
+              externalCompany.apiToken,
+              packageData
+            );
+            
+            // If successful, break out of retry loop
+            if (apiResponse.success && apiResponse.packageId) {
+              if (attempt > 1) {
+                logger.info(`✅ Package sent successfully on retry attempt ${attempt}`, {
+                  orderId: order._id.toString(),
+                  orderNumber: orderNumber,
+                  packageId: packageIdNumber,
+                  attempt: attempt
+                });
+              }
+              break;
+            } else {
+              lastError = apiResponse.error;
+              
+              // Check if error is retryable (server errors like 503, 502, 504)
+              const isRetryable = apiResponse.error && (
+                apiResponse.error.includes('503') ||
+                apiResponse.error.includes('502') ||
+                apiResponse.error.includes('504') ||
+                apiResponse.error.includes('Service Unavailable') ||
+                apiResponse.error.includes('Gateway') ||
+                apiResponse.error.includes('Timeout')
+              );
+              
+              if (!isRetryable || attempt === maxRetries) {
+                // Non-retryable error or last attempt - break
+                break;
+              }
+              
+              // Wait before retry (exponential backoff: 1s, 2s, 4s)
+              const delayMs = Math.pow(2, attempt - 1) * 1000;
+              logger.warn(`⚠️ API call failed, retrying in ${delayMs}ms (attempt ${attempt}/${maxRetries})`, {
+                orderId: order._id.toString(),
+                orderNumber: orderNumber,
+                attempt: attempt,
+                maxRetries: maxRetries,
+                error: apiResponse.error,
+                delayMs: delayMs
+              });
+              
+              await new Promise(resolve => setTimeout(resolve, delayMs));
+            }
+          } catch (error) {
+            lastError = error instanceof Error ? error.message : 'Unknown error';
+            
+            // Check if error is retryable
+            const isRetryable = lastError.includes('503') ||
+              lastError.includes('502') ||
+              lastError.includes('504') ||
+              lastError.includes('ECONNREFUSED') ||
+              lastError.includes('ETIMEDOUT');
+            
+            if (!isRetryable || attempt === maxRetries) {
+              // Non-retryable error or last attempt
+              throw error;
+            }
+            
+            // Wait before retry (exponential backoff)
+            const delayMs = Math.pow(2, attempt - 1) * 1000;
+            logger.warn(`⚠️ API call exception, retrying in ${delayMs}ms (attempt ${attempt}/${maxRetries})`, {
+              orderId: order._id.toString(),
+              orderNumber: orderNumber,
+              attempt: attempt,
+              maxRetries: maxRetries,
+              error: lastError,
+              delayMs: delayMs
+            });
+            
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+          }
+        }
+        
+        // Use the last response (or null if all retries failed)
+        if (!apiResponse) {
+          apiResponse = {
+            success: false,
+            error: lastError || 'فشل إرسال الطرد بعد عدة محاولات'
+          };
+        }
 
         if (apiResponse.success && apiResponse.packageId) {
           // Update package status to 'confirmed' when successfully sent to API
-          // Also update with delivery cost and QR code if provided by API
+          // Also update with delivery cost, QR code, and external package ID if provided by API
           const updateData: any = {
             status: 'confirmed'
           };
           
+          // Store external package ID from API response (package_id from shipping company)
+          if (apiResponse.packageId) {
+            updateData.externalPackageId = apiResponse.packageId;
+            logger.info('Storing externalPackageId from API response', {
+              externalPackageId: apiResponse.packageId,
+              packageId: packageIdNumber,
+              orderId: order._id.toString()
+            });
+          }
+          
           // Update delivery cost if API returned a different value
           if (apiResponse.deliveryCost !== undefined) {
             updateData.deliveryCost = apiResponse.deliveryCost;
+            logger.info('Storing deliveryCost from API response', {
+              deliveryCost: apiResponse.deliveryCost,
+              packageId: packageIdNumber,
+              orderId: order._id.toString()
+            });
           }
           
           // Store QR code if provided
           if (apiResponse.qrCode) {
             updateData.qrCode = apiResponse.qrCode;
+            logger.info('Storing qrCode from API response', {
+              qrCode: apiResponse.qrCode,
+              packageId: packageIdNumber,
+              orderId: order._id.toString()
+            });
           }
           
+          logger.info('Updating package with API response data', {
+            packageId: packageIdNumber,
+            updateData: updateData,
+            orderId: order._id.toString()
+          });
+          
           await Package.findByIdAndUpdate(savedPackage._id, updateData);
+          
+          // Verify the update
+          const updatedPackage = await Package.findById(savedPackage._id).lean() as any;
+          logger.info('Package updated - verification', {
+            packageId: packageIdNumber,
+            externalPackageId: updatedPackage?.externalPackageId,
+            deliveryCost: updatedPackage?.deliveryCost,
+            qrCode: updatedPackage?.qrCode,
+            orderId: order._id.toString()
+          });
+          
+          apiSuccess = true;
           
           logger.business('✅ ORDER SENT TO SHIPPING COMPANY API - Package sent successfully via external API', {
             orderId: order._id.toString(),
@@ -536,6 +671,8 @@ export async function createPackageFromOrder(orderId: string): Promise<number | 
         } else {
           // Keep package status as 'pending' when API call fails (so we can retry later)
           // Package status remains 'pending' - indicating it hasn't been sent to shipping company yet
+          apiSuccess = false;
+          apiError = apiResponse.error || 'فشل إرسال الطرد إلى شركة الشحن';
           
           logger.warn('⚠️ FAILED TO SEND ORDER TO SHIPPING COMPANY API - API call failed', {
             orderId: order._id.toString(),
@@ -550,6 +687,9 @@ export async function createPackageFromOrder(orderId: string): Promise<number | 
           });
         }
       } catch (error) {
+        apiSuccess = false;
+        apiError = error instanceof Error ? error.message : 'خطأ غير معروف في إرسال الطرد';
+        
         logger.error('Error calling external shipping company API', error, {
           orderId: order._id.toString(),
           orderNumber: orderNumber,
@@ -560,7 +700,10 @@ export async function createPackageFromOrder(orderId: string): Promise<number | 
         // Continue even if API call fails - package is already created in database
       }
     } else {
-      // No API endpoint configured - just log package creation in database
+      // No API endpoint configured - package created in database only
+      // Consider this as success since there's no API to send to
+      apiSuccess = true; // No API configured means no failure
+      
       logger.business('✅ ORDER SENT TO SHIPPING COMPANY - Package created in database (no external API configured)', {
         orderId: order._id.toString(),
         orderNumber: orderNumber,
@@ -579,15 +722,20 @@ export async function createPackageFromOrder(orderId: string): Promise<number | 
       });
     }
 
-    logger.info('✅ Package created successfully and sent to shipping company', {
+    logger.info('✅ Package created successfully', {
       orderId: order._id.toString(),
       orderNumber: orderNumber,
       packageId: packageIdNumber,
       companyName: externalCompany.companyName,
-      barcode: barcode
+      barcode: barcode,
+      apiSuccess: apiSuccess
     });
 
-    return packageIdNumber;
+    return {
+      packageId: packageIdNumber,
+      apiSuccess: apiSuccess,
+      error: apiError
+    };
   } catch (error) {
     logger.error('Error creating package from order', error, {
       orderId: orderId

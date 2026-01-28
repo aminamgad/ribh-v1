@@ -935,6 +935,15 @@ export default function SettingsPage() {
                     />
                   </div>
                 </div>
+                
+                <Button 
+                  onClick={() => saveSettings('shipping', shippingData)}
+                  disabled={saving}
+                  className="mt-4 bg-[#FF9800] hover:bg-[#F57C00] dark:bg-[#FF9800] dark:hover:bg-[#F57C00]"
+                >
+                  <Save className="w-4 h-4 ml-2" />
+                  {saving ? 'جاري الحفظ...' : 'حفظ إعدادات الشحن'}
+                </Button>
               </CardContent>
             </Card>
 
@@ -1054,15 +1063,6 @@ export default function SettingsPage() {
                 )}
               </CardContent>
             </Card>
-
-            <Button 
-              onClick={() => saveSettings('shipping', shippingData)}
-              disabled={saving}
-              className="w-full bg-[#FF9800] hover:bg-[#F57C00] dark:bg-[#FF9800] dark:hover:bg-[#F57C00]"
-            >
-              <Save className="w-4 h-4 ml-2" />
-              {saving ? 'جاري الحفظ...' : 'حفظ إعدادات الشحن'}
-            </Button>
           </div>
         )}
 

@@ -16,6 +16,8 @@ interface Product {
   isApproved: boolean;
   categoryId?: string;
   sales?: number;
+  minimumSellingPrice?: number;
+  isMinimumPriceMandatory?: boolean;
 }
 
 interface ProductSectionProps {
@@ -153,9 +155,15 @@ const ProductSection = memo(function ProductSection({
               </h3>
               
               <div className="flex items-center justify-between">
-                <span className="text-lg font-bold text-primary-600 dark:text-primary-400">
-                  {product.marketerPrice} ₪
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-lg font-bold ${
+                    product.isMinimumPriceMandatory && product.minimumSellingPrice
+                      ? 'text-orange-600 dark:text-orange-400'
+                      : 'text-primary-600 dark:text-primary-400'
+                  }`}>
+                    {product.marketerPrice} ₪
+                  </span>
+                </div>
                 {product.sales && product.sales > 0 && (
                   <span className="text-xs text-gray-500 dark:text-slate-400">
                     {product.sales} مبيع

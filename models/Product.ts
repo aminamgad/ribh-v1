@@ -40,7 +40,7 @@ const productSchema = new Schema<ProductDocument>({
   },
   wholesalerPrice: {
     type: Number,
-    required: [true, 'سعر الجملة مطلوب'],
+    required: false,
     min: [0, 'سعر الجملة يجب أن يكون أكبر من صفر']
   },
   minimumSellingPrice: {
@@ -180,6 +180,21 @@ const productSchema = new Schema<ProductDocument>({
       type: String,
       trim: true
     }],
+    valueDetails: [{
+      value: {
+        type: String,
+        required: true,
+        trim: true
+      },
+      stockQuantity: {
+        type: Number,
+        min: 0
+      },
+      customPrice: {
+        type: Number,
+        min: 0
+      }
+    }],
     isRequired: {
       type: Boolean,
       default: true
@@ -187,6 +202,14 @@ const productSchema = new Schema<ProductDocument>({
     order: {
       type: Number,
       default: 0
+    },
+    stockQuantity: {
+      type: Number,
+      min: 0
+    },
+    customPrice: {
+      type: Number,
+      min: 0
     }
   }],
   variantOptions: [{
@@ -263,13 +286,8 @@ productSchema.virtual('inStock').get(function() {
   return this.stockQuantity > 0;
 });
 
-// Pre-save middleware to generate SKU
-productSchema.pre('save', function(next) {
-  if (!this.sku) {
-    this.sku = `PROD-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
-  }
-  next();
-});
+// SKU generation is now handled in API routes using lib/sku-generator.ts
+// This ensures unique, sequential SKUs and proper variant SKU generation
 
 // Static method to find approved products
 productSchema.statics.findApproved = function() {

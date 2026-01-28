@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
-import { Upload, X, Play, Image as ImageIcon, Video as VideoIcon, Download } from 'lucide-react';
+import { Upload, X, Play, Image as ImageIcon, Video as VideoIcon, Download, GripVertical, Star, StarOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getMediaType, getAcceptedMediaTypes, getAcceptedExtensions, validateMediaFile, downloadMedia, getFilenameFromUrl, downloadAllMedia } from '@/lib/mediaUtils';
 
@@ -16,6 +16,10 @@ interface MediaUploadProps {
   maxSize?: number; // in MB
   title?: string;
   className?: string;
+  onReorder?: (reorderedMedia: string[]) => void;
+  onSetPrimary?: (index: number) => void;
+  primaryIndex?: number;
+  showPrimaryOption?: boolean;
 }
 
 interface MediaItem {
@@ -34,11 +38,17 @@ export default function MediaUpload({
   maxFiles = 10,
   maxSize = 100, // Default to 100MB for videos
   title = 'الوسائط',
-  className = ''
+  className = '',
+  onReorder,
+  onSetPrimary,
+  primaryIndex,
+  showPrimaryOption = true
 }: MediaUploadProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
   // Function to upload large files directly to Cloudinary
   const uploadToCloudinaryDirect = async (file: File): Promise<{ success: boolean; url?: string; error?: string }> => {
@@ -134,11 +144,25 @@ export default function MediaUpload({
 
     setUploading(true);
     const uploadedUrls: string[] = [];
+    const totalFiles = validFiles.length;
+    let completedFiles = 0;
+
+    // Show initial progress notification
+    const progressMessage = `جاري رفع ${totalFiles} ملف...`;
+    toast.loading(progressMessage, { id: 'upload-progress' });
 
     try {
-      for (const file of validFiles) {
+      for (let i = 0; i < validFiles.length; i++) {
+        const file = validFiles[i];
         // Use direct Cloudinary upload for files larger than 4MB
         const isLargeFile = file.size > 4 * 1024 * 1024; // 4MB threshold
+        
+        // Update progress notification
+        const fileName = file.name.length > 20 ? file.name.substring(0, 20) + '...' : file.name;
+        toast.loading(
+          `جاري رفع الملف ${i + 1} من ${totalFiles}: ${fileName}`,
+          { id: 'upload-progress' }
+        );
         
         if (isLargeFile) {
           // Direct Cloudinary upload for large files
@@ -148,9 +172,12 @@ export default function MediaUpload({
           if (uploadResult.success) {
             if (uploadResult.url) {
               uploadedUrls.push(uploadResult.url);
+              completedFiles++;
             }
           } else {
-            toast.error(`فشل رفع ${file.name}: ${uploadResult.error}`);
+            toast.error(`فشل رفع ${file.name}: ${uploadResult.error}`, {
+              duration: 5000
+            });
           }
         } else {
           // Regular API upload for smaller files
@@ -167,8 +194,11 @@ export default function MediaUpload({
             const data = await response.json();
             if (data.success && data.url) {
               uploadedUrls.push(data.url);
+              completedFiles++;
             } else {
-              toast.error(`فشل رفع ${file.name}: ${data.message || 'خطأ غير معروف'}`);
+              toast.error(`فشل رفع ${file.name}: ${data.message || 'خطأ غير معروف'}`, {
+                duration: 5000
+              });
             }
           } else {
             let errorMessage = `فشل رفع ${file.name}`;
@@ -178,24 +208,51 @@ export default function MediaUpload({
             } catch (parseError) {
               // Silently handle parse errors
             }
-            toast.error(errorMessage);
+            toast.error(errorMessage, {
+              duration: 5000
+            });
           }
         }
       }
 
+      // Dismiss progress toast
+      toast.dismiss('upload-progress');
+
       if (uploadedUrls.length > 0) {
         onUpload(uploadedUrls);
         const mediaType = accept === 'images' ? 'صور' : accept === 'videos' ? 'فيديوهات' : 'وسائط';
-        toast.success(`تم رفع ${uploadedUrls.length} ${mediaType} بنجاح`);
+        toast.success(`✅ تم رفع ${uploadedUrls.length} ${mediaType} بنجاح`, {
+          duration: 4000,
+          style: {
+            background: '#10b981',
+            color: '#fff',
+            padding: '16px',
+            borderRadius: '8px',
+            fontSize: '14px',
+            fontWeight: '500'
+          }
+        });
+      } else {
+        toast.error('❌ فشل رفع جميع الملفات', {
+          duration: 5000
+        });
       }
     } catch (error) {
-      toast.error('حدث خطأ أثناء رفع الملفات');
+      toast.dismiss('upload-progress');
+      toast.error('❌ حدث خطأ أثناء رفع الملفات', {
+        duration: 5000,
+        style: {
+          background: '#ef4444',
+          color: '#fff'
+        }
+      });
     } finally {
       setUploading(false);
+      setUploadProgress({});
     }
   };
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
+  const handleDragOverArea = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(true);
   }, []);
@@ -223,6 +280,38 @@ export default function MediaUpload({
     }
   };
 
+  // Drag and drop for reordering
+  const handleDragStart = (index: number) => {
+    setDraggedIndex(index);
+  };
+
+  const handleDragOverItem = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (draggedIndex === null || draggedIndex === index) return;
+    
+    const newMedia = [...uploadedMedia];
+    const draggedItem = newMedia[draggedIndex];
+    newMedia.splice(draggedIndex, 1);
+    newMedia.splice(index, 0, draggedItem);
+    
+    if (onReorder) {
+      onReorder(newMedia);
+    }
+    setDraggedIndex(index);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+  };
+
+  const handleSetPrimary = (index: number) => {
+    if (onSetPrimary) {
+      onSetPrimary(index);
+      toast.success('تم تعيين الصورة الرئيسية');
+    }
+  };
+
 
 
   return (
@@ -237,7 +326,7 @@ export default function MediaUpload({
               ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
               : 'border-gray-300 dark:border-gray-600'
           }`}
-          onDragOver={handleDragOver}
+          onDragOver={handleDragOverArea}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
         >
@@ -300,20 +389,33 @@ export default function MediaUpload({
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {uploadedMedia.map((media, index) => {
                 const mediaType = getMediaType(media);
+                const isPrimary = primaryIndex === index;
+                const isDragging = draggedIndex === index;
+                
                 return (
-                  <div key={index} className="relative group">
-                    <div className="aspect-square rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
+                  <div 
+                    key={index} 
+                    className={`relative group cursor-move transition-all duration-200 ${
+                      isDragging ? 'opacity-50 scale-95' : 'opacity-100 scale-100'
+                    } ${isPrimary ? 'ring-2 ring-primary-500 ring-offset-2' : ''}`}
+                    draggable
+                    onDragStart={() => handleDragStart(index)}
+                    onDragOver={(e) => handleDragOverItem(e, index)}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <div className="aspect-square rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 relative">
                       {mediaType === 'image' ? (
                         <img
                           src={media}
                           alt={`${accept === 'images' ? 'صورة' : 'وسائط'} ${index + 1}`}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover cursor-pointer"
+                          onClick={() => setPreviewIndex(index)}
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center relative">
                           <video
                             src={media}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover cursor-pointer"
                             muted
                             onMouseEnter={(e) => (e.target as HTMLVideoElement).play()}
                             onMouseLeave={(e) => {
@@ -321,62 +423,129 @@ export default function MediaUpload({
                               video.pause();
                               video.currentTime = 0;
                             }}
+                            onClick={() => setPreviewIndex(index)}
                           />
-                          <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                             <Play className="w-8 h-8 text-white bg-black bg-opacity-50 rounded-full p-1" />
                           </div>
                         </div>
                       )}
+                      
+                      {/* Primary Badge */}
+                      {isPrimary && showPrimaryOption && (
+                        <div className="absolute top-2 left-2 bg-primary-600 text-white rounded-full px-2 py-1 flex items-center gap-1 text-xs font-medium z-10">
+                          <Star className="w-3 h-3 fill-current" />
+                          رئيسية
+                        </div>
+                      )}
+                      
+                      {/* Drag Handle */}
+                      <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                        <GripVertical className="w-3 h-3" />
+                      </div>
                     </div>
                     
                     {/* Media Type Badge */}
-                    <div className="absolute top-2 left-2 bg-black bg-opacity-50 text-white rounded-full p-1">
-                      {mediaType === 'image' ? (
-                        <ImageIcon className="w-3 h-3" />
-                      ) : (
-                        <VideoIcon className="w-3 h-3" />
-                      )}
-                    </div>
+                    {!isPrimary && (
+                      <div className="absolute top-2 left-2 bg-black bg-opacity-50 text-white rounded-full p-1 z-10">
+                        {mediaType === 'image' ? (
+                          <ImageIcon className="w-3 h-3" />
+                        ) : (
+                          <VideoIcon className="w-3 h-3" />
+                        )}
+                      </div>
+                    )}
 
-                                         {/* Action Buttons */}
-                     <div className="absolute top-2 right-2 flex space-x-1 space-x-reverse opacity-0 group-hover:opacity-100 transition-opacity">
-                       {/* Download Button */}
-                       <button
-                         type="button"
-                         onClick={async () => {
-                           try {
-                             const mediaType = getMediaType(media);
-                             const filename = getFilenameFromUrl(media, mediaType);
-                             const success = await downloadMedia(media, filename);
-                             if (success) {
-                               toast.success(`تم تحميل ${filename} بنجاح`);
-                             } else {
-                               toast.error('فشل في تحميل الملف');
-                             }
-                           } catch (error) {
-                             toast.error('فشل في تحميل الملف');
-                           }
-                         }}
-                         className="bg-[#FF9800] text-white rounded-full p-1 hover:bg-[#F57C00] transition-colors"
-                         title="تحميل الملف"
-                       >
-                         <Download className="w-3 h-3" />
-                       </button>
-                       
-                       {/* Remove Button */}
-                       <button
-                         type="button"
-                         onClick={() => onRemove(index)}
-                         className="bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
-                         title="حذف الملف"
-                       >
-                         <X className="w-3 h-3" />
-                       </button>
-                     </div>
+                    {/* Action Buttons */}
+                    <div className="absolute top-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                      {/* Set Primary Button */}
+                      {showPrimaryOption && !isPrimary && mediaType === 'image' && (
+                        <button
+                          type="button"
+                          onClick={() => handleSetPrimary(index)}
+                          className="bg-blue-500 text-white rounded-full p-1.5 hover:bg-blue-600 transition-colors"
+                          title="تعيين كصورة رئيسية"
+                        >
+                          <Star className="w-3 h-3" />
+                        </button>
+                      )}
+                      
+                      {/* Download Button */}
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const mediaType = getMediaType(media);
+                            const filename = getFilenameFromUrl(media, mediaType);
+                            const success = await downloadMedia(media, filename);
+                            if (success) {
+                              toast.success(`تم تحميل ${filename} بنجاح`);
+                            } else {
+                              toast.error('فشل في تحميل الملف');
+                            }
+                          } catch (error) {
+                            toast.error('فشل في تحميل الملف');
+                          }
+                        }}
+                        className="bg-[#FF9800] text-white rounded-full p-1.5 hover:bg-[#F57C00] transition-colors"
+                        title="تحميل الملف"
+                      >
+                        <Download className="w-3 h-3" />
+                      </button>
+                      
+                      {/* Remove Button */}
+                      <button
+                        type="button"
+                        onClick={() => onRemove(index)}
+                        className="bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 transition-colors"
+                        title="حذف الملف"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                    
+                    {/* Index Badge */}
+                    <div className="absolute bottom-2 right-2 bg-black bg-opacity-70 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-medium">
+                      {index + 1}
+                    </div>
                   </div>
                 );
               })}
             </div>
+            
+            {/* Preview Modal */}
+            {previewIndex !== null && (
+              <div 
+                className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4"
+                onClick={() => setPreviewIndex(null)}
+              >
+                <div className="relative max-w-4xl max-h-[90vh] w-full">
+                  <button
+                    onClick={() => setPreviewIndex(null)}
+                    className="absolute -top-10 right-0 text-white hover:text-gray-300 text-2xl"
+                  >
+                    <X className="w-8 h-8" />
+                  </button>
+                  {getMediaType(uploadedMedia[previewIndex]) === 'image' ? (
+                    <img
+                      src={uploadedMedia[previewIndex]}
+                      alt="Preview"
+                      className="max-w-full max-h-[90vh] object-contain rounded-lg"
+                    />
+                  ) : (
+                    <video
+                      src={uploadedMedia[previewIndex]}
+                      controls
+                      autoPlay
+                      className="max-w-full max-h-[90vh] rounded-lg"
+                    />
+                  )}
+                  <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white text-sm">
+                    {previewIndex + 1} / {uploadedMedia.length}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

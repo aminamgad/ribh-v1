@@ -295,14 +295,15 @@ async function createOrderHandler(req: NextRequest, user: any) {
     if (systemSettings?.autoCreatePackages !== false) {
       try {
         const { createPackageFromOrder } = await import('@/lib/order-to-package');
-        const packageId = await createPackageFromOrder(order._id.toString());
-        if (packageId) {
+        const packageResult = await createPackageFromOrder(order._id.toString());
+        if (packageResult && packageResult.packageId) {
           // Update order with packageId
-          await Order.findByIdAndUpdate(order._id, { packageId: packageId });
+          await Order.findByIdAndUpdate(order._id, { packageId: packageResult.packageId });
           logger.business('✅ ORDER SENT TO SHIPPING COMPANY IMMEDIATELY - Package created automatically upon order creation', {
             orderId: order._id.toString(),
             orderNumber: order.orderNumber,
-            packageId: packageId,
+            packageId: packageResult.packageId,
+            apiSuccess: packageResult.apiSuccess,
             orderStatus: order.status,
             timestamp: new Date().toISOString(),
             note: 'Order was sent to shipping company immediately upon creation'
@@ -311,7 +312,7 @@ async function createOrderHandler(req: NextRequest, user: any) {
           logger.info('✅ Package created automatically and sent to shipping company upon order creation', {
             orderId: order._id.toString(),
             orderNumber: order.orderNumber,
-            packageId: packageId
+            packageId: packageResult.packageId
           });
         } else {
           logger.warn('⚠️ FAILED TO SEND ORDER TO SHIPPING COMPANY - Failed to create package automatically upon order creation', {

@@ -6,6 +6,8 @@ import { logger } from '@/lib/logger';
 import { handleApiError } from '@/lib/error-handler';
 import { distributeOrderProfits } from '@/lib/wallet-helpers';
 
+export const dynamic = 'force-dynamic';
+
 // POST /api/admin/orders/distribute-profits - Distribute profits for pending orders
 export const POST = withRole(['admin'])(async (req: NextRequest, user: any) => {
   try {

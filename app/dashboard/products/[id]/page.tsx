@@ -674,6 +674,44 @@ export default function ProductDetailPage() {
                   تعديل
                 </Link>
                 
+                {/* Duplicate Product Button */}
+                <button
+                  onClick={() => {
+                    // Prepare product data for duplication
+                    const productData = {
+                      name: `${product.name} (نسخة)`,
+                      description: product.description || '',
+                      marketingText: product.marketingText || '',
+                      categoryId: product.categoryId || '',
+                      marketerPrice: product.marketerPrice || 0,
+                      wholesalerPrice: product.wholesalerPrice || undefined,
+                      minimumSellingPrice: product.minimumSellingPrice || undefined,
+                      isMinimumPriceMandatory: product.isMinimumPriceMandatory || false,
+                      stockQuantity: product.stockQuantity || 0,
+                      sku: '',
+                      images: product.images || [],
+                      tags: product.tags || [],
+                      specifications: product.specifications || {},
+                      hasVariants: (product as any).hasVariants || false,
+                      variants: (product as any).variants || [],
+                      variantOptions: (product as any).variantOptions || [],
+                      selectedSupplierId: '',
+                      primaryImageIndex: 0,
+                      currentStep: 1
+                    };
+                    
+                    // Save to localStorage and redirect
+                    localStorage.setItem('product-duplicate', JSON.stringify(productData));
+                    router.push('/dashboard/products/new');
+                    toast.success('تم تحضير نسخة من المنتج');
+                  }}
+                  className="btn-secondary"
+                  title="نسخ المنتج لإنشاء منتج جديد"
+                >
+                  <Copy className="w-4 h-4 ml-2" />
+                  نسخ المنتج
+                </button>
+                
                 {/* Lock/Unlock Product Button */}
                 {canLockProduct() && (
                   <button
@@ -855,9 +893,15 @@ export default function ProductDetailPage() {
               {/* Pricing - Role-based display */}
               {user?.role === 'marketer' ? (
                 // Marketer sees only marketer price
-                              <div className="text-center p-3 bg-[#FF9800]/10 dark:bg-[#FF9800]/20 rounded-lg">
-                <p className="text-sm text-[#FF9800] dark:text-[#FF9800]">سعر المسوق (الأساسي)</p>
-                <p className="text-lg font-bold text-[#F57C00] dark:text-[#F57C00]">{new Intl.NumberFormat('en-US').format(product.marketerPrice)} ₪</p>
+                <div className="text-center p-3 rounded-lg bg-[#FF9800]/10 dark:bg-[#FF9800]/20">
+                  <p className="text-sm text-[#FF9800] dark:text-[#FF9800]">سعر المسوق (الأساسي)</p>
+                  <p className={`text-lg font-bold ${
+                    product.isMinimumPriceMandatory && product.minimumSellingPrice
+                      ? 'text-orange-600 dark:text-orange-400'
+                      : 'text-[#F57C00] dark:text-[#F57C00]'
+                  }`}>
+                    {new Intl.NumberFormat('en-US').format(product.marketerPrice)} ₪
+                  </p>
                 </div>
               ) : user?.role === 'wholesaler' ? (
                 // Wholesaler sees only wholesaler price
@@ -870,19 +914,25 @@ export default function ProductDetailPage() {
                 // Supplier/Admin sees both prices
                 <>
                   <div className="grid grid-cols-2 gap-4 mb-4">
-                    <div className="text-center p-3 bg-gray-50 dark:bg-slate-700 rounded-lg">
+                    <div className="text-center p-3 rounded-lg bg-gray-50 dark:bg-slate-700">
                       <p className="text-sm text-gray-600 dark:text-slate-400">سعر المسوق (الأساسي)</p>
-                      <p className="text-xl font-bold text-primary-600 dark:text-primary-400">{new Intl.NumberFormat('en-US').format(product.marketerPrice)} ₪</p>
+                      <p className={`text-xl font-bold ${
+                        product.isMinimumPriceMandatory && product.minimumSellingPrice
+                          ? 'text-orange-600 dark:text-orange-400'
+                          : 'text-primary-600 dark:text-primary-400'
+                      }`}>
+                        {new Intl.NumberFormat('en-US').format(product.marketerPrice)} ₪
+                      </p>
+                      {product.minimumSellingPrice && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          السعر الأدنى: {new Intl.NumberFormat('en-US').format(product.minimumSellingPrice)} ₪
+                        </p>
+                      )}
                     </div>
                     <div className="text-center p-3 bg-gray-50 dark:bg-slate-700 rounded-lg">
                       <p className="text-sm text-gray-600 dark:text-slate-400">سعر الجملة (للتجار)</p>
                       <p className="text-xl font-bold text-primary-600 dark:text-primary-400">{new Intl.NumberFormat('en-US').format(product.wholesalerPrice)} ₪</p>
                     </div>
-                  </div>
-                  
-                                <div className="text-center p-3 bg-[#FF9800]/10 dark:bg-[#FF9800]/20 rounded-lg">
-                <p className="text-sm text-[#FF9800] dark:text-[#FF9800]">السعر الأساسي للمسوق</p>
-                <p className="text-lg font-bold text-[#F57C00] dark:text-[#F57C00]">{new Intl.NumberFormat('en-US').format(product.marketerPrice)} ₪</p>
                   </div>
                 </>
               )}

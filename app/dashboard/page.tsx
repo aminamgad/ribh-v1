@@ -258,6 +258,12 @@ export default function DashboardPage() {
         refresh(); // Refresh dashboard data
         setShowQuickEditModal(false);
         setSelectedProduct(null);
+      } else if (response.status === 403) {
+        // Access denied - supplier trying to edit another supplier's product
+        const error = await response.json().catch(() => ({}));
+        toast.error(error.message || 'غير مصرح لك بتعديل هذا المنتج');
+        setShowQuickEditModal(false);
+        setSelectedProduct(null);
       } else {
         const error = await response.json();
         toast.error(error.message || 'فشل في تحديث المنتج');
@@ -1267,33 +1273,34 @@ export default function DashboardPage() {
               {/* Prices */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-2 sm:mb-3">
-                    سعر المسوق (الأساسي)
-                  </label>
+                  <div className="flex items-center justify-between mb-2 sm:mb-3">
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300">
+                      سعر المسوق (الأساسي)
+                    </label>
+                    {quickEditData.isMinimumPriceMandatory && quickEditData.minimumSellingPrice > 0 && (
+                      <span className="text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 px-2 py-1 rounded-full">
+                        إلزامي
+                      </span>
+                    )}
+                  </div>
                   <input
                     type="number"
                     step="0.01"
                     min="0.01"
                     value={quickEditData.marketerPrice}
                     onChange={(e) => setQuickEditData({...quickEditData, marketerPrice: parseFloat(e.target.value) || 0})}
-                    className="input-field text-sm sm:text-base min-h-[44px]"
+                    className={`input-field text-sm sm:text-base min-h-[44px] ${
+                      quickEditData.isMinimumPriceMandatory && quickEditData.minimumSellingPrice > 0
+                        ? 'border-orange-500 dark:border-orange-500 focus:ring-orange-500 dark:focus:ring-orange-500 bg-orange-50 dark:bg-orange-900/20'
+                        : ''
+                    }`}
                     placeholder="0.00"
                   />
-                </div>
-                
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-2 sm:mb-3">
-                    سعر الجملة (للتجار)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    value={quickEditData.wholesalerPrice}
-                    onChange={(e) => setQuickEditData({...quickEditData, wholesalerPrice: parseFloat(e.target.value) || 0})}
-                    className="input-field text-sm sm:text-base min-h-[44px]"
-                    placeholder="0.00"
-                  />
+                  {quickEditData.isMinimumPriceMandatory && quickEditData.minimumSellingPrice > 0 && (
+                    <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                      السعر الأدنى: {quickEditData.minimumSellingPrice.toFixed(2)} ₪
+                    </p>
+                  )}
                 </div>
               </div>
 

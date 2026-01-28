@@ -166,6 +166,7 @@ export default function ProductsPage() {
   const [showApproveModal, setShowApproveModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showResubmitModal, setShowResubmitModal] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showQuickEditModal, setShowQuickEditModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -398,8 +399,13 @@ export default function ProductsPage() {
       if (response.ok) {
         toast.success('تم حذف المنتج بنجاح');
         refresh();
+      } else if (response.status === 403) {
+        // Access denied - supplier trying to delete another supplier's product
+        const error = await response.json().catch(() => ({}));
+        toast.error(error.message || 'غير مصرح لك بحذف هذا المنتج');
       } else {
-        toast.error('فشل في حذف المنتج');
+        const error = await response.json().catch(() => ({}));
+        toast.error(error.message || 'فشل في حذف المنتج');
       }
     } catch (error) {
       toast.error('حدث خطأ أثناء حذف المنتج');
@@ -437,12 +443,12 @@ export default function ProductsPage() {
       return;
     }
     
-    if (quickEditData.wholesalerPrice <= 0) {
+    if (quickEditData.wholesalerPrice && quickEditData.wholesalerPrice <= 0) {
       toast.error('سعر الجملة يجب أن يكون أكبر من 0');
       return;
     }
     
-    if (quickEditData.wholesalerPrice >= quickEditData.marketerPrice) {
+    if (quickEditData.wholesalerPrice && quickEditData.wholesalerPrice >= quickEditData.marketerPrice) {
       toast.error('سعر الجملة يجب أن يكون أقل من سعر المسوق');
       return;
     }
@@ -465,6 +471,12 @@ export default function ProductsPage() {
       if (response.ok) {
         toast.success('تم تحديث المنتج بنجاح');
         refresh();
+        setShowQuickEditModal(false);
+        setSelectedProduct(null);
+      } else if (response.status === 403) {
+        // Access denied - supplier trying to edit another supplier's product
+        const error = await response.json().catch(() => ({}));
+        toast.error(error.message || 'غير مصرح لك بتعديل هذا المنتج');
         setShowQuickEditModal(false);
         setSelectedProduct(null);
       } else {
@@ -664,6 +676,51 @@ export default function ProductsPage() {
     if (product) {
       setSelectedProduct(product);
       setShowResubmitModal(true);
+    }
+  };
+
+  const handleReviewProduct = async (productId: string) => {
+    const product = products.find(p => p._id === productId);
+    if (product) {
+      setSelectedProduct(product);
+      setShowReviewModal(true);
+    }
+  };
+
+  const confirmReview = async () => {
+    if (!selectedProduct) return;
+    
+    setProcessing(true);
+    try {
+      const response = await fetch(`/api/products/${selectedProduct._id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          isApproved: false,
+          isRejected: false,
+          approvedAt: undefined,
+          approvedBy: undefined,
+          rejectionReason: undefined,
+          rejectedAt: undefined,
+          rejectedBy: undefined
+        }),
+      });
+
+      if (response.ok) {
+        toast.success('تم إعادة المنتج لحالة المراجعة بنجاح');
+        refresh();
+      } else {
+        const error = await response.json();
+        toast.error(error.message || 'فشل في إعادة المنتج لحالة المراجعة');
+      }
+    } catch (error) {
+      toast.error('حدث خطأ أثناء إعادة المنتج لحالة المراجعة');
+    } finally {
+      setProcessing(false);
+      setShowReviewModal(false);
+      setSelectedProduct(null);
     }
   };
 
@@ -936,6 +993,8 @@ export default function ProductsPage() {
             products={products}
             onApprove={handleApproveProduct}
             onReject={handleRejectProduct}
+            onResubmit={handleResubmitProduct}
+            onReview={handleReviewProduct}
             viewMode={adminViewMode}
             onViewModeChange={setAdminViewMode}
           />
@@ -953,7 +1012,11 @@ export default function ProductsPage() {
             {products.map((product) => (
               <div 
                 key={product._id} 
-                className="card hover:shadow-medium transition-all duration-200 relative cursor-pointer active:scale-[0.98]"
+                className={`card hover:shadow-medium transition-all duration-200 relative cursor-pointer active:scale-[0.98] ${
+                  user?.role !== 'wholesaler' && product.isMinimumPriceMandatory && product.minimumSellingPrice
+                    ? 'ring-2 ring-orange-200 dark:ring-orange-800'
+                    : ''
+                }`}
                 onClick={() => router.push(`/dashboard/products/${product._id}`)}
               >
                 {/* Favorite button for marketers/wholesalers */}
@@ -1012,11 +1075,17 @@ export default function ProductsPage() {
 
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div className="flex-1 min-w-0">
-                      <p className="text-base sm:text-lg md:text-xl font-bold text-primary-600 dark:text-primary-400">
-                        {user?.role === 'wholesaler' ? product.wholesalerPrice : product.marketerPrice} ₪
-                      </p>
-                      {user?.role === 'marketer' && product.minimumSellingPrice && (
-                        <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mt-0.5 sm:mt-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className={`text-base sm:text-lg md:text-xl font-bold ${
+                          user?.role !== 'wholesaler' && product.isMinimumPriceMandatory && product.minimumSellingPrice
+                            ? 'text-orange-600 dark:text-orange-400'
+                            : 'text-primary-600 dark:text-primary-400'
+                        }`}>
+                          {user?.role === 'wholesaler' ? product.wholesalerPrice : product.marketerPrice} ₪
+                        </p>
+                      </div>
+                      {user?.role !== 'wholesaler' && product.minimumSellingPrice && (
+                        <p className="text-[10px] sm:text-xs mt-1 text-gray-500 dark:text-gray-400">
                           السعر الأدنى: {product.minimumSellingPrice} ₪
                         </p>
                       )}
@@ -1544,6 +1613,55 @@ export default function ProductsPage() {
         </div>
       )}
 
+      {/* Review Modal */}
+      {showReviewModal && selectedProduct && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-lg p-6 max-w-md w-full shadow-xl">
+            <div className="flex items-center mb-4">
+              <div className="bg-[#FF9800]/10 dark:bg-[#FF9800]/20 p-2 rounded-full mr-3">
+                <Clock className="w-6 h-6 text-[#FF9800] dark:text-[#FF9800]" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">إعادة النظر في المنتج</h3>
+            </div>
+            
+            <p className="text-gray-600 dark:text-slate-400 mb-6">
+              هل أنت متأكد من إعادة المنتج <strong className="text-gray-900 dark:text-slate-100">"{selectedProduct.name}"</strong> لحالة المراجعة؟
+              سيتم إلغاء حالة الموافقة وإرجاع المنتج لحالة المراجعة.
+            </p>
+            
+            <div className="flex justify-end space-x-3 space-x-reverse">
+              <button
+                onClick={() => {
+                  setShowReviewModal(false);
+                  setSelectedProduct(null);
+                }}
+                disabled={processing}
+                className="btn-secondary"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={confirmReview}
+                disabled={processing}
+                className="btn-warning flex items-center"
+              >
+                {processing ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white ml-2"></div>
+                    جاري المعالجة...
+                  </>
+                ) : (
+                  <>
+                    <Clock className="w-4 h-4 ml-2" />
+                    إعادة النظر
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Rejection Modal */}
       {showRejectModal && selectedProduct && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -1714,21 +1832,6 @@ export default function ProductsPage() {
                     min="0.01"
                     value={quickEditData.marketerPrice}
                     onChange={(e) => setQuickEditData({...quickEditData, marketerPrice: parseFloat(e.target.value) || 0})}
-                    className="input-field"
-                    placeholder="0.00"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                    سعر الجملة (للتجار)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    value={quickEditData.wholesalerPrice}
-                    onChange={(e) => setQuickEditData({...quickEditData, wholesalerPrice: parseFloat(e.target.value) || 0})}
                     className="input-field"
                     placeholder="0.00"
                   />

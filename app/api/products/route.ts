@@ -9,6 +9,7 @@ import { handleApiError, safeLogError } from '@/lib/error-handler';
 import { sanitizeString, sanitizeObject } from '@/lib/sanitize';
 import { productCache, generateCacheKey } from '@/lib/cache';
 import { logger } from '@/lib/logger';
+import { generateProductSKU, generateVariantOptionSKUs, isSKUUnique } from '@/lib/sku-generator';
 
 // Dynamic product schema based on system settings
 async function getProductSchema() {
@@ -43,7 +44,7 @@ async function getProductSchema() {
       .refine((val) => !val || val.length <= 2000, 'النص التسويقي لا يمكن أن يتجاوز 2000 حرف'),
     categoryId: z.string().optional().nullable(),
     marketerPrice: z.number().min(0.01, 'سعر المسوق يجب أن يكون أكبر من 0'),
-    wholesalerPrice: z.number().min(0.01, 'سعر الجملة يجب أن يكون أكبر من 0'),
+    wholesalerPrice: z.number().min(0.01, 'سعر الجملة يجب أن يكون أكبر من 0').nullish(),
     minimumSellingPrice: z.number().min(0.01, 'السعر الأدنى للبيع يجب أن يكون أكبر من 0').optional(),
     isMinimumPriceMandatory: z.boolean().default(false),
     stockQuantity: z.number().min(0, 'الكمية يجب أن تكون 0 أو أكثر'),
@@ -51,12 +52,6 @@ async function getProductSchema() {
       ? z.array(z.string()).min(1, 'يجب إضافة صورة واحدة على الأقل').max(maxProductImages, `لا يمكن إضافة أكثر من ${maxProductImages} صور`)
       : z.array(z.string()).max(maxProductImages, `لا يمكن إضافة أكثر من ${maxProductImages} صور`),
     sku: z.string().optional(),
-    weight: z.number().min(0).optional().nullable(),
-    dimensions: z.object({
-      length: z.number().min(0).optional().nullable(),
-      width: z.number().min(0).optional().nullable(),
-      height: z.number().min(0).optional().nullable()
-    }).optional().nullable(),
     tags: z.array(z.string()).optional(),
     specifications: z.record(z.any()).optional(),
     // Product variants
@@ -65,8 +60,15 @@ async function getProductSchema() {
       _id: z.string(),
       name: z.string(),
       values: z.array(z.string()),
+      valueDetails: z.array(z.object({
+        value: z.string(),
+        stockQuantity: z.number().optional(),
+        customPrice: z.number().optional()
+      })).optional(),
       isRequired: z.boolean().default(true),
-      order: z.number().default(0)
+      order: z.number().default(0),
+      stockQuantity: z.number().optional(),
+      customPrice: z.number().optional()
     })).optional(),
     variantOptions: z.array(z.object({
       variantId: z.string(),
@@ -426,7 +428,7 @@ async function getProducts(req: NextRequest, user: any) {
     // Fetch from database with optimized query
     // Use select to only get needed fields
     const products = await Product.find(query)
-      .select('name description images marketerPrice wholesalerPrice stockQuantity isActive isApproved isRejected rejectionReason adminNotes approvedAt approvedBy rejectedAt rejectedBy isFulfilled isLocked lockedAt lockedBy lockReason sku weight dimensions tags createdAt categoryId supplierId')
+      .select('name description images marketerPrice wholesalerPrice minimumSellingPrice isMinimumPriceMandatory stockQuantity isActive isApproved isRejected rejectionReason adminNotes approvedAt approvedBy rejectedAt rejectedBy isFulfilled isLocked lockedAt lockedBy lockReason sku weight dimensions tags createdAt categoryId supplierId')
       .populate('categoryId', 'name')
       .populate('supplierId', 'name companyName')
       .sort({ createdAt: -1 })
@@ -447,6 +449,8 @@ async function getProducts(req: NextRequest, user: any) {
         images: product.images,
         marketerPrice: product.marketerPrice,
         wholesalerPrice: product.wholesalerPrice,
+        minimumSellingPrice: product.minimumSellingPrice,
+        isMinimumPriceMandatory: product.isMinimumPriceMandatory,
         stockQuantity: product.stockQuantity,
         isActive: product.isActive,
         isApproved: product.isApproved,
@@ -543,18 +547,12 @@ async function createProduct(req: NextRequest, user: any) {
       description: body.description?.trim() || '',
       categoryId: body.categoryId && body.categoryId !== '' ? body.categoryId : null,
       marketerPrice: parseFloat(body.marketerPrice) || 0,
-      wholesalerPrice: parseFloat(body.wholesalerPrice) || 0,
+      wholesalerPrice: body.wholesalerPrice ? parseFloat(body.wholesalerPrice) : undefined,
       minimumSellingPrice: body.minimumSellingPrice && body.minimumSellingPrice > 0 ? parseFloat(body.minimumSellingPrice) : null,
       isMinimumPriceMandatory: body.isMinimumPriceMandatory || false,
       stockQuantity: parseInt(body.stockQuantity) || 0,
       images: Array.isArray(body.images) ? body.images : [],
       sku: body.sku?.trim() || '',
-      weight: body.weight ? parseFloat(body.weight) : null,
-      dimensions: body.dimensions ? {
-        length: body.dimensions.length ? parseFloat(body.dimensions.length) : null,
-        width: body.dimensions.width ? parseFloat(body.dimensions.width) : null,
-        height: body.dimensions.height ? parseFloat(body.dimensions.height) : null
-      } : null,
       tags: Array.isArray(body.tags) ? body.tags : [],
       specifications: body.specifications || {},
       // Product variants
@@ -563,8 +561,15 @@ async function createProduct(req: NextRequest, user: any) {
         _id: variant._id || crypto.randomUUID(),
         name: variant.name?.trim(),
         values: Array.isArray(variant.values) ? variant.values.map((val: string) => val.trim()) : [],
+        valueDetails: Array.isArray(variant.valueDetails) ? variant.valueDetails.map((vd: any) => ({
+          value: vd.value?.trim(),
+          stockQuantity: vd.stockQuantity !== undefined ? parseInt(vd.stockQuantity) : undefined,
+          customPrice: vd.customPrice !== undefined ? parseFloat(vd.customPrice) : undefined
+        })) : undefined,
         isRequired: variant.isRequired || true,
-        order: variant.order || 0
+        order: variant.order || 0,
+        stockQuantity: variant.stockQuantity !== undefined ? parseInt(variant.stockQuantity) : undefined,
+        customPrice: variant.customPrice !== undefined ? parseFloat(variant.customPrice) : undefined
       })) : [],
       variantOptions: Array.isArray(body.variantOptions) ? body.variantOptions.map((option: any) => ({
         variantId: option.variantId || crypto.randomUUID(),
@@ -579,7 +584,25 @@ async function createProduct(req: NextRequest, user: any) {
     
     // Validate input
     const productSchema = await getProductSchema();
-    const validatedData = productSchema.parse(cleanData);
+    let validatedData;
+    try {
+      validatedData = productSchema.parse(cleanData);
+    } catch (error: any) {
+      console.error('Zod validation error:', error.errors);
+      if (error.errors) {
+        const wholesalerPriceError = error.errors.find((e: any) => e.path.includes('wholesalerPrice'));
+        if (wholesalerPriceError) {
+          // If wholesalerPrice validation fails, remove it and try again
+          const cleanDataWithoutWholesaler = { ...cleanData };
+          delete cleanDataWithoutWholesaler.wholesalerPrice;
+          validatedData = productSchema.parse(cleanDataWithoutWholesaler);
+        } else {
+          throw error;
+        }
+      } else {
+        throw error;
+      }
+    }
     
     // Check if category exists (only if categoryId is provided)
     if (validatedData.categoryId) {
@@ -593,7 +616,7 @@ async function createProduct(req: NextRequest, user: any) {
     }
     
     // Validate pricing logic
-    if (validatedData.wholesalerPrice >= validatedData.marketerPrice) {
+    if (validatedData.wholesalerPrice && validatedData.wholesalerPrice >= validatedData.marketerPrice) {
       return NextResponse.json(
         { success: false, message: 'سعر المسوق يجب أن يكون أكبر من سعر الجملة' },
         { status: 400 }
@@ -607,33 +630,73 @@ async function createProduct(req: NextRequest, user: any) {
       );
     }
     
+    // Generate SKU for product if not provided
+    let productSKU = validatedData.sku?.trim() || '';
+    if (!productSKU) {
+      productSKU = await generateProductSKU();
+      logger.debug('Auto-generated product SKU', { productSKU });
+    } else {
+      // Validate provided SKU is unique
+      const skuIsUnique = await isSKUUnique(productSKU);
+      if (!skuIsUnique) {
+        return NextResponse.json(
+          { success: false, message: 'رمز SKU المحدد مستخدم بالفعل. يرجى اختيار رمز آخر أو ترك الحقل فارغاً لتوليد تلقائي' },
+          { status: 400 }
+        );
+      }
+    }
+    
+    // Generate SKUs for variant options if product has variants
+    let variantOptionsWithSKU = validatedData.variantOptions || [];
+    if (validatedData.hasVariants && variantOptionsWithSKU.length > 0) {
+      const skuMap = await generateVariantOptionSKUs(productSKU, variantOptionsWithSKU);
+      
+      // Map SKUs to variant options
+      variantOptionsWithSKU = variantOptionsWithSKU.map(option => {
+        const skuEntry = skuMap.find(s => s.variantId === option.variantId);
+        return {
+          ...option,
+          sku: skuEntry?.sku || option.sku || ''
+        };
+      });
+      
+      logger.debug('Auto-generated variant option SKUs', { 
+        productSKU, 
+        variantOptionsCount: variantOptionsWithSKU.length 
+      });
+    }
+    
     // Create product data
-    const productData = {
+    const productData: any = {
       name: validatedData.name,
       description: validatedData.description,
       marketingText: validatedData.marketingText,
       categoryId: validatedData.categoryId,
       supplierId: user.role === 'supplier' ? user._id : (body.supplierId || user._id), // Admin can create for themselves or specify supplier
       marketerPrice: validatedData.marketerPrice,
-      wholesalerPrice: validatedData.wholesalerPrice,
       minimumSellingPrice: validatedData.minimumSellingPrice,
       isMinimumPriceMandatory: validatedData.isMinimumPriceMandatory,
+      // stockQuantity: If hasVariants=true, this should be the sum of all variant option stock quantities
+      // If hasVariants=false, this is the main stock quantity field value
       stockQuantity: validatedData.stockQuantity,
       images: validatedData.images,
-      sku: validatedData.sku || '',
-      weight: validatedData.weight,
-      dimensions: validatedData.dimensions,
+      sku: productSKU,
       tags: validatedData.tags || [],
       specifications: validatedData.specifications || {},
       // Product variants
       hasVariants: validatedData.hasVariants,
       variants: validatedData.variants || [],
-      variantOptions: validatedData.variantOptions || [],
+      variantOptions: variantOptionsWithSKU,
       isApproved: user.role === 'admin' ? true : (currentSettings.autoApproveProducts || false),
       isActive: true,
       isFulfilled: false,
       isLocked: false // New field
     };
+    
+    // Only include wholesalerPrice if it's provided
+    if (validatedData.wholesalerPrice !== undefined && validatedData.wholesalerPrice !== null) {
+      productData.wholesalerPrice = validatedData.wholesalerPrice;
+    }
     
     logger.debug('Final product data prepared', {
       productName: productData.name,

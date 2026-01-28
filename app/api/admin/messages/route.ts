@@ -7,6 +7,8 @@ import User from '@/models/User'; // Import User model for population
 import { logger } from '@/lib/logger';
 import { handleApiError } from '@/lib/error-handler';
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/admin/messages - Get all messages with filtering
 async function getMessages(req: NextRequest, user: any) {
   try {

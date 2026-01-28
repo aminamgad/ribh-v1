@@ -97,12 +97,21 @@ export interface Category {
   updatedAt: Date;
 }
 
+export interface ProductVariantValue {
+  value: string;
+  stockQuantity?: number; // الكمية المتوفرة لهذه القيمة
+  customPrice?: number; // السعر المخصص لهذه القيمة
+}
+
 export interface ProductVariant {
   _id: string;
   name: string; // e.g., "Color", "Size", "Material"
-  values: string[]; // e.g., ["Red", "Blue", "Green"] or ["S", "M", "L", "XL"]
+  values: string[]; // e.g., ["Red", "Blue", "Green"] or ["S", "M", "L", "XL"] - kept for backward compatibility
+  valueDetails?: ProductVariantValue[]; // تفاصيل كل قيمة مع السعر والكمية
   isRequired: boolean;
   order: number;
+  stockQuantity?: number; // الكمية المتوفرة للمتغير (legacy - للتوافق مع الإصدارات السابقة)
+  customPrice?: number; // السعر المخصص للمتغير (legacy - للتوافق مع الإصدارات السابقة)
 }
 
 export interface ProductVariantOption {

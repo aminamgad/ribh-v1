@@ -379,18 +379,37 @@ export default function CartPage() {
                   {/* Price and Total */}
                   <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-3 sm:gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-200 dark:border-slate-700">
                     <div className="flex items-center space-x-2 space-x-reverse">
-                      <Input
-                        type="number"
-                        value={marketerPrices[item.product._id] ?? item.price}
-                        onChange={(e) => handlePriceChange(item.product._id, parseFloat(e.target.value) || 0)}
-                        className="w-20 sm:w-24 text-sm sm:text-base min-h-[44px]"
-                        min={item.product.minimumSellingPrice || 0}
-                      />
-                      <span className="text-sm sm:text-base text-gray-500 dark:text-slate-400">₪</span>
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          value={marketerPrices[item.product._id] ?? item.price}
+                          onChange={(e) => handlePriceChange(item.product._id, parseFloat(e.target.value) || 0)}
+                          className={`w-20 sm:w-24 text-sm sm:text-base min-h-[44px] ${
+                            item.product.isMinimumPriceMandatory && item.product.minimumSellingPrice
+                              ? 'border-orange-500 dark:border-orange-500 focus:ring-orange-500 dark:focus:ring-orange-500 bg-orange-50 dark:bg-orange-900/20'
+                              : ''
+                          }`}
+                          min={item.product.minimumSellingPrice || 0}
+                        />
+                        {item.product.isMinimumPriceMandatory && item.product.minimumSellingPrice && (
+                          <span className="absolute -top-2 -right-2 text-xs bg-orange-100 dark:bg-orange-900/50 text-orange-700 dark:text-orange-300 px-1.5 py-0.5 rounded-full border border-orange-300 dark:border-orange-700">
+                            إلزامي
+                          </span>
+                        )}
+                      </div>
+                      <span className={`text-sm sm:text-base font-medium ${
+                        item.product.isMinimumPriceMandatory && item.product.minimumSellingPrice
+                          ? 'text-orange-600 dark:text-orange-400'
+                          : 'text-gray-500 dark:text-slate-400'
+                      }`}>₪</span>
                     </div>
                     <div className="text-left sm:text-right">
                       <p className="text-xs sm:text-sm text-gray-500 dark:text-slate-400 mb-0.5">المجموع:</p>
-                      <p className="text-sm sm:text-base font-semibold text-gray-900 dark:text-slate-100">
+                      <p className={`text-sm sm:text-base font-semibold ${
+                        item.product.isMinimumPriceMandatory && item.product.minimumSellingPrice
+                          ? 'text-orange-600 dark:text-orange-400'
+                          : 'text-gray-900 dark:text-slate-100'
+                      }`}>
                         {(marketerPrices[item.product._id] ?? item.price) * item.quantity}₪
                       </p>
                     </div>

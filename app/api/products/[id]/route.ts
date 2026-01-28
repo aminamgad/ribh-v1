@@ -48,13 +48,26 @@ async function getProduct(req: NextRequest, user: any, ...args: unknown[]) {
     }
 
     // Role-based access control - Only suppliers are restricted to their own products
-    logger.debug('Access control check', {
-      userRole: user.role,
-      userId: user._id.toString(),
-      productSupplierId: product.supplierId._id.toString()
-    });
+    // Safely extract supplierId - handle both populated and non-populated cases
+    let actualSupplierId: any = null;
+    if (product.supplierId) {
+      // Check if supplierId is populated (object with _id) or just an ID
+      if (typeof product.supplierId === 'object' && product.supplierId !== null) {
+        actualSupplierId = product.supplierId._id || product.supplierId;
+      } else {
+        actualSupplierId = product.supplierId;
+      }
+    }
     
-    if (user.role === 'supplier' && product.supplierId._id.toString() !== user._id.toString()) {
+    if (actualSupplierId) {
+      logger.debug('Access control check', {
+        userRole: user.role,
+        userId: user._id.toString(),
+        productSupplierId: actualSupplierId.toString()
+      });
+    }
+    
+    if (user.role === 'supplier' && actualSupplierId && actualSupplierId.toString() !== user._id.toString()) {
       return NextResponse.json(
         { success: false, message: 'غير مصرح لك بالوصول لهذا المنتج' },
         { status: 403 }
@@ -171,7 +184,7 @@ async function updateProduct(req: NextRequest, user: any, ...args: unknown[]) {
     const allowedUpdates = [
       'name', 'description', 'marketingText', 'images', 'categoryId',
       'marketerPrice', 'wholesalerPrice', 'minimumSellingPrice', 'isMinimumPriceMandatory', 'stockQuantity',
-      'isActive', 'tags', 'specifications', 'sku', 'weight', 'dimensions',
+      'isActive', 'tags', 'specifications', 'sku',
       // Product variants
       'hasVariants', 'variants', 'variantOptions'
     ];
@@ -188,6 +201,14 @@ async function updateProduct(req: NextRequest, user: any, ...args: unknown[]) {
     
     const updateData: any = {};
     
+    // Prevent suppliers from changing supplierId
+    if (user.role === 'supplier' && body.supplierId !== undefined) {
+      return NextResponse.json(
+        { success: false, message: 'غير مصرح لك بتغيير مورد المنتج' },
+        { status: 403 }
+      );
+    }
+    
     // Only update allowed fields
     for (const field of allowedUpdates) {
       if (body[field] !== undefined) {
@@ -198,6 +219,11 @@ async function updateProduct(req: NextRequest, user: any, ...args: unknown[]) {
           updateData[field] = body[field];
         }
       }
+    }
+    
+    // Only admin can change supplierId
+    if (user.role === 'admin' && body.supplierId !== undefined) {
+      updateData.supplierId = body.supplierId;
     }
 
     // Update product

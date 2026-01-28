@@ -3,6 +3,8 @@ import { withRole } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import Order from '@/models/Order';
 import Wallet from '@/models/Wallet';
+
+export const dynamic = 'force-dynamic';
 import SystemSettings from '@/models/SystemSettings';
 import { logger } from '@/lib/logger';
 import { handleApiError } from '@/lib/error-handler';

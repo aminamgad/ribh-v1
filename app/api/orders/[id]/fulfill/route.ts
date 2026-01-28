@@ -4,6 +4,7 @@ import connectDB from '@/lib/database';
 import Order from '@/models/Order';
 import Product from '@/models/Product';
 import Wallet from '@/models/Wallet';
+import ExternalCompany from '@/models/ExternalCompany';
 import { logger } from '@/lib/logger';
 import { handleApiError } from '@/lib/error-handler';
 import { distributeOrderProfits, reverseOrderProfits } from '@/lib/wallet-helpers';
@@ -78,39 +79,134 @@ export const POST = withAuth(async (req: NextRequest, user: any, ...args: unknow
         break;
 
       case 'ship':
-        newStatus = 'shipped';
-        updateData = {
-          status: newStatus,
-          shippedAt: new Date(),
-          shippedBy: user._id,
-          shippingCompany,
-          updatedAt: new Date()
-        };
-        
         // IMPORTANT: Update shippingCompany in order object BEFORE creating package
         // This ensures createPackageFromOrder can find the correct shipping company
         if (shippingCompany) {
           order.shippingCompany = shippingCompany;
+          // Save shippingCompany to database first
+          await Order.findByIdAndUpdate(order._id, {
+            shippingCompany: shippingCompany
+          });
         }
         
-        // Ensure package exists before shipping
+        // Ensure package exists and is successfully sent to shipping company before marking as shipped
+        let packageResult = null;
         if (!order.packageId) {
           try {
             const { createPackageFromOrder } = await import('@/lib/order-to-package');
-            const packageId = await createPackageFromOrder(order._id.toString());
-            if (packageId) {
-              updateData.packageId = packageId;
-              logger.info('Package created automatically before shipping order', {
+            packageResult = await createPackageFromOrder(order._id.toString());
+            
+            if (packageResult && packageResult.packageId) {
+              // Check if package was successfully sent to shipping company API
+              if (!packageResult.apiSuccess) {
+                // Package created but failed to send to shipping company
+                logger.warn('⚠️ Cannot mark order as shipped - package failed to send to shipping company', {
+                  orderId: order._id.toString(),
+                  orderNumber: order.orderNumber,
+                  packageId: packageResult.packageId,
+                  error: packageResult.error
+                });
+                
+                return NextResponse.json({
+                  success: false,
+                  error: packageResult.error || 'فشل إرسال الطرد إلى شركة الشحن. يرجى المحاولة مرة أخرى.',
+                  packageId: packageResult.packageId,
+                  apiSuccess: false
+                }, { status: 400 });
+              }
+              
+              // Package successfully sent to shipping company
+              newStatus = 'shipped';
+              updateData = {
+                status: newStatus,
+                shippedAt: new Date(),
+                shippedBy: user._id,
+                shippingCompany,
+                packageId: packageResult.packageId,
+                updatedAt: new Date()
+              };
+              
+              logger.info('✅ Package created and sent successfully - marking order as shipped', {
                 orderId: order._id.toString(),
                 orderNumber: order.orderNumber,
-                packageId: packageId
+                packageId: packageResult.packageId
               });
+            } else {
+              // Failed to create package
+              logger.error('❌ Cannot mark order as shipped - failed to create package', {
+                orderId: order._id.toString(),
+                orderNumber: order.orderNumber
+              });
+              
+              return NextResponse.json({
+                success: false,
+                error: 'فشل إنشاء الطرد. يرجى التحقق من بيانات الطلب وإعادة المحاولة.'
+              }, { status: 400 });
             }
           } catch (error) {
             logger.error('Error creating package before shipping order', error, {
               orderId: order._id.toString()
             });
-            // Continue with shipping even if package creation fails
+            
+            return NextResponse.json({
+              success: false,
+              error: 'حدث خطأ أثناء إنشاء الطرد. يرجى المحاولة مرة أخرى.'
+            }, { status: 500 });
+          }
+        } else {
+          // Package already exists - check if it was successfully sent to shipping company
+          const Package = (await import('@/models/Package')).default;
+          const existingPackage = await Package.findOne({ orderId: order._id }).lean() as any;
+          
+          // Get external company to check if API is configured
+          let externalCompany = null;
+          if (shippingCompany) {
+            externalCompany = await ExternalCompany.findOne({ 
+              companyName: shippingCompany,
+              isActive: true 
+            }).lean() as any;
+          }
+          
+          if (existingPackage) {
+            // Check package status - if it's 'confirmed', it was successfully sent to API
+            // If it's 'pending', it means API call failed
+            if (existingPackage.status === 'pending' && externalCompany?.apiEndpointUrl) {
+              // Package exists but wasn't sent to shipping company
+              logger.warn('⚠️ Cannot mark order as shipped - package exists but was not sent to shipping company', {
+                orderId: order._id.toString(),
+                orderNumber: order.orderNumber,
+                packageId: existingPackage.packageId,
+                packageStatus: existingPackage.status
+              });
+              
+              return NextResponse.json({
+                success: false,
+                error: 'الطرد موجود لكن لم يتم إرساله إلى شركة الشحن. يرجى استخدام زر "إعادة إرسال الطرد".',
+                packageId: existingPackage.packageId,
+                apiSuccess: false
+              }, { status: 400 });
+            }
+            
+            // Package was successfully sent (status is 'confirmed' or no API configured)
+            newStatus = 'shipped';
+            updateData = {
+              status: newStatus,
+              shippedAt: new Date(),
+              shippedBy: user._id,
+              shippingCompany,
+              updatedAt: new Date()
+            };
+          } else {
+            // Package ID exists but package document not found - this shouldn't happen
+            logger.error('❌ Package ID exists but package document not found', {
+              orderId: order._id.toString(),
+              packageId: order.packageId
+            });
+            
+            return NextResponse.json({
+              success: false,
+              error: 'خطأ في بيانات الطرد. يرجى المحاولة مرة أخرى.'
+            }, { status: 500 });
           }
         }
         break;

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, memo } from 'react';
-import { Eye, Edit, BarChart3, CheckCircle, XCircle, LayoutGrid, List } from 'lucide-react';
+import { Eye, Edit, BarChart3, CheckCircle, XCircle, LayoutGrid, List, RotateCw, Clock } from 'lucide-react';
 import Link from 'next/link';
 import MediaThumbnail from '@/components/ui/MediaThumbnail';
 import { Package } from 'lucide-react';
@@ -12,8 +12,10 @@ interface Product {
   name: string;
   description: string;
   images: string[];
-  marketerPrice: number;
-  wholesalerPrice: number;
+  marketerPrice: number | undefined;
+  wholesalerPrice: number | undefined;
+  minimumSellingPrice?: number;
+  isMinimumPriceMandatory?: boolean;
   stockQuantity: number;
   isActive: boolean;
   isApproved: boolean;
@@ -21,12 +23,15 @@ interface Product {
   supplierName?: string;
   categoryName?: string;
   isLocked?: boolean;
+  hasVariants?: boolean;
 }
 
 interface AdminProductsTableViewProps {
   products: Product[];
   onApprove?: (productId: string) => void;
   onReject?: (productId: string) => void;
+  onResubmit?: (productId: string) => void;
+  onReview?: (productId: string) => void;
   viewMode?: 'list' | 'grid';
   onViewModeChange?: (mode: 'list' | 'grid') => void;
 }
@@ -35,6 +40,8 @@ const AdminProductsTableView = memo(function AdminProductsTableView({
   products,
   onApprove,
   onReject,
+  onResubmit,
+  onReview,
   viewMode = 'list',
   onViewModeChange
 }: AdminProductsTableViewProps) {
@@ -79,17 +86,20 @@ const AdminProductsTableView = memo(function AdminProductsTableView({
   }, [products, viewMode]);
   
   // Calculate profits
-  const calculateMarketerProfit = (marketerPrice: number, wholesalerPrice: number) => {
-    return marketerPrice - wholesalerPrice;
+  const calculateMarketerProfit = (marketerPrice: number | undefined, wholesalerPrice: number | undefined) => {
+    const marketer = marketerPrice ?? 0;
+    const wholesaler = wholesalerPrice ?? 0;
+    return marketer - wholesaler;
   };
 
-  const calculateAdminProfit = (marketerPrice: number, wholesalerPrice: number) => {
+  const calculateAdminProfit = (marketerPrice: number | undefined, wholesalerPrice: number | undefined) => {
     // Admin profit calculation: typically a percentage of marketer price
     // Based on SystemSettings.adminProfitMargins (default: 5% if not configured)
     // For display purposes, we'll use a simple calculation: 5% of marketer price
     // In production, this should fetch from settings
     const adminMarginPercent = 5; // Default margin, should be fetched from settings
-    return (marketerPrice * adminMarginPercent) / 100;
+    const marketer = marketerPrice ?? 0;
+    return (marketer * adminMarginPercent) / 100;
   };
 
   const getStatusBadge = (product: Product) => {
@@ -184,12 +194,27 @@ const AdminProductsTableView = memo(function AdminProductsTableView({
                     </div>
                     <div>
                       <span className="text-gray-600 dark:text-slate-400">سعر المورد: </span>
-                      <span className="font-medium">{product.wholesalerPrice} ₪</span>
+                      <span className="font-medium">{(product.wholesalerPrice ?? 0).toFixed(2)} ₪</span>
                     </div>
-                    <div>
+                    <div className="p-2">
                       <span className="text-gray-600 dark:text-slate-400">سعر المسوق: </span>
-                      <span className="font-bold text-lg">{product.marketerPrice} ₪</span>
-                      <div className="text-xs text-blue-600 dark:text-blue-400 font-semibold mt-1">
+                      <span className={`font-bold text-lg ${
+                        product.isMinimumPriceMandatory && product.minimumSellingPrice
+                          ? 'text-orange-600 dark:text-orange-400'
+                          : 'text-gray-900 dark:text-slate-100'
+                      }`}>
+                        {(product.marketerPrice ?? 0).toFixed(2)} ₪
+                      </span>
+                      {product.minimumSellingPrice && (
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          السعر الأدنى: {(product.minimumSellingPrice ?? 0).toFixed(2)} ₪
+                        </div>
+                      )}
+                      <div className={`text-xs font-semibold mt-1 ${
+                        product.isMinimumPriceMandatory && product.minimumSellingPrice
+                          ? 'text-blue-600 dark:text-blue-400'
+                          : 'text-blue-600 dark:text-blue-400'
+                      }`}>
                         ربح المسوق: {marketerProfit.toFixed(2)} ₪
                       </div>
                     </div>
@@ -241,6 +266,24 @@ const AdminProductsTableView = memo(function AdminProductsTableView({
                           title="رفض"
                         >
                           <XCircle className="w-4 h-4" />
+                        </button>
+                      )}
+                      {product.isApproved && onReview && (
+                        <button
+                          onClick={() => onReview(product._id)}
+                          className="text-[#FF9800] dark:text-[#FF9800] hover:text-[#F57C00] dark:hover:text-[#F57C00]"
+                          title="إعادة النظر"
+                        >
+                          <Clock className="w-4 h-4" />
+                        </button>
+                      )}
+                      {(product.isRejected ?? false) && onResubmit && (
+                        <button
+                          onClick={() => onResubmit(product._id)}
+                          className="text-[#FF9800] dark:text-[#FF9800] hover:text-[#F57C00] dark:hover:text-[#F57C00]"
+                          title="إعادة تقديم"
+                        >
+                          <RotateCw className="w-4 h-4" />
                         </button>
                       )}
                     </div>
@@ -371,16 +414,29 @@ const AdminProductsTableView = memo(function AdminProductsTableView({
                     {/* Supplier Price */}
                     <td className="px-4 py-3 whitespace-nowrap border-r border-gray-200 dark:border-slate-700">
                       <div className="text-sm font-medium text-gray-900 dark:text-slate-100">
-                        {product.wholesalerPrice.toFixed(2)} ₪
+                        {(product.wholesalerPrice ?? 0).toFixed(2)} ₪
                       </div>
                     </td>
 
                     {/* Marketer Price with Profit */}
                     <td className="px-4 py-3 whitespace-nowrap border-r border-gray-200 dark:border-slate-700">
-                      <div className="text-sm font-bold text-gray-900 dark:text-slate-100">
-                        {product.marketerPrice.toFixed(2)} ₪
+                      <div className={`text-sm font-bold ${
+                        product.isMinimumPriceMandatory && product.minimumSellingPrice
+                          ? 'text-orange-600 dark:text-orange-400'
+                          : 'text-gray-900 dark:text-slate-100'
+                      }`}>
+                        {(product.marketerPrice ?? 0).toFixed(2)} ₪
                       </div>
-                      <div className="text-xs text-blue-700 dark:text-blue-300 font-semibold mt-1 pt-1 border-t-2 border-blue-300 dark:border-blue-600">
+                      {product.minimumSellingPrice && (
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          السعر الأدنى: {(product.minimumSellingPrice ?? 0).toFixed(2)} ₪
+                        </div>
+                      )}
+                      <div className={`text-xs font-semibold mt-1 pt-1 border-t-2 ${
+                        product.isMinimumPriceMandatory && product.minimumSellingPrice
+                          ? 'text-blue-600 dark:text-blue-400 border-blue-400 dark:border-blue-600'
+                          : 'text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-600'
+                      }`}>
                         ربح المسوق: {marketerProfit.toFixed(2)} ₪
                       </div>
                     </td>
@@ -432,6 +488,24 @@ const AdminProductsTableView = memo(function AdminProductsTableView({
                             title="رفض"
                           >
                             <XCircle className="w-4 h-4" />
+                          </button>
+                        )}
+                        {product.isApproved && onReview && (
+                          <button
+                            onClick={() => onReview(product._id)}
+                            className="text-[#FF9800] dark:text-[#FF9800] hover:text-[#F57C00] dark:hover:text-[#F57C00]"
+                            title="إعادة النظر"
+                          >
+                            <Clock className="w-4 h-4" />
+                          </button>
+                        )}
+                        {(product.isRejected ?? false) && onResubmit && (
+                          <button
+                            onClick={() => onResubmit(product._id)}
+                            className="text-[#FF9800] dark:text-[#FF9800] hover:text-[#F57C00] dark:hover:text-[#F57C00]"
+                            title="إعادة تقديم"
+                          >
+                            <RotateCw className="w-4 h-4" />
                           </button>
                         )}
                       </div>

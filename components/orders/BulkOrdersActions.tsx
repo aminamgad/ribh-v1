@@ -10,7 +10,8 @@ import {
   RotateCcw,
   XCircle,
   AlertCircle,
-  Save
+  Save,
+  Search
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -69,6 +70,8 @@ export default function BulkOrdersActions({
   const [filteredVillages, setFilteredVillages] = useState<Array<{villageId: number; villageName: string}>>([]); // FIXED: Add filteredVillages like individual order
   const [companyCities, setCompanyCities] = useState<Record<string, string[]>>({}); // Map company ID to cities
   const [loadingVillages, setLoadingVillages] = useState(false); // Loading state for villages
+  const [villageSearchQuery, setVillageSearchQuery] = useState<string>(''); // Search query for villages
+  const [selectedVillageIndex, setSelectedVillageIndex] = useState<number>(-1); // Selected village index for keyboard navigation
   
   // Cancel/Return modal state
   const [reason, setReason] = useState('');
@@ -77,6 +80,9 @@ export default function BulkOrdersActions({
   // Fetch shipping companies and villages when ship modal opens
   useEffect(() => {
     if (showBulkModal && (selectedAction === 'ship' || selectedAction === 'update-shipping')) {
+      // Set default shipping company to UltraPal for bulk shipping
+      setShippingCompany('UltraPal');
+      
       fetchShippingCompanies().then((loadedCompanies) => {
         const selectedOrders = orders.filter(o => selectedOrderIds.includes(o._id));
         
@@ -85,19 +91,20 @@ export default function BulkOrdersActions({
         selectedOrders.forEach(order => {
           if (order.shippingCompany) {
             initialCompany[order._id] = order.shippingCompany;
+          } else {
+            // Default to UltraPal if no company is set
+            initialCompany[order._id] = 'UltraPal';
           }
         });
         
-        // If no existing companies found and only one company exists, use it
-        if (Object.keys(initialCompany).length === 0 && loadedCompanies.length === 1) {
+        // If no existing companies found, default to UltraPal
+        if (Object.keys(initialCompany).length === 0) {
           selectedOrderIds.forEach(id => {
-            initialCompany[id] = loadedCompanies[0].companyName;
+            initialCompany[id] = 'UltraPal';
           });
         }
         
-        if (Object.keys(initialCompany).length > 0) {
-          setShipMultipleCompany(initialCompany);
-        }
+        setShipMultipleCompany(initialCompany);
       });
       fetchVillages();
       
@@ -201,11 +208,70 @@ export default function BulkOrdersActions({
     }
   };
   
+  // Normalize text for search (remove diacritics, normalize Arabic characters)
+  const normalizeText = (text: string): string => {
+    return text
+      .replace(/[أإآ]/g, 'ا')
+      .replace(/[ى]/g, 'ي')
+      .replace(/[ة]/g, 'ه')
+      .replace(/[ئ]/g, 'ي')
+      .replace(/[ؤ]/g, 'و')
+      .toLowerCase()
+      .trim();
+  };
+
+  // Smart village search function
+  const searchVillages = (query: string, villagesList: typeof villages): typeof villages => {
+    if (!query || query.trim() === '') {
+      return villagesList;
+    }
+
+    const normalizedQuery = normalizeText(query.trim());
+    
+    return villagesList.filter((village) => {
+      const villageName = village.villageName || '';
+      const villageId = village.villageId?.toString() || '';
+      
+      // Normalize village name
+      const normalizedName = normalizeText(villageName);
+      
+      // Check multiple search criteria:
+      // 1. Exact match in village name
+      // 2. Partial match in village name
+      // 3. ID match
+      // 4. Match in governorate (if village name contains " - ")
+      const nameMatch = normalizedName.includes(normalizedQuery);
+      const idMatch = villageId.includes(normalizedQuery);
+      
+      // Extract governorate if format is "المحافظة - اسم القرية"
+      const parts = villageName.split(' - ');
+      const governorateMatch = parts.length > 1 ? normalizeText(parts[0]).includes(normalizedQuery) : false;
+      const villageOnlyMatch = parts.length > 1 ? normalizeText(parts[1]).includes(normalizedQuery) : false;
+      
+      return nameMatch || idMatch || governorateMatch || villageOnlyMatch;
+    }).sort((a, b) => {
+      // Sort by relevance: exact matches first, then partial matches
+      const aName = normalizeText(a.villageName || '');
+      const bName = normalizeText(b.villageName || '');
+      const aStartsWith = aName.startsWith(normalizedQuery);
+      const bStartsWith = bName.startsWith(normalizedQuery);
+      
+      if (aStartsWith && !bStartsWith) return -1;
+      if (!aStartsWith && bStartsWith) return 1;
+      
+      // Then sort by exact match position
+      const aIndex = aName.indexOf(normalizedQuery);
+      const bIndex = bName.indexOf(normalizedQuery);
+      if (aIndex !== bIndex) return aIndex - bIndex;
+      
+      return 0;
+    });
+  };
+
   // FIXED: Filter villages based on company (same as individual order)
   const filterVillagesForCompany = (company: typeof shippingCompanies[0]) => {
     if (!company || villages.length === 0) {
-      setFilteredVillages(villages);
-      return;
+      return villages;
     }
     
     // If company has no specific cities/regions, show all villages
@@ -213,31 +279,42 @@ export default function BulkOrdersActions({
     const hasRegions = company.shippingRegions && company.shippingRegions.length > 0;
     
     if (!hasCities && !hasRegions) {
-      setFilteredVillages(villages);
-      return;
+      return villages;
     }
     
     // Filter villages based on company's supported cities/regions
     // For now, show all villages since UltraPal supports all villages
     // This can be enhanced later if companies have specific village restrictions
-    setFilteredVillages(villages);
+    return villages;
   };
   
-  // FIXED: Update filtered villages when company or villages change (same as individual order)
+  // FIXED: Update filtered villages when company, villages, or search query change (same as individual order)
   useEffect(() => {
-    if (villages.length > 0) {
-      if (shippingCompany && shippingCompanies.length > 0) {
-        const selectedCompany = shippingCompanies.find(c => c.companyName === shippingCompany);
-        if (selectedCompany) {
-          filterVillagesForCompany(selectedCompany);
-        } else {
-          setFilteredVillages(villages);
-        }
+    if (villages.length === 0) return;
+    
+    let baseFiltered: typeof villages = [];
+    
+    // First apply company filter
+    if (shippingCompany && shippingCompanies.length > 0) {
+      const selectedCompany = shippingCompanies.find(c => c.companyName === shippingCompany);
+      if (selectedCompany) {
+        baseFiltered = filterVillagesForCompany(selectedCompany);
       } else {
-        setFilteredVillages(villages);
+        baseFiltered = villages;
       }
+    } else {
+      baseFiltered = villages;
     }
-  }, [villages, shippingCompany, shippingCompanies]);
+    
+    // Then apply search filter - Real-time
+    if (villageSearchQuery.trim()) {
+      const searchResults = searchVillages(villageSearchQuery, baseFiltered);
+      setFilteredVillages(searchResults);
+    } else {
+      setFilteredVillages(baseFiltered);
+    }
+  }, [villageSearchQuery, villages, shippingCompany, shippingCompanies]);
+
 
   const selectedCount = selectedOrderIds.length;
   const allSelected = selectedCount === orders.length && orders.length > 0;
@@ -493,7 +570,22 @@ export default function BulkOrdersActions({
             }
             
             const shipData = await shipResponse.json();
+            
+            // Check if order was successfully shipped (apiSuccess field indicates if package was sent to shipping company)
+            const apiSuccess = shipData.apiSuccess !== false; // Default to true if not specified (for backward compatibility)
             const packageId = shipData.order?.packageId;
+            
+            if (!apiSuccess) {
+              // Package was created but failed to send to shipping company
+              const errorMessage = shipData.error || 'فشل إرسال الطرد إلى شركة الشحن';
+              throw new Error(`${errorMessage} - الطلب ${order.orderNumber}${packageId ? ` (رقم الطرد: ${packageId})` : ''}`);
+            }
+            
+            // Check if response indicates failure
+            if (!shipData.success) {
+              const errorMessage = shipData.error || 'فشل شحن الطلب';
+              throw new Error(`${errorMessage} - الطلب ${order.orderNumber}`);
+            }
             
             // Check package status (same as individual order)
             let packageStatus: string | null = null;
@@ -1122,6 +1214,130 @@ export default function BulkOrdersActions({
                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">
                       بيانات الشحن لكل طلب <span className="text-red-500">*</span>
                     </label>
+                    
+                    {/* Village Search Field */}
+                    {!loadingVillages && villages.length > 0 && (
+                      <div className="mb-4">
+                        <div className="relative">
+                          <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                            <Search className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                          </div>
+                          <input
+                            type="text"
+                            value={villageSearchQuery}
+                            onChange={(e) => {
+                              setVillageSearchQuery(e.target.value);
+                              setSelectedVillageIndex(-1); // Reset selection when typing
+                            }}
+                            onKeyDown={(e) => {
+                              // Escape: Clear search
+                              if (e.key === 'Escape') {
+                                setVillageSearchQuery('');
+                                setSelectedVillageIndex(-1);
+                                e.preventDefault();
+                              }
+                              // Enter: Select first result if only one, or selected one
+                              else if (e.key === 'Enter' && filteredVillages.length > 0) {
+                                e.preventDefault();
+                                const indexToSelect = selectedVillageIndex >= 0 ? selectedVillageIndex : 0;
+                                if (filteredVillages[indexToSelect]) {
+                                  const village = filteredVillages[indexToSelect];
+                                  // Apply to all orders that don't have a village selected
+                                  const selectedOrders = orders.filter(o => selectedOrderIds.includes(o._id));
+                                  const ordersWithoutVillage = selectedOrders.filter(o => 
+                                    !shipMultipleVillageId[o._id] && !o.shippingAddress?.villageId
+                                  );
+                                  
+                                  if (ordersWithoutVillage.length > 0) {
+                                    const updates: Record<string, number | null> = {};
+                                    const cityUpdates: Record<string, string> = {};
+                                    ordersWithoutVillage.forEach(o => {
+                                      updates[o._id] = village.villageId;
+                                      cityUpdates[o._id] = village.villageName;
+                                    });
+                                    setShipMultipleVillageId({...shipMultipleVillageId, ...updates});
+                                    setShipMultipleCity({...shipMultipleCity, ...cityUpdates});
+                                    toast.success(`تم اختيار: ${village.villageName} لـ ${ordersWithoutVillage.length} طلب`);
+                                  } else {
+                                    toast('جميع الطلبات لديها قرية محددة بالفعل', { icon: 'ℹ️' });
+                                  }
+                                  setVillageSearchQuery('');
+                                  setSelectedVillageIndex(-1);
+                                }
+                              }
+                              // Arrow Down: Navigate down
+                              else if (e.key === 'ArrowDown' && filteredVillages.length > 0) {
+                                e.preventDefault();
+                                setSelectedVillageIndex((prev) => 
+                                  prev < filteredVillages.length - 1 ? prev + 1 : 0
+                                );
+                              }
+                              // Arrow Up: Navigate up
+                              else if (e.key === 'ArrowUp' && filteredVillages.length > 0) {
+                                e.preventDefault();
+                                setSelectedVillageIndex((prev) => 
+                                  prev > 0 ? prev - 1 : filteredVillages.length - 1
+                                );
+                              }
+                            }}
+                            placeholder="ابحث عن القرية أو المحافظة أو ID... (استخدم ↑↓ للتنقل، Enter للاختيار، Esc للمسح)"
+                            className="w-full pl-4 pr-10 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-[#FF9800] focus:border-transparent transition-all"
+                            aria-label="بحث عن القرية"
+                          />
+                          {villageSearchQuery && (
+                            <button
+                              onClick={() => {
+                                setVillageSearchQuery('');
+                                setSelectedVillageIndex(-1);
+                              }}
+                              className="absolute inset-y-0 left-0 pl-3 flex items-center hover:bg-gray-100 dark:hover:bg-slate-600 rounded-l-lg transition-colors"
+                              aria-label="مسح البحث"
+                            >
+                              <X className="w-4 h-4 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300" />
+                            </button>
+                          )}
+                        </div>
+                        {villageSearchQuery && (
+                          <div className="mt-1.5 flex items-center justify-between text-xs">
+                            <span className="text-gray-600 dark:text-gray-400">
+                              {filteredVillages.length > 0 ? (
+                                <span className="text-green-600 dark:text-green-400 font-medium">
+                                  {filteredVillages.length} نتيجة
+                                  {selectedVillageIndex >= 0 && (
+                                    <span className="text-[#FF9800] mr-1">
+                                      {' '}({selectedVillageIndex + 1} محددة)
+                                    </span>
+                                  )}
+                                </span>
+                              ) : (
+                                <span className="text-red-600 dark:text-red-400 font-medium">
+                                  لا توجد نتائج
+                                </span>
+                              )}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              {filteredVillages.length > 0 && (
+                                <span className="text-gray-500 dark:text-gray-400 text-[10px]">
+                                  ↑↓ للتنقل • Enter للاختيار
+                                </span>
+                              )}
+                              {filteredVillages.length < villages.length && (
+                                <button
+                                  onClick={() => {
+                                    setVillageSearchQuery('');
+                                    setSelectedVillageIndex(-1);
+                                  }}
+                                  className="text-[#FF9800] hover:text-[#F57C00] dark:text-[#FF9800] dark:hover:text-[#F57C00] font-medium"
+                                >
+                                  عرض الكل
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
                     <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
                       {orders
                         .filter(o => selectedOrderIds.includes(o._id))
@@ -1197,27 +1413,54 @@ export default function BulkOrdersActions({
                                             ...shipMultipleCity,
                                             [order._id]: selectedVillage ? selectedVillage.villageName : ''
                                           });
+                                          // Clear search after selection
+                                          setVillageSearchQuery('');
+                                          setSelectedVillageIndex(-1);
                                         }}
                                         className="input-field text-sm"
                                         required
+                                        size={villageSearchQuery && filteredVillages.length > 0 ? Math.min(filteredVillages.length + 1, 10) : 1}
+                                        onFocus={(e) => {
+                                          // Open select when focused and there's a search query
+                                          if (villageSearchQuery && filteredVillages.length > 0) {
+                                            e.target.size = Math.min(filteredVillages.length + 1, 10);
+                                          }
+                                        }}
+                                        onBlur={(e) => {
+                                          // Reset size when select loses focus
+                                          setTimeout(() => {
+                                            e.target.size = 1;
+                                          }, 200);
+                                        }}
                                       >
                                         <option value="">
                                           {order.shippingAddress?.villageId 
                                             ? `القرية الحالية: ${order.shippingAddress?.villageName || 'غير محدد'} (ID: ${order.shippingAddress.villageId})`
                                             : 'اختر القرية'}
                                         </option>
-                                        {filteredVillages.map((village) => (
-                                          <option key={village.villageId} value={village.villageId}>
-                                            {village.villageName} (ID: {village.villageId})
-                                          </option>
-                                        ))}
+                                        {filteredVillages.map((village, index) => {
+                                          const isSelected = selectedVillageIndex === index && villageSearchQuery;
+                                          return (
+                                            <option 
+                                              key={village.villageId} 
+                                              value={village.villageId}
+                                              style={isSelected ? { backgroundColor: '#FF9800', color: 'white' } : {}}
+                                            >
+                                              {village.villageName} (ID: {village.villageId})
+                                            </option>
+                                          );
+                                        })}
                                       </select>
                                       {order.shippingAddress?.villageId && (
                                         <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
                                           ℹ️ القرية الحالية محددة من قبل المسوق. يمكنك تغييرها إذا لزم الأمر.
                                         </p>
                                       )}
-                                      {shippingCompany && filteredVillages.length < villages.length && (
+                                      {villageSearchQuery ? (
+                                        <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                                          🔍 عرض {filteredVillages.length} من {villages.length} قرية بناءً على البحث
+                                        </p>
+                                      ) : shippingCompany && filteredVillages.length < villages.length && (
                                         <p className="text-xs text-green-600 dark:text-green-400 mt-1">
                                           ✓ تم تصفية القرى حسب شركة الشحن المختارة ({filteredVillages.length} قرية متاحة)
                                         </p>
@@ -1229,9 +1472,25 @@ export default function BulkOrdersActions({
                                         <p className="text-xs text-yellow-800 dark:text-yellow-300">
                                           {villages.length === 0 
                                             ? 'لا توجد قرى متاحة'
-                                            : shippingCompany 
-                                              ? 'لا توجد قرى متاحة لشركة الشحن المختارة. سيتم عرض جميع القرى.'
-                                              : 'يرجى اختيار شركة الشحن أولاً'}
+                                            : villageSearchQuery
+                                              ? (
+                                                  <>
+                                                    لا توجد نتائج للبحث "<strong>{villageSearchQuery}</strong>". 
+                                                    <button
+                                                      onClick={() => {
+                                                        setVillageSearchQuery('');
+                                                        setSelectedVillageIndex(-1);
+                                                      }}
+                                                      className="text-[#FF9800] hover:text-[#F57C00] dark:text-[#FF9800] dark:hover:text-[#F57C00] font-medium mr-1"
+                                                    >
+                                                      امسح البحث
+                                                    </button>
+                                                    لعرض جميع القرى.
+                                                  </>
+                                                )
+                                              : (shippingCompany || shipMultipleCompany[order._id] || 'UltraPal')
+                                                ? 'لا توجد قرى متاحة لشركة الشحن المختارة. سيتم عرض جميع القرى.'
+                                                : 'يرجى اختيار شركة الشحن أولاً'}
                                         </p>
                                       </div>
                                       {order.shippingAddress?.villageId && (

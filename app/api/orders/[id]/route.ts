@@ -204,13 +204,14 @@ export const PUT = withAuth(async (req: NextRequest, user: any, ...args: unknown
         // Automatically create package for shipping company
         try {
           const { createPackageFromOrder } = await import('@/lib/order-to-package');
-          const packageId = await createPackageFromOrder(order._id.toString());
-          if (packageId) {
-            order.packageId = packageId;
+          const packageResult = await createPackageFromOrder(order._id.toString());
+          if (packageResult && packageResult.packageId) {
+            order.packageId = packageResult.packageId;
             logger.business('✅ ORDER SENT TO SHIPPING COMPANY - Package created automatically when order status changed to ready_for_shipping', {
               orderId: order._id.toString(),
               orderNumber: order.orderNumber,
-              packageId: packageId,
+              packageId: packageResult.packageId,
+              apiSuccess: packageResult.apiSuccess,
               previousStatus: order.status,
               newStatus: 'ready_for_shipping',
               timestamp: new Date().toISOString()
@@ -219,7 +220,7 @@ export const PUT = withAuth(async (req: NextRequest, user: any, ...args: unknown
             logger.info('✅ Package created automatically and sent to shipping company', {
               orderId: order._id.toString(),
               orderNumber: order.orderNumber,
-              packageId: packageId
+              packageId: packageResult.packageId
             });
           } else {
             logger.warn('⚠️ FAILED TO SEND ORDER TO SHIPPING COMPANY - Failed to create package automatically for order', {
@@ -337,18 +338,42 @@ export const PUT = withAuth(async (req: NextRequest, user: any, ...args: unknown
             try {
               const { createPackageFromOrder } = await import('@/lib/order-to-package');
               // Pass the refreshed order data - createPackageFromOrder will reload from DB anyway, but this ensures we have the ID
-              const packageId = await createPackageFromOrder(order._id.toString());
-              if (packageId && typeof packageId === 'number') {
-                order.packageId = packageId;
+              const packageResult = await createPackageFromOrder(order._id.toString());
+              
+              if (packageResult && packageResult.packageId) {
+                // Check if package was successfully sent to shipping company API
+                if (!packageResult.apiSuccess) {
+                  // Package created but failed to send to shipping company
+                  logger.warn('⚠️ Cannot mark order as shipped - package failed to send to shipping company', {
+                    orderId: order._id.toString(),
+                    orderNumber: order.orderNumber,
+                    packageId: packageResult.packageId,
+                    error: packageResult.error
+                  });
+                  
+                  // Revert order status change
+                  order.status = previousStatus;
+                  
+                  return NextResponse.json({
+                    success: false,
+                    error: packageResult.error || 'فشل إرسال الطرد إلى شركة الشحن. يرجى المحاولة مرة أخرى.',
+                    packageId: packageResult.packageId,
+                    apiSuccess: false
+                  }, { status: 400 });
+                }
+                
+                // Package successfully sent to shipping company
+                order.packageId = packageResult.packageId;
                 
                 // IMPORTANT: Save packageId to database before continuing
                 await Order.findByIdAndUpdate(order._id, {
-                  packageId: packageId
+                  packageId: packageResult.packageId
                 });
-                logger.business('✅ ORDER SENT TO SHIPPING COMPANY - Package created automatically when order status changed to shipped', {
+                
+                logger.business('✅ ORDER SENT TO SHIPPING COMPANY - Package created and sent successfully when order status changed to shipped', {
                   orderId: order._id.toString(),
                   orderNumber: order.orderNumber,
-                  packageId: packageId,
+                  packageId: packageResult.packageId,
                   previousStatus: previousStatus,
                   newStatus: 'shipped',
                   timestamp: new Date().toISOString(),
@@ -358,31 +383,87 @@ export const PUT = withAuth(async (req: NextRequest, user: any, ...args: unknown
                 logger.info('✅ Package created automatically and sent to shipping company when order shipped', {
                   orderId: order._id.toString(),
                   orderNumber: order.orderNumber,
-                  packageId: packageId
+                  packageId: packageResult.packageId
                 });
               } else {
-                logger.warn('⚠️ FAILED TO SEND ORDER TO SHIPPING COMPANY - Failed to create package automatically when shipping order', {
+                // Failed to create package
+                logger.error('❌ Cannot mark order as shipped - failed to create package', {
                   orderId: order._id.toString(),
-                  orderNumber: order.orderNumber,
-                  orderStatus: order.status,
-                  timestamp: new Date().toISOString(),
-                  reason: 'Check if external company exists and is active, or if order has valid shipping address with villageId'
+                  orderNumber: order.orderNumber
                 });
+                
+                // Revert order status change
+                order.status = previousStatus;
+                
+                return NextResponse.json({
+                  success: false,
+                  error: 'فشل إنشاء الطرد. يرجى التحقق من بيانات الطلب وإعادة المحاولة.'
+                }, { status: 400 });
               }
             } catch (error) {
               logger.error('Error creating package automatically when shipping order', error, {
                 orderId: order._id.toString()
               });
-              // Continue with shipping even if package creation fails
+              
+              // Revert order status change
+              order.status = previousStatus;
+              
+              return NextResponse.json({
+                success: false,
+                error: 'حدث خطأ أثناء إنشاء الطرد. يرجى المحاولة مرة أخرى.'
+              }, { status: 500 });
             }
           } else {
-            // Package already exists - but check if packageId is valid
-            if (currentPackageId && typeof currentPackageId === 'number') {
-              logger.info('✅ Package already exists for order when shipping', {
+            // Package already exists - check if it was successfully sent to shipping company
+            const Package = (await import('@/models/Package')).default;
+            const existingPackage = await Package.findOne({ orderId: order._id }).lean() as any;
+            
+            // Get external company to check if API is configured
+            let externalCompany = null;
+            if (shippingCompany) {
+              const ExternalCompany = (await import('@/models/ExternalCompany')).default;
+              externalCompany = await ExternalCompany.findOne({ 
+                companyName: shippingCompany,
+                isActive: true 
+              }).lean() as any;
+            }
+            
+            if (existingPackage) {
+              // Check package status - if it's 'confirmed', it was successfully sent to API
+              // If it's 'pending', it means API call failed
+              if (existingPackage.status === 'pending' && externalCompany?.apiEndpointUrl) {
+                // Package exists but wasn't sent to shipping company
+                logger.warn('⚠️ Cannot mark order as shipped - package exists but was not sent to shipping company', {
+                  orderId: order._id.toString(),
+                  orderNumber: order.orderNumber,
+                  packageId: existingPackage.packageId,
+                  packageStatus: existingPackage.status
+                });
+                
+                // Revert order status change
+                order.status = previousStatus;
+                
+                return NextResponse.json({
+                  success: false,
+                  error: 'الطرد موجود لكن لم يتم إرساله إلى شركة الشحن. يرجى استخدام زر "إعادة إرسال الطرد".',
+                  packageId: existingPackage.packageId,
+                  apiSuccess: false
+                }, { status: 400 });
+              }
+              
+              // Package was successfully sent (status is 'confirmed' or no API configured)
+              logger.info('✅ Package already exists and was sent to shipping company', {
                 orderId: order._id.toString(),
                 orderNumber: order.orderNumber,
                 packageId: currentPackageId,
+                packageStatus: existingPackage.status,
                 note: 'Package was already created and sent to shipping company earlier'
+              });
+            } else if (currentPackageId && typeof currentPackageId === 'number') {
+              // Package ID exists but package document not found - this shouldn't happen
+              logger.warn('⚠️ Package ID exists but package document not found', {
+                orderId: order._id.toString(),
+                packageId: currentPackageId
               });
             } else {
               // packageId is invalid (ObjectId string or undefined) - try to fix it
@@ -413,10 +494,10 @@ export const PUT = withAuth(async (req: NextRequest, user: any, ...args: unknown
                   });
                   // Continue to package creation logic above
                   const { createPackageFromOrder } = await import('@/lib/order-to-package');
-                  const packageId = await createPackageFromOrder(order._id.toString());
-                  if (packageId && typeof packageId === 'number') {
-                    order.packageId = packageId;
-                    await Order.findByIdAndUpdate(order._id, { packageId: packageId });
+                  const packageResult = await createPackageFromOrder(order._id.toString());
+                  if (packageResult && packageResult.packageId && typeof packageResult.packageId === 'number') {
+                    order.packageId = packageResult.packageId;
+                    await Order.findByIdAndUpdate(order._id, { packageId: packageResult.packageId });
                   }
                 }
               } catch (error) {

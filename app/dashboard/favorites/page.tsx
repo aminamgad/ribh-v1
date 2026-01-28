@@ -22,6 +22,8 @@ interface Product {
   isActive: boolean;
   isApproved: boolean;
   addedAt: string;
+  minimumSellingPrice?: number;
+  isMinimumPriceMandatory?: boolean;
 }
 
 export default function FavoritesPage() {
@@ -208,9 +210,20 @@ export default function FavoritesPage() {
 
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-base sm:text-lg font-bold text-[#FF9800] dark:text-[#FF9800]">
-                    {user?.role === 'wholesaler' ? product.wholesalePrice : product.marketerPrice} ₪
-                  </p>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className={`text-base sm:text-lg font-bold ${
+                      user?.role !== 'wholesaler' && product.isMinimumPriceMandatory && product.minimumSellingPrice
+                        ? 'text-orange-600 dark:text-orange-400'
+                        : 'text-[#FF9800] dark:text-[#FF9800]'
+                    }`}>
+                      {user?.role === 'wholesaler' ? product.wholesalePrice : product.marketerPrice} ₪
+                    </p>
+                    {user?.role !== 'wholesaler' && product.isMinimumPriceMandatory && product.minimumSellingPrice && (
+                      <span className="text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 px-1.5 py-0.5 rounded-full">
+                        إلزامي
+                      </span>
+                    )}
+                  </div>
                   <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">
                     {product.stockQuantity > 0 ? `متوفر: ${product.stockQuantity}` : 'غير متوفر'}
                   </p>

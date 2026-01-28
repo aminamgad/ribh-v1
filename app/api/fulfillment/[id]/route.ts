@@ -392,15 +392,16 @@ async function updateFulfillmentRequest(req: NextRequest, user: any, ...args: un
               // Automatically create package for shipping company
               try {
                 const { createPackageFromOrder } = await import('@/lib/order-to-package');
-                const packageId = await createPackageFromOrder(orderId.toString());
-                if (packageId) {
+                const packageResult = await createPackageFromOrder(orderId.toString());
+                if (packageResult && packageResult.packageId) {
                   await Order.findByIdAndUpdate(orderId, {
-                    packageId: packageId
+                    packageId: packageResult.packageId
                   });
                   logger.info('Package created automatically after fulfillment completion', {
                     orderId: orderId.toString(),
-                    orderNumber: order.orderNumber,
-                    packageId: packageId
+                    packageId: packageResult.packageId,
+                    apiSuccess: packageResult.apiSuccess,
+                    orderNumber: order.orderNumber
                   });
                 }
               } catch (error) {

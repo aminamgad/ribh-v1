@@ -18,6 +18,7 @@ export interface PackageDocument extends Document {
   status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
   deliveryCost?: number; // Delivery cost from shipping company API (may differ from village delivery cost)
   qrCode?: string; // QR code from shipping company API
+  externalPackageId?: number; // package_id from shipping company API response
   createdAt: Date;
   updatedAt: Date;
 }
@@ -107,6 +108,10 @@ const packageSchema = new Schema<PackageDocument>({
     type: String,
     trim: true,
     maxlength: [200, 'رمز QR لا يمكن أن يتجاوز 200 حرف']
+  },
+  externalPackageId: {
+    type: Number,
+    index: true
   }
 }, {
   timestamps: true

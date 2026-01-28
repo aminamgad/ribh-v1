@@ -1316,6 +1316,20 @@ body::after {
     }
   }
 
+  /* Shimmer animation for loading buttons */
+  @keyframes shimmer {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  .animate-shimmer {
+    animation: shimmer 2s infinite;
+  }
+
   /* Skeleton Loading States */
   .skeleton {
     @apply animate-pulse bg-gray-200 dark:bg-slate-700 rounded;

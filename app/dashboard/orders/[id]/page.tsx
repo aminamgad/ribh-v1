@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
-import { ArrowLeft, Phone, Mail, MapPin, Package, Truck, CheckCircle, Clock, AlertCircle, MessageSquare, ExternalLink, MessageCircle, Edit, CheckCircle2, DollarSign, User, Calendar, Printer, X, Save } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, MapPin, Package, Truck, CheckCircle, Clock, AlertCircle, MessageSquare, ExternalLink, MessageCircle, Edit, CheckCircle2, DollarSign, User, Calendar, Printer, X, Save, Copy, Check, Search } from 'lucide-react';
 import MediaThumbnail from '@/components/ui/MediaThumbnail';
 import OrderInvoice from '@/components/ui/OrderInvoice';
 import CommentsSection from '@/components/ui/CommentsSection';
@@ -186,6 +186,16 @@ export default function OrderDetailPage() {
   const [shippingStatus, setShippingStatus] = useState<{type: 'success' | 'error' | 'info' | null; message: string}>({type: null, message: ''});
   const [packageStatus, setPackageStatus] = useState<'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | null>(null);
   const [resendingPackage, setResendingPackage] = useState(false);
+  const [packageInfo, setPackageInfo] = useState<{
+    externalPackageId?: number;
+    deliveryCost?: number;
+    qrCode?: string;
+  } | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [activeNotesTab, setActiveNotesTab] = useState<'order' | 'delivery' | 'admin'>('order');
+  const [villageSearchQuery, setVillageSearchQuery] = useState<string>('');
+  const [selectedVillageIndex, setSelectedVillageIndex] = useState<number>(-1);
+  const villageSelectRef = useRef<HTMLSelectElement>(null);
 
   // Check for print parameter in URL
   useEffect(() => {
@@ -468,6 +478,147 @@ export default function OrderDetailPage() {
     }
   }, [order]);
 
+  // Smart search function - removes diacritics and normalizes text
+  const normalizeText = (text: string): string => {
+    return text
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u064B-\u065F\u0670]/g, '') // Remove Arabic diacritics
+      .replace(/[أإآ]/g, 'ا') // Normalize Alef variations
+      .replace(/[ى]/g, 'ي') // Normalize Yeh variations
+      .replace(/[ة]/g, 'ه') // Normalize Teh Marbuta
+      .trim();
+  };
+
+  // Smart village search function
+  const searchVillages = (query: string, villagesList: typeof villages): typeof villages => {
+    if (!query || query.trim() === '') {
+      return villagesList;
+    }
+
+    const normalizedQuery = normalizeText(query.trim());
+    
+    return villagesList.filter((village) => {
+      const villageName = village.villageName || '';
+      const villageId = village.villageId?.toString() || '';
+      
+      // Normalize village name
+      const normalizedName = normalizeText(villageName);
+      
+      // Check multiple search criteria:
+      // 1. Exact match in village name
+      // 2. Partial match in village name
+      // 3. ID match
+      // 4. Match in governorate (if village name contains " - ")
+      const nameMatch = normalizedName.includes(normalizedQuery);
+      const idMatch = villageId.includes(normalizedQuery);
+      
+      // Extract governorate if format is "المحافظة - اسم القرية"
+      const parts = villageName.split(' - ');
+      const governorateMatch = parts.length > 1 ? normalizeText(parts[0]).includes(normalizedQuery) : false;
+      const villageOnlyMatch = parts.length > 1 ? normalizeText(parts[1]).includes(normalizedQuery) : false;
+      
+      return nameMatch || idMatch || governorateMatch || villageOnlyMatch;
+    }).sort((a, b) => {
+      // Sort by relevance: exact matches first, then partial matches
+      const aName = normalizeText(a.villageName || '');
+      const bName = normalizeText(b.villageName || '');
+      const aStartsWith = aName.startsWith(normalizedQuery);
+      const bStartsWith = bName.startsWith(normalizedQuery);
+      
+      if (aStartsWith && !bStartsWith) return -1;
+      if (!aStartsWith && bStartsWith) return 1;
+      
+      // Then sort by exact match position
+      const aIndex = aName.indexOf(normalizedQuery);
+      const bIndex = bName.indexOf(normalizedQuery);
+      if (aIndex !== bIndex) return aIndex - bIndex;
+      
+      return 0;
+    });
+  };
+
+  // Apply search filter to villages - Real-time filtering
+  useEffect(() => {
+    if (villages.length === 0) return;
+    
+    let baseFiltered: typeof villages = [];
+    
+    // First apply company filter
+    if (shippingCompany && shippingCompanies.length > 0) {
+      const company = shippingCompanies.find((c: any) => c.companyName === shippingCompany);
+      if (company) {
+        const companyCityNames: string[] = [];
+        
+        if (company.shippingCities) {
+          company.shippingCities
+            .filter((c: any) => c.isActive !== false)
+            .forEach((c: any) => {
+              if (c.cityName) companyCityNames.push(c.cityName);
+            });
+        }
+        
+        if (company.shippingRegions) {
+          company.shippingRegions
+            .filter((r: any) => r.isActive !== false)
+            .forEach((r: any) => {
+              if (r.cities && Array.isArray(r.cities)) {
+                r.cities.forEach((city: string) => {
+                  if (city && !companyCityNames.includes(city)) companyCityNames.push(city);
+                });
+              }
+            });
+        }
+        
+        if (companyCityNames.length > 0) {
+          baseFiltered = villages.filter((village) => {
+            const villageName = village.villageName || '';
+            return companyCityNames.some((cityName) => {
+              return villageName.includes(cityName) || cityName.includes(villageName.split('-')[0]?.trim() || '');
+            });
+          });
+          
+          if (baseFiltered.length === 0) {
+            baseFiltered = villages;
+          }
+        } else {
+          baseFiltered = villages;
+        }
+      } else {
+        baseFiltered = villages;
+      }
+    } else {
+      baseFiltered = villages;
+    }
+    
+    // Then apply search filter - Real-time
+    if (villageSearchQuery.trim()) {
+      const searchResults = searchVillages(villageSearchQuery, baseFiltered);
+      setFilteredVillages(searchResults);
+    } else {
+      setFilteredVillages(baseFiltered);
+    }
+  }, [villageSearchQuery, villages, shippingCompany, shippingCompanies]);
+
+  // Auto-open select dropdown when search results change (without stealing focus)
+  useEffect(() => {
+    if (villageSearchQuery.trim() && filteredVillages.length > 0 && villageSelectRef.current) {
+      setTimeout(() => {
+        if (villageSelectRef.current) {
+          villageSelectRef.current.size = Math.min(filteredVillages.length + 1, 10);
+          // Don't focus the select - let user continue typing in search field
+        }
+      }, 50);
+    } else if (!villageSearchQuery.trim() && villageSelectRef.current) {
+      // Reset size when search is cleared
+      setTimeout(() => {
+        if (villageSelectRef.current) {
+          villageSelectRef.current.size = 1;
+        }
+      }, 50);
+    }
+  }, [filteredVillages, villageSearchQuery]);
+
   const fetchVillages = async () => {
     try {
       setLoadingVillages(true);
@@ -504,6 +655,13 @@ export default function OrderDetailPage() {
 
   const handleUpdateShipping = async () => {
     if (!order) return;
+    
+    // Check if shipping can be edited
+    if (!canEditShipping()) {
+      toast.error('لا يمكن تعديل معلومات الشحن بعد أن تم شحن الطلب إلى شركة الشحن');
+      setShowShippingModal(false);
+      return;
+    }
     
     if (!shippingCompany || !shippingCompany.trim()) {
       toast.error('يرجى اختيار شركة الشحن');
@@ -667,13 +825,45 @@ export default function OrderDetailPage() {
       if (shipResponse.ok) {
         const shipData = await shipResponse.json();
         
-        // Check if package was created and sent successfully
+        // Check if order was successfully shipped (apiSuccess field indicates if package was sent to shipping company)
+        const apiSuccess = shipData.apiSuccess !== false; // Default to true if not specified (for backward compatibility)
         const packageId = shipData.order?.packageId;
         const selectedCompany = shippingCompanies.find(c => c.companyName === shippingCompany);
         const hasApiIntegration = selectedCompany?.apiEndpointUrl;
         
+        if (!apiSuccess) {
+          // Package was created but failed to send to shipping company
+          const errorMessage = shipData.error || 'فشل إرسال الطرد إلى شركة الشحن';
+          setShippingStatus({
+            type: 'error',
+            message: `⚠️ ${errorMessage}${packageId ? ` (رقم الطرد: ${packageId})` : ''}. يرجى المحاولة مرة أخرى أو استخدام زر "إعادة إرسال الطرد".`
+          });
+          
+          toast.error(errorMessage, {
+            duration: 5000
+          });
+          
+          // Don't refresh order data - keep it in current state (order status should remain unchanged)
+          return;
+        }
+        
+        // Check if response indicates failure
+        if (!shipData.success) {
+          const errorMessage = shipData.error || 'فشل شحن الطلب';
+          setShippingStatus({
+            type: 'error',
+            message: `⚠️ ${errorMessage}`
+          });
+          
+          toast.error(errorMessage, {
+            duration: 5000
+          });
+          
+          return;
+        }
+        
         if (packageId) {
-          // Fetch package status to check if it was sent successfully
+          // Fetch package status to verify it was sent successfully
           const statusResponse = await fetch(`/api/packages?packageId=${packageId}`);
           let currentStatus = 'pending';
           if (statusResponse.ok) {
@@ -681,25 +871,40 @@ export default function OrderDetailPage() {
             if (statusData.success && statusData.package) {
               currentStatus = statusData.package.status;
               setPackageStatus(currentStatus as any);
+              // Update package info with latest data
+              setPackageInfo({
+                externalPackageId: statusData.package.externalPackageId,
+                deliveryCost: statusData.package.deliveryCost,
+                qrCode: statusData.package.qrCode
+              });
             }
           }
           
-          const statusMessage = currentStatus === 'pending' 
-            ? `⚠️ تم إنشاء الطرد (${packageId}) لكن فشل إرساله إلى شركة الشحن. يمكنك إعادة المحاولة.`
-            : `✅ تم شحن الطلب بنجاح! رقم الطرد: ${packageId}${hasApiIntegration ? ' - تم إرساله إلى شركة الشحن' : ''}`;
+          // Only show success if package status is confirmed (successfully sent to API)
+          // or if there's no API integration (package created in database only)
+          const isSuccess = currentStatus === 'confirmed' || !hasApiIntegration;
+          
+          const statusMessage = isSuccess
+            ? `✅ تم شحن الطلب بنجاح! رقم الطرد: ${packageId}${hasApiIntegration ? ' - تم إرساله إلى شركة الشحن' : ''}`
+            : `⚠️ تم إنشاء الطرد (${packageId}) لكن فشل إرساله إلى شركة الشحن. يمكنك إعادة المحاولة.`;
           
           setShippingStatus({
-            type: currentStatus === 'pending' ? 'error' : 'success',
+            type: isSuccess ? 'success' : 'error',
             message: statusMessage
           });
           
-          if (currentStatus === 'pending') {
+          if (!isSuccess) {
             toast(`⚠️ تم إنشاء الطرد (${packageId}) لكن فشل إرساله. يمكنك إعادة المحاولة.`, {
               icon: '⚠️',
               duration: 5000
             });
+            // Don't refresh order data - keep it in current state
+            return;
           } else {
             toast.success(`✅ تم شحن الطلب بنجاح! رقم الطرد: ${packageId}`);
+            
+            // Refresh order data to get updated status
+            await fetchOrder(order._id);
             
             // Close modal after short delay to show success message (only if successful)
             setTimeout(() => {
@@ -711,11 +916,16 @@ export default function OrderDetailPage() {
             }, 2000);
           }
         } else {
+          // No packageId but apiSuccess is true - this shouldn't happen, but handle gracefully
+          if (apiSuccess) {
           setShippingStatus({
             type: 'success',
             message: '✅ تم تحديث حالة الطلب إلى "تم الشحن"'
           });
           toast.success('✅ تم تحديث حالة الطلب إلى "تم الشحن"');
+            
+            // Refresh order data to get updated status
+            await fetchOrder(order._id);
           
           // Close modal after short delay
           setTimeout(() => {
@@ -725,9 +935,15 @@ export default function OrderDetailPage() {
             setSelectedVillageId(null);
             setShippingStatus({type: null, message: ''});
           }, 2000);
+          } else {
+            // apiSuccess is false but no packageId - this is an error state
+            setShippingStatus({
+              type: 'error',
+              message: '⚠️ فشل شحن الطلب'
+            });
+            toast.error('فشل شحن الطلب');
+          }
         }
-        
-        fetchOrder(order._id);
       } else {
         const errorData = await shipResponse.json().catch(() => ({ error: 'خطأ غير معروف' }));
         
@@ -847,7 +1063,7 @@ export default function OrderDetailPage() {
     }
   };
 
-  // Fetch package status
+  // Fetch package status and details
   const fetchPackageStatus = async (packageId: number): Promise<string | null> => {
     try {
       const response = await fetch(`/api/packages?packageId=${packageId}`);
@@ -855,11 +1071,19 @@ export default function OrderDetailPage() {
         const data = await response.json();
         if (data.success && data.package) {
           setPackageStatus(data.package.status);
+          // Store package info (externalPackageId, deliveryCost, qrCode)
+          const info = {
+            externalPackageId: data.package.externalPackageId,
+            deliveryCost: data.package.deliveryCost,
+            qrCode: data.package.qrCode
+          };
+          console.log('Package info fetched:', info); // Debug log
+          setPackageInfo(info);
           return data.package.status;
         }
       }
     } catch (error) {
-      // Silently handle errors
+      console.error('Error fetching package status:', error);
     }
     return null;
   };
@@ -880,6 +1104,14 @@ export default function OrderDetailPage() {
       
       if (data.success) {
         setPackageStatus('confirmed');
+        // Update package info with latest data from resend response
+        if (data.externalPackageId || data.deliveryCost !== undefined) {
+          setPackageInfo({
+            externalPackageId: data.externalPackageId,
+            deliveryCost: data.deliveryCost,
+            qrCode: data.qrCode
+          });
+        }
         setShippingStatus({
           type: 'success',
           message: `✅ تم إعادة إرسال الطرد بنجاح! رقم الطرد: ${data.packageId}`
@@ -993,6 +1225,18 @@ export default function OrderDetailPage() {
     }).format(amount);
   };
 
+  // Copy to clipboard function
+  const copyToClipboard = async (text: string, fieldName: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(fieldName);
+      toast.success(`تم نسخ ${fieldName} بنجاح`);
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch (error) {
+      toast.error('فشل نسخ النص');
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -1001,6 +1245,35 @@ export default function OrderDetailPage() {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  // Format date with relative time (e.g., "منذ 3 ساعات")
+  const formatDateWithRelative = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    let relativeTime = '';
+    if (diffMins < 1) {
+      relativeTime = 'الآن';
+    } else if (diffMins < 60) {
+      relativeTime = `منذ ${diffMins} دقيقة`;
+    } else if (diffHours < 24) {
+      relativeTime = `منذ ${diffHours} ساعة`;
+    } else if (diffDays < 7) {
+      relativeTime = `منذ ${diffDays} يوم`;
+    } else {
+      relativeTime = formatDate(dateString);
+    }
+    
+    return {
+      full: formatDate(dateString),
+      relative: relativeTime,
+      date: date
+    };
   };
 
   const canUpdateOrder = () => {
@@ -1012,6 +1285,15 @@ export default function OrderDetailPage() {
     // Supplier can only update their own orders
     const actualSupplierId = order.supplierId._id || order.supplierId;
     return user.role === 'supplier' && actualSupplierId.toString() === user._id.toString();
+  };
+
+  // Check if shipping can be edited (not allowed after order is shipped)
+  const canEditShipping = () => {
+    if (!order) return false;
+    
+    // Cannot edit shipping if order is already shipped, out for delivery, or delivered
+    const lockedStatuses = ['shipped', 'out_for_delivery', 'delivered'];
+    return !lockedStatuses.includes(order.status);
   };
 
   const getAvailableStatuses = () => {
@@ -1246,474 +1528,938 @@ export default function OrderDetailPage() {
 
   return (
     <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 print:hidden">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 space-y-2 sm:space-y-0 space-y-reverse sm:space-x-4 sm:space-x-reverse w-full sm:w-auto">
-          <Link href="/dashboard/orders" className="btn-secondary min-h-[44px] text-sm sm:text-base px-3 sm:px-4 w-full sm:w-auto">
-            <ArrowLeft className="w-4 h-4 ml-1.5 sm:ml-2" />
-            العودة للطلبات
-          </Link>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 dark:text-white truncate">
-              الطلب #{order.orderNumber}
-            </h1>
-            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-0.5">
-              تم إنشاؤه في {formatDate(order.createdAt)}
+      {/* Back Button */}
+      <Link 
+        href="/dashboard/orders" 
+        className="btn-secondary min-h-[44px] text-sm sm:text-base px-3 sm:px-4 w-fit mb-4"
+        aria-label="العودة إلى صفحة الطلبات"
+      >
+        <ArrowLeft className="w-4 h-4 ml-1.5 sm:ml-2" aria-hidden="true" />
+        العودة للطلبات
+      </Link>
+
+      {/* Quick Stats Card - Enhanced Responsive */}
+      <div className="card p-3 sm:p-4 md:p-6 bg-gradient-to-br from-[#FF9800]/5 via-white to-[#FF9800]/5 dark:from-[#FF9800]/10 dark:via-gray-800 dark:to-[#FF9800]/10 border-2 border-[#FF9800]/20 dark:border-[#FF9800]/30 mb-4 sm:mb-6 shadow-lg">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
+          {/* Order Value - Enhanced */}
+          <div className="p-2.5 sm:p-3 bg-white dark:bg-gray-700 rounded-xl border-2 border-gray-200 dark:border-gray-600 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5">
+              <DollarSign className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#FF9800] flex-shrink-0" />
+              <span className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400 truncate">القيمة الإجمالية</span>
+            </div>
+            <p className="text-base sm:text-lg font-bold text-gray-900 dark:text-white truncate">{formatCurrency(order.total)}</p>
+          </div>
+          
+          {/* Order Status - Enhanced with Badge */}
+          <div className="p-2.5 sm:p-3 bg-white dark:bg-gray-700 rounded-xl border-2 border-gray-200 dark:border-gray-600 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5">
+              <StatusIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#FF9800] flex-shrink-0" />
+              <span className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400 truncate">الحالة</span>
+            </div>
+            <span className={`inline-flex items-center px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold ${status.color} bg-opacity-10 dark:bg-opacity-20`}>
+              {status.label}
+            </span>
+          </div>
+          
+          {/* Creation Date - Enhanced */}
+          <div className="p-2.5 sm:p-3 bg-white dark:bg-gray-700 rounded-xl border-2 border-gray-200 dark:border-gray-600 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5">
+              <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#FF9800] flex-shrink-0" />
+              <span className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400 truncate">تاريخ الإنشاء</span>
+            </div>
+            <p className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">
+              {formatDateWithRelative(order.createdAt).relative}
+            </p>
+            <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-500 mt-0.5 truncate">
+              {formatDateWithRelative(order.createdAt).full.split(',')[0]}
             </p>
           </div>
-        </div>
-        
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 space-y-2 sm:space-y-0 space-y-reverse sm:space-x-3 sm:space-x-reverse w-full sm:w-auto">
-          {/* Print Invoice Button */}
-          <button
-            onClick={() => setShowInvoice(true)}
-            className="btn-secondary-solid flex items-center justify-center font-medium px-3 sm:px-4 py-2 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 min-h-[44px] text-sm sm:text-base w-full sm:w-auto"
-            title="طباعة الفاتورة"
-          >
-            <Printer className="w-4 h-4 ml-1.5 sm:ml-2" />
-            <span className="hidden sm:inline">طباعة الفاتورة</span>
-            <span className="sm:hidden">طباعة</span>
-          </button>
           
-          {/* Update Status Button */}
+          {/* Expected Delivery - Enhanced */}
+          <div className="p-2.5 sm:p-3 bg-white dark:bg-gray-700 rounded-xl border-2 border-gray-200 dark:border-gray-600 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5">
+              <Truck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#FF9800] flex-shrink-0" />
+              <span className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400 truncate">التسليم</span>
+            </div>
+            {order.actualDelivery ? (
+              <>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 mb-1">
+                  ✓ تم التسليم
+                </span>
+                <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-500 truncate">
+                  {formatDateWithRelative(order.actualDelivery).relative}
+                </p>
+              </>
+            ) : order.deliveredAt ? (
+              <>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 mb-1">
+                  ✓ تم التسليم
+                </span>
+                <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-500 truncate">
+                  {formatDateWithRelative(order.deliveredAt).relative}
+                </p>
+              </>
+            ) : (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300">
+                ⏳ قيد الانتظار
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Unified Order Information Card */}
+      <div className="card p-4 sm:p-6 mb-4 sm:mb-6 bg-gradient-to-br from-white to-gray-50 dark:from-slate-800 dark:to-slate-900 border-2 border-gray-200 dark:border-slate-700">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+          {/* Order Basic Info */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className={`p-2.5 rounded-xl flex-shrink-0 ${status.color} shadow-sm`}>
+                    <StatusIcon className="w-6 h-6 sm:w-7 sm:h-7" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
+                        الطلب #{order.orderNumber}
+                      </h1>
+                      <button
+                        onClick={() => copyToClipboard(`#${order.orderNumber}`, 'رقم الطلب')}
+                        className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
+                        title="نسخ رقم الطلب"
+                        aria-label="نسخ رقم الطلب"
+                      >
+                        {copiedField === 'رقم الطلب' ? (
+                          <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
+                        ) : (
+                          <Copy className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                        )}
+                      </button>
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${status.color} shadow-sm`}>
+                        {status.label}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">{status.description}</p>
+                  </div>
+                </div>
+        
+            {/* Order Dates Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
+              <div className="p-2.5 bg-white dark:bg-slate-700 rounded-lg border border-gray-200 dark:border-slate-600">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">تاريخ الإنشاء</p>
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">{formatDate(order.createdAt)}</p>
+              </div>
+              {order.shippedAt && (
+                <div className="p-2.5 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
+                  <p className="text-xs text-indigo-600 dark:text-indigo-400 mb-1">تاريخ الشحن</p>
+                  <p className="text-sm font-semibold text-indigo-900 dark:text-indigo-100">{formatDate(order.shippedAt)}</p>
+                </div>
+              )}
+              {order.deliveredAt && (
+                <div className="p-2.5 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                  <p className="text-xs text-green-600 dark:text-green-400 mb-1">تاريخ التسليم</p>
+                  <p className="text-sm font-semibold text-green-900 dark:text-green-100">{formatDate(order.deliveredAt)}</p>
+                </div>
+              )}
+              {order.actualDelivery && !order.deliveredAt && (
+                <div className="p-2.5 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                  <p className="text-xs text-emerald-600 dark:text-emerald-400 mb-1">التسليم الفعلي</p>
+                  <p className="text-sm font-semibold text-emerald-900 dark:text-emerald-100">{formatDate(order.actualDelivery)}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto lg:flex-col">
           {canUpdateOrder() && availableStatuses.length > 0 && (
             <button
               onClick={() => openStatusModal('')}
-              className="btn-primary flex items-center justify-center font-medium px-3 sm:px-4 py-2 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 min-h-[44px] text-sm sm:text-base w-full sm:w-auto"
+              className="btn-primary flex items-center justify-center font-medium px-4 py-2.5 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 min-h-[44px] text-sm sm:text-base"
+              aria-label="تحديث حالة الطلب"
             >
-              <Edit className="w-4 h-4 ml-1.5 sm:ml-2" />
+              <Edit className="w-4 h-4 ml-2" aria-hidden="true" />
               تحديث الحالة
             </button>
           )}
+            <button
+              onClick={() => setShowInvoice(true)}
+              className="btn-secondary-solid flex items-center justify-center font-medium px-4 py-2.5 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 min-h-[44px] text-sm sm:text-base"
+              title="طباعة الفاتورة"
+              aria-label="طباعة فاتورة الطلب"
+            >
+              <Printer className="w-4 h-4 ml-2" aria-hidden="true" />
+              <span className="hidden sm:inline">طباعة الفاتورة</span>
+              <span className="sm:hidden">طباعة</span>
+            </button>
+          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Order Details */}
         <div className="lg:col-span-2 space-y-4 sm:space-y-6">
-          {/* Status Card */}
-          <div className="card p-4 sm:p-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
-              <div className="flex items-center space-x-2 sm:space-x-3 space-x-reverse flex-1 min-w-0">
-                <div className={`p-1.5 sm:p-2 rounded-lg flex-shrink-0 ${status.color}`}>
-                  <StatusIcon className="w-5 h-5 sm:w-6 sm:h-6" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white truncate">
-                    {status.label}
-                  </h3>
-                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">{status.description}</p>
-                </div>
-              </div>
-              {order.actualDelivery && (
-                <div className="text-right sm:text-left flex-shrink-0">
-                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">تاريخ التسليم</p>
-                  <p className="text-sm sm:text-base font-medium text-gray-900 dark:text-white">
-                    {formatDate(order.actualDelivery)}
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
 
-          {/* Processing Workflow */}
+          {/* Processing Workflow with Progress Bar */}
           <div className="card p-4 sm:p-6">
-            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-4 sm:mb-6 flex items-center">
-              <Package className="w-4 h-4 sm:w-5 sm:h-5 ml-1.5 sm:ml-2" />
-              مراحل معالجة الطلب
-            </h3>
-            
-            {/* Processing Steps */}
-            <div className="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
-              {getProcessingSteps().map((step, index) => {
-                const StepIcon = step.icon;
-                return (
-                  <div key={step.id} className="flex items-start space-x-2 sm:space-x-4 space-x-reverse">
-                    {/* Step Icon */}
-                    <div className={`flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center ${
-                      step.isCompleted 
-                        ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-200' 
-                        : step.isCurrent 
-                        ? 'bg-[#FF9800]/20 text-[#FF9800] dark:bg-[#FF9800]/30 dark:text-[#FF9800]' 
-                        : 'bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500'
-                    }`}>
-                      {step.isCompleted ? (
-                        <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
-                      ) : (
-                        <StepIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+                <Package className="w-4 h-4 sm:w-5 sm:h-5 ml-1.5 sm:ml-2" />
+                مراحل معالجة الطلب
+              </h3>
+            </div>
+
+            {/* Progress Bar */}
+            {(() => {
+              const steps = getProcessingSteps();
+              const completedCount = steps.filter(s => s.isCompleted).length;
+              const totalSteps = steps.length;
+              const progressPercentage = (completedCount / totalSteps) * 100;
+              const currentStepIndex = steps.findIndex(s => s.isCurrent);
+              
+              return (
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                      التقدم: {completedCount} من {totalSteps}
+                    </span>
+                    <span className="text-xs font-semibold text-[#FF9800] dark:text-[#FF9800]">
+                      {Math.round(progressPercentage)}%
+                    </span>
+                  </div>
+                  <div className="w-full h-2.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-[#FF9800] to-[#F57C00] dark:from-[#FF9800] dark:to-[#F57C00] rounded-full transition-all duration-500 ease-out relative"
+                      style={{ width: `${progressPercentage}%` }}
+                    >
+                      {currentStepIndex >= 0 && (
+                        <div className="absolute right-0 top-0 w-3 h-full bg-white dark:bg-slate-800 opacity-50 animate-pulse"></div>
                       )}
                     </div>
-                    
-                    {/* Step Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className={`p-3 sm:p-4 rounded-lg border ${
-                        step.isCompleted 
-                          ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-700' 
-                          : step.isCurrent 
-                          ? 'bg-[#FF9800]/10 border-[#FF9800]/20 dark:bg-[#FF9800]/20 dark:border-[#FF9800]/30' 
-                          : 'bg-gray-50 border-gray-200 dark:bg-gray-800 dark:border-gray-600'
-                      }`}>
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1.5 sm:gap-0 mb-1.5 sm:mb-2">
-                          <h4 className={`text-sm sm:text-base font-medium ${
-                            step.isCompleted 
-                              ? 'text-green-800 dark:text-green-200' 
-                              : step.isCurrent 
-                              ? 'text-[#F57C00] dark:text-[#F57C00]' 
-                              : 'text-gray-600 dark:text-gray-400'
-                          }`}>
-                            {step.title}
-                          </h4>
-                          {step.isCurrent && (
-                            <span className="inline-flex items-center px-2 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium bg-[#FF9800]/20 text-[#FF9800] dark:bg-[#FF9800]/30 dark:text-[#FF9800] flex-shrink-0">
-                              الحالية
-                            </span>
+                  </div>
+                </div>
+              );
+            })()}
+            
+            {/* Processing Steps with Vertical Timeline */}
+            <div className="relative">
+              {/* Vertical Line */}
+              <div className="absolute right-5 top-0 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-700 hidden sm:block"></div>
+              
+              <div className="space-y-4 sm:space-y-6">
+                {getProcessingSteps().map((step, index) => {
+                  const StepIcon = step.icon;
+                  const steps = getProcessingSteps();
+                  const isLast = index === steps.length - 1;
+                  
+                  return (
+                    <div key={step.id} className="relative flex items-start space-x-3 sm:space-x-4 space-x-reverse">
+                      {/* Step Icon with Connection Line */}
+                      <div className="relative flex-shrink-0 z-10">
+                        <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 ${
+                          step.isCompleted 
+                            ? 'bg-gradient-to-br from-green-500 to-green-600 text-white dark:from-green-600 dark:to-green-700' 
+                            : step.isCurrent 
+                            ? 'bg-gradient-to-br from-[#FF9800] to-[#F57C00] text-white dark:from-[#FF9800] dark:to-[#F57C00] ring-4 ring-[#FF9800]/30 dark:ring-[#FF9800]/40 animate-pulse' 
+                            : 'bg-gray-200 text-gray-400 dark:bg-gray-700 dark:text-gray-500'
+                        }`}>
+                          {step.isCompleted ? (
+                            <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6" />
+                          ) : (
+                            <StepIcon className="w-5 h-5 sm:w-6 sm:h-6" />
                           )}
                         </div>
-                        <p className={`text-xs sm:text-sm ${
+                        {!isLast && step.isCompleted && (
+                          <div className="absolute top-10 sm:top-12 right-1/2 w-0.5 h-6 sm:h-8 bg-green-500 dark:bg-green-600 transform translate-x-1/2 hidden sm:block"></div>
+                        )}
+                        {!isLast && step.isCurrent && (
+                          <div className="absolute top-10 sm:top-12 right-1/2 w-0.5 h-6 sm:h-8 bg-gradient-to-b from-[#FF9800] to-transparent transform translate-x-1/2 hidden sm:block"></div>
+                        )}
+                      </div>
+                      
+                      {/* Step Content */}
+                      <div className="flex-1 min-w-0 pb-4 sm:pb-6">
+                        <div className={`p-4 sm:p-5 rounded-xl border-2 transition-all duration-300 ${
                           step.isCompleted 
-                            ? 'text-green-700 dark:text-green-300' 
+                            ? 'bg-gradient-to-br from-green-50 to-green-100/50 border-green-300 dark:from-green-900/20 dark:to-green-900/10 dark:border-green-700 shadow-md' 
                             : step.isCurrent 
-                            ? 'text-[#F57C00] dark:text-[#F57C00]' 
-                            : 'text-gray-500 dark:text-gray-400'
+                            ? 'bg-gradient-to-br from-[#FF9800]/10 to-[#FF9800]/5 border-[#FF9800] dark:from-[#FF9800]/20 dark:to-[#FF9800]/10 dark:border-[#FF9800] shadow-lg ring-2 ring-[#FF9800]/20 dark:ring-[#FF9800]/30' 
+                            : 'bg-gray-50 border-gray-200 dark:bg-gray-800 dark:border-gray-600'
                         }`}>
-                          {step.description}
-                        </p>
-                        
-                        {/* Available Actions */}
-                        {step.isCurrent && canUpdateOrder() && (
-                          <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-gray-200 dark:border-gray-600">
-                            <p className="text-[10px] sm:text-xs text-gray-600 dark:text-gray-400 mb-1.5 sm:mb-2">الإجراءات المتاحة:</p>
-                            <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                              {step.actions.map(action => (
-                                <button
-                                  key={action}
-                                  onClick={() => openStatusModal(action)}
-                                  className="px-2 sm:px-3 py-1 text-[10px] sm:text-xs bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors text-gray-700 dark:text-gray-200 font-medium min-h-[32px] sm:min-h-[auto]"
-                                >
-                                  {statusConfig[action as keyof typeof statusConfig]?.label || action}
-                                </button>
-                              ))}
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-2">
+                            <div className="flex items-center gap-2">
+                              <h4 className={`text-base sm:text-lg font-bold ${
+                                step.isCompleted 
+                                  ? 'text-green-800 dark:text-green-200' 
+                                  : step.isCurrent 
+                                  ? 'text-[#F57C00] dark:text-[#FF9800]' 
+                                  : 'text-gray-600 dark:text-gray-400'
+                              }`}>
+                                {step.title}
+                              </h4>
+                              {step.isCurrent && (
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-[#FF9800] text-white dark:bg-[#FF9800] dark:text-white shadow-sm animate-pulse">
+                                  الحالية
+                                </span>
+                              )}
                             </div>
+                            {step.isCompleted && (
+                              <span className="text-xs font-medium text-green-700 dark:text-green-300 flex items-center gap-1">
+                                <CheckCircle className="w-3.5 h-3.5" />
+                                مكتمل
+                              </span>
+                            )}
+                          </div>
+                          <p className={`text-sm sm:text-base mb-3 ${
+                            step.isCompleted 
+                              ? 'text-green-700 dark:text-green-300' 
+                              : step.isCurrent 
+                              ? 'text-[#F57C00] dark:text-[#FF9800] font-medium' 
+                              : 'text-gray-500 dark:text-gray-400'
+                          }`}>
+                            {step.description}
+                          </p>
+                          
+                          {/* Available Actions */}
+                          {step.isCurrent && canUpdateOrder() && step.actions.length > 0 && (
+                            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
+                              <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">الإجراءات المتاحة:</p>
+                              <div className="flex flex-wrap gap-2">
+                                {step.actions.map(action => (
+                                  <button
+                                    key={action}
+                                    onClick={() => openStatusModal(action)}
+                                    className="px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-[#FF9800] hover:text-white hover:border-[#FF9800] dark:hover:bg-[#FF9800] dark:hover:text-white dark:hover:border-[#FF9800] transition-all duration-200 shadow-sm"
+                                  >
+                                    {statusConfig[action as keyof typeof statusConfig]?.label || action}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Unified Timeline - Merged Processing & Shipping Timeline */}
+            {(() => {
+              const timeline = getProcessingTimeline();
+              // Add order creation to timeline
+              if (order?.createdAt) {
+                timeline.push({
+                  date: order.createdAt,
+                  title: 'إنشاء الطلب',
+                  description: `تم إنشاء الطلب برقم #${order.orderNumber}`,
+                  icon: Clock,
+                  color: 'text-blue-600'
+                });
+              }
+              // Sort by date (newest first)
+              const sortedTimeline = timeline.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+              
+              return sortedTimeline.length > 0 ? (
+                <div className="mt-6 pt-6 border-t-2 border-gray-200 dark:border-gray-700">
+                  <h4 className="text-base font-bold text-gray-900 dark:text-white mb-5 flex items-center">
+                    <Clock className="w-5 h-5 ml-2 text-[#FF9800]" />
+                    Timeline - سجل الأحداث
+                  </h4>
+                  <div className="relative">
+                    {/* Vertical Timeline Line */}
+                    <div className="absolute right-6 top-0 bottom-0 w-0.5 bg-gradient-to-b from-[#FF9800] via-gray-300 to-gray-200 dark:from-[#FF9800] dark:via-gray-600 dark:to-gray-700 hidden sm:block"></div>
+                    
+                    <div className="space-y-4">
+                      {sortedTimeline.map((event, index) => {
+                        const EventIcon = event.icon;
+                        const isLast = index === sortedTimeline.length - 1;
+                        return (
+                          <div key={index} className="relative flex items-start gap-4">
+                            {/* Timeline Dot */}
+                            <div className={`relative z-10 flex-shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 ${
+                              event.color.includes('green') 
+                                ? 'bg-gradient-to-br from-green-500 to-green-600 text-white dark:from-green-600 dark:to-green-700'
+                                : event.color.includes('blue') || event.color.includes('indigo')
+                                ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white dark:from-blue-600 dark:to-blue-700'
+                                : event.color.includes('orange')
+                                ? 'bg-gradient-to-br from-orange-500 to-orange-600 text-white dark:from-orange-600 dark:to-orange-700'
+                                : event.color.includes('red')
+                                ? 'bg-gradient-to-br from-red-500 to-red-600 text-white dark:from-red-600 dark:to-red-700'
+                                : 'bg-gradient-to-br from-gray-500 to-gray-600 text-white dark:from-gray-600 dark:to-gray-700'
+                            }`}>
+                              <EventIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+                            </div>
+                            
+                            {/* Timeline Content */}
+                            <div className="flex-1 min-w-0 pb-4">
+                              <div className="p-4 bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all duration-200">
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-2">
+                                  <h5 className="text-sm sm:text-base font-bold text-gray-900 dark:text-white">
+                                    {event.title}
+                                  </h5>
+                                  <div className="flex flex-col items-end gap-1">
+                                    <div className="flex items-center gap-1.5">
+                                      <Calendar className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
+                                      <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                                        {formatDateWithRelative(event.date).full}
+                                      </span>
+                                    </div>
+                                    <span className="text-xs text-gray-500 dark:text-gray-500 italic">
+                                      {formatDateWithRelative(event.date).relative}
+                                    </span>
+                                  </div>
+                                </div>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">
+                                  {event.description}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              ) : null;
+            })()}
+          </div>
+
+          {/* Order Items - Enhanced */}
+          <div className="card">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+                <Package className="w-5 h-5 ml-2 text-[#FF9800]" />
+                منتجات الطلب ({order.items.length})
+              </h3>
+              {order.items.length > 0 && (
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  إجمالي: {formatCurrency(order.subtotal)}
+                </span>
+              )}
+            </div>
+            
+            {order.items.length === 0 ? (
+              <div className="text-center py-16 px-4">
+                <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gray-100 dark:bg-gray-700 mb-4">
+                  <Package className="w-10 h-10 text-gray-400 dark:text-gray-500" />
+                </div>
+                <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">لا توجد منتجات</h4>
+                <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
+                  هذا الطلب لا يحتوي على أي منتجات. يرجى التحقق من تفاصيل الطلب.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {order.items.map((item, index) => (
+                  <div key={index} className="group p-4 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-700 rounded-xl border-2 border-gray-200 dark:border-gray-600 hover:border-[#FF9800] dark:hover:border-[#FF9800] transition-all duration-200 shadow-sm hover:shadow-md">
+                    <div className="flex items-start gap-4">
+                      {/* Product Image - Larger */}
+                      <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden flex-shrink-0 bg-gray-100 dark:bg-gray-600 border-2 border-gray-200 dark:border-gray-500">
+                        {item.productId?.images && item.productId.images.length > 0 ? (
+                          <MediaThumbnail
+                            media={item.productId.images}
+                            alt={item.productId.name || item.productName}
+                            className="w-full h-full object-cover"
+                            showTypeBadge={false}
+                            width={96}
+                            height={96}
+                            fallbackIcon={<Package className="w-10 h-10 text-gray-400" />}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Package className="w-10 h-10 text-gray-400" />
                           </div>
                         )}
                       </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Processing Timeline */}
-            {getProcessingTimeline().length > 0 && (
-              <div>
-                <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-4">
-                  سجل المعالجة
-                </h4>
-                <div className="space-y-3">
-                  {getProcessingTimeline().map((event, index) => {
-                    const EventIcon = event.icon;
-                    return (
-                      <div key={index} className="flex items-start space-x-3 space-x-reverse">
-                        <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${event.color} bg-opacity-10 dark:bg-opacity-20`}>
-                          <EventIcon className="w-4 h-4" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <h5 className="text-sm font-medium text-gray-900 dark:text-white">
-                              {event.title}
-                            </h5>
-                            <span className="text-xs text-gray-500 dark:text-gray-400">
-                              {formatDate(event.date)}
-                            </span>
+                      
+                      {/* Product Details */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-gray-900 dark:text-white text-base mb-1 line-clamp-2">
+                              {item.productId?.name || item.productName}
+                            </h4>
+                            {item.productId?._id && (
+                              <Link 
+                                href={`/dashboard/products/${item.productId._id}`}
+                                className="text-xs text-[#FF9800] hover:text-[#F57C00] dark:text-[#FF9800] dark:hover:text-[#F57C00] flex items-center gap-1 w-fit"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                                عرض المنتج
+                              </Link>
+                            )}
                           </div>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            {event.description}
-                          </p>
+                          <div className="text-left flex-shrink-0">
+                            <p className="text-lg font-bold text-[#FF9800] dark:text-[#FF9800]">
+                              {formatCurrency(item.totalPrice)}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-2 mt-3">
+                          <div className="p-2 bg-white dark:bg-gray-600 rounded-lg">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">الكمية</p>
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white">{item.quantity}</p>
+                          </div>
+                          <div className="p-2 bg-white dark:bg-gray-600 rounded-lg">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">سعر الوحدة</p>
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white">{formatCurrency(item.unitPrice)}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="mt-2">
+                          <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${
+                            item.priceType === 'wholesale'
+                              ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                              : 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
+                          }`}>
+                            {item.priceType === 'wholesale' ? '💰 جملة' : '👤 مسوق'}
+                          </span>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
 
-          {/* Items */}
-          <div className="card">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">المنتجات</h3>
-            <div className="space-y-4">
-              {order.items.map((item, index) => (
-                <div key={index} className="flex items-center space-x-4 space-x-reverse p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <div className="w-16 h-16 bg-gray-200 dark:bg-gray-600 rounded-lg flex items-center justify-center overflow-hidden">
-                    {item.productId?.images && item.productId.images.length > 0 ? (
-                      <MediaThumbnail
-                        media={item.productId.images}
-                        alt={item.productId.name || item.productName}
-                        className="w-full h-full"
-                        showTypeBadge={false}
-                        width={64}
-                        height={64}
-                        fallbackIcon={<Package className="w-8 h-8 text-gray-400" />}
-                      />
-                    ) : (
-                      <Package className="w-8 h-8 text-gray-400" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-medium text-gray-900 dark:text-white">
-                      {item.productId?.name || item.productName}
-                    </h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      الكمية: {item.quantity} × {formatCurrency(item.unitPrice)}
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-500">
-                      نوع السعر: {item.priceType === 'wholesale' ? 'جملة' : 'مسوق'}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-gray-900 dark:text-white">
-                      {formatCurrency(item.totalPrice)}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Notes */}
-          {order.notes && (
-            <div className="card">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">ملاحظات الطلب</h3>
-              <p className="text-sm sm:text-base text-gray-700 dark:text-gray-300 text-wrap-long">{order.notes}</p>
-            </div>
-          )}
-
-          {/* Delivery Notes - Notes entered by marketer for delivery */}
-          {(order as any).deliveryNotes && (
+          {/* Unified Notes Section */}
+          {(order.notes || (order as any).deliveryNotes || order.adminNotes) && (
             <div className="card">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-                <Truck className="w-5 h-5 ml-2 text-[#FF9800]" />
-                ملاحظات التوصيل (من المسوق)
-              </h3>
-              <p className="text-sm sm:text-base text-gray-700 dark:text-gray-300 text-wrap-long">{(order as any).deliveryNotes}</p>
-            </div>
-          )}
-
-          {/* Admin Notes */}
-          {order.adminNotes && (
-            <div className="card">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">ملاحظات الإدارة</h3>
-              <p className="text-sm sm:text-base text-gray-700 dark:text-gray-300 text-wrap-long">{order.adminNotes}</p>
-            </div>
-          )}
-
-          {/* Shipping Management - Admin Only */}
-          {user?.role === 'admin' && (
-            <div className="card">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-                <Truck className="w-5 h-5 ml-2" />
-                إدارة الشحن
+                <MessageSquare className="w-5 h-5 ml-2 text-[#FF9800]" />
+                الملاحظات
               </h3>
               
-              {/* Show current shipping info if exists */}
-              {(order.shippingCompany || order.shippingAddress?.governorate || order.shippingAddress?.villageName) && (
-                <div className="mb-4 p-4 bg-gray-50 dark:bg-slate-700 rounded-lg space-y-2">
-                  {order.shippingCompany && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">شركة الشحن:</span>
-                      <span className="font-medium text-gray-900 dark:text-white">{order.shippingCompany}</span>
-                    </div>
-                  )}
-                  {order.shippingAddress?.governorate && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">المحافظة:</span>
-                      <span className="font-medium text-gray-900 dark:text-white">
-                        {order.shippingAddress.governorate}
-                      </span>
-                    </div>
-                  )}
-                  {order.shippingAddress?.villageName && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">القرية:</span>
-                      <span className="font-medium text-gray-900 dark:text-white">
-                        {order.shippingAddress.villageName}
-                        {order.shippingAddress?.villageId && (
-                          <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">
-                            (ID: {order.shippingAddress.villageId})
-                          </span>
-                        )}
-                      </span>
-                    </div>
-                  )}
-                  {/* Legacy support for manualVillageName */}
-                  {order.shippingAddress?.manualVillageName && !order.shippingAddress?.villageName && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-yellow-600 dark:text-yellow-400">اسم القرية (يدوي):</span>
-                      <span className="font-medium text-yellow-700 dark:text-yellow-300">
-                        {order.shippingAddress.manualVillageName}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className="space-y-3">
-                <button
-                  onClick={() => setShowShippingModal(true)}
-                  className="btn-secondary w-full flex items-center justify-center"
-                >
-                  <Edit className="w-4 h-4 ml-2" />
-                  إدارة معلومات الشحن
-                </button>
-
-                {/* Ship Order Button - Only if ready for shipping */}
-                {(order.status === 'ready_for_shipping' || order.status === 'processing' || order.status === 'confirmed') && 
-                 (order.shippingCompany && order.shippingAddress?.city) && (
+              {/* Notes Tabs */}
+              <div className="flex flex-wrap gap-2 mb-4 border-b border-gray-200 dark:border-gray-700">
+                {order.notes && (
                   <button
-                    onClick={handleShipOrder}
-                    disabled={updating}
-                    className="btn-primary w-full flex items-center justify-center"
+                    onClick={() => setActiveNotesTab('order')}
+                    className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                      activeNotesTab === 'order'
+                        ? 'bg-[#FF9800] text-white dark:bg-[#FF9800] dark:text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                    }`}
                   >
-                    {updating ? (
-                      <>
-                        <div className="loading-spinner w-4 h-4 ml-2"></div>
-                        جاري الشحن...
-                      </>
-                    ) : (
-                      <>
-                        <Truck className="w-4 h-4 ml-2" />
-                        شحن الطلب مباشرة
-                      </>
-                    )}
+                    ملاحظات الطلب
                   </button>
+                )}
+                {(order as any).deliveryNotes && (
+                  <button
+                    onClick={() => setActiveNotesTab('delivery')}
+                    className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors flex items-center gap-1.5 ${
+                      activeNotesTab === 'delivery'
+                        ? 'bg-[#FF9800] text-white dark:bg-[#FF9800] dark:text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    <Truck className="w-3.5 h-3.5" />
+                    ملاحظات التوصيل
+                  </button>
+                )}
+                {order.adminNotes && (
+                  <button
+                    onClick={() => setActiveNotesTab('admin')}
+                    className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                      activeNotesTab === 'admin'
+                        ? 'bg-[#FF9800] text-white dark:bg-[#FF9800] dark:text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    ملاحظات الإدارة
+                  </button>
+                )}
+              </div>
+
+              {/* Notes Content */}
+              <div className="min-h-[60px]">
+                {activeNotesTab === 'order' && order.notes && (
+                  <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <p className="text-sm sm:text-base text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
+                      {order.notes}
+                    </p>
+                  </div>
+                )}
+                {activeNotesTab === 'delivery' && (order as any).deliveryNotes && (
+                  <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Truck className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      <span className="text-xs font-medium text-blue-700 dark:text-blue-300">من المسوق</span>
+                    </div>
+                    <p className="text-sm sm:text-base text-blue-900 dark:text-blue-100 whitespace-pre-wrap leading-relaxed">
+                      {(order as any).deliveryNotes}
+                    </p>
+                  </div>
+                )}
+                {activeNotesTab === 'admin' && order.adminNotes && (
+                  <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                    <div className="flex items-center gap-2 mb-2">
+                      <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                      <span className="text-xs font-medium text-amber-700 dark:text-amber-300">من الإدارة</span>
+                    </div>
+                    <p className="text-sm sm:text-base text-amber-900 dark:text-amber-100 whitespace-pre-wrap leading-relaxed">
+                      {order.adminNotes}
+                    </p>
+                  </div>
                 )}
               </div>
             </div>
           )}
 
-          {/* Shipping Info - For Non-Admin */}
-          {user?.role !== 'admin' && order.shippingCompany && (
+          {/* Unified Shipping & Delivery Information */}
             <div className="card">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">معلومات الشحن</h3>
-              <div className="space-y-2">
-                <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">شركة الشحن</p>
-                  <p className="font-medium text-gray-900 dark:text-white">{order.shippingCompany}</p>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+                <Truck className="w-5 h-5 ml-2 text-[#FF9800]" />
+                معلومات الشحن والتوصيل
+              </h3>
+              {user?.role === 'admin' && (
+                <>
+                  {canEditShipping() ? (
+                    <button
+                      onClick={() => setShowShippingModal(true)}
+                      className="btn-secondary text-sm px-3 py-1.5 flex items-center"
+                      aria-label="تعديل معلومات الشحن"
+                    >
+                      <Edit className="w-4 h-4 ml-1.5" />
+                      تعديل
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                        <Truck className="w-3.5 h-3.5 ml-1.5" />
+                        الطلب عند شركة الشحن
+                      </span>
+                      <button
+                        onClick={() => {
+                          toast.error('لا يمكن تعديل معلومات الشحن بعد أن تم شحن الطلب إلى شركة الشحن');
+                        }}
+                        className="btn-secondary text-sm px-3 py-1.5 flex items-center opacity-50 cursor-not-allowed"
+                        disabled
+                        aria-label="تعديل معلومات الشحن غير متاح - الطلب عند شركة الشحن"
+                        title="لا يمكن تعديل معلومات الشحن بعد أن تم شحن الطلب"
+                      >
+                        <Edit className="w-4 h-4 ml-1.5" />
+                        تعديل
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Warning Message if Shipping is Locked */}
+            {!canEditShipping() && (
+              <div className="mb-4 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border-2 border-amber-200 dark:border-amber-800">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <h4 className="text-sm font-semibold text-amber-900 dark:text-amber-200 mb-1">
+                      معلومات الشحن مقفلة
+                    </h4>
+                    <p className="text-sm text-amber-800 dark:text-amber-300">
+                      لا يمكن تعديل معلومات الشحن لأن الطلب قد تم شحنه إلى شركة الشحن. إذا كنت بحاجة إلى تعديل معلومات الشحن، يرجى التواصل مع شركة الشحن مباشرة.
+                    </p>
+                  </div>
                 </div>
               </div>
+            )}
+
+            {/* Shipping Details Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              {/* Shipping Company & Location */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">معلومات الشحن</h4>
+                {order.shippingCompany ? (
+                  <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-blue-700 dark:text-blue-300">شركة الشحن</span>
+                      <span className="text-sm font-semibold text-blue-900 dark:text-blue-100">{order.shippingCompany}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">لم يتم تحديد شركة الشحن</span>
+                    </div>
+                  )}
+                
+                {(order.shippingAddress?.governorate || order.shippingAddress?.villageName) && (
+                  <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg space-y-2">
+                  {order.shippingAddress?.governorate && (
+                    <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-600 dark:text-gray-400">المحافظة</span>
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">{order.shippingAddress.governorate}</span>
+                    </div>
+                  )}
+                  {order.shippingAddress?.villageName && (
+                    <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-600 dark:text-gray-400">القرية</span>
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">
+                        {order.shippingAddress.villageName}
+                        {order.shippingAddress?.villageId && (
+                            <span className="text-xs text-gray-500 dark:text-gray-400 mr-1">(ID: {order.shippingAddress.villageId})</span>
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  {order.shippingAddress?.manualVillageName && !order.shippingAddress?.villageName && (
+                    <div className="flex items-center justify-between">
+                        <span className="text-xs text-yellow-600 dark:text-yellow-400">القرية (يدوي)</span>
+                        <span className="text-sm font-medium text-yellow-700 dark:text-yellow-300">{order.shippingAddress.manualVillageName}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              </div>
+
+              {/* Delivery Timeline */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">التواريخ المهمة</h4>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between p-2.5 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <div className="flex items-center space-x-2 space-x-reverse">
+                      <Calendar className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                      <span className="text-xs text-gray-600 dark:text-gray-400">تاريخ الطلب</span>
+                    </div>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">{formatDate(order.createdAt)}</span>
+                  </div>
+                  
+                  {order.shippedAt && (
+                    <div className="flex items-center justify-between p-2.5 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
+                      <div className="flex items-center space-x-2 space-x-reverse">
+                        <Truck className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                        <span className="text-xs text-indigo-700 dark:text-indigo-300">تاريخ الشحن</span>
+              </div>
+                      <span className="text-sm font-semibold text-indigo-900 dark:text-indigo-100">{formatDate(order.shippedAt)}</span>
             </div>
           )}
 
-          {/* Shipping Information */}
-          <div className="card">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-              <Truck className="w-5 h-5 ml-2" />
-              معلومات الشحن والتوصيل
-            </h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Shipping Status */}
-              <div>
-                <h4 className="font-medium text-gray-900 dark:text-white mb-3">حالة الشحن</h4>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">الحالة الحالية</span>
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${status.color}`}>
-                      {status.label}
-                    </span>
+                  {order.deliveredAt && (
+                    <div className="flex items-center justify-between p-2.5 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                      <div className="flex items-center space-x-2 space-x-reverse">
+                        <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
+                        <span className="text-xs text-green-700 dark:text-green-300">تاريخ التسليم</span>
+                </div>
+                      <span className="text-sm font-semibold text-green-900 dark:text-green-100">{formatDate(order.deliveredAt)}</span>
+            </div>
+          )}
+
+                  {order.actualDelivery && (
+                    <div className="flex items-center justify-between p-2.5 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                      <div className="flex items-center space-x-2 space-x-reverse">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        <span className="text-xs text-emerald-700 dark:text-emerald-300">التسليم الفعلي</span>
                   </div>
-                  
-                  
-                  {order.shippingCompany && (
-                    <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">شركة الشحن</span>
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">
-                        {order.shippingCompany}
-                      </span>
+                      <span className="text-sm font-semibold text-emerald-900 dark:text-emerald-100">{formatDate(order.actualDelivery)}</span>
                     </div>
                   )}
+                </div>
                 </div>
               </div>
 
-              {/* Delivery Information */}
-              <div>
-                <h4 className="font-medium text-gray-900 dark:text-white mb-3">معلومات التوصيل</h4>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">تاريخ الطلب</span>
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">
-                      {formatDate(order.createdAt)}
-                    </span>
+            {/* Package Information */}
+            {order?.packageId && (
+              <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <h4 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                  <Package className="w-5 h-5 ml-2 text-[#FF9800]" />
+                  معلومات الطرد
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-600 dark:text-gray-400">رقم الطرد</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-gray-900 dark:text-white">{order.packageId}</span>
+                        <button
+                          onClick={() => copyToClipboard(order.packageId?.toString() || '', 'رقم الطرد')}
+                          className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
+                          title="نسخ رقم الطرد"
+                        >
+                          {copiedField === 'رقم الطرد' ? (
+                            <Check className="w-3 h-3 text-green-600 dark:text-green-400" />
+                          ) : (
+                            <Copy className="w-3 h-3 text-gray-500 dark:text-gray-400" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
                   </div>
                   
-                  {order.shippedAt && (
-                    <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">تاريخ الشحن</span>
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">
-                        {formatDate(order.shippedAt)}
-                      </span>
+                  {packageInfo?.externalPackageId && (
+                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-blue-600 dark:text-blue-400">Package ID</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-blue-900 dark:text-blue-100 font-mono">
+                            {packageInfo.externalPackageId}
+                          </span>
+                          <button
+                            onClick={() => copyToClipboard(packageInfo.externalPackageId!.toString(), 'Package ID')}
+                            className="p-1 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded transition-colors"
+                            title="نسخ Package ID"
+                          >
+                            {copiedField === 'Package ID' ? (
+                              <Check className="w-3 h-3 text-green-600 dark:text-green-400" />
+                            ) : (
+                              <Copy className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   )}
                   
-                  {order.deliveredAt && (
-                    <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                      <span className="text-sm text-green-600 dark:text-green-400">تاريخ التسليم</span>
-                      <span className="text-sm font-medium text-green-600 dark:text-green-400">
-                        {formatDate(order.deliveredAt)}
+                  {packageInfo?.deliveryCost !== undefined && packageInfo.deliveryCost !== null && (
+                    <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-green-600 dark:text-green-400">تكلفة التوصيل</span>
+                        <span className="text-sm font-semibold text-green-900 dark:text-green-100">
+                          {packageInfo.deliveryCost}₪
                       </span>
+                      </div>
                     </div>
                   )}
                   
-                  {order.actualDelivery && (
-                    <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                      <span className="text-sm text-green-600 dark:text-green-400">التسليم الفعلي</span>
-                      <span className="text-sm font-medium text-green-600 dark:text-green-400">
-                        {formatDate(order.actualDelivery)}
+                  <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-600 dark:text-gray-400">الحالة</span>
+                      <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                        packageStatus === 'confirmed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
+                        packageStatus === 'pending' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300' :
+                        packageStatus === 'shipped' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
+                        packageStatus === 'delivered' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' :
+                        'bg-gray-100 text-gray-700 dark:bg-gray-600 dark:text-gray-300'
+                      }`}>
+                        {
+                          packageStatus === 'pending' ? '⏳ في انتظار الإرسال' :
+                          packageStatus === 'confirmed' ? '✅ تم الإرسال بنجاح' :
+                          packageStatus === 'processing' ? '🔄 قيد المعالجة' :
+                          packageStatus === 'shipped' ? '📦 تم الشحن' :
+                          packageStatus === 'delivered' ? '✓ تم التسليم' :
+                          packageStatus === 'cancelled' ? '❌ ملغي' :
+                          'غير محدد'
+                        }
                       </span>
-                    </div>
-                  )}
-                </div>
               </div>
             </div>
 
-            {/* Shipping Timeline */}
-            {['shipped', 'out_for_delivery', 'delivered'].includes(order.status) && (
-              <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-                <h4 className="font-medium text-gray-900 dark:text-white mb-4">جدول الشحن</h4>
+                  {packageInfo?.qrCode && (
+                    <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800 md:col-span-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs text-purple-600 dark:text-purple-400">QR Code</span>
+                        <div className="flex items-center gap-2 flex-1 justify-end">
+                          <span className="text-sm font-semibold text-purple-900 dark:text-purple-100 font-mono break-all text-left">
+                            {packageInfo.qrCode}
+                          </span>
+                          <button
+                            onClick={() => copyToClipboard(packageInfo.qrCode!, 'QR Code')}
+                            className="p-1 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded transition-colors flex-shrink-0"
+                            title="نسخ QR Code"
+                          >
+                            {copiedField === 'QR Code' ? (
+                              <Check className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {packageStatus === 'pending' && (
+                    <div className="md:col-span-2">
+                      <button
+                        onClick={handleResendPackage}
+                        disabled={resendingPackage}
+                        className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center relative overflow-hidden"
+                      >
+                        {resendingPackage ? (
+                          <>
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"></div>
+                            <div className="relative flex items-center">
+                              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin ml-2"></div>
+                              <span className="animate-pulse">جاري الإرسال...</span>
+                      </div>
+                          </>
+                        ) : (
+                          <>
+                            <Package className="w-4 h-4 ml-2" />
+                            إعادة الإرسال
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                      </div>
+                    </div>
+                  )}
+                  
+            {/* Admin Actions - Grouped */}
+            {user?.role === 'admin' && (
+              <div className="mt-6 pt-6 border-t-2 border-gray-200 dark:border-gray-700">
+                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 flex items-center">
+                  <Package className="w-4 h-4 ml-2 text-[#FF9800]" />
+                  إجراءات الإدارة
+                </h4>
                 <div className="space-y-3">
-                  {order.shippedAt && (
-                    <div className="flex items-center space-x-3 space-x-reverse">
-                      <div className="flex-shrink-0 w-6 h-6 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center">
-                        <Truck className="w-3 h-3 text-indigo-600 dark:text-indigo-200" />
+                  {/* Shipping Actions Group */}
+                  {(order.status === 'ready_for_shipping' || order.status === 'processing' || order.status === 'confirmed') && 
+                   (order.shippingCompany && (order.shippingAddress?.city || order.shippingAddress?.villageId)) && (
+                    <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border-2 border-blue-200 dark:border-blue-800">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Truck className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                        <h5 className="text-sm font-semibold text-gray-900 dark:text-white">إجراءات الشحن</h5>
                       </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">تم الشحن</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{formatDate(order.shippedAt)}</p>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <button
+                          onClick={handleShipOrder}
+                          disabled={updating}
+                          className="btn-primary flex-1 flex items-center justify-center relative overflow-hidden min-h-[44px] shadow-md hover:shadow-lg transition-all"
+                        >
+                          {updating ? (
+                            <>
+                              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"></div>
+                              <div className="relative flex items-center">
+                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin ml-2"></div>
+                                <span className="animate-pulse">جاري الشحن...</span>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <Truck className="w-4 h-4 ml-2" />
+                              شحن الطلب مباشرة
+                            </>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => setShowShippingModal(true)}
+                          className="btn-secondary-solid flex items-center justify-center min-h-[44px] shadow-md hover:shadow-lg transition-all"
+                        >
+                          <Edit className="w-4 h-4 ml-2" />
+                          إدارة الشحن
+                        </button>
                       </div>
                     </div>
                   )}
                   
-                  {order.outForDeliveryAt && (
-                    <div className="flex items-center space-x-3 space-x-reverse">
-                      <div className="flex-shrink-0 w-6 h-6 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center">
-                        <Truck className="w-3 h-3 text-orange-600 dark:text-orange-200" />
+                  {/* Status Update Actions Group */}
+                  {canUpdateOrder() && (
+                    <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl border-2 border-purple-200 dark:border-purple-800">
+                      <div className="flex items-center gap-2 mb-3">
+                        <CheckCircle className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                        <h5 className="text-sm font-semibold text-gray-900 dark:text-white">تحديث الحالة</h5>
                       </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">خارج للتوصيل</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{formatDate(order.outForDeliveryAt)}</p>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {order.deliveredAt && (
-                    <div className="flex items-center space-x-3 space-x-reverse">
-                      <div className="flex-shrink-0 w-6 h-6 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
-                        <CheckCircle2 className="w-3 h-3 text-green-600 dark:text-green-200" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">تم التسليم</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{formatDate(order.deliveredAt)}</p>
-                      </div>
+                      <button
+                        onClick={() => openStatusModal(order.status)}
+                        className="btn-secondary-solid w-full flex items-center justify-center min-h-[44px] shadow-md hover:shadow-lg transition-all"
+                      >
+                        <CheckCircle2 className="w-4 h-4 ml-2" />
+                        تحديث حالة الطلب
+                      </button>
                     </div>
                   )}
                 </div>
@@ -1724,346 +2470,311 @@ export default function OrderDetailPage() {
 
         {/* Sidebar */}
         <div className="space-y-6">
-                     {/* Customer Information */}
+          {/* Unified Customer & Shipping Information */}
            <div className="card">
-             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-               <User className="w-5 h-5 ml-2 text-[#FF9800] dark:text-[#FF9800]" />
-               معلومات العميل
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+                <User className="w-5 h-5 ml-2 text-[#FF9800]" />
+                معلومات العميل والعنوان
              </h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                             <div>
-                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                   اسم العميل
-                 </label>
-                 <p className="text-gray-900 dark:text-white">
+            </div>
+
+            {/* Customer Basic Info */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400">اسم العميل</label>
+                  {order.shippingAddress?.fullName && (
+                    <button
+                      onClick={() => copyToClipboard(order.shippingAddress.fullName, 'اسم العميل')}
+                      className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
+                      title="نسخ الاسم"
+                    >
+                      {copiedField === 'اسم العميل' ? (
+                        <Check className="w-3 h-3 text-green-600 dark:text-green-400" />
+                      ) : (
+                        <Copy className="w-3 h-3 text-gray-500 dark:text-gray-400" />
+                      )}
+                    </button>
+                  )}
+                </div>
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">
                    {order.shippingAddress?.fullName || 'غير محدد'}
                  </p>
                </div>
                
-               <div>
-                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                   رقم الهاتف
-                 </label>
-                                   <div className="flex items-center space-x-2 space-x-reverse">
-                     <p className="text-gray-900 dark:text-white">
-                       {order.shippingAddress?.phone || 'غير محدد'}
-                     </p>
+              <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400">رقم الهاتف</label>
                   {order.shippingAddress?.phone && (
-                    <div className="flex space-x-2 space-x-reverse">
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => copyToClipboard(order.shippingAddress.phone, 'رقم الهاتف')}
+                        className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
+                        title="نسخ رقم الهاتف"
+                      >
+                        {copiedField === 'رقم الهاتف' ? (
+                          <Check className="w-3 h-3 text-green-600 dark:text-green-400" />
+                        ) : (
+                          <Copy className="w-3 h-3 text-gray-500 dark:text-gray-400" />
+                        )}
+                      </button>
                       <a
                         href={`tel:${order.shippingAddress.phone}`}
-                        className="p-1 text-[#FF9800] hover:text-[#F57C00] dark:text-[#FF9800] dark:hover:text-[#F57C00] transition-colors"
+                        className="p-1 text-[#FF9800] hover:bg-orange-100 dark:hover:bg-orange-900/20 rounded transition-colors"
                         title="اتصال"
                       >
-                        <Phone className="w-4 h-4" />
+                        <Phone className="w-3 h-3" />
                       </a>
                       <button
                         onClick={handleWhatsAppConfirmation}
-                        className="p-1 text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300 transition-colors"
-                        title="واتساب - تأكيد الطلب"
+                        className="p-1 text-green-600 hover:bg-green-100 dark:hover:bg-green-900/20 rounded transition-colors"
+                        title="واتساب"
                       >
-                        <MessageCircle className="w-4 h-4" />
+                        <MessageCircle className="w-3 h-3" />
                       </button>
                     </div>
                   )}
                 </div>
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                  {order.shippingAddress?.phone || 'غير محدد'}
+                </p>
               </div>
             </div>
             
-                         <div className="mb-4">
-               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                 العنوان
-               </label>
-               <div className="flex items-start space-x-2 space-x-reverse">
-                 <MapPin className="w-4 h-4 text-[#4CAF50] dark:text-[#4CAF50] mt-0.5 flex-shrink-0" />
-                 <div className="flex-1">
-                   <p className="text-gray-900 dark:text-white">
-                     {order.shippingAddress?.street}
-                     {order.shippingAddress?.villageName && (
-                       <span>{', '}{order.shippingAddress.villageName}</span>
-                     )}
-                     {order.shippingAddress?.governorate && (
-                       <span>{', '}{order.shippingAddress.governorate}</span>
-                     )}
-                     {order.shippingAddress?.postalCode && ` - ${order.shippingAddress.postalCode}`}
-                     {/* Legacy support for manualVillageName */}
+            {/* Complete Address */}
+            <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                  <label className="text-xs font-medium text-blue-700 dark:text-blue-300">العنوان الكامل</label>
+                </div>
+                {order.shippingAddress && (
+                  <button
+                    onClick={() => {
+                      const fullAddress = [
+                        order.shippingAddress.street,
+                        order.shippingAddress?.villageName,
+                        order.shippingAddress?.governorate,
+                        order.shippingAddress?.postalCode && `الرمز البريدي: ${order.shippingAddress.postalCode}`
+                      ].filter(Boolean).join('، ');
+                      copyToClipboard(fullAddress, 'العنوان');
+                    }}
+                    className="p-1 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded transition-colors"
+                    title="نسخ العنوان"
+                  >
+                    {copiedField === 'العنوان' ? (
+                      <Check className="w-3 h-3 text-green-600 dark:text-green-400" />
+                    ) : (
+                      <Copy className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                    )}
+                  </button>
+                )}
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                  {order.shippingAddress?.street || 'غير محدد'}
+                </p>
+                {(order.shippingAddress?.villageName || order.shippingAddress?.governorate) && (
+                  <p className="text-xs text-blue-700 dark:text-blue-300">
+                    {[
+                      order.shippingAddress?.villageName,
+                      order.shippingAddress?.governorate
+                    ].filter(Boolean).join('، ')}
+                    {order.shippingAddress?.villageId && ` (ID: ${order.shippingAddress.villageId})`}
+                  </p>
+                )}
                      {order.shippingAddress?.manualVillageName && !order.shippingAddress?.villageName && (
-                       <span className="text-yellow-700 dark:text-yellow-400 font-semibold">
-                         {' - '}{order.shippingAddress.manualVillageName} (يدوي)
-                       </span>
-                     )}
-                   </p>
+                  <p className="text-xs font-medium text-yellow-700 dark:text-yellow-400">
+                    ⚠️ {order.shippingAddress.manualVillageName} (يدوي)
+                  </p>
+                )}
+                {order.shippingAddress?.postalCode && (
+                  <p className="text-xs text-blue-600 dark:text-blue-400">
+                    الرمز البريدي: {order.shippingAddress.postalCode}
+                  </p>
+                )}
                  </div>
                </div>
+
+            {/* Address Details Grid */}
+            {(order.shippingAddress?.governorate || order.shippingAddress?.villageName || order.shippingAddress?.postalCode) && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                {order.shippingAddress?.governorate && (
+                  <div className="p-2.5 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">المحافظة</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{order.shippingAddress.governorate}</p>
              </div>
-            
-                         {/* WhatsApp Communication Buttons */}
+                )}
+                {order.shippingAddress?.villageName && (
+                  <div className="p-2.5 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">القرية</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                      {order.shippingAddress.villageName}
+                      {order.shippingAddress?.villageId && (
+                        <span className="text-xs text-gray-500 dark:text-gray-400 mr-1">(ID: {order.shippingAddress.villageId})</span>
+                      )}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Address Notes */}
+            {order.shippingAddress?.notes && (
+              <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                <p className="text-xs font-medium text-amber-800 dark:text-amber-300 mb-1">ملاحظات العنوان</p>
+                <p className="text-sm text-amber-900 dark:text-amber-100">{order.shippingAddress.notes}</p>
+              </div>
+            )}
+
+            {/* Quick Actions - Enhanced */}
              {order.shippingAddress?.phone && (
-               <div className="border-t border-gray-200 dark:border-gray-600 pt-4">
-                 <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                   التواصل مع العميل
-                 </h4>
-                <div className="flex flex-wrap gap-2">
+               <div className="border-t-2 border-gray-200 dark:border-gray-600 pt-4">
+                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center">
+                  <MessageCircle className="w-4 h-4 ml-2 text-[#FF9800]" />
+                  التواصل السريع
+                </h4>
+                <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={handleWhatsAppConfirmation}
-                    className="btn-secondary-solid flex items-center"
+                    className="btn-secondary-solid flex items-center justify-center px-4 py-2.5 min-h-[44px] shadow-sm hover:shadow-md transition-all group"
                   >
-                    <MessageCircle className="w-4 h-4 ml-2" />
-                    تأكيد الطلب عبر واتساب
+                    <MessageCircle className="w-4 h-4 ml-2 group-hover:scale-110 transition-transform" />
+                    واتساب
                   </button>
-                  
                   <a
                     href={`tel:${order.shippingAddress.phone}`}
-                    className="btn-primary flex items-center"
+                    className="btn-primary flex items-center justify-center px-4 py-2.5 min-h-[44px] shadow-sm hover:shadow-md transition-all group"
                   >
-                    <Phone className="w-4 h-4 ml-2" />
-                    اتصال مباشر
+                    <Phone className="w-4 h-4 ml-2 group-hover:scale-110 transition-transform" />
+                    اتصال
                   </a>
-                  
-
                 </div>
               </div>
             )}
           </div>
 
-                     {/* Shipping Address */}
-           <div className="card">
-             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-               <MapPin className="w-5 h-5 ml-2 text-[#4CAF50] dark:text-[#4CAF50]" />
-               عنوان التوصيل
-             </h3>
-            <div className="space-y-3">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">الاسم</p>
-                <p className="font-medium text-gray-900 dark:text-white">{order.shippingAddress.fullName}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">رقم الهاتف</p>
-                <p className="font-medium text-gray-900 dark:text-white">{order.shippingAddress.phone}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">العنوان</p>
-                <p className="font-medium text-gray-900 dark:text-white">{order.shippingAddress.street}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">المحافظة</p>
-                <p className="font-medium text-gray-900 dark:text-white">
-                  {order.shippingAddress?.governorate || 'غير محدد'}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">القرية</p>
-                {order.shippingAddress?.villageName ? (
-                  <p className="font-medium text-gray-900 dark:text-white">
-                    {order.shippingAddress.villageName}
-                    {order.shippingAddress?.villageId && (
-                      <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">
-                        (ID: {order.shippingAddress.villageId})
-                      </span>
-                    )}
-                  </p>
-                ) : order.shippingAddress?.manualVillageName ? (
-                  <>
-                    <p className="font-medium text-yellow-700 dark:text-yellow-400">
-                      {order.shippingAddress.manualVillageName} (يدوي)
-                    </p>
-                    <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
-                      ⚠️ عنوان القرية المدخل يدوياً من المسوق. يرجى مراجعة العنوان واختيار القرية الصحيحة من قسم "إدارة الشحن"
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <p className="font-medium text-gray-900 dark:text-white">غير محدد</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      ℹ️ لم يتم تحديد القرية بعد
-                    </p>
-                  </>
-                )}
-              </div>
-              {order.shippingAddress.postalCode && (
-                <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">الرمز البريدي</p>
-                  <p className="font-medium text-gray-900 dark:text-white">{order.shippingAddress.postalCode}</p>
-                </div>
-              )}
-              {order.shippingAddress.notes && (
-                <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">ملاحظات</p>
-                  <p className="text-sm sm:text-base font-medium text-gray-900 dark:text-white text-wrap-long">{order.shippingAddress.notes}</p>
-                </div>
-              )}
-            </div>
-          </div>
+          {/* Unified Financial Summary & Profits */}
+          <div className="card">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+              <DollarSign className="w-5 h-5 ml-2 text-[#FF9800]" />
+              الملخص المالي والأرباح
+            </h3>
 
-                     {/* Financial Summary */}
-           <div className="card">
-             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-               <DollarSign className="w-5 h-5 ml-2 text-[#FF9800] dark:text-[#FF9800]" />
-               ملخص مالي
-             </h3>
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-400">المجموع الفرعي</span>
-                <span className="font-medium text-gray-900 dark:text-white">
-                  {formatCurrency(order.subtotal)}
-                </span>
-              </div>
-                             <div className="flex justify-between">
-                 <span className="text-gray-600 dark:text-gray-400">العمولة</span>
-                 <span className="font-medium text-[#4CAF50] dark:text-[#4CAF50]">
-                   {formatCurrency(order.commission)}
-                 </span>
-               </div>
-              {order.marketerProfit && order.marketerProfit > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">ربح المسوق</span>
-                  <span className="font-medium text-[#FF9800] dark:text-[#FF9800]">
-                    {formatCurrency(order.marketerProfit)}
+            {/* Order Summary */}
+            <div className="mb-6 p-4 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-xl border-2 border-gray-200 dark:border-gray-700">
+              <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">تفاصيل الطلب</h4>
+              <div className="space-y-2.5">
+                <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">المجموع الفرعي</span>
+                  <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                    {formatCurrency(order.subtotal)}
                   </span>
                 </div>
-              )}
-                             <div className="border-t border-gray-200 dark:border-gray-600 pt-3">
-                 <div className="flex justify-between">
-                   <span className="font-semibold text-gray-900 dark:text-white">الإجمالي</span>
-                   <span className="font-bold text-lg text-[#FF9800] dark:text-[#FF9800]">
-                     {formatCurrency(order.total)}
-                   </span>
-                 </div>
-               </div>
-            </div>
-          </div>
-
-                     {/* Marketer Profit Details - Only show for marketers */}
-           {user?.role === 'marketer' && order.customerRole === 'marketer' && (
-             <div className="card">
-               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-                 <DollarSign className="w-5 h-5 ml-2 text-[#FF9800] dark:text-[#FF9800]" />
-                 تفاصيل أرباحك
-               </h3>
-              <div className="space-y-3">
-                              <div className="bg-[#FF9800]/10 dark:bg-[#FF9800]/20 p-4 rounded-lg">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium text-[#F57C00] dark:text-[#F57C00]">ربح المسوق</span>
-                  <span className="text-lg font-bold text-[#F57C00] dark:text-[#F57C00]">
-                      {formatCurrency(order.marketerProfit || 0)}
+                <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">عمولة المنصة</span>
+                  <span className="text-sm font-semibold text-[#4CAF50] dark:text-[#4CAF50]">
+                    {formatCurrency(order.commission)}
+                  </span>
+                </div>
+                {order.marketerProfit && order.marketerProfit > 0 && (
+                  <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">ربح المسوق</span>
+                    <span className="text-sm font-semibold text-[#FF9800] dark:text-[#FF9800]">
+                      {formatCurrency(order.marketerProfit)}
                     </span>
                   </div>
-                  <p className="text-xs text-[#FF9800] dark:text-[#FF9800]">
-                    سيتم إضافة هذا الربح إلى محفظتك عند اكتمال الطلب
-                  </p>
+                )}
+                <div className="flex justify-between items-center pt-2">
+                  <span className="text-base font-bold text-gray-900 dark:text-white">الإجمالي</span>
+                  <span className="text-xl font-bold text-[#FF9800] dark:text-[#FF9800]">
+                    {formatCurrency(order.total)}
+                  </span>
                 </div>
-                
-                                 {order.status === 'delivered' && (
-                   <div className="bg-[#4CAF50]/10 dark:bg-[#4CAF50]/20 p-4 rounded-lg border border-[#4CAF50]/20 dark:border-[#4CAF50]/30">
-                     <div className="flex items-center">
-                       <CheckCircle className="w-5 h-5 text-[#4CAF50] dark:text-[#4CAF50] ml-2" />
-                       <span className="text-sm font-medium text-[#2E7D32] dark:text-[#4CAF50]">
-                         تم إضافة الربح إلى محفظتك
-                       </span>
-                     </div>
-                   </div>
-                 )}
-                
-                                 {['pending', 'confirmed', 'processing', 'shipped'].includes(order.status) && (
-                   <div className="bg-[#FF9800]/10 dark:bg-[#FF9800]/20 p-4 rounded-lg border border-[#FF9800]/20 dark:border-[#FF9800]/30">
-                     <div className="flex items-center">
-                       <Clock className="w-5 h-5 text-[#FF9800] dark:text-[#FF9800] ml-2" />
-                       <span className="text-sm font-medium text-[#E65100] dark:text-[#FF9800]">
-                         في انتظار اكتمال الطلب لإضافة الربح
-                       </span>
-                     </div>
-                   </div>
-                 )}
               </div>
             </div>
-          )}
 
-                     {/* Admin Profit Details - Only show for admins */}
-           {user?.role === 'admin' && (
-             <div className="card">
-               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-                 <DollarSign className="w-5 h-5 ml-2 text-[#4CAF50] dark:text-[#4CAF50]" />
-                 تفاصيل أرباح الإدارة
-               </h3>
-              <div className="space-y-3">
-                                 <div className="bg-[#4CAF50]/10 dark:bg-[#4CAF50]/20 p-4 rounded-lg border border-[#4CAF50]/20 dark:border-[#4CAF50]/30">
-                   <div className="flex justify-between items-center mb-2">
-                     <span className="text-sm font-medium text-[#2E7D32] dark:text-[#4CAF50]">عمولة الإدارة</span>
-                     <span className="text-lg font-bold text-[#2E7D32] dark:text-[#4CAF50]">
-                       {formatCurrency(order.commission || 0)}
-                     </span>
-                   </div>
-                   <p className="text-xs text-[#2E7D32] dark:text-[#4CAF50]">
-                     سيتم إضافة هذه العمولة إلى محفظة الإدارة عند اكتمال الطلب
-                   </p>
-                 </div>
-                
-                                 {order.status === 'delivered' && (
-                   <div className="bg-[#4CAF50]/10 dark:bg-[#4CAF50]/20 p-4 rounded-lg border border-[#4CAF50]/20 dark:border-[#4CAF50]/30">
-                     <div className="flex items-center">
-                       <CheckCircle className="w-5 h-5 text-[#4CAF50] dark:text-[#4CAF50] ml-2" />
-                       <span className="text-sm font-medium text-[#2E7D32] dark:text-[#4CAF50]">
-                         تم إضافة العمولة إلى محفظة الإدارة
-                       </span>
-                     </div>
-                   </div>
-                 )}
-                
-                                 {['pending', 'confirmed', 'processing', 'shipped'].includes(order.status) && (
-                   <div className="bg-[#FF9800]/10 dark:bg-[#FF9800]/20 p-4 rounded-lg border border-[#FF9800]/20 dark:border-[#FF9800]/30">
-                     <div className="flex items-center">
-                       <Clock className="w-5 h-5 text-[#FF9800] dark:text-[#FF9800] ml-2" />
-                       <span className="text-sm font-medium text-[#E65100] dark:text-[#FF9800]">
-                         في انتظار اكتمال الطلب لإضافة العمولة
-                       </span>
-                     </div>
-                   </div>
-                 )}
-              </div>
-            </div>
-          )}
-
-                     {/* Order Items */}
-           <div className="card">
-             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-               <Package className="w-5 h-5 ml-2 text-[#4CAF50] dark:text-[#4CAF50]" />
-               منتجات الطلب
-             </h3>
+            {/* Profits Section */}
             <div className="space-y-4">
-                             {order.items.map((item, index) => (
-                 <div key={index} className="flex items-center space-x-4 space-x-reverse p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
-                   {/* Product Image */}
-                   <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
-                     <MediaThumbnail
-                       media={item.productId?.images || []}
-                       alt={item.productName}
-                       className="w-full h-full"
-                       showTypeBadge={false}
-                       width={64}
-                       height={64}
-                       fallbackIcon={<Package className="w-8 h-8 text-[#4CAF50] dark:text-[#4CAF50]" />}
-                     />
-                   </div>
-                  
-                  {/* Product Info */}
-                  <div className="flex-1">
-                    <h4 className="font-medium text-gray-900 dark:text-white">{item.productName}</h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      الكمية: {item.quantity} × {formatCurrency(item.unitPrice)} = {formatCurrency(item.totalPrice)}
-                    </p>
+              {/* Marketer Profit - Show for marketers */}
+              {user?.role === 'marketer' && order.customerRole === 'marketer' && order.marketerProfit && order.marketerProfit > 0 && (
+                <div className="p-4 bg-gradient-to-br from-[#FF9800]/10 to-[#FF9800]/5 dark:from-[#FF9800]/20 dark:to-[#FF9800]/10 rounded-xl border-2 border-[#FF9800]/30 dark:border-[#FF9800]/40">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="w-5 h-5 text-[#FF9800] dark:text-[#FF9800]" />
+                      <h4 className="text-sm font-bold text-gray-900 dark:text-white">ربحك من هذا الطلب</h4>
+                    </div>
+                    <span className="text-2xl font-bold text-[#FF9800] dark:text-[#FF9800]">
+                      {formatCurrency(order.marketerProfit)}
+                    </span>
                   </div>
-                  
-                  {/* Total Price */}
-                  <div className="text-left">
-                    <p className="font-semibold text-gray-900 dark:text-white">
-                      {formatCurrency(item.totalPrice)}
+                  <div className={`p-3 rounded-lg ${
+                    order.status === 'delivered'
+                      ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
+                      : 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800'
+                  }`}>
+                    <p className={`text-xs font-medium flex items-center gap-2 ${
+                      order.status === 'delivered'
+                        ? 'text-green-800 dark:text-green-300'
+                        : 'text-yellow-800 dark:text-yellow-300'
+                    }`}>
+                      {order.status === 'delivered' ? (
+                        <>
+                          <CheckCircle className="w-4 h-4" />
+                          تم إضافة الربح إلى محفظتك
+                        </>
+                      ) : (
+                        <>
+                          <Clock className="w-4 h-4" />
+                          في انتظار اكتمال الطلب لإضافة الربح
+                        </>
+                      )}
                     </p>
                   </div>
                 </div>
-              ))}
+              )}
+
+              {/* Admin Commission - Show for admins */}
+              {user?.role === 'admin' && (
+                <div className="p-4 bg-gradient-to-br from-[#4CAF50]/10 to-[#4CAF50]/5 dark:from-[#4CAF50]/20 dark:to-[#4CAF50]/10 rounded-xl border-2 border-[#4CAF50]/30 dark:border-[#4CAF50]/40">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="w-5 h-5 text-[#4CAF50] dark:text-[#4CAF50]" />
+                      <h4 className="text-sm font-bold text-gray-900 dark:text-white">عمولة الإدارة</h4>
+                    </div>
+                    <span className="text-2xl font-bold text-[#4CAF50] dark:text-[#4CAF50]">
+                      {formatCurrency(order.commission)}
+                    </span>
+                  </div>
+                  <div className={`p-3 rounded-lg ${
+                    order.status === 'delivered'
+                      ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
+                      : 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800'
+                  }`}>
+                    <p className={`text-xs font-medium flex items-center gap-2 ${
+                      order.status === 'delivered'
+                        ? 'text-green-800 dark:text-green-300'
+                        : 'text-yellow-800 dark:text-yellow-300'
+                    }`}>
+                      {order.status === 'delivered' ? (
+                        <>
+                          <CheckCircle className="w-4 h-4" />
+                          تم إضافة العمولة إلى محفظة الإدارة
+                        </>
+                      ) : (
+                        <>
+                          <Clock className="w-4 h-4" />
+                          في انتظار اكتمال الطلب لإضافة العمولة
+                        </>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
+
 
                      {/* Order Info */}
            <div className="card">
@@ -2101,14 +2812,28 @@ export default function OrderDetailPage() {
         </div>
       </div>
 
-      {/* Status Update Modal */}
+      {/* Status Update Modal - Enhanced */}
       {showStatusModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-md">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md border-2 border-gray-200 dark:border-slate-700 animate-in zoom-in-95 duration-200">
             <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">
-                تحديث حالة الطلب
-              </h3>
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-[#FF9800]/10 dark:bg-[#FF9800]/20 rounded-lg">
+                    <CheckCircle2 className="w-5 h-5 text-[#FF9800]" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">
+                    تحديث حالة الطلب
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setShowStatusModal(false)}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                  aria-label="إغلاق النافذة"
+                >
+                  <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                </button>
+              </div>
               
                              <div className="mb-4">
                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
@@ -2224,16 +2949,20 @@ export default function OrderDetailPage() {
         </div>
       )}
 
-      {/* Shipping Management Modal */}
+      {/* Shipping Management Modal - Enhanced */}
       {showShippingModal && order && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border-2 border-gray-200 dark:border-slate-700 animate-in zoom-in-95 duration-200">
             <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 flex items-center">
-                  <Truck className="w-5 h-5 ml-2" />
-                  إدارة الشحن
-                </h3>
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+                    <Truck className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">
+                    إدارة الشحن
+                  </h3>
+                </div>
                 <button
                   onClick={() => {
                     setShowShippingModal(false);
@@ -2242,11 +2971,29 @@ export default function OrderDetailPage() {
                     setSelectedVillageId(order.shippingAddress?.villageId || null);
                     setShippingStatus({type: null, message: ''});
                   }}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                  aria-label="إغلاق النافذة"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
                 </button>
               </div>
+
+              {/* Warning if Shipping is Locked */}
+              {!canEditShipping() && (
+                <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 rounded-xl border-2 border-red-200 dark:border-red-800">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <h4 className="text-sm font-semibold text-red-900 dark:text-red-200 mb-1">
+                        لا يمكن تعديل معلومات الشحن
+                      </h4>
+                      <p className="text-sm text-red-800 dark:text-red-300">
+                        هذا الطلب قد تم شحنه إلى شركة الشحن ({order.shippingCompany || 'غير محدد'}). لا يمكن تعديل معلومات الشحن بعد الشحن. إذا كنت بحاجة إلى تعديل، يرجى التواصل مع شركة الشحن مباشرة.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-4">
                 <div>
@@ -2277,6 +3024,116 @@ export default function OrderDetailPage() {
                   <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                     القرية <span className="text-red-500">*</span>
                   </label>
+                  
+                  {/* Search Field for Villages */}
+                  {!loadingVillages && villages.length > 0 && (
+                    <div className="mb-3">
+                      <div className="relative">
+                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                          <Search className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                        </div>
+                        <input
+                          type="text"
+                          value={villageSearchQuery}
+                          onChange={(e) => {
+                            setVillageSearchQuery(e.target.value);
+                            setSelectedVillageIndex(-1); // Reset selection when typing
+                            // Don't open select automatically - let user type freely
+                          }}
+                          onFocus={() => {
+                            // Don't steal focus - let user type in search field
+                            // Select will open automatically via size attribute when there are results
+                          }}
+                          onKeyDown={(e) => {
+                            // Escape: Clear search
+                            if (e.key === 'Escape') {
+                              setVillageSearchQuery('');
+                              setSelectedVillageIndex(-1);
+                              e.preventDefault();
+                            }
+                            // Enter: Select first result if only one, or selected one
+                            else if (e.key === 'Enter' && filteredVillages.length > 0) {
+                              e.preventDefault();
+                              const indexToSelect = selectedVillageIndex >= 0 ? selectedVillageIndex : 0;
+                              if (filteredVillages[indexToSelect]) {
+                                const village = filteredVillages[indexToSelect];
+                                setSelectedVillageId(village.villageId);
+                                setVillageSearchQuery('');
+                                setSelectedVillageIndex(-1);
+                                toast.success(`تم اختيار: ${village.villageName}`);
+                              }
+                            }
+                            // Arrow Down: Navigate down
+                            else if (e.key === 'ArrowDown' && filteredVillages.length > 0) {
+                              e.preventDefault();
+                              setSelectedVillageIndex((prev) => 
+                                prev < filteredVillages.length - 1 ? prev + 1 : 0
+                              );
+                            }
+                            // Arrow Up: Navigate up
+                            else if (e.key === 'ArrowUp' && filteredVillages.length > 0) {
+                              e.preventDefault();
+                              setSelectedVillageIndex((prev) => 
+                                prev > 0 ? prev - 1 : filteredVillages.length - 1
+                              );
+                            }
+                          }}
+                          placeholder="ابحث عن القرية أو المحافظة أو ID... (استخدم ↑↓ للتنقل، Enter للاختيار، Esc للمسح)"
+                          className="w-full pl-4 pr-10 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-[#FF9800] focus:border-transparent transition-all"
+                          disabled={!canEditShipping()}
+                          aria-label="بحث عن القرية"
+                        />
+                        {villageSearchQuery && (
+                          <button
+                            onClick={() => setVillageSearchQuery('')}
+                            className="absolute inset-y-0 left-0 pl-3 flex items-center hover:bg-gray-100 dark:hover:bg-slate-600 rounded-l-lg transition-colors"
+                            aria-label="مسح البحث"
+                          >
+                            <X className="w-4 h-4 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300" />
+                          </button>
+                        )}
+                      </div>
+                      {villageSearchQuery && (
+                        <div className="mt-1.5 flex items-center justify-between text-xs">
+                          <span className="text-gray-600 dark:text-gray-400">
+                            {filteredVillages.length > 0 ? (
+                              <span className="text-green-600 dark:text-green-400 font-medium">
+                                {filteredVillages.length} نتيجة
+                                {selectedVillageIndex >= 0 && (
+                                  <span className="text-[#FF9800] mr-1">
+                                    {' '}({selectedVillageIndex + 1} محددة)
+                                  </span>
+                                )}
+                              </span>
+                            ) : (
+                              <span className="text-red-600 dark:text-red-400 font-medium">
+                                لا توجد نتائج
+                              </span>
+                            )}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            {filteredVillages.length > 0 && (
+                              <span className="text-gray-500 dark:text-gray-400 text-[10px]">
+                                ↑↓ للتنقل • Enter للاختيار
+                              </span>
+                            )}
+                            {filteredVillages.length < villages.length && (
+                              <button
+                                onClick={() => {
+                                  setVillageSearchQuery('');
+                                  setSelectedVillageIndex(-1);
+                                }}
+                                className="text-[#FF9800] hover:text-[#F57C00] dark:text-[#FF9800] dark:hover:text-[#F57C00] font-medium"
+                              >
+                                عرض الكل
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
                   {loadingVillages ? (
                     // Show loader while villages are loading
                     <div className="relative">
@@ -2293,31 +3150,61 @@ export default function OrderDetailPage() {
                   ) : filteredVillages.length > 0 ? (
                     <>
                       <select
+                        ref={villageSelectRef}
                         value={selectedVillageId || order.shippingAddress?.villageId || ''}
                         onChange={(e) => {
                           const villageId = e.target.value ? parseInt(e.target.value) : null;
                           setSelectedVillageId(villageId);
+                          // Clear search after selection
+                          setVillageSearchQuery('');
+                          setSelectedVillageIndex(-1);
+                          // Reset select size
+                          if (villageSelectRef.current) {
+                            villageSelectRef.current.size = 1;
+                          }
                         }}
                         className="input-field"
                         required
+                        disabled={!canEditShipping()}
+                        aria-label={canEditShipping() ? "اختر القرية" : "اختيار القرية غير متاح - الطلب عند شركة الشحن"}
+                        size={villageSearchQuery && filteredVillages.length > 0 ? Math.min(filteredVillages.length + 1, 10) : 1}
+                        onBlur={(e) => {
+                          // Reset size when select loses focus (unless clicking on an option)
+                          setTimeout(() => {
+                            if (villageSelectRef.current && document.activeElement !== villageSelectRef.current) {
+                              villageSelectRef.current.size = 1;
+                            }
+                          }, 200);
+                        }}
                       >
                         <option value="">
                           {order.shippingAddress?.villageId 
                             ? `القرية الحالية: ${order.shippingAddress?.villageName || 'غير محدد'} (ID: ${order.shippingAddress.villageId})`
                             : 'اختر القرية'}
                         </option>
-                        {filteredVillages.map((village) => (
-                          <option key={village.villageId} value={village.villageId}>
-                            {village.villageName} (ID: {village.villageId})
-                          </option>
-                        ))}
+                        {filteredVillages.map((village, index) => {
+                          const isSelected = selectedVillageIndex === index && villageSearchQuery;
+                          return (
+                            <option 
+                              key={village.villageId} 
+                              value={village.villageId}
+                              style={isSelected ? { backgroundColor: '#FF9800', color: 'white' } : {}}
+                            >
+                              {village.villageName} (ID: {village.villageId})
+                            </option>
+                          );
+                        })}
                       </select>
                       {order.shippingAddress?.villageId && (
                         <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
                           ℹ️ القرية الحالية محددة من قبل المسوق. يمكنك تغييرها إذا لزم الأمر.
                         </p>
                       )}
-                      {shippingCompany && filteredVillages.length < villages.length && (
+                      {villageSearchQuery ? (
+                        <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                          🔍 عرض {filteredVillages.length} من {villages.length} قرية بناءً على البحث
+                        </p>
+                      ) : shippingCompany && filteredVillages.length < villages.length && (
                         <p className="text-xs text-green-600 dark:text-green-400 mt-1">
                           ✓ تم تصفية القرى حسب شركة الشحن المختارة ({filteredVillages.length} قرية متاحة)
                         </p>
@@ -2327,11 +3214,24 @@ export default function OrderDetailPage() {
                     <>
                       <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
                         <p className="text-sm text-yellow-800 dark:text-yellow-300">
-                          {villages.length === 0 
-                            ? 'لا توجد قرى متاحة'
-                            : shippingCompany 
-                              ? 'لا توجد قرى متاحة لشركة الشحن المختارة. سيتم عرض جميع القرى.'
-                              : 'يرجى اختيار شركة الشحن أولاً'}
+                          {villageSearchQuery ? (
+                            <>
+                              لا توجد نتائج للبحث "<strong>{villageSearchQuery}</strong>". 
+                              <button
+                                onClick={() => setVillageSearchQuery('')}
+                                className="text-[#FF9800] hover:text-[#F57C00] dark:text-[#FF9800] dark:hover:text-[#F57C00] font-medium mr-1"
+                              >
+                                امسح البحث
+                              </button>
+                              لعرض جميع القرى.
+                            </>
+                          ) : villages.length === 0 ? (
+                            'لا توجد قرى متاحة'
+                          ) : shippingCompany ? (
+                            'لا توجد قرى متاحة لشركة الشحن المختارة. سيتم عرض جميع القرى.'
+                          ) : (
+                            'يرجى اختيار شركة الشحن أولاً'
+                          )}
                         </p>
                       </div>
                       {order.shippingAddress?.villageId && (
@@ -2383,10 +3283,20 @@ export default function OrderDetailPage() {
                 {order?.packageId && (
                   <div className="p-3 rounded-lg border bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600">
                     <div className="flex items-center justify-between">
-                      <div>
+                      <div className="flex-1">
                         <p className="text-sm font-medium text-gray-700 dark:text-slate-300">
                           رقم الطرد: {order.packageId}
                         </p>
+                        {packageInfo?.externalPackageId && (
+                          <p className="text-sm font-medium text-blue-600 dark:text-blue-400 mt-1">
+                            Package ID: {packageInfo.externalPackageId}
+                          </p>
+                        )}
+                        {packageInfo?.deliveryCost !== undefined && packageInfo.deliveryCost !== null && (
+                          <p className="text-sm font-medium text-green-600 dark:text-green-400 mt-1">
+                            تكلفة التوصيل: {packageInfo.deliveryCost}₪
+                          </p>
+                        )}
                         <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
                           الحالة: {
                             packageStatus === 'pending' ? '⏳ في انتظار الإرسال' :
@@ -2398,14 +3308,29 @@ export default function OrderDetailPage() {
                             'غير محدد'
                           }
                         </p>
+                        {packageInfo?.qrCode && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            QR Code: {packageInfo.qrCode}
+                          </p>
+                        )}
                       </div>
                       {packageStatus === 'pending' && (
                         <button
                           onClick={handleResendPackage}
                           disabled={resendingPackage}
-                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white text-sm font-medium rounded-lg transition-colors"
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center relative overflow-hidden min-w-[140px]"
                         >
-                          {resendingPackage ? 'جاري الإرسال...' : 'إعادة الإرسال'}
+                          {resendingPackage ? (
+                            <>
+                              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"></div>
+                              <div className="relative flex items-center">
+                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin ml-2"></div>
+                                <span className="animate-pulse">جاري الإرسال...</span>
+                              </div>
+                            </>
+                          ) : (
+                            'إعادة الإرسال'
+                          )}
                         </button>
                       )}
                     </div>
@@ -2447,13 +3372,17 @@ export default function OrderDetailPage() {
                   </button>
                   <button
                     onClick={handleUpdateShipping}
-                    disabled={updatingShipping || !shippingCompany || !shippingCompany.trim() || !(selectedVillageId || order.shippingAddress?.villageId)}
-                    className="btn-secondary flex items-center"
+                    disabled={!canEditShipping() || updatingShipping || !shippingCompany || !shippingCompany.trim() || !(selectedVillageId || order.shippingAddress?.villageId)}
+                    className="btn-secondary flex items-center justify-center relative overflow-hidden min-w-[160px] disabled:opacity-50 disabled:cursor-not-allowed"
+                    aria-label={canEditShipping() ? "حفظ معلومات الشحن" : "حفظ معلومات الشحن غير متاح - الطلب عند شركة الشحن"}
                   >
                     {updatingShipping ? (
                       <>
-                        <div className="loading-spinner w-4 h-4 ml-2"></div>
-                        جاري الحفظ...
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gray-200/30 dark:via-slate-600/30 to-transparent animate-shimmer"></div>
+                        <div className="relative flex items-center">
+                          <div className="w-4 h-4 border-2 border-gray-400/30 dark:border-slate-400/30 border-t-gray-600 dark:border-t-slate-200 rounded-full animate-spin ml-2"></div>
+                          <span className="animate-pulse">جاري الحفظ...</span>
+                        </div>
                       </>
                     ) : (
                       <>
@@ -2464,13 +3393,17 @@ export default function OrderDetailPage() {
                   </button>
                   <button
                     onClick={handleShipToCompany}
-                    disabled={updatingShipping || !shippingCompany || !shippingCompany.trim() || !(selectedVillageId || order.shippingAddress?.villageId)}
-                    className="btn-primary flex items-center"
+                    disabled={!canEditShipping() || updatingShipping || !shippingCompany || !shippingCompany.trim() || !(selectedVillageId || order.shippingAddress?.villageId)}
+                    className="btn-primary flex items-center justify-center relative overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+                    aria-label={canEditShipping() ? "شحن إلى شركة الشحن" : "شحن إلى شركة الشحن غير متاح - الطلب عند شركة الشحن"}
                   >
                     {updatingShipping ? (
                       <>
-                        <div className="loading-spinner w-4 h-4 ml-2"></div>
-                        جاري الإرسال...
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"></div>
+                        <div className="relative flex items-center">
+                          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin ml-2"></div>
+                          <span className="animate-pulse">جاري الإرسال...</span>
+                        </div>
                       </>
                     ) : (
                       <>
@@ -2486,21 +3419,26 @@ export default function OrderDetailPage() {
         </div>
       )}
 
-      {/* Ship Order Confirmation Modal */}
+      {/* Ship Order Confirmation Modal - Enhanced */}
       {showShipConfirmModal && order && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-md w-full">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full border-2 border-gray-200 dark:border-slate-700 animate-in zoom-in-95 duration-200">
             <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 flex items-center">
-                  <Truck className="w-5 h-5 ml-2 text-[#FF9800]" />
-                  تأكيد شحن الطلب
-                </h3>
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-[#FF9800]/10 dark:bg-[#FF9800]/20 rounded-lg">
+                    <Truck className="w-5 h-5 text-[#FF9800]" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">
+                    تأكيد شحن الطلب
+                  </h3>
+                </div>
                 <button
                   onClick={() => setShowShipConfirmModal(false)}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                  aria-label="إغلاق النافذة"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
                 </button>
               </div>
 
@@ -2541,23 +3479,28 @@ export default function OrderDetailPage() {
                 </div>
               </div>
 
-              <div className="flex justify-end space-x-3 space-x-reverse">
+              <div className="flex flex-col sm:flex-row justify-end gap-3 mt-6 pt-6 border-t border-gray-200 dark:border-slate-700">
                 <button
                   onClick={() => setShowShipConfirmModal(false)}
                   disabled={updating}
-                  className="btn-secondary"
+                  className="btn-secondary min-h-[44px] order-2 sm:order-1"
+                  aria-label="إلغاء الشحن"
                 >
                   إلغاء
                 </button>
                 <button
                   onClick={confirmShipOrder}
                   disabled={updating}
-                  className="btn-primary flex items-center"
+                  className="btn-primary flex items-center justify-center relative overflow-hidden min-h-[44px] min-w-[140px] order-1 sm:order-2"
+                  aria-label="تأكيد شحن الطلب"
                 >
                   {updating ? (
                     <>
-                      <div className="loading-spinner w-4 h-4 ml-2"></div>
-                      جاري الشحن...
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"></div>
+                      <div className="relative flex items-center">
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin ml-2"></div>
+                        <span className="animate-pulse">جاري الشحن...</span>
+                      </div>
                     </>
                   ) : (
                     <>
