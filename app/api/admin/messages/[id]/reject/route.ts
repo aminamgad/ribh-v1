@@ -7,6 +7,8 @@ import User from '@/models/User'; // Import User model for population
 import { logger } from '@/lib/logger';
 import { handleApiError } from '@/lib/error-handler';
 
+export const dynamic = 'force-dynamic';
+
 // PUT /api/admin/messages/[id]/reject - Reject a message
 async function rejectMessage(req: NextRequest, user: any, ...args: unknown[]) {
   try {

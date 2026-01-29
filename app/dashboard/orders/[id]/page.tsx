@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { ArrowLeft, Phone, Mail, MapPin, Package, Truck, CheckCircle, Clock, AlertCircle, MessageSquare, ExternalLink, MessageCircle, Edit, CheckCircle2, DollarSign, User, Calendar, Printer, X, Save, Copy, Check, Search } from 'lucide-react';
@@ -276,121 +276,119 @@ export default function OrderDetailPage() {
     }
   };
 
-  useEffect(() => {
-    if (params.id) {
-      fetchOrder(params.id as string);
-    }
-  }, [params.id]);
-
-  useEffect(() => {
-    if (showShippingModal && user?.role === 'admin') {
-      fetchShippingCompanies().then((loadedCompanies) => {
-        // Auto-select company if:
-        // 1. Order already has a shipping company, OR
-        // 2. No company is set and there's only one company available
-        // Always use UltraPal as the default shipping company
-        // This prepares the structure for future multi-company support
-        const defaultCompany = loadedCompanies.find((c: { companyName: string }) => 
-          c.companyName === 'UltraPal' || c.companyName === 'Ultra Pal'
-        ) || loadedCompanies[0];
-        
-        if (defaultCompany) {
-          setShippingCompany('UltraPal'); // Standardized name
-          updateCitiesForCompany(defaultCompany.companyName, loadedCompanies);
-        }
-      });
-      fetchVillages();
-    }
-  }, [showShippingModal, user?.role, order?._id]);
-
-  useEffect(() => {
-    if (order) {
-      // Always set shipping company to UltraPal as it's the only supported company
-      setShippingCompany('UltraPal');
-      setShippingCity(order.shippingAddress?.villageName || order.shippingAddress?.governorate || '');
-    }
-  }, [order]);
-
-  const fetchShippingCompanies = async () => {
+  // Fetch package status and details
+  const fetchPackageStatus = useCallback(async (packageId: number): Promise<string | null> => {
     try {
-      const response = await fetch('/api/admin/external-companies');
+      const response = await fetch(`/api/packages?packageId=${packageId}`);
       if (response.ok) {
         const data = await response.json();
-        if (data.success && data.companies) {
-          // Currently only UltraPal is supported, but structure is ready for multiple companies
-          // Each company will have its own villages/cities configuration
-          const activeCompanies = data.companies.filter((c: any) => 
-            c.isActive && 
-            c.apiEndpointUrl && 
-            c.apiToken && 
-            c.apiEndpointUrl.trim() !== '' && 
-            c.apiToken.trim() !== ''
-          );
-          
-          // For now, prioritize UltraPal but keep structure flexible
-          const ultraPalCompany = activeCompanies.filter((c: any) => 
-            c.companyName === 'UltraPal' || c.companyName === 'Ultra Pal'
-          );
-          
-          const companies = ultraPalCompany.length > 0 ? ultraPalCompany : activeCompanies;
-          setShippingCompanies(companies);
-          
-          // Load cities for UltraPal (current default company)
-          if (companies.length > 0) {
-            const defaultCompany = companies.find((c: { companyName: string }) => 
-              c.companyName === 'UltraPal' || c.companyName === 'Ultra Pal'
-            ) || companies[0];
-            updateCitiesForCompany(defaultCompany.companyName, companies);
-          }
-          
-          return companies;
+        if (data.success && data.package) {
+          setPackageStatus(data.package.status);
+          // Store package info (externalPackageId, deliveryCost, qrCode)
+          const info = {
+            externalPackageId: data.package.externalPackageId,
+            deliveryCost: data.package.deliveryCost,
+            qrCode: data.package.qrCode
+          };
+          console.log('Package info fetched:', info); // Debug log
+          setPackageInfo(info);
+          return data.package.status;
         }
       }
-      return [];
     } catch (error) {
-      return [];
+      console.error('Error fetching package status:', error);
     }
-  };
+    return null;
+  }, []);
 
-  const updateCitiesForCompany = (companyName: string, companies?: typeof shippingCompanies) => {
-    const companiesList = companies || shippingCompanies;
-    const selectedCompany = companiesList.find(c => c.companyName === companyName);
-    
-    if (selectedCompany) {
-      const cities: string[] = [];
-      // Add cities from shippingCities
-      if (selectedCompany.shippingCities && Array.isArray(selectedCompany.shippingCities)) {
-        selectedCompany.shippingCities
-          .filter((c: any) => c.isActive !== false)
-          .forEach((c: any) => {
-            if (c.cityName) cities.push(c.cityName);
-          });
-      }
-      // Add cities from shippingRegions
-      if (selectedCompany.shippingRegions && Array.isArray(selectedCompany.shippingRegions)) {
-        selectedCompany.shippingRegions
-          .filter((r: any) => r.isActive !== false)
-          .forEach((r: any) => {
-            if (r.cities && Array.isArray(r.cities)) {
-              r.cities.forEach((city: string) => {
-                if (city && !cities.includes(city)) cities.push(city);
-              });
-            }
-          });
-      }
-      setCompanyCities(cities);
+  const fetchOrder = useCallback(async (orderId: string) => {
+    try {
+      const response = await fetch(`/api/orders/${orderId}`);
       
-      // Filter villages based on company cities/regions
-      filterVillagesForCompany(selectedCompany);
-    } else {
-      setCompanyCities([]);
-      // If no company selected, show all villages
-      setFilteredVillages(villages);
+      if (response.ok) {
+        const data = await response.json();
+        setOrder(data.order);
+        
+        // Fetch package status if packageId exists
+        if (data.order?.packageId) {
+          fetchPackageStatus(data.order.packageId);
+        } else {
+          setPackageStatus(null);
+        }
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.error || 'الطلب غير موجود');
+        router.push('/dashboard/orders');
+      }
+    } catch (error) {
+      toast.error('حدث خطأ أثناء جلب تفاصيل الطلب');
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [router, fetchPackageStatus]);
+
+  // Smart search function - removes diacritics and normalizes text
+  const normalizeText = useCallback((text: string): string => {
+    return text
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u064B-\u065F\u0670]/g, '') // Remove Arabic diacritics
+      .replace(/[أإآ]/g, 'ا') // Normalize Alef variations
+      .replace(/[ى]/g, 'ي') // Normalize Yeh variations
+      .replace(/[ة]/g, 'ه') // Normalize Teh Marbuta
+      .trim();
+  }, []);
+
+  // Smart village search function
+  const searchVillages = useCallback((query: string, villagesList: typeof villages): typeof villages => {
+    if (!query || query.trim() === '') {
+      return villagesList;
+    }
+
+    const normalizedQuery = normalizeText(query.trim());
+    
+    return villagesList.filter((village) => {
+      const villageName = village.villageName || '';
+      const villageId = village.villageId?.toString() || '';
+      
+      // Normalize village name
+      const normalizedName = normalizeText(villageName);
+      
+      // Check multiple search criteria:
+      // 1. Exact match in village name
+      // 2. Partial match in village name
+      // 3. ID match
+      // 4. Match in governorate (if village name contains " - ")
+      const nameMatch = normalizedName.includes(normalizedQuery);
+      const idMatch = villageId.includes(normalizedQuery);
+      
+      // Extract governorate if format is "المحافظة - اسم القرية"
+      const parts = villageName.split(' - ');
+      const governorateMatch = parts.length > 1 ? normalizeText(parts[0]).includes(normalizedQuery) : false;
+      const villageOnlyMatch = parts.length > 1 ? normalizeText(parts[1]).includes(normalizedQuery) : false;
+      
+      return nameMatch || idMatch || governorateMatch || villageOnlyMatch;
+    }).sort((a, b) => {
+      // Sort by relevance: exact matches first, then partial matches
+      const aName = normalizeText(a.villageName || '');
+      const bName = normalizeText(b.villageName || '');
+      const aStartsWith = aName.startsWith(normalizedQuery);
+      const bStartsWith = bName.startsWith(normalizedQuery);
+      
+      if (aStartsWith && !bStartsWith) return -1;
+      if (!aStartsWith && bStartsWith) return 1;
+      
+      // Then sort by exact match position
+      const aIndex = aName.indexOf(normalizedQuery);
+      const bIndex = bName.indexOf(normalizedQuery);
+      if (aIndex !== bIndex) return aIndex - bIndex;
+      
+      return 0;
+    });
+  }, [normalizeText]);
 
   // Filter villages based on company's supported cities/regions
-  const filterVillagesForCompany = (company: typeof shippingCompanies[0]) => {
+  const filterVillagesForCompany = useCallback((company: typeof shippingCompanies[0]) => {
     if (!company || villages.length === 0) {
       setFilteredVillages(villages);
       return;
@@ -443,7 +441,120 @@ export default function OrderDetailPage() {
 
     // If filtering resulted in empty list, show all villages (company might support all)
     setFilteredVillages(filtered.length > 0 ? filtered : villages);
-  };
+  }, [villages]);
+
+  const updateCitiesForCompany = useCallback((companyName: string, companies?: typeof shippingCompanies) => {
+    const companiesList = companies || shippingCompanies;
+    const selectedCompany = companiesList.find(c => c.companyName === companyName);
+    
+    if (selectedCompany) {
+      const cities: string[] = [];
+      // Add cities from shippingCities
+      if (selectedCompany.shippingCities && Array.isArray(selectedCompany.shippingCities)) {
+        selectedCompany.shippingCities
+          .filter((c: any) => c.isActive !== false)
+          .forEach((c: any) => {
+            if (c.cityName) cities.push(c.cityName);
+          });
+      }
+      // Add cities from shippingRegions
+      if (selectedCompany.shippingRegions && Array.isArray(selectedCompany.shippingRegions)) {
+        selectedCompany.shippingRegions
+          .filter((r: any) => r.isActive !== false)
+          .forEach((r: any) => {
+            if (r.cities && Array.isArray(r.cities)) {
+              r.cities.forEach((city: string) => {
+                if (city && !cities.includes(city)) cities.push(city);
+              });
+            }
+          });
+      }
+      setCompanyCities(cities);
+      
+      // Filter villages based on company cities/regions
+      filterVillagesForCompany(selectedCompany);
+    } else {
+      setCompanyCities([]);
+      // If no company selected, show all villages
+      setFilteredVillages(villages);
+    }
+  }, [shippingCompanies, villages, filterVillagesForCompany]);
+
+  const fetchShippingCompanies = useCallback(async () => {
+    try {
+      const response = await fetch('/api/admin/external-companies');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.companies) {
+          // Currently only UltraPal is supported, but structure is ready for multiple companies
+          // Each company will have its own villages/cities configuration
+          const activeCompanies = data.companies.filter((c: any) => 
+            c.isActive && 
+            c.apiEndpointUrl && 
+            c.apiToken && 
+            c.apiEndpointUrl.trim() !== '' && 
+            c.apiToken.trim() !== ''
+          );
+          
+          // For now, prioritize UltraPal but keep structure flexible
+          const ultraPalCompany = activeCompanies.filter((c: any) => 
+            c.companyName === 'UltraPal' || c.companyName === 'Ultra Pal'
+          );
+          
+          const companies = ultraPalCompany.length > 0 ? ultraPalCompany : activeCompanies;
+          setShippingCompanies(companies);
+          
+          // Load cities for UltraPal (current default company)
+          if (companies.length > 0) {
+            const defaultCompany = companies.find((c: { companyName: string }) => 
+              c.companyName === 'UltraPal' || c.companyName === 'Ultra Pal'
+            ) || companies[0];
+            updateCitiesForCompany(defaultCompany.companyName, companies);
+          }
+          
+          return companies;
+        }
+      }
+      return [];
+    } catch (error) {
+      return [];
+    }
+  }, [updateCitiesForCompany]);
+
+  useEffect(() => {
+    if (params.id) {
+      fetchOrder(params.id as string);
+    }
+  }, [params.id, fetchOrder]);
+
+  useEffect(() => {
+    if (showShippingModal && user?.role === 'admin') {
+      fetchShippingCompanies().then((loadedCompanies) => {
+        // Auto-select company if:
+        // 1. Order already has a shipping company, OR
+        // 2. No company is set and there's only one company available
+        // Always use UltraPal as the default shipping company
+        // This prepares the structure for future multi-company support
+        const defaultCompany = loadedCompanies.find((c: { companyName: string }) => 
+          c.companyName === 'UltraPal' || c.companyName === 'Ultra Pal'
+        ) || loadedCompanies[0];
+        
+        if (defaultCompany) {
+          setShippingCompany('UltraPal'); // Standardized name
+          updateCitiesForCompany(defaultCompany.companyName, loadedCompanies);
+        }
+      });
+      fetchVillages();
+    }
+  }, [showShippingModal, user?.role, order?._id, fetchShippingCompanies, updateCitiesForCompany]);
+
+  useEffect(() => {
+    if (order) {
+      // Always set shipping company to UltraPal as it's the only supported company
+      setShippingCompany('UltraPal');
+      setShippingCity(order.shippingAddress?.villageName || order.shippingAddress?.governorate || '');
+    }
+  }, [order]);
 
   // Update cities and filter villages when shippingCompany changes (after companies are loaded)
   useEffect(() => {
@@ -453,7 +564,7 @@ export default function OrderDetailPage() {
       // If no company selected, show all villages
       setFilteredVillages(villages);
     }
-  }, [shippingCompany, shippingCompanies, villages]);
+  }, [shippingCompany, shippingCompanies, villages, updateCitiesForCompany]);
 
   // Update filtered villages when villages are loaded
   useEffect(() => {
@@ -469,7 +580,7 @@ export default function OrderDetailPage() {
         setFilteredVillages(villages);
       }
     }
-  }, [villages]);
+  }, [villages, shippingCompany, shippingCompanies, filterVillagesForCompany]);
 
   // Initialize selected village when order loads
   useEffect(() => {
@@ -477,66 +588,6 @@ export default function OrderDetailPage() {
       setSelectedVillageId(order.shippingAddress.villageId);
     }
   }, [order]);
-
-  // Smart search function - removes diacritics and normalizes text
-  const normalizeText = (text: string): string => {
-    return text
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u064B-\u065F\u0670]/g, '') // Remove Arabic diacritics
-      .replace(/[أإآ]/g, 'ا') // Normalize Alef variations
-      .replace(/[ى]/g, 'ي') // Normalize Yeh variations
-      .replace(/[ة]/g, 'ه') // Normalize Teh Marbuta
-      .trim();
-  };
-
-  // Smart village search function
-  const searchVillages = (query: string, villagesList: typeof villages): typeof villages => {
-    if (!query || query.trim() === '') {
-      return villagesList;
-    }
-
-    const normalizedQuery = normalizeText(query.trim());
-    
-    return villagesList.filter((village) => {
-      const villageName = village.villageName || '';
-      const villageId = village.villageId?.toString() || '';
-      
-      // Normalize village name
-      const normalizedName = normalizeText(villageName);
-      
-      // Check multiple search criteria:
-      // 1. Exact match in village name
-      // 2. Partial match in village name
-      // 3. ID match
-      // 4. Match in governorate (if village name contains " - ")
-      const nameMatch = normalizedName.includes(normalizedQuery);
-      const idMatch = villageId.includes(normalizedQuery);
-      
-      // Extract governorate if format is "المحافظة - اسم القرية"
-      const parts = villageName.split(' - ');
-      const governorateMatch = parts.length > 1 ? normalizeText(parts[0]).includes(normalizedQuery) : false;
-      const villageOnlyMatch = parts.length > 1 ? normalizeText(parts[1]).includes(normalizedQuery) : false;
-      
-      return nameMatch || idMatch || governorateMatch || villageOnlyMatch;
-    }).sort((a, b) => {
-      // Sort by relevance: exact matches first, then partial matches
-      const aName = normalizeText(a.villageName || '');
-      const bName = normalizeText(b.villageName || '');
-      const aStartsWith = aName.startsWith(normalizedQuery);
-      const bStartsWith = bName.startsWith(normalizedQuery);
-      
-      if (aStartsWith && !bStartsWith) return -1;
-      if (!aStartsWith && bStartsWith) return 1;
-      
-      // Then sort by exact match position
-      const aIndex = aName.indexOf(normalizedQuery);
-      const bIndex = bName.indexOf(normalizedQuery);
-      if (aIndex !== bIndex) return aIndex - bIndex;
-      
-      return 0;
-    });
-  };
 
   // Apply search filter to villages - Real-time filtering
   useEffect(() => {
@@ -598,7 +649,7 @@ export default function OrderDetailPage() {
     } else {
       setFilteredVillages(baseFiltered);
     }
-  }, [villageSearchQuery, villages, shippingCompany, shippingCompanies]);
+  }, [villageSearchQuery, villages, shippingCompany, shippingCompanies, searchVillages]);
 
 
   const fetchVillages = async () => {
@@ -1034,57 +1085,6 @@ export default function OrderDetailPage() {
     } finally {
       setUpdating(false);
     }
-  };
-
-  const fetchOrder = async (orderId: string) => {
-    try {
-      const response = await fetch(`/api/orders/${orderId}`);
-      
-      if (response.ok) {
-        const data = await response.json();
-        setOrder(data.order);
-        
-        // Fetch package status if packageId exists
-        if (data.order?.packageId) {
-          fetchPackageStatus(data.order.packageId);
-        } else {
-          setPackageStatus(null);
-        }
-      } else {
-        const errorData = await response.json();
-        toast.error(errorData.error || 'الطلب غير موجود');
-        router.push('/dashboard/orders');
-      }
-    } catch (error) {
-      toast.error('حدث خطأ أثناء جلب تفاصيل الطلب');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Fetch package status and details
-  const fetchPackageStatus = async (packageId: number): Promise<string | null> => {
-    try {
-      const response = await fetch(`/api/packages?packageId=${packageId}`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.package) {
-          setPackageStatus(data.package.status);
-          // Store package info (externalPackageId, deliveryCost, qrCode)
-          const info = {
-            externalPackageId: data.package.externalPackageId,
-            deliveryCost: data.package.deliveryCost,
-            qrCode: data.package.qrCode
-          };
-          console.log('Package info fetched:', info); // Debug log
-          setPackageInfo(info);
-          return data.package.status;
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching package status:', error);
-    }
-    return null;
   };
 
   // Resend package to shipping company
@@ -3060,37 +3060,67 @@ export default function OrderDetailPage() {
                           }
                         }}
                         onKeyDown={(e) => {
-                          // Escape: Clear search
+                          // Open dropdown on any key press if not already open
+                          if (filteredVillages.length > 0 && !showVillageDropdown && e.key !== 'Escape' && e.key !== 'Enter') {
+                            setShowVillageDropdown(true);
+                          }
+                          
+                          // Escape: Clear search and close dropdown
                           if (e.key === 'Escape') {
                             setVillageSearchQuery('');
                             setSelectedVillageIndex(-1);
+                            setShowVillageDropdown(false);
                             e.preventDefault();
                           }
                           // Enter: Select first result if only one, or selected one
-                          else if (e.key === 'Enter' && filteredVillages.length > 0) {
+                          else if (e.key === 'Enter') {
                             e.preventDefault();
-                            const indexToSelect = selectedVillageIndex >= 0 ? selectedVillageIndex : 0;
-                            if (filteredVillages[indexToSelect]) {
-                              const village = filteredVillages[indexToSelect];
-                              setSelectedVillageId(village.villageId);
-                              setVillageSearchQuery('');
-                              setSelectedVillageIndex(-1);
-                              toast.success(`تم اختيار: ${village.villageName}`);
+                            const searchQuery = villageSearchQuery || '';
+                            const displayVillages = searchQuery.trim() 
+                              ? searchVillages(searchQuery, filteredVillages)
+                              : filteredVillages;
+                            
+                            if (displayVillages.length > 0) {
+                              const indexToSelect = selectedVillageIndex >= 0 ? selectedVillageIndex : 0;
+                              if (displayVillages[indexToSelect]) {
+                                const village = displayVillages[indexToSelect];
+                                setSelectedVillageId(village.villageId);
+                                setVillageSearchQuery('');
+                                setSelectedVillageIndex(-1);
+                                setShowVillageDropdown(false);
+                                toast.success(`تم اختيار: ${village.villageName}`);
+                              }
                             }
                           }
                           // Arrow Down: Navigate down
-                          else if (e.key === 'ArrowDown' && filteredVillages.length > 0) {
+                          else if (e.key === 'ArrowDown') {
                             e.preventDefault();
-                            setSelectedVillageIndex((prev) => 
-                              prev < filteredVillages.length - 1 ? prev + 1 : 0
-                            );
+                            const searchQuery = villageSearchQuery || '';
+                            const displayVillages = searchQuery.trim() 
+                              ? searchVillages(searchQuery, filteredVillages)
+                              : filteredVillages;
+                            
+                            if (displayVillages.length > 0) {
+                              setSelectedVillageIndex((prev) => 
+                                prev < displayVillages.length - 1 ? prev + 1 : 0
+                              );
+                              setShowVillageDropdown(true);
+                            }
                           }
                           // Arrow Up: Navigate up
-                          else if (e.key === 'ArrowUp' && filteredVillages.length > 0) {
+                          else if (e.key === 'ArrowUp') {
                             e.preventDefault();
-                            setSelectedVillageIndex((prev) => 
-                              prev > 0 ? prev - 1 : filteredVillages.length - 1
-                            );
+                            const searchQuery = villageSearchQuery || '';
+                            const displayVillages = searchQuery.trim() 
+                              ? searchVillages(searchQuery, filteredVillages)
+                              : filteredVillages;
+                            
+                            if (displayVillages.length > 0) {
+                              setSelectedVillageIndex((prev) => 
+                                prev > 0 ? prev - 1 : displayVillages.length - 1
+                              );
+                              setShowVillageDropdown(true);
+                            }
                           }
                         }}
                         placeholder={order.shippingAddress?.villageId 
@@ -3115,33 +3145,49 @@ export default function OrderDetailPage() {
                       )}
                       
                       {/* Dropdown List */}
-                      {showVillageDropdown && (villageSearchQuery || !selectedVillageId) && filteredVillages.length > 0 && (
+                      {showVillageDropdown && filteredVillages.length > 0 && (
                         <div className="absolute z-50 w-full mt-1 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                          {filteredVillages.map((village, index) => (
-                            <button
-                              key={village.villageId}
-                              type="button"
-                              onClick={() => {
-                                setSelectedVillageId(village.villageId);
-                                setVillageSearchQuery('');
-                                setSelectedVillageIndex(-1);
-                                setShowVillageDropdown(false);
-                                toast.success(`تم اختيار: ${village.villageName}`);
-                              }}
-                              className={`w-full text-right px-4 py-2 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors ${
-                                selectedVillageIndex === index && villageSearchQuery
-                                  ? 'bg-[#FF9800] text-white'
-                                  : selectedVillageId === village.villageId || order.shippingAddress?.villageId === village.villageId
-                                  ? 'bg-blue-50 dark:bg-blue-900/20 font-medium'
-                                  : ''
-                              }`}
-                              onMouseEnter={() => setSelectedVillageIndex(index)}
-                            >
-                              <div className="text-sm text-gray-900 dark:text-slate-100">
-                                {village.villageName} (ID: {village.villageId})
-                              </div>
-                            </button>
-                          ))}
+                          {(() => {
+                            // Filter villages based on search query
+                            const searchQuery = villageSearchQuery || '';
+                            const displayVillages = searchQuery.trim() 
+                              ? searchVillages(searchQuery, filteredVillages)
+                              : filteredVillages;
+                            
+                            if (displayVillages.length === 0) {
+                              return (
+                                <div className="p-3 text-sm text-gray-500 dark:text-gray-400 text-center">
+                                  لا توجد نتائج
+                                </div>
+                              );
+                            }
+                            
+                            return displayVillages.map((village, index) => (
+                              <button
+                                key={village.villageId}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedVillageId(village.villageId);
+                                  setVillageSearchQuery('');
+                                  setSelectedVillageIndex(-1);
+                                  setShowVillageDropdown(false);
+                                  toast.success(`تم اختيار: ${village.villageName}`);
+                                }}
+                                className={`w-full text-right px-4 py-2 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors ${
+                                  selectedVillageIndex === index && villageSearchQuery
+                                    ? 'bg-[#FF9800] text-white'
+                                    : selectedVillageId === village.villageId || order.shippingAddress?.villageId === village.villageId
+                                    ? 'bg-blue-50 dark:bg-blue-900/20 font-medium'
+                                    : ''
+                                }`}
+                                onMouseEnter={() => setSelectedVillageIndex(index)}
+                              >
+                                <div className="text-sm text-gray-900 dark:text-slate-100">
+                                  {village.villageName} (ID: {village.villageId})
+                                </div>
+                              </button>
+                            ));
+                          })()}
                         </div>
                       )}
                       

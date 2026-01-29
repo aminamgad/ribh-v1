@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   CheckCircle, 
   Package, 
@@ -70,8 +70,11 @@ export default function BulkOrdersActions({
   const [filteredVillages, setFilteredVillages] = useState<Array<{villageId: number; villageName: string}>>([]); // FIXED: Add filteredVillages like individual order
   const [companyCities, setCompanyCities] = useState<Record<string, string[]>>({}); // Map company ID to cities
   const [loadingVillages, setLoadingVillages] = useState(false); // Loading state for villages
-  const [villageSearchQuery, setVillageSearchQuery] = useState<string>(''); // Search query for villages
+  const [villageSearchQuery, setVillageSearchQuery] = useState<string>(''); // Search query for villages (general search)
   const [selectedVillageIndex, setSelectedVillageIndex] = useState<number>(-1); // Selected village index for keyboard navigation
+  const [orderVillageSearch, setOrderVillageSearch] = useState<Record<string, string>>({}); // Search query for each order
+  const [orderVillageDropdown, setOrderVillageDropdown] = useState<Record<string, boolean>>({}); // Dropdown state for each order
+  const [orderSelectedVillageIndex, setOrderSelectedVillageIndex] = useState<Record<string, number>>({}); // Selected index for each order
   
   // Cancel/Return modal state
   const [reason, setReason] = useState('');
@@ -314,6 +317,28 @@ export default function BulkOrdersActions({
       setFilteredVillages(baseFiltered);
     }
   }, [villageSearchQuery, villages, shippingCompany, shippingCompanies]);
+
+  // Click outside detection for village dropdowns
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.village-search-container')) {
+        // Close all dropdowns
+        const allClosed: Record<string, boolean> = {};
+        Object.keys(orderVillageDropdown).forEach(orderId => {
+          allClosed[orderId] = false;
+        });
+        setOrderVillageDropdown(allClosed);
+      }
+    };
+
+    if (Object.values(orderVillageDropdown).some(open => open)) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [orderVillageDropdown]);
 
 
   const selectedCount = selectedOrderIds.length;
@@ -1043,43 +1068,210 @@ export default function BulkOrdersActions({
                                     } else if (filteredVillages.length > 0) {
                                       // FIXED: Use filteredVillages with villageId support (same as individual order)
                                       return (
-                                        <>
-                                          <select
-                                            value={shipMultipleVillageId[order._id] || order.shippingAddress?.villageId || ''}
-                                            onChange={(e) => {
-                                              const villageId = e.target.value ? parseInt(e.target.value) : null;
-                                              const selectedVillage = filteredVillages.find(v => v.villageId === villageId);
-                                              
-                                              // Update both villageId and city name
-                                              setShipMultipleVillageId({
-                                                ...shipMultipleVillageId,
-                                                [order._id]: villageId
-                                              });
-                                              setShipMultipleCity({
-                                                ...shipMultipleCity,
-                                                [order._id]: selectedVillage ? selectedVillage.villageName : ''
-                                              });
-                                            }}
-                                            className="input-field text-sm"
-                                            required
-                                          >
-                                            <option value="">
-                                              {order.shippingAddress?.villageId 
+                                        <div className="relative village-search-container">
+                                          <div className="relative">
+                                            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none z-10">
+                                              <Search className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                                            </div>
+                                            <input
+                                              type="text"
+                                              value={orderVillageSearch[order._id] || (shipMultipleVillageId[order._id] || order.shippingAddress?.villageId ? filteredVillages.find(v => v.villageId === (shipMultipleVillageId[order._id] || order.shippingAddress?.villageId))?.villageName || order.shippingAddress?.villageName || '' : '')}
+                                              onChange={(e) => {
+                                                setOrderVillageSearch({
+                                                  ...orderVillageSearch,
+                                                  [order._id]: e.target.value
+                                                });
+                                                setOrderSelectedVillageIndex({
+                                                  ...orderSelectedVillageIndex,
+                                                  [order._id]: -1
+                                                });
+                                              }}
+                                              onFocus={() => {
+                                                if (filteredVillages.length > 0) {
+                                                  setOrderVillageDropdown({
+                                                    ...orderVillageDropdown,
+                                                    [order._id]: true
+                                                  });
+                                                }
+                                              }}
+                                              onClick={() => {
+                                                if (filteredVillages.length > 0) {
+                                                  setOrderVillageDropdown({
+                                                    ...orderVillageDropdown,
+                                                    [order._id]: true
+                                                  });
+                                                }
+                                              }}
+                                              onKeyDown={(e) => {
+                                                const searchQuery = orderVillageSearch[order._id] || '';
+                                                const orderFiltered = searchQuery.trim() 
+                                                  ? searchVillages(searchQuery, filteredVillages)
+                                                  : filteredVillages;
+                                                const currentIndex = orderSelectedVillageIndex[order._id] ?? -1;
+                                                
+                                                if (e.key === 'Escape') {
+                                                  setOrderVillageDropdown({
+                                                    ...orderVillageDropdown,
+                                                    [order._id]: false
+                                                  });
+                                                  setOrderVillageSearch({
+                                                    ...orderVillageSearch,
+                                                    [order._id]: ''
+                                                  });
+                                                  setOrderSelectedVillageIndex({
+                                                    ...orderSelectedVillageIndex,
+                                                    [order._id]: -1
+                                                  });
+                                                  e.preventDefault();
+                                                } else if (e.key === 'Enter' && orderFiltered.length > 0) {
+                                                  e.preventDefault();
+                                                  const indexToSelect = currentIndex >= 0 ? currentIndex : 0;
+                                                  if (orderFiltered[indexToSelect]) {
+                                                    const village = orderFiltered[indexToSelect];
+                                                    setShipMultipleVillageId({
+                                                      ...shipMultipleVillageId,
+                                                      [order._id]: village.villageId
+                                                    });
+                                                    setShipMultipleCity({
+                                                      ...shipMultipleCity,
+                                                      [order._id]: village.villageName
+                                                    });
+                                                    setOrderVillageSearch({
+                                                      ...orderVillageSearch,
+                                                      [order._id]: ''
+                                                    });
+                                                    setOrderVillageDropdown({
+                                                      ...orderVillageDropdown,
+                                                      [order._id]: false
+                                                    });
+                                                    setOrderSelectedVillageIndex({
+                                                      ...orderSelectedVillageIndex,
+                                                      [order._id]: -1
+                                                    });
+                                                  }
+                                                } else if (e.key === 'ArrowDown' && orderFiltered.length > 0) {
+                                                  e.preventDefault();
+                                                  setOrderSelectedVillageIndex({
+                                                    ...orderSelectedVillageIndex,
+                                                    [order._id]: currentIndex < orderFiltered.length - 1 ? currentIndex + 1 : 0
+                                                  });
+                                                } else if (e.key === 'ArrowUp' && orderFiltered.length > 0) {
+                                                  e.preventDefault();
+                                                  setOrderSelectedVillageIndex({
+                                                    ...orderSelectedVillageIndex,
+                                                    [order._id]: currentIndex > 0 ? currentIndex - 1 : orderFiltered.length - 1
+                                                  });
+                                                }
+                                              }}
+                                              placeholder={order.shippingAddress?.villageId 
                                                 ? `القرية الحالية: ${order.shippingAddress?.villageName || 'غير محدد'} (ID: ${order.shippingAddress.villageId})`
-                                                : 'اختر القرية'}
-                                            </option>
-                                            {filteredVillages.map((village) => (
-                                              <option key={village.villageId} value={village.villageId}>
-                                                {village.villageName} (ID: {village.villageId})
-                                              </option>
-                                            ))}
-                                          </select>
+                                                : "ابحث عن القرية أو المحافظة أو ID..."}
+                                              className="input-field text-sm pr-10"
+                                              required
+                                            />
+                                            {orderVillageSearch[order._id] && (
+                                              <button
+                                                onClick={() => {
+                                                  setOrderVillageSearch({
+                                                    ...orderVillageSearch,
+                                                    [order._id]: ''
+                                                  });
+                                                  setOrderSelectedVillageIndex({
+                                                    ...orderSelectedVillageIndex,
+                                                    [order._id]: -1
+                                                  });
+                                                }}
+                                                className="absolute inset-y-0 left-0 pl-3 flex items-center hover:bg-gray-100 dark:hover:bg-slate-600 rounded-l-lg transition-colors"
+                                                aria-label="مسح البحث"
+                                              >
+                                                <X className="w-4 h-4 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300" />
+                                              </button>
+                                            )}
+                                          </div>
+                                          
+                                          {/* Dropdown List */}
+                                          {orderVillageDropdown[order._id] && (
+                                            <div className="absolute z-50 w-full mt-1 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                                              {(() => {
+                                                const searchQuery = orderVillageSearch[order._id] || '';
+                                                const orderFiltered = searchQuery.trim() 
+                                                  ? searchVillages(searchQuery, filteredVillages)
+                                                  : filteredVillages;
+                                                
+                                                if (orderFiltered.length === 0) {
+                                                  return (
+                                                    <div className="p-3 text-sm text-gray-500 dark:text-gray-400 text-center">
+                                                      لا توجد نتائج
+                                                    </div>
+                                                  );
+                                                }
+                                                
+                                                return orderFiltered.map((village, index) => {
+                                                  const currentIndex = orderSelectedVillageIndex[order._id] ?? -1;
+                                                  const isSelected = currentIndex === index;
+                                                  const isCurrentVillage = village.villageId === (shipMultipleVillageId[order._id] || order.shippingAddress?.villageId);
+                                                  
+                                                  return (
+                                                    <div
+                                                      key={village.villageId}
+                                                      onClick={() => {
+                                                        setShipMultipleVillageId({
+                                                          ...shipMultipleVillageId,
+                                                          [order._id]: village.villageId
+                                                        });
+                                                        setShipMultipleCity({
+                                                          ...shipMultipleCity,
+                                                          [order._id]: village.villageName
+                                                        });
+                                                        setOrderVillageSearch({
+                                                          ...orderVillageSearch,
+                                                          [order._id]: ''
+                                                        });
+                                                        setOrderVillageDropdown({
+                                                          ...orderVillageDropdown,
+                                                          [order._id]: false
+                                                        });
+                                                        setOrderSelectedVillageIndex({
+                                                          ...orderSelectedVillageIndex,
+                                                          [order._id]: -1
+                                                        });
+                                                      }}
+                                                      className={`p-3 cursor-pointer text-sm transition-colors ${
+                                                        isSelected
+                                                          ? 'bg-[#FF9800] text-white'
+                                                          : isCurrentVillage
+                                                          ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                                                          : 'text-gray-900 dark:text-slate-100 hover:bg-gray-100 dark:hover:bg-slate-600'
+                                                      }`}
+                                                    >
+                                                      <div className="font-medium">{village.villageName}</div>
+                                                      <div className={`text-xs mt-0.5 ${isSelected ? 'text-white/80' : 'text-gray-500 dark:text-gray-400'}`}>
+                                                        ID: {village.villageId}
+                                                      </div>
+                                                    </div>
+                                                  );
+                                                });
+                                              })()}
+                                            </div>
+                                          )}
+                                          
                                           {order.shippingAddress?.villageId && (
                                             <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
                                               ℹ️ القرية الحالية محددة من قبل المسوق. يمكنك تغييرها إذا لزم الأمر.
                                             </p>
                                           )}
-                                        </>
+                                          {orderVillageSearch[order._id] && (
+                                            <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                                              🔍 عرض {(() => {
+                                                const searchQuery = orderVillageSearch[order._id] || '';
+                                                const orderFiltered = searchQuery.trim() 
+                                                  ? searchVillages(searchQuery, filteredVillages)
+                                                  : filteredVillages;
+                                                return orderFiltered.length;
+                                              })()} من {filteredVillages.length} قرية بناءً على البحث
+                                            </p>
+                                          )}
+                                        </div>
                                       );
                                     } else {
                                       return (
@@ -1379,90 +1571,223 @@ export default function BulkOrdersActions({
                                 </div>
 
                                 {/* FIXED: Village Selection with villageId - Same as individual order */}
-                                <div>
+                                <div className="relative village-search-container">
                                   <label className="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-1">
                                     القرية <span className="text-red-500">*</span>
                                   </label>
                                   {loadingVillages ? (
                                     // Show loader while villages are loading
                                     <div className="relative">
-                                      <select
+                                      <input
+                                        type="text"
                                         disabled
+                                        value="جاري تحميل القرى..."
                                         className="input-field text-sm bg-gray-50 dark:bg-slate-700 cursor-wait"
-                                      >
-                                        <option value="">جاري تحميل القرى...</option>
-                                      </select>
+                                      />
                                       <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
                                         <div className="loading-spinner w-4 h-4"></div>
                                       </div>
                                     </div>
                                   ) : filteredVillages.length > 0 ? (
                                     <>
-                                      <select
-                                        value={shipMultipleVillageId[order._id] || order.shippingAddress?.villageId || ''}
-                                        onChange={(e) => {
-                                          const villageId = e.target.value ? parseInt(e.target.value) : null;
-                                          const selectedVillage = filteredVillages.find(v => v.villageId === villageId);
-                                          
-                                          // Update both villageId and city name
-                                          setShipMultipleVillageId({
-                                            ...shipMultipleVillageId,
-                                            [order._id]: villageId
-                                          });
-                                          setShipMultipleCity({
-                                            ...shipMultipleCity,
-                                            [order._id]: selectedVillage ? selectedVillage.villageName : ''
-                                          });
-                                          // Clear search after selection
-                                          setVillageSearchQuery('');
-                                          setSelectedVillageIndex(-1);
-                                        }}
-                                        className="input-field text-sm"
-                                        required
-                                        size={villageSearchQuery && filteredVillages.length > 0 ? Math.min(filteredVillages.length + 1, 10) : 1}
-                                        onFocus={(e) => {
-                                          // Open select when focused and there's a search query
-                                          if (villageSearchQuery && filteredVillages.length > 0) {
-                                            e.target.size = Math.min(filteredVillages.length + 1, 10);
-                                          }
-                                        }}
-                                        onBlur={(e) => {
-                                          // Reset size when select loses focus
-                                          setTimeout(() => {
-                                            e.target.size = 1;
-                                          }, 200);
-                                        }}
-                                      >
-                                        <option value="">
-                                          {order.shippingAddress?.villageId 
-                                            ? `القرية الحالية: ${order.shippingAddress?.villageName || 'غير محدد'} (ID: ${order.shippingAddress.villageId})`
-                                            : 'اختر القرية'}
-                                        </option>
-                                        {filteredVillages.map((village, index) => {
-                                          const isSelected = selectedVillageIndex === index && villageSearchQuery;
-                                          return (
-                                            <option 
-                                              key={village.villageId} 
-                                              value={village.villageId}
-                                              style={isSelected ? { backgroundColor: '#FF9800', color: 'white' } : {}}
-                                            >
-                                              {village.villageName} (ID: {village.villageId})
-                                            </option>
-                                          );
-                                        })}
-                                      </select>
+                                      <div className="relative">
+                                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none z-10">
+                                          <Search className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                                        </div>
+                                        <input
+                                          type="text"
+                                          value={orderVillageSearch[order._id] || (shipMultipleVillageId[order._id] || order.shippingAddress?.villageId ? filteredVillages.find(v => v.villageId === (shipMultipleVillageId[order._id] || order.shippingAddress?.villageId))?.villageName || order.shippingAddress?.villageName || '' : '')}
+                                          onChange={(e) => {
+                                            setOrderVillageSearch({
+                                              ...orderVillageSearch,
+                                              [order._id]: e.target.value
+                                            });
+                                            setOrderSelectedVillageIndex({
+                                              ...orderSelectedVillageIndex,
+                                              [order._id]: -1
+                                            });
+                                          }}
+                                          onFocus={() => {
+                                            if (filteredVillages.length > 0) {
+                                              setOrderVillageDropdown({
+                                                ...orderVillageDropdown,
+                                                [order._id]: true
+                                              });
+                                            }
+                                          }}
+                                          onClick={() => {
+                                            if (filteredVillages.length > 0) {
+                                              setOrderVillageDropdown({
+                                                ...orderVillageDropdown,
+                                                [order._id]: true
+                                              });
+                                            }
+                                          }}
+                                          onKeyDown={(e) => {
+                                            const searchQuery = orderVillageSearch[order._id] || '';
+                                            const orderFiltered = searchQuery.trim() 
+                                              ? searchVillages(searchQuery, filteredVillages)
+                                              : filteredVillages;
+                                            const currentIndex = orderSelectedVillageIndex[order._id] ?? -1;
+                                            
+                                            if (e.key === 'Escape') {
+                                              setOrderVillageDropdown({
+                                                ...orderVillageDropdown,
+                                                [order._id]: false
+                                              });
+                                              setOrderVillageSearch({
+                                                ...orderVillageSearch,
+                                                [order._id]: ''
+                                              });
+                                              setOrderSelectedVillageIndex({
+                                                ...orderSelectedVillageIndex,
+                                                [order._id]: -1
+                                              });
+                                              e.preventDefault();
+                                            } else if (e.key === 'Enter' && orderFiltered.length > 0) {
+                                              e.preventDefault();
+                                              const indexToSelect = currentIndex >= 0 ? currentIndex : 0;
+                                              if (orderFiltered[indexToSelect]) {
+                                                const village = orderFiltered[indexToSelect];
+                                                setShipMultipleVillageId({
+                                                  ...shipMultipleVillageId,
+                                                  [order._id]: village.villageId
+                                                });
+                                                setShipMultipleCity({
+                                                  ...shipMultipleCity,
+                                                  [order._id]: village.villageName
+                                                });
+                                                setOrderVillageSearch({
+                                                  ...orderVillageSearch,
+                                                  [order._id]: ''
+                                                });
+                                                setOrderVillageDropdown({
+                                                  ...orderVillageDropdown,
+                                                  [order._id]: false
+                                                });
+                                                setOrderSelectedVillageIndex({
+                                                  ...orderSelectedVillageIndex,
+                                                  [order._id]: -1
+                                                });
+                                              }
+                                            } else if (e.key === 'ArrowDown' && orderFiltered.length > 0) {
+                                              e.preventDefault();
+                                              setOrderSelectedVillageIndex({
+                                                ...orderSelectedVillageIndex,
+                                                [order._id]: currentIndex < orderFiltered.length - 1 ? currentIndex + 1 : 0
+                                              });
+                                            } else if (e.key === 'ArrowUp' && orderFiltered.length > 0) {
+                                              e.preventDefault();
+                                              setOrderSelectedVillageIndex({
+                                                ...orderSelectedVillageIndex,
+                                                [order._id]: currentIndex > 0 ? currentIndex - 1 : orderFiltered.length - 1
+                                              });
+                                            }
+                                          }}
+                                          placeholder="ابحث عن القرية أو المحافظة أو ID..."
+                                          className="input-field text-sm pr-10"
+                                          required
+                                        />
+                                        {orderVillageSearch[order._id] && (
+                                          <button
+                                            onClick={() => {
+                                              setOrderVillageSearch({
+                                                ...orderVillageSearch,
+                                                [order._id]: ''
+                                              });
+                                              setOrderSelectedVillageIndex({
+                                                ...orderSelectedVillageIndex,
+                                                [order._id]: -1
+                                              });
+                                            }}
+                                            className="absolute inset-y-0 left-0 pl-3 flex items-center hover:bg-gray-100 dark:hover:bg-slate-600 rounded-l-lg transition-colors"
+                                            aria-label="مسح البحث"
+                                          >
+                                            <X className="w-4 h-4 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300" />
+                                          </button>
+                                        )}
+                                      </div>
+                                      
+                                      {/* Dropdown List */}
+                                      {orderVillageDropdown[order._id] && (
+                                        <div className="absolute z-50 w-full mt-1 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                                          {(() => {
+                                            const searchQuery = orderVillageSearch[order._id] || '';
+                                            const orderFiltered = searchQuery.trim() 
+                                              ? searchVillages(searchQuery, filteredVillages)
+                                              : filteredVillages;
+                                            
+                                            if (orderFiltered.length === 0) {
+                                              return (
+                                                <div className="p-3 text-sm text-gray-500 dark:text-gray-400 text-center">
+                                                  لا توجد نتائج
+                                                </div>
+                                              );
+                                            }
+                                            
+                                            return orderFiltered.map((village, index) => {
+                                              const currentIndex = orderSelectedVillageIndex[order._id] ?? -1;
+                                              const isSelected = currentIndex === index;
+                                              const isCurrentVillage = village.villageId === (shipMultipleVillageId[order._id] || order.shippingAddress?.villageId);
+                                              
+                                              return (
+                                                <div
+                                                  key={village.villageId}
+                                                  onClick={() => {
+                                                    setShipMultipleVillageId({
+                                                      ...shipMultipleVillageId,
+                                                      [order._id]: village.villageId
+                                                    });
+                                                    setShipMultipleCity({
+                                                      ...shipMultipleCity,
+                                                      [order._id]: village.villageName
+                                                    });
+                                                    setOrderVillageSearch({
+                                                      ...orderVillageSearch,
+                                                      [order._id]: ''
+                                                    });
+                                                    setOrderVillageDropdown({
+                                                      ...orderVillageDropdown,
+                                                      [order._id]: false
+                                                    });
+                                                    setOrderSelectedVillageIndex({
+                                                      ...orderSelectedVillageIndex,
+                                                      [order._id]: -1
+                                                    });
+                                                  }}
+                                                  className={`p-3 cursor-pointer text-sm transition-colors ${
+                                                    isSelected
+                                                      ? 'bg-[#FF9800] text-white'
+                                                      : isCurrentVillage
+                                                      ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                                                      : 'text-gray-900 dark:text-slate-100 hover:bg-gray-100 dark:hover:bg-slate-600'
+                                                  }`}
+                                                >
+                                                  <div className="font-medium">{village.villageName}</div>
+                                                  <div className={`text-xs mt-0.5 ${isSelected ? 'text-white/80' : 'text-gray-500 dark:text-gray-400'}`}>
+                                                    ID: {village.villageId}
+                                                  </div>
+                                                </div>
+                                              );
+                                            });
+                                          })()}
+                                        </div>
+                                      )}
+                                      
                                       {order.shippingAddress?.villageId && (
                                         <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
                                           ℹ️ القرية الحالية محددة من قبل المسوق. يمكنك تغييرها إذا لزم الأمر.
                                         </p>
                                       )}
-                                      {villageSearchQuery ? (
+                                      {orderVillageSearch[order._id] && (
                                         <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                                          🔍 عرض {filteredVillages.length} من {villages.length} قرية بناءً على البحث
-                                        </p>
-                                      ) : shippingCompany && filteredVillages.length < villages.length && (
-                                        <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                                          ✓ تم تصفية القرى حسب شركة الشحن المختارة ({filteredVillages.length} قرية متاحة)
+                                          🔍 عرض {(() => {
+                                            const searchQuery = orderVillageSearch[order._id] || '';
+                                            const orderFiltered = searchQuery.trim() 
+                                              ? searchVillages(searchQuery, filteredVillages)
+                                              : filteredVillages;
+                                            return orderFiltered.length;
+                                          })()} من {filteredVillages.length} قرية بناءً على البحث
                                         </p>
                                       )}
                                     </>
