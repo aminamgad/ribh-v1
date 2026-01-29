@@ -524,7 +524,13 @@ export default function OrderDetailPage() {
 
   const fetchVillages = useCallback(async () => {
     // Avoid reloading if villages are already loaded
-    if (villagesLoadedRef.current || villages.length > 0) {
+    if (villagesLoadedRef.current) {
+      return;
+    }
+    
+    // Also check if villages are already loaded in state
+    if (villages.length > 0) {
+      villagesLoadedRef.current = true;
       return;
     }
     
@@ -552,7 +558,7 @@ export default function OrderDetailPage() {
     } finally {
       setLoadingVillages(false);
     }
-  }, []);
+  }, [villages.length]);
 
   useEffect(() => {
     if (params.id) {
@@ -3051,7 +3057,7 @@ export default function OrderDetailPage() {
                       </div>
                       <input
                         type="text"
-                        value={villageSearchQuery || (selectedVillageId ? filteredVillages.find(v => v.villageId === selectedVillageId)?.villageName || (order.shippingAddress?.villageId === selectedVillageId ? order.shippingAddress?.villageName : '') : '')}
+                        value={villageSearchQuery || (selectedVillageId ? villages.find(v => v.villageId === selectedVillageId)?.villageName || filteredVillages.find(v => v.villageId === selectedVillageId)?.villageName || (order.shippingAddress?.villageId === selectedVillageId ? order.shippingAddress?.villageName : '') : '')}
                         onChange={(e) => {
                           setVillageSearchQuery(e.target.value);
                           setSelectedVillageIndex(-1);
