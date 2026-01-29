@@ -181,6 +181,7 @@ export default function OrderDetailPage() {
   const [villages, setVillages] = useState<Array<{villageId: number; villageName: string; deliveryCost?: number; areaId?: number}>>([]);
   const [companyCities, setCompanyCities] = useState<string[]>([]);
   const [selectedVillageId, setSelectedVillageId] = useState<number | null>(null);
+  const [selectedVillageName, setSelectedVillageName] = useState<string>(''); // Store selected village name directly
   const [filteredVillages, setFilteredVillages] = useState<Array<{villageId: number; villageName: string; deliveryCost?: number; areaId?: number}>>([]);
   const [loadingVillages, setLoadingVillages] = useState(false); // Loading state for villages
   const [shippingStatus, setShippingStatus] = useState<{type: 'success' | 'error' | 'info' | null; message: string}>({type: null, message: ''});
@@ -568,6 +569,12 @@ export default function OrderDetailPage() {
 
   useEffect(() => {
     if (showShippingModal && user?.role === 'admin') {
+      // Initialize selected village name when modal opens
+      if (order?.shippingAddress?.villageId && order.shippingAddress?.villageName) {
+        setSelectedVillageId(order.shippingAddress.villageId);
+        setSelectedVillageName(order.shippingAddress.villageName);
+      }
+      
       fetchShippingCompanies().then((loadedCompanies) => {
         // Auto-select company if:
         // 1. Order already has a shipping company, OR
@@ -585,7 +592,7 @@ export default function OrderDetailPage() {
       });
       fetchVillages();
     }
-  }, [showShippingModal, user?.role, fetchShippingCompanies, updateCitiesForCompany, fetchVillages]);
+  }, [showShippingModal, user?.role, order, fetchShippingCompanies, updateCitiesForCompany, fetchVillages]);
 
   useEffect(() => {
     if (order) {
@@ -625,6 +632,9 @@ export default function OrderDetailPage() {
   useEffect(() => {
     if (order?.shippingAddress?.villageId) {
       setSelectedVillageId(order.shippingAddress.villageId);
+      if (order.shippingAddress.villageName) {
+        setSelectedVillageName(order.shippingAddress.villageName);
+      }
     }
   }, [order]);
 
@@ -974,6 +984,7 @@ export default function OrderDetailPage() {
               setShippingCompany('');
               setShippingCity('');
               setSelectedVillageId(null);
+              setSelectedVillageName('');
               setShippingStatus({type: null, message: ''});
             }, 2000);
           }
@@ -995,6 +1006,7 @@ export default function OrderDetailPage() {
               setShippingCompany('');
               setShippingCity('');
               setSelectedVillageId(null);
+              setSelectedVillageName('');
               setShippingStatus({type: null, message: ''});
             }, 2000);
           } else {
@@ -2980,6 +2992,7 @@ export default function OrderDetailPage() {
                     setShippingCompany(order.shippingCompany || '');
                     setShippingCity(order.shippingAddress?.city || order.shippingAddress?.villageName || '');
                     setSelectedVillageId(order.shippingAddress?.villageId || null);
+                    setSelectedVillageName(order.shippingAddress?.villageName || '');
                     setShippingStatus({type: null, message: ''});
                     // Don't reset villagesLoadedRef - keep villages loaded for next time
                   }}
@@ -3057,10 +3070,19 @@ export default function OrderDetailPage() {
                       </div>
                       <input
                         type="text"
-                        value={villageSearchQuery || (selectedVillageId ? villages.find(v => v.villageId === selectedVillageId)?.villageName || filteredVillages.find(v => v.villageId === selectedVillageId)?.villageName || (order.shippingAddress?.villageId === selectedVillageId ? order.shippingAddress?.villageName : '') : '')}
+                        value={villageSearchQuery.trim() ? villageSearchQuery : (selectedVillageName || (selectedVillageId ? villages.find(v => v.villageId === selectedVillageId)?.villageName || filteredVillages.find(v => v.villageId === selectedVillageId)?.villageName || (order.shippingAddress?.villageId === selectedVillageId ? order.shippingAddress?.villageName : '') : ''))}
                         onChange={(e) => {
                           setVillageSearchQuery(e.target.value);
                           setSelectedVillageIndex(-1);
+                          // Clear selected village when user starts typing
+                          if (e.target.value.trim()) {
+                            if (selectedVillageId) {
+                              setSelectedVillageId(null);
+                            }
+                            if (selectedVillageName) {
+                              setSelectedVillageName('');
+                            }
+                          }
                         }}
                         onFocus={() => {
                           if (filteredVillages.length > 0) {
@@ -3098,6 +3120,7 @@ export default function OrderDetailPage() {
                               if (displayVillages[indexToSelect]) {
                                 const village = displayVillages[indexToSelect];
                                 setSelectedVillageId(village.villageId);
+                                setSelectedVillageName(village.villageName);
                                 setVillageSearchQuery('');
                                 setSelectedVillageIndex(-1);
                                 setShowVillageDropdown(false);
@@ -3181,6 +3204,7 @@ export default function OrderDetailPage() {
                                 type="button"
                                 onClick={() => {
                                   setSelectedVillageId(village.villageId);
+                                  setSelectedVillageName(village.villageName);
                                   setVillageSearchQuery('');
                                   setSelectedVillageIndex(-1);
                                   setShowVillageDropdown(false);
@@ -3388,6 +3412,8 @@ export default function OrderDetailPage() {
                       setShowShippingModal(false);
                       setShippingCompany(order.shippingCompany || '');
                       setShippingCity(order.shippingAddress?.city || order.shippingAddress?.villageName || '');
+                      setSelectedVillageId(order.shippingAddress?.villageId || null);
+                      setSelectedVillageName(order.shippingAddress?.villageName || '');
                     }}
                     disabled={updatingShipping}
                     className="btn-secondary"
