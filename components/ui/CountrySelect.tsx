@@ -99,12 +99,16 @@ export default function CountrySelect({
     onChange(country.nameAr);
     setIsOpen(false);
     setSearchQuery('');
+    setDisplayValue(country.nameAr);
+    inputRef.current?.blur();
   };
 
   const handleClear = (e: React.MouseEvent) => {
     e.stopPropagation();
     onChange('');
     setSearchQuery('');
+    setDisplayValue('');
+    inputRef.current?.focus();
   };
 
   const dropdownContent = isOpen && typeof window !== 'undefined' ? (
@@ -154,37 +158,76 @@ export default function CountrySelect({
     </div>
   ) : null;
 
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [displayValue, setDisplayValue] = useState('');
+
+  // Update display value when value or search changes
+  useEffect(() => {
+    if (selectedCountry && !isOpen) {
+      setDisplayValue(selectedCountry.nameAr);
+    } else if (isOpen || searchQuery) {
+      setDisplayValue(searchQuery);
+    } else if (selectedCountry) {
+      setDisplayValue(selectedCountry.nameAr);
+    } else {
+      setDisplayValue('');
+    }
+  }, [selectedCountry, searchQuery, isOpen]);
+
   return (
     <div className={`relative ${className}`} ref={dropdownRef}>
-      <div
-        className={`
-          relative w-full px-3 py-2 text-right border rounded-lg cursor-pointer
-          ${disabled ? 'bg-gray-100 dark:bg-gray-700 cursor-not-allowed' : 'bg-white dark:bg-slate-800 hover:border-gray-400 dark:hover:border-slate-600'}
-          ${error ? 'border-red-500' : 'border-gray-300 dark:border-slate-600'}
-          ${isOpen ? 'border-blue-500 ring-2 ring-blue-200 dark:ring-blue-800' : ''}
-          transition-colors duration-200
-        `}
-        onClick={() => !disabled && setIsOpen(!isOpen)}
-      >
-        <div className="flex items-center justify-between">
-          <span className={`text-sm ${selectedCountry ? 'text-gray-900 dark:text-slate-100' : 'text-gray-500 dark:text-slate-400'}`}>
-            {selectedCountry ? selectedCountry.nameAr : placeholder}
-          </span>
-          <div className="flex items-center space-x-2 space-x-reverse">
-            {value && !disabled && (
-              <button
-                onClick={handleClear}
-                className="p-1 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-full transition-colors"
-              >
-                <X size={14} className="text-gray-400 dark:text-slate-500" />
-              </button>
-            )}
-            <ChevronDown 
-              size={16} 
-              className={`text-gray-400 dark:text-slate-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} 
-            />
-          </div>
-        </div>
+      <div className="relative">
+        <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500 z-10" />
+        <input
+          ref={inputRef}
+          type="text"
+          value={displayValue}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            setDisplayValue(e.target.value);
+            if (!isOpen) {
+              setIsOpen(true);
+            }
+          }}
+          onFocus={() => {
+            if (!disabled) {
+              setIsOpen(true);
+            }
+          }}
+          onClick={() => {
+            if (!disabled) {
+              setIsOpen(true);
+            }
+          }}
+          placeholder={placeholder}
+          disabled={disabled}
+          className={`
+            w-full px-4 py-2 pr-10 text-right border rounded-lg
+            ${disabled ? 'bg-gray-100 dark:bg-gray-700 cursor-not-allowed' : 'bg-white dark:bg-slate-800'}
+            ${error ? 'border-red-500' : 'border-gray-300 dark:border-slate-600'}
+            ${isOpen ? 'border-blue-500 ring-2 ring-blue-200 dark:ring-blue-800' : ''}
+            focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+            transition-colors duration-200
+            text-sm text-gray-900 dark:text-slate-100
+          `}
+        />
+        {value && !disabled && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleClear(e);
+              setSearchQuery('');
+              inputRef.current?.focus();
+            }}
+            className="absolute left-8 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-full transition-colors"
+          >
+            <X size={14} className="text-gray-400 dark:text-slate-500" />
+          </button>
+        )}
+        <ChevronDown 
+          size={16} 
+          className={`absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-slate-500 transition-transform duration-200 pointer-events-none ${isOpen ? 'rotate-180' : ''}`} 
+        />
       </div>
 
       {typeof window !== 'undefined' && createPortal(dropdownContent, document.body)}

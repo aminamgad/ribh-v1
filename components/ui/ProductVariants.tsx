@@ -91,12 +91,12 @@ export default function ProductVariants({
   useEffect(() => {
     if (marketerPrice > 0 && newVariantValues.length > 0) {
       // Update empty or zero customPrice fields to use marketerPrice
-      const updated = newVariantValues.map(v => ({
+      setNewVariantValues(prev => prev.map(v => ({
         ...v,
         customPrice: (v.customPrice === undefined || v.customPrice === 0) ? marketerPrice : v.customPrice
-      }));
-      setNewVariantValues(updated);
+      })));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [marketerPrice]);
 
   const handleHasVariantsChange = (value: boolean) => {

@@ -1308,20 +1308,28 @@ export default function EditProductPage() {
                       <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500 z-10" />
                       <input
                         type="text"
-                        value={categorySearch}
+                        value={categorySearch || (watch('categoryId') ? categories.find(c => c._id === watch('categoryId'))?.name || '' : '')}
                         onChange={(e) => {
                           setCategorySearch(e.target.value);
                           if (e.target.value.trim()) {
                             setShowCategoryDropdown(true);
+                          } else {
+                            setValue('categoryId', '');
+                            setShowCategoryDropdown(false);
                           }
                         }}
                         onFocus={() => {
-                          if (categorySearch && filteredCategories.length > 0) {
+                          if (filteredCategories.length > 0) {
                             setShowCategoryDropdown(true);
                           }
                         }}
-                        placeholder="ابحث عن فئة..."
-                        className="input-field text-sm sm:text-base min-h-[44px] pr-10 mb-2"
+                        onClick={() => {
+                          if (filteredCategories.length > 0) {
+                            setShowCategoryDropdown(true);
+                          }
+                        }}
+                        placeholder="ابحث عن فئة أو اختر من القائمة..."
+                        className="input-field text-sm sm:text-base min-h-[44px] pr-10"
                       />
                       {showCategoryDropdown && filteredCategories.length > 0 && (
                         <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
@@ -1334,22 +1342,25 @@ export default function EditProductPage() {
                                 setCategorySearch(category.name);
                                 setShowCategoryDropdown(false);
                               }}
-                              className="w-full text-right px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm text-gray-900 dark:text-gray-100"
+                              className={`w-full text-right px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm text-gray-900 dark:text-gray-100 ${
+                                watch('categoryId') === category._id ? 'bg-blue-50 dark:bg-blue-900/20 font-medium' : ''
+                              }`}
                             >
                               {category.name}
                             </button>
                           ))}
                         </div>
                       )}
+                      {/* Hidden select for form validation */}
+                      <select {...register('categoryId')} className="hidden">
+                        <option value=""></option>
+                        {categories.map((category) => (
+                          <option key={category._id} value={category._id}>
+                            {category.name}
+                          </option>
+                        ))}
+                      </select>
                     </div>
-                    <select {...register('categoryId')} className="input-field text-sm sm:text-base min-h-[44px]">
-                      <option value="">اختر الفئة</option>
-                      {filteredCategories.map((category) => (
-                        <option key={category._id} value={category._id}>
-                          {category.name}
-                        </option>
-                      ))}
-                    </select>
                     {categorySearch && filteredCategories.length === 0 && (
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">لم يتم العثور على فئات مطابقة</p>
                     )}
@@ -1374,23 +1385,31 @@ export default function EditProductPage() {
                     </div>
                     
                     {/* Supplier Search */}
-                    <div className="relative mb-2" ref={supplierDropdownRef}>
+                    <div className="relative" ref={supplierDropdownRef}>
                       <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500 z-10" />
                       <input
                         type="text"
-                        value={supplierSearch}
+                        value={supplierSearch || (selectedSupplierId ? suppliers.find(s => s._id === selectedSupplierId)?.companyName || suppliers.find(s => s._id === selectedSupplierId)?.name || '' : '')}
                         onChange={(e) => {
                           setSupplierSearch(e.target.value);
                           if (e.target.value.trim()) {
                             setShowSupplierDropdown(true);
+                          } else {
+                            setSelectedSupplierId('');
+                            setShowSupplierDropdown(false);
                           }
                         }}
                         onFocus={() => {
-                          if (supplierSearch && filteredSuppliers.length > 0) {
+                          if (filteredSuppliers.length > 0) {
                             setShowSupplierDropdown(true);
                           }
                         }}
-                        placeholder="ابحث عن مورد..."
+                        onClick={() => {
+                          if (filteredSuppliers.length > 0) {
+                            setShowSupplierDropdown(true);
+                          }
+                        }}
+                        placeholder="ابحث عن مورد أو اختر من القائمة..."
                         className="input-field text-sm sm:text-base min-h-[44px] pr-10"
                       />
                       {showSupplierDropdown && filteredSuppliers.length > 0 && (
@@ -1404,27 +1423,29 @@ export default function EditProductPage() {
                                 setSupplierSearch(supplier.companyName || supplier.name);
                                 setShowSupplierDropdown(false);
                               }}
-                              className="w-full text-right px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm text-gray-900 dark:text-gray-100"
+                              className={`w-full text-right px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm text-gray-900 dark:text-gray-100 ${
+                                selectedSupplierId === supplier._id ? 'bg-blue-50 dark:bg-blue-900/20 font-medium' : ''
+                              }`}
                             >
                               {supplier.companyName || supplier.name} {supplier.email ? `(${supplier.email})` : ''}
                             </button>
                           ))}
                         </div>
-                )}
-              </div>
-
-                    <select
-                      value={selectedSupplierId}
-                      onChange={(e) => setSelectedSupplierId(e.target.value)}
-                      className="input-field text-sm sm:text-base min-h-[44px]"
-                    >
-                      <option value="">اختر المورد (اختياري - سيتم إضافة المنتج باسمك إذا لم تختر)</option>
-                      {filteredSuppliers.map((supplier) => (
-                        <option key={supplier._id} value={supplier._id}>
-                          {supplier.companyName || supplier.name} {supplier.email ? `(${supplier.email})` : ''}
-                        </option>
-                      ))}
-                    </select>
+                      )}
+                      {/* Hidden select for form compatibility */}
+                      <select
+                        value={selectedSupplierId}
+                        onChange={(e) => setSelectedSupplierId(e.target.value)}
+                        className="hidden"
+                      >
+                        <option value=""></option>
+                        {suppliers.map((supplier) => (
+                          <option key={supplier._id} value={supplier._id}>
+                            {supplier.companyName || supplier.name} {supplier.email ? `(${supplier.email})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                     
                     {supplierSearch && filteredSuppliers.length === 0 && (
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">لم يتم العثور على موردين مطابقين</p>

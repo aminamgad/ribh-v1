@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { Package, Plus, X, Upload, AlertCircle, CheckCircle, Search, Filter, Info, TrendingUp, Calendar, FileText } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -40,6 +40,9 @@ export default function NewFulfillmentPage() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [categories, setCategories] = useState<Array<{ _id: string; name: string }>>([]);
+  const [categorySearch, setCategorySearch] = useState('');
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const categoryDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (user?.role !== 'supplier') {
@@ -49,6 +52,20 @@ export default function NewFulfillmentPage() {
     fetchProducts();
     fetchCategories();
   }, [user]);
+
+  // Close category dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target as Node)) {
+        setShowCategoryDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   useEffect(() => {
     // Filter products based on search and category
@@ -293,18 +310,69 @@ export default function NewFulfillmentPage() {
               
               <div className="flex items-center space-x-2 space-x-reverse">
                 <Filter className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500 flex-shrink-0" />
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="input-field text-sm sm:text-base min-h-[44px] flex-1 sm:flex-initial"
-                >
-                  <option value="all">جميع الفئات</option>
-                  {categories.map(category => (
-                    <option key={category._id} value={category._id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative flex-1 sm:flex-initial" ref={categoryDropdownRef}>
+                  <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500 z-10" />
+                  <input
+                    type="text"
+                    value={categorySearch || (selectedCategory !== 'all' ? categories.find(c => c._id === selectedCategory)?.name || '' : '')}
+                    onChange={(e) => {
+                      setCategorySearch(e.target.value);
+                      if (e.target.value.trim()) {
+                        setShowCategoryDropdown(true);
+                      } else {
+                        setSelectedCategory('all');
+                        setShowCategoryDropdown(false);
+                      }
+                    }}
+                    onFocus={() => {
+                      if (categories.length > 0) {
+                        setShowCategoryDropdown(true);
+                      }
+                    }}
+                    onClick={() => {
+                      if (categories.length > 0) {
+                        setShowCategoryDropdown(true);
+                      }
+                    }}
+                    placeholder="ابحث عن فئة أو اختر من القائمة..."
+                    className="input-field text-sm sm:text-base min-h-[44px] pr-10"
+                  />
+                  {showCategoryDropdown && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedCategory('all');
+                          setCategorySearch('');
+                          setShowCategoryDropdown(false);
+                        }}
+                        className={`w-full text-right px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm text-gray-900 dark:text-gray-100 ${
+                          selectedCategory === 'all' ? 'bg-blue-50 dark:bg-blue-900/20 font-medium' : ''
+                        }`}
+                      >
+                        جميع الفئات
+                      </button>
+                      {categories
+                        .filter(cat => !categorySearch || cat.name.toLowerCase().includes(categorySearch.toLowerCase()))
+                        .map((category) => (
+                          <button
+                            key={category._id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedCategory(category._id);
+                              setCategorySearch(category.name);
+                              setShowCategoryDropdown(false);
+                            }}
+                            className={`w-full text-right px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm text-gray-900 dark:text-gray-100 ${
+                              selectedCategory === category._id ? 'bg-blue-50 dark:bg-blue-900/20 font-medium' : ''
+                            }`}
+                          >
+                            {category.name}
+                          </button>
+                        ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
             

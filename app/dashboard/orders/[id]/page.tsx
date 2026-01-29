@@ -195,7 +195,7 @@ export default function OrderDetailPage() {
   const [activeNotesTab, setActiveNotesTab] = useState<'order' | 'delivery' | 'admin'>('order');
   const [villageSearchQuery, setVillageSearchQuery] = useState<string>('');
   const [selectedVillageIndex, setSelectedVillageIndex] = useState<number>(-1);
-  const villageSelectRef = useRef<HTMLSelectElement>(null);
+  const [showVillageDropdown, setShowVillageDropdown] = useState(false);
 
   // Check for print parameter in URL
   useEffect(() => {
@@ -600,24 +600,6 @@ export default function OrderDetailPage() {
     }
   }, [villageSearchQuery, villages, shippingCompany, shippingCompanies]);
 
-  // Auto-open select dropdown when search results change (without stealing focus)
-  useEffect(() => {
-    if (villageSearchQuery.trim() && filteredVillages.length > 0 && villageSelectRef.current) {
-      setTimeout(() => {
-        if (villageSelectRef.current) {
-          villageSelectRef.current.size = Math.min(filteredVillages.length + 1, 10);
-          // Don't focus the select - let user continue typing in search field
-        }
-      }, 50);
-    } else if (!villageSearchQuery.trim() && villageSelectRef.current) {
-      // Reset size when search is cleared
-      setTimeout(() => {
-        if (villageSelectRef.current) {
-          villageSelectRef.current.size = 1;
-        }
-      }, 50);
-    }
-  }, [filteredVillages, villageSearchQuery]);
 
   const fetchVillages = async () => {
     try {
@@ -651,6 +633,23 @@ export default function OrderDetailPage() {
     const parts = villageName.split('-');
     return parts.length > 0 ? parts[0].trim() : '';
   };
+
+  // Close village dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.village-search-container')) {
+        setShowVillageDropdown(false);
+      }
+    };
+
+    if (showVillageDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showVillageDropdown]);
 
 
   const handleUpdateShipping = async () => {
@@ -918,23 +917,23 @@ export default function OrderDetailPage() {
         } else {
           // No packageId but apiSuccess is true - this shouldn't happen, but handle gracefully
           if (apiSuccess) {
-          setShippingStatus({
-            type: 'success',
-            message: '✅ تم تحديث حالة الطلب إلى "تم الشحن"'
-          });
-          toast.success('✅ تم تحديث حالة الطلب إلى "تم الشحن"');
+            setShippingStatus({
+              type: 'success',
+              message: '✅ تم تحديث حالة الطلب إلى "تم الشحن"'
+            });
+            toast.success('✅ تم تحديث حالة الطلب إلى "تم الشحن"');
             
             // Refresh order data to get updated status
             await fetchOrder(order._id);
           
-          // Close modal after short delay
-          setTimeout(() => {
-            setShowShippingModal(false);
-            setShippingCompany('');
-            setShippingCity('');
-            setSelectedVillageId(null);
-            setShippingStatus({type: null, message: ''});
-          }, 2000);
+            // Close modal after short delay
+            setTimeout(() => {
+              setShowShippingModal(false);
+              setShippingCompany('');
+              setShippingCity('');
+              setSelectedVillageId(null);
+              setShippingStatus({type: null, message: ''});
+            }, 2000);
           } else {
             // apiSuccess is false but no packageId - this is an error state
             setShippingStatus({
@@ -1338,8 +1337,8 @@ export default function OrderDetailPage() {
         title: 'تم تأكيد الطلب',
         description: 'تم تأكيد الطلب وبدء المعالجة',
         icon: CheckCircle,
-            color: 'text-[#FF9800]',
-    bgColor: 'bg-[#FF9800]/10',
+        color: 'text-[#FF9800]',
+        bgColor: 'bg-[#FF9800]/10',
         actions: ['processing', 'cancelled']
       },
       {
@@ -3025,175 +3024,141 @@ export default function OrderDetailPage() {
                     القرية <span className="text-red-500">*</span>
                   </label>
                   
-                  {/* Search Field for Villages */}
-                  {!loadingVillages && villages.length > 0 && (
-                    <div className="mb-3">
-                      <div className="relative">
-                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                          <Search className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                        </div>
-                        <input
-                          type="text"
-                          value={villageSearchQuery}
-                          onChange={(e) => {
-                            setVillageSearchQuery(e.target.value);
-                            setSelectedVillageIndex(-1); // Reset selection when typing
-                            // Don't open select automatically - let user type freely
-                          }}
-                          onFocus={() => {
-                            // Don't steal focus - let user type in search field
-                            // Select will open automatically via size attribute when there are results
-                          }}
-                          onKeyDown={(e) => {
-                            // Escape: Clear search
-                            if (e.key === 'Escape') {
-                              setVillageSearchQuery('');
-                              setSelectedVillageIndex(-1);
-                              e.preventDefault();
-                            }
-                            // Enter: Select first result if only one, or selected one
-                            else if (e.key === 'Enter' && filteredVillages.length > 0) {
-                              e.preventDefault();
-                              const indexToSelect = selectedVillageIndex >= 0 ? selectedVillageIndex : 0;
-                              if (filteredVillages[indexToSelect]) {
-                                const village = filteredVillages[indexToSelect];
-                                setSelectedVillageId(village.villageId);
-                                setVillageSearchQuery('');
-                                setSelectedVillageIndex(-1);
-                                toast.success(`تم اختيار: ${village.villageName}`);
-                              }
-                            }
-                            // Arrow Down: Navigate down
-                            else if (e.key === 'ArrowDown' && filteredVillages.length > 0) {
-                              e.preventDefault();
-                              setSelectedVillageIndex((prev) => 
-                                prev < filteredVillages.length - 1 ? prev + 1 : 0
-                              );
-                            }
-                            // Arrow Up: Navigate up
-                            else if (e.key === 'ArrowUp' && filteredVillages.length > 0) {
-                              e.preventDefault();
-                              setSelectedVillageIndex((prev) => 
-                                prev > 0 ? prev - 1 : filteredVillages.length - 1
-                              );
-                            }
-                          }}
-                          placeholder="ابحث عن القرية أو المحافظة أو ID... (استخدم ↑↓ للتنقل، Enter للاختيار، Esc للمسح)"
-                          className="w-full pl-4 pr-10 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-[#FF9800] focus:border-transparent transition-all"
-                          disabled={!canEditShipping()}
-                          aria-label="بحث عن القرية"
-                        />
-                        {villageSearchQuery && (
-                          <button
-                            onClick={() => setVillageSearchQuery('')}
-                            className="absolute inset-y-0 left-0 pl-3 flex items-center hover:bg-gray-100 dark:hover:bg-slate-600 rounded-l-lg transition-colors"
-                            aria-label="مسح البحث"
-                          >
-                            <X className="w-4 h-4 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300" />
-                          </button>
-                        )}
-                      </div>
-                      {villageSearchQuery && (
-                        <div className="mt-1.5 flex items-center justify-between text-xs">
-                          <span className="text-gray-600 dark:text-gray-400">
-                            {filteredVillages.length > 0 ? (
-                              <span className="text-green-600 dark:text-green-400 font-medium">
-                                {filteredVillages.length} نتيجة
-                                {selectedVillageIndex >= 0 && (
-                                  <span className="text-[#FF9800] mr-1">
-                                    {' '}({selectedVillageIndex + 1} محددة)
-                                  </span>
-                                )}
-                              </span>
-                            ) : (
-                              <span className="text-red-600 dark:text-red-400 font-medium">
-                                لا توجد نتائج
-                              </span>
-                            )}
-                          </span>
-                          <div className="flex items-center gap-2">
-                            {filteredVillages.length > 0 && (
-                              <span className="text-gray-500 dark:text-gray-400 text-[10px]">
-                                ↑↓ للتنقل • Enter للاختيار
-                              </span>
-                            )}
-                            {filteredVillages.length < villages.length && (
-                              <button
-                                onClick={() => {
-                                  setVillageSearchQuery('');
-                                  setSelectedVillageIndex(-1);
-                                }}
-                                className="text-[#FF9800] hover:text-[#F57C00] dark:text-[#FF9800] dark:hover:text-[#F57C00] font-medium"
-                              >
-                                عرض الكل
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  
                   {loadingVillages ? (
                     // Show loader while villages are loading
                     <div className="relative">
-                      <select
+                      <input
+                        type="text"
+                        placeholder="جاري تحميل القرى..."
                         disabled
-                        className="input-field bg-gray-50 dark:bg-slate-700 cursor-wait"
-                      >
-                        <option value="">جاري تحميل القرى...</option>
-                      </select>
+                        className="w-full px-4 py-2.5 pr-10 border border-gray-300 dark:border-slate-600 rounded-lg bg-gray-50 dark:bg-slate-700 text-gray-500 dark:text-gray-400 cursor-wait"
+                      />
                       <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
                         <div className="loading-spinner w-4 h-4"></div>
                       </div>
                     </div>
                   ) : filteredVillages.length > 0 ? (
-                    <>
-                      <select
-                        ref={villageSelectRef}
-                        value={selectedVillageId || order.shippingAddress?.villageId || ''}
+                    <div className="relative village-search-container">
+                      <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none z-10">
+                        <Search className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                      </div>
+                      <input
+                        type="text"
+                        value={villageSearchQuery || (selectedVillageId ? filteredVillages.find(v => v.villageId === selectedVillageId)?.villageName || (order.shippingAddress?.villageId === selectedVillageId ? order.shippingAddress?.villageName : '') : '')}
                         onChange={(e) => {
-                          const villageId = e.target.value ? parseInt(e.target.value) : null;
-                          setSelectedVillageId(villageId);
-                          // Clear search after selection
-                          setVillageSearchQuery('');
+                          setVillageSearchQuery(e.target.value);
                           setSelectedVillageIndex(-1);
-                          // Reset select size
-                          if (villageSelectRef.current) {
-                            villageSelectRef.current.size = 1;
+                        }}
+                        onFocus={() => {
+                          if (filteredVillages.length > 0) {
+                            setShowVillageDropdown(true);
                           }
                         }}
-                        className="input-field"
+                        onClick={() => {
+                          if (filteredVillages.length > 0) {
+                            setShowVillageDropdown(true);
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          // Escape: Clear search
+                          if (e.key === 'Escape') {
+                            setVillageSearchQuery('');
+                            setSelectedVillageIndex(-1);
+                            e.preventDefault();
+                          }
+                          // Enter: Select first result if only one, or selected one
+                          else if (e.key === 'Enter' && filteredVillages.length > 0) {
+                            e.preventDefault();
+                            const indexToSelect = selectedVillageIndex >= 0 ? selectedVillageIndex : 0;
+                            if (filteredVillages[indexToSelect]) {
+                              const village = filteredVillages[indexToSelect];
+                              setSelectedVillageId(village.villageId);
+                              setVillageSearchQuery('');
+                              setSelectedVillageIndex(-1);
+                              toast.success(`تم اختيار: ${village.villageName}`);
+                            }
+                          }
+                          // Arrow Down: Navigate down
+                          else if (e.key === 'ArrowDown' && filteredVillages.length > 0) {
+                            e.preventDefault();
+                            setSelectedVillageIndex((prev) => 
+                              prev < filteredVillages.length - 1 ? prev + 1 : 0
+                            );
+                          }
+                          // Arrow Up: Navigate up
+                          else if (e.key === 'ArrowUp' && filteredVillages.length > 0) {
+                            e.preventDefault();
+                            setSelectedVillageIndex((prev) => 
+                              prev > 0 ? prev - 1 : filteredVillages.length - 1
+                            );
+                          }
+                        }}
+                        placeholder={order.shippingAddress?.villageId 
+                          ? `القرية الحالية: ${order.shippingAddress?.villageName || 'غير محدد'} (ID: ${order.shippingAddress.villageId})`
+                          : "ابحث عن القرية أو المحافظة أو ID..."}
+                        className="w-full pl-10 pr-10 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-[#FF9800] focus:border-transparent transition-all"
+                        disabled={!canEditShipping()}
+                        required
+                        aria-label={canEditShipping() ? "بحث عن القرية" : "اختيار القرية غير متاح - الطلب عند شركة الشحن"}
+                      />
+                      {villageSearchQuery && (
+                        <button
+                          onClick={() => {
+                            setVillageSearchQuery('');
+                            setSelectedVillageIndex(-1);
+                          }}
+                          className="absolute inset-y-0 left-0 pl-3 flex items-center hover:bg-gray-100 dark:hover:bg-slate-600 rounded-l-lg transition-colors z-10"
+                          aria-label="مسح البحث"
+                        >
+                          <X className="w-4 h-4 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300" />
+                        </button>
+                      )}
+                      
+                      {/* Dropdown List */}
+                      {showVillageDropdown && (villageSearchQuery || !selectedVillageId) && filteredVillages.length > 0 && (
+                        <div className="absolute z-50 w-full mt-1 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                          {filteredVillages.map((village, index) => (
+                            <button
+                              key={village.villageId}
+                              type="button"
+                              onClick={() => {
+                                setSelectedVillageId(village.villageId);
+                                setVillageSearchQuery('');
+                                setSelectedVillageIndex(-1);
+                                setShowVillageDropdown(false);
+                                toast.success(`تم اختيار: ${village.villageName}`);
+                              }}
+                              className={`w-full text-right px-4 py-2 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors ${
+                                selectedVillageIndex === index && villageSearchQuery
+                                  ? 'bg-[#FF9800] text-white'
+                                  : selectedVillageId === village.villageId || order.shippingAddress?.villageId === village.villageId
+                                  ? 'bg-blue-50 dark:bg-blue-900/20 font-medium'
+                                  : ''
+                              }`}
+                              onMouseEnter={() => setSelectedVillageIndex(index)}
+                            >
+                              <div className="text-sm text-gray-900 dark:text-slate-100">
+                                {village.villageName} (ID: {village.villageId})
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      
+                      {/* Hidden select for form validation */}
+                      <select
+                        value={selectedVillageId || order.shippingAddress?.villageId || ''}
+                        onChange={() => {}}
+                        className="hidden"
                         required
                         disabled={!canEditShipping()}
-                        aria-label={canEditShipping() ? "اختر القرية" : "اختيار القرية غير متاح - الطلب عند شركة الشحن"}
-                        size={villageSearchQuery && filteredVillages.length > 0 ? Math.min(filteredVillages.length + 1, 10) : 1}
-                        onBlur={(e) => {
-                          // Reset size when select loses focus (unless clicking on an option)
-                          setTimeout(() => {
-                            if (villageSelectRef.current && document.activeElement !== villageSelectRef.current) {
-                              villageSelectRef.current.size = 1;
-                            }
-                          }, 200);
-                        }}
                       >
-                        <option value="">
-                          {order.shippingAddress?.villageId 
-                            ? `القرية الحالية: ${order.shippingAddress?.villageName || 'غير محدد'} (ID: ${order.shippingAddress.villageId})`
-                            : 'اختر القرية'}
-                        </option>
-                        {filteredVillages.map((village, index) => {
-                          const isSelected = selectedVillageIndex === index && villageSearchQuery;
-                          return (
-                            <option 
-                              key={village.villageId} 
-                              value={village.villageId}
-                              style={isSelected ? { backgroundColor: '#FF9800', color: 'white' } : {}}
-                            >
-                              {village.villageName} (ID: {village.villageId})
-                            </option>
-                          );
-                        })}
+                        <option value=""></option>
+                        {filteredVillages.map((village) => (
+                          <option key={village.villageId} value={village.villageId}>
+                            {village.villageName} (ID: {village.villageId})
+                          </option>
+                        ))}
                       </select>
                       {order.shippingAddress?.villageId && (
                         <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
@@ -3209,7 +3174,7 @@ export default function OrderDetailPage() {
                           ✓ تم تصفية القرى حسب شركة الشحن المختارة ({filteredVillages.length} قرية متاحة)
                         </p>
                       )}
-                    </>
+                    </div>
                   ) : (
                     <>
                       <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">

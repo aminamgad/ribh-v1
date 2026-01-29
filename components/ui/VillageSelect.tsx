@@ -103,8 +103,12 @@ export default function VillageSelect({
       // Keep dropdown visible even when search is empty
       setShowDropdown(true);
       setHighlightedIndex(-1);
+    } else if (!loading && search.trim() === '' && villages.length > 0) {
+      // Show dropdown even when search is empty if there are villages
+      setShowDropdown(true);
+      setHighlightedIndex(-1);
     }
-  }, [search, filteredVillages.length, loading]);
+  }, [search, filteredVillages.length, loading, villages.length]);
 
   // Handle click outside to close dropdown
   useEffect(() => {
@@ -191,7 +195,12 @@ export default function VillageSelect({
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 onFocus={() => {
-                  if (!loading && filteredVillages.length > 0) {
+                  if (!loading && villages.length > 0) {
+                    setShowDropdown(true);
+                  }
+                }}
+                onClick={() => {
+                  if (!loading && villages.length > 0) {
                     setShowDropdown(true);
                   }
                 }}
