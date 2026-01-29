@@ -196,6 +196,7 @@ export default function OrderDetailPage() {
   const [villageSearchQuery, setVillageSearchQuery] = useState<string>('');
   const [selectedVillageIndex, setSelectedVillageIndex] = useState<number>(-1);
   const [showVillageDropdown, setShowVillageDropdown] = useState(false);
+  const villagesLoadedRef = useRef(false);
 
   // Check for print parameter in URL
   useEffect(() => {
@@ -521,6 +522,38 @@ export default function OrderDetailPage() {
     }
   }, [updateCitiesForCompany]);
 
+  const fetchVillages = useCallback(async () => {
+    // Avoid reloading if villages are already loaded
+    if (villagesLoadedRef.current || villages.length > 0) {
+      return;
+    }
+    
+    try {
+      setLoadingVillages(true);
+      const response = await fetch('/api/villages?limit=1000');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && Array.isArray(data.data)) {
+          const sortedVillages = data.data
+            .filter((v: any) => v.isActive !== false)
+            .sort((a: any, b: any) => a.villageName.localeCompare(b.villageName, 'ar'))
+            .map((v: any) => ({ 
+              villageId: v.villageId, 
+              villageName: v.villageName,
+              deliveryCost: v.deliveryCost,
+              areaId: v.areaId
+            }));
+          setVillages(sortedVillages);
+          villagesLoadedRef.current = true;
+        }
+      }
+    } catch (error) {
+      toast.error('حدث خطأ أثناء جلب القرى');
+    } finally {
+      setLoadingVillages(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (params.id) {
       fetchOrder(params.id as string);
@@ -546,7 +579,7 @@ export default function OrderDetailPage() {
       });
       fetchVillages();
     }
-  }, [showShippingModal, user?.role, order?._id, fetchShippingCompanies, updateCitiesForCompany]);
+  }, [showShippingModal, user?.role, fetchShippingCompanies, updateCitiesForCompany, fetchVillages]);
 
   useEffect(() => {
     if (order) {
@@ -650,33 +683,6 @@ export default function OrderDetailPage() {
       setFilteredVillages(baseFiltered);
     }
   }, [villageSearchQuery, villages, shippingCompany, shippingCompanies, searchVillages]);
-
-
-  const fetchVillages = async () => {
-    try {
-      setLoadingVillages(true);
-      const response = await fetch('/api/villages?limit=1000');
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && Array.isArray(data.data)) {
-          const sortedVillages = data.data
-            .filter((v: any) => v.isActive !== false)
-            .sort((a: any, b: any) => a.villageName.localeCompare(b.villageName, 'ar'))
-            .map((v: any) => ({ 
-              villageId: v.villageId, 
-              villageName: v.villageName,
-              deliveryCost: v.deliveryCost,
-              areaId: v.areaId
-            }));
-          setVillages(sortedVillages);
-        }
-      }
-    } catch (error) {
-      toast.error('حدث خطأ أثناء جلب القرى');
-    } finally {
-      setLoadingVillages(false);
-    }
-  };
 
   // Extract governorate from village name (format: "المحافظة - اسم القرية")
   const getGovernorateFromVillageName = (villageName: string): string => {
@@ -2969,6 +2975,7 @@ export default function OrderDetailPage() {
                     setShippingCity(order.shippingAddress?.city || order.shippingAddress?.villageName || '');
                     setSelectedVillageId(order.shippingAddress?.villageId || null);
                     setShippingStatus({type: null, message: ''});
+                    // Don't reset villagesLoadedRef - keep villages loaded for next time
                   }}
                   className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
                   aria-label="إغلاق النافذة"

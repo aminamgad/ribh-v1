@@ -1075,16 +1075,33 @@ export default function BulkOrdersActions({
                                             </div>
                                             <input
                                               type="text"
-                                              value={orderVillageSearch[order._id] || (shipMultipleVillageId[order._id] || order.shippingAddress?.villageId ? filteredVillages.find(v => v.villageId === (shipMultipleVillageId[order._id] || order.shippingAddress?.villageId))?.villageName || order.shippingAddress?.villageName || '' : '')}
+                                              value={orderVillageSearch[order._id] !== undefined ? orderVillageSearch[order._id] : (shipMultipleVillageId[order._id] || order.shippingAddress?.villageId ? filteredVillages.find(v => v.villageId === (shipMultipleVillageId[order._id] || order.shippingAddress?.villageId))?.villageName || order.shippingAddress?.villageName || '' : '')}
                                               onChange={(e) => {
+                                                const newValue = e.target.value;
+                                                const currentVillageId = shipMultipleVillageId[order._id] || order.shippingAddress?.villageId;
+                                                const currentVillageName = currentVillageId ? filteredVillages.find(v => v.villageId === currentVillageId)?.villageName || order.shippingAddress?.villageName || '' : '';
+                                                
                                                 setOrderVillageSearch({
                                                   ...orderVillageSearch,
-                                                  [order._id]: e.target.value
+                                                  [order._id]: newValue
                                                 });
                                                 setOrderSelectedVillageIndex({
                                                   ...orderSelectedVillageIndex,
                                                   [order._id]: -1
                                                 });
+                                                
+                                                // If user is typing something different from the current village name, clear the selection
+                                                if (newValue !== currentVillageName) {
+                                                  // Clear the selected village when user starts typing a new search
+                                                  setShipMultipleVillageId({
+                                                    ...shipMultipleVillageId,
+                                                    [order._id]: null
+                                                  });
+                                                  setShipMultipleCity({
+                                                    ...shipMultipleCity,
+                                                    [order._id]: ''
+                                                  });
+                                                }
                                               }}
                                               onFocus={() => {
                                                 if (filteredVillages.length > 0) {
@@ -1596,16 +1613,33 @@ export default function BulkOrdersActions({
                                         </div>
                                         <input
                                           type="text"
-                                          value={orderVillageSearch[order._id] || (shipMultipleVillageId[order._id] || order.shippingAddress?.villageId ? filteredVillages.find(v => v.villageId === (shipMultipleVillageId[order._id] || order.shippingAddress?.villageId))?.villageName || order.shippingAddress?.villageName || '' : '')}
+                                          value={orderVillageSearch[order._id] !== undefined ? orderVillageSearch[order._id] : (shipMultipleVillageId[order._id] || order.shippingAddress?.villageId ? filteredVillages.find(v => v.villageId === (shipMultipleVillageId[order._id] || order.shippingAddress?.villageId))?.villageName || order.shippingAddress?.villageName || '' : '')}
                                           onChange={(e) => {
+                                            const newValue = e.target.value;
+                                            const currentVillageId = shipMultipleVillageId[order._id] || order.shippingAddress?.villageId;
+                                            const currentVillageName = currentVillageId ? filteredVillages.find(v => v.villageId === currentVillageId)?.villageName || order.shippingAddress?.villageName || '' : '';
+                                            
                                             setOrderVillageSearch({
                                               ...orderVillageSearch,
-                                              [order._id]: e.target.value
+                                              [order._id]: newValue
                                             });
                                             setOrderSelectedVillageIndex({
                                               ...orderSelectedVillageIndex,
                                               [order._id]: -1
                                             });
+                                            
+                                            // If user is typing something different from the current village name, clear the selection
+                                            if (newValue !== currentVillageName) {
+                                              // Clear the selected village when user starts typing a new search
+                                              setShipMultipleVillageId({
+                                                ...shipMultipleVillageId,
+                                                [order._id]: null
+                                              });
+                                              setShipMultipleCity({
+                                                ...shipMultipleCity,
+                                                [order._id]: ''
+                                              });
+                                            }
                                           }}
                                           onFocus={() => {
                                             if (filteredVillages.length > 0) {
