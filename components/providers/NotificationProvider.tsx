@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useAuth } from './AuthProvider';
 import toast from 'react-hot-toast';
 import { usePolling } from '@/components/hooks/usePolling';
@@ -53,7 +53,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
   };
 
   // Fetch notifications from API
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     if (!isAuthenticated) return;
     
     try {
@@ -88,7 +88,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     } catch (error) {
       logger.error('Error fetching notifications', error);
     }
-  };
+  }, [isAuthenticated, lastPollTimestamp]);
 
   // Use polling hook for real-time updates
   const pollingEndpoint = isAuthenticated ? '/api/poll/notifications' : null;
@@ -136,7 +136,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
       setNotifications([]);
       setLastPollTimestamp(null);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, fetchNotifications]);
 
   const markAsRead = async (notificationId: string) => {
     try {

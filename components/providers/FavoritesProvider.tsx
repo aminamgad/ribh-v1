@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { Product } from '@/types';
 import { useAuth } from './AuthProvider';
 import toast from 'react-hot-toast';
@@ -21,15 +21,7 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
   const [favorites, setFavorites] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (user) {
-      fetchFavorites();
-    } else {
-      setFavorites([]);
-    }
-  }, [user]);
-
-  const fetchFavorites = async () => {
+  const fetchFavorites = useCallback(async () => {
     if (!user) return;
     
     setLoading(true);
@@ -44,7 +36,7 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   const addToFavorites = async (product: Product) => {
     if (!user) {

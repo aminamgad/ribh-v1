@@ -47,7 +47,6 @@ const categorySchema = new Schema<CategoryDocument>({
   },
   slug: {
     type: String,
-    unique: true,
     sparse: true
   } as any,
   metaTitle: {
@@ -100,7 +99,7 @@ categorySchema.index({ parentId: 1 });
 categorySchema.index({ isActive: 1 });
 categorySchema.index({ order: 1 });
 categorySchema.index({ featured: 1 });
-categorySchema.index({ slug: 1 });
+categorySchema.index({ slug: 1 }, { unique: true, sparse: true });
 categorySchema.index({ level: 1 });
 categorySchema.index({ showInMenu: 1, isActive: 1 });
 categorySchema.index({ showInHome: 1, isActive: 1 });

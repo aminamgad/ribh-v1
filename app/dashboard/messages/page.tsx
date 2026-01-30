@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useDataCache } from '@/components/hooks/useDataCache';
 import { 
@@ -92,25 +92,12 @@ export default function MessagesPage() {
     };
   }, [refresh]);
 
-  useEffect(() => {
-    if (selectedConversation) {
-      fetchMessages();
-      
-      // Poll for new messages every 5 seconds when conversation is selected
-      const interval = setInterval(() => {
-        fetchMessages();
-      }, 5000);
-
-      return () => clearInterval(interval);
-    }
-  }, [selectedConversation]);
-
   // Keep fetchConversations for backward compatibility and polling
   const fetchConversations = async () => {
     refresh();
   };
 
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     if (!selectedConversation) return;
 
     try {
@@ -137,7 +124,20 @@ export default function MessagesPage() {
     } catch (error) {
       toast.error('حدث خطأ أثناء جلب الرسائل');
     }
-  };
+  }, [selectedConversation, user?._id, fetchConversations]);
+
+  useEffect(() => {
+    if (selectedConversation) {
+      fetchMessages();
+      
+      // Poll for new messages every 5 seconds when conversation is selected
+      const interval = setInterval(() => {
+        fetchMessages();
+      }, 5000);
+
+      return () => clearInterval(interval);
+    }
+  }, [selectedConversation, fetchMessages]);
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation) return;

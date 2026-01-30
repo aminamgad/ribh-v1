@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, ImgHTMLAttributes } from 'react';
+import { useState, useEffect, useRef, useCallback, ImgHTMLAttributes } from 'react';
 import { Image as ImageIcon, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import { getCloudinaryThumbnailUrl, isCloudinaryUrl } from '@/lib/mediaUtils';
@@ -81,34 +81,7 @@ export default function LazyImage({
   const loadStartTimeRef = useRef<number | null>(null);
   const [isFromCache, setIsFromCache] = useState(false);
 
-  // Check cache before loading
-  useEffect(() => {
-    if (isInView && isCacheAPISupported() && !loadStartTimeRef.current) {
-      loadStartTimeRef.current = performance.now();
-      
-      // Check if image is in cache
-      getCachedImage(src).then(async (cachedResponse) => {
-        if (cachedResponse && imgElementRef.current) {
-          // Use cached image
-          setIsFromCache(true);
-          const blob = await cachedResponse.blob();
-          const blobUrl = URL.createObjectURL(blob);
-          imgElementRef.current.src = blobUrl;
-          handleLoad();
-        }
-      }).catch(() => {
-        // Cache check failed, proceed with normal load
-      });
-    }
-  }, [isInView, src]);
-
-  useEffect(() => {
-    if (isInView && !isFromCache && !loadStartTimeRef.current) {
-      loadStartTimeRef.current = performance.now();
-    }
-  }, [isInView, isFromCache]);
-
-  const handleLoad = async () => {
+  const handleLoad = useCallback(async () => {
     setIsLoading(false);
     setRetryCount(0); // Reset retry count on success
     
@@ -145,7 +118,34 @@ export default function LazyImage({
     }
     
     if (onLoad) onLoad();
-  };
+  }, [src, isFromCache, onLoad, retryCount]);
+
+  // Check cache before loading
+  useEffect(() => {
+    if (isInView && isCacheAPISupported() && !loadStartTimeRef.current) {
+      loadStartTimeRef.current = performance.now();
+      
+      // Check if image is in cache
+      getCachedImage(src).then(async (cachedResponse) => {
+        if (cachedResponse && imgElementRef.current) {
+          // Use cached image
+          setIsFromCache(true);
+          const blob = await cachedResponse.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          imgElementRef.current.src = blobUrl;
+          handleLoad();
+        }
+      }).catch(() => {
+        // Cache check failed, proceed with normal load
+      });
+    }
+  }, [isInView, src, handleLoad]);
+
+  useEffect(() => {
+    if (isInView && !isFromCache && !loadStartTimeRef.current) {
+      loadStartTimeRef.current = performance.now();
+    }
+  }, [isInView, isFromCache, handleLoad]);
 
   const handleError = () => {
     if (retryCount < MAX_RETRIES && imgElementRef.current) {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { X, FileText, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 interface TemplateNameModalProps {
@@ -38,23 +38,6 @@ export default function TemplateNameModal({
     }
   }, [isOpen]);
 
-  // Keyboard navigation
-  useEffect(() => {
-    if (!isOpen || loading) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      } else if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        handleConfirm();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, loading, onClose]);
-
   const validateName = (value: string): string => {
     const trimmed = value.trim();
     if (!trimmed) {
@@ -79,7 +62,7 @@ export default function TemplateNameModal({
     }
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = useCallback(() => {
     const trimmed = name.trim();
     const validationError = validateName(trimmed);
     
@@ -90,7 +73,7 @@ export default function TemplateNameModal({
     }
 
     onConfirm(trimmed);
-  };
+  }, [name, onConfirm]);
 
   if (!isVisible) return null;
 

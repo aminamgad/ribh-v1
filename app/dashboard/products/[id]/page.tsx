@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useCart } from '@/components/providers/CartProvider';
@@ -132,12 +132,6 @@ export default function ProductDetailPage() {
     }
   };
 
-  useEffect(() => {
-    if (params.id) {
-      fetchProduct();
-    }
-  }, [params.id]);
-
   // Preload product images for faster display
   useEffect(() => {
     if (product?.images && product.images.length > 0) {
@@ -193,6 +187,29 @@ export default function ProductDetailPage() {
     }
   }, [product?.images]);
 
+  // Chat functions
+  const fetchMessages = useCallback(async () => {
+    try {
+      // Get the supplier ID correctly
+      const supplierId = typeof product?.supplierId === 'object' ? product?.supplierId?._id : product?.supplierId;
+      if (!supplierId || !user?._id) {
+        return;
+      }
+      
+      // Create conversation ID by combining user IDs
+      const conversationId = [user._id, supplierId].sort().join('-');
+      
+      const response = await fetch(`/api/messages/conversations/${conversationId}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        setMessages(data.messages || []);
+      }
+    } catch (error) {
+      // Silently handle errors
+    }
+  }, [product?.supplierId, user?._id]);
+
   // Poll for new messages when chat is open
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -204,9 +221,9 @@ export default function ProductDetailPage() {
         clearInterval(interval);
       }
     };
-  }, [showChat]);
+  }, [showChat, fetchMessages]);
 
-  const fetchProduct = async () => {
+  const fetchProduct = useCallback(async () => {
     try {
       const response = await fetch(`/api/products/${params.id}`);
       
@@ -224,7 +241,15 @@ export default function ProductDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.id, router]);
+
+  useEffect(() => {
+    if (params.id) {
+      fetchProduct();
+    }
+  }, [params.id, fetchProduct]);
+
+  // Preload product images for faster display
 
   const handleDeleteProduct = async () => {
     setShowDeleteConfirm(true);
@@ -375,28 +400,6 @@ export default function ProductDetailPage() {
   const handleOpenChat = async () => {
     setShowChat(true);
     await fetchMessages();
-  };
-
-  const fetchMessages = async () => {
-    try {
-      // Get the supplier ID correctly
-      const supplierId = typeof product?.supplierId === 'object' ? product?.supplierId?._id : product?.supplierId;
-      if (!supplierId || !user?._id) {
-        return;
-      }
-      
-      // Create conversation ID by combining user IDs
-      const conversationId = [user._id, supplierId].sort().join('-');
-      
-      const response = await fetch(`/api/messages/conversations/${conversationId}`);
-      
-      if (response.ok) {
-        const data = await response.json();
-        setMessages(data.messages || []);
-      }
-    } catch (error) {
-      // Silently handle errors
-    }
   };
 
   const handleSendMessage = async () => {

@@ -152,7 +152,8 @@ export default function ProductsPage() {
       window.removeEventListener('popstate', handleUrlChange);
       window.removeEventListener('urlchange', handleUrlChangeEvent);
     };
-  }, []); // Remove startTransition from dependencies
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount - URL changes handled by event listeners
   
   // Use URL query string directly - no need for searchParams which causes re-renders
   // This is synchronous - no delay

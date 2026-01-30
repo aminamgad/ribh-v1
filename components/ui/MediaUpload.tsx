@@ -267,7 +267,7 @@ export default function MediaUpload({
     setIsDragOver(false);
     const files = e.dataTransfer.files;
     handleFileUpload(files);
-  }, []);
+  }, [handleFileUpload]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;

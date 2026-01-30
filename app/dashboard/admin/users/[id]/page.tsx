@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { 
@@ -75,19 +75,7 @@ export default function UserDetailPage() {
   const [loading, setLoading] = useState(true);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  useEffect(() => {
-    if (user?.role !== 'admin') {
-      toast.error('غير مصرح لك بالوصول لهذه الصفحة');
-      router.push('/dashboard');
-      return;
-    }
-    
-    if (params.id) {
-      fetchUserDetail();
-    }
-  }, [params.id, user]);
-
-  const fetchUserDetail = async () => {
+  const fetchUserDetail = useCallback(async () => {
     try {
       const response = await fetch(`/api/admin/users/${params.id}`);
       if (response.ok) {
@@ -103,7 +91,19 @@ export default function UserDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.id, router]);
+
+  useEffect(() => {
+    if (user?.role !== 'admin') {
+      toast.error('غير مصرح لك بالوصول لهذه الصفحة');
+      router.push('/dashboard');
+      return;
+    }
+    
+    if (params.id) {
+      fetchUserDetail();
+    }
+  }, [params.id, user, router, fetchUserDetail]);
 
   const handleToggleStatus = async () => {
     if (!userDetail) return;

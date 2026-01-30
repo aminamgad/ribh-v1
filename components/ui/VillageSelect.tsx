@@ -36,6 +36,7 @@ export default function VillageSelect({
   const [error, setError] = useState<string | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [isSearching, setIsSearching] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -86,8 +87,9 @@ export default function VillageSelect({
     );
   }, [villages, search]);
 
+  // Sync search with selected village when village is selected (not when user types)
   useEffect(() => {
-    if (selectedVillage && villages.length > 0) {
+    if (selectedVillage && villages.length > 0 && !isSearching) {
       const village = villages.find((v) => v.villageId === selectedVillage);
       if (village) {
         onChange(village.villageId, village.villageName, village.deliveryCost);
@@ -95,20 +97,20 @@ export default function VillageSelect({
         setShowDropdown(false);
       }
     }
-  }, [selectedVillage, villages, onChange]);
+  }, [selectedVillage, villages, onChange, isSearching]);
 
-  // Show dropdown when user focuses or types
+  // Show dropdown when user focuses or types (but not when a village is selected and displayed)
   useEffect(() => {
-    if (!loading && filteredVillages.length > 0) {
-      // Keep dropdown visible even when search is empty
-      setShowDropdown(true);
-      setHighlightedIndex(-1);
-    } else if (!loading && search.trim() === '' && villages.length > 0) {
-      // Show dropdown even when search is empty if there are villages
-      setShowDropdown(true);
-      setHighlightedIndex(-1);
+    if (isSearching || !selectedVillage) {
+      if (!loading && filteredVillages.length > 0) {
+        setShowDropdown(true);
+        setHighlightedIndex(-1);
+      } else if (!loading && search.trim() === '' && villages.length > 0) {
+        setShowDropdown(true);
+        setHighlightedIndex(-1);
+      }
     }
-  }, [search, filteredVillages.length, loading, villages.length]);
+  }, [search, filteredVillages.length, loading, villages.length, isSearching, selectedVillage]);
 
   // Handle click outside to close dropdown
   useEffect(() => {
@@ -132,6 +134,7 @@ export default function VillageSelect({
   const handleVillageSelect = (village: Village) => {
     setSelectedVillage(village.villageId);
     setSearch(village.villageName);
+    setIsSearching(false);
     setShowDropdown(false);
     searchInputRef.current?.blur();
   };
@@ -193,7 +196,18 @@ export default function VillageSelect({
                 type="text"
                 placeholder="ابحث عن قرية (اكتب اسم القرية)..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => {
+                  const newValue = e.target.value;
+                  setSearch(newValue);
+                  setIsSearching(true);
+                  // Clear selected village when user starts typing a different value
+                  if (newValue && selectedVillage) {
+                    const currentVillage = villages.find((v) => v.villageId === selectedVillage);
+                    if (currentVillage && newValue !== currentVillage.villageName) {
+                      setSelectedVillage(null);
+                    }
+                  }
+                }}
                 onFocus={() => {
                   if (!loading && villages.length > 0) {
                     setShowDropdown(true);
@@ -203,6 +217,10 @@ export default function VillageSelect({
                   if (!loading && villages.length > 0) {
                     setShowDropdown(true);
                   }
+                }}
+                onBlur={() => {
+                  // Reset searching flag after a short delay to allow click events
+                  setTimeout(() => setIsSearching(false), 200);
                 }}
                 onKeyDown={handleKeyDown}
                 disabled={disabled}

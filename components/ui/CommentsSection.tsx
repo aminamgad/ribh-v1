@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { MessageSquare, Send, Reply, Edit2, Trash2, MoreVertical, Lock, Unlock } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -42,19 +42,11 @@ export default function CommentsSection({ entityType, entityId, className = '' }
   const [editContent, setEditContent] = useState('');
   const commentsEndRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    fetchComments();
-  }, [entityId]);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [comments]);
-
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  }, []);
 
-  const fetchComments = async () => {
+  const fetchComments = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(`/api/comments?entityType=${entityType}&entityId=${entityId}`);
@@ -70,7 +62,15 @@ export default function CommentsSection({ entityType, entityId, className = '' }
     } finally {
       setLoading(false);
     }
-  };
+  }, [entityType, entityId]);
+
+  useEffect(() => {
+    fetchComments();
+  }, [entityId, fetchComments]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [comments, scrollToBottom]);
 
   const handleSubmitComment = async () => {
     if (!newComment.trim()) return;

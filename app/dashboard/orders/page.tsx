@@ -150,7 +150,8 @@ export default function OrdersPage() {
       window.removeEventListener('popstate', handleUrlChange);
       window.removeEventListener('urlchange', handleUrlChangeEvent);
     };
-  }, []); // Remove startTransition from dependencies
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount - URL changes handled by event listeners
   
   // Use URL query string if available, otherwise use searchParams
   // This is synchronous - no delay
@@ -339,7 +340,7 @@ export default function OrdersPage() {
     forceRefresh: false
   });
 
-  const orders = ordersData?.orders || [];
+  const orders = useMemo(() => ordersData?.orders || [], [ordersData?.orders]);
   const searching = loading && orders.length > 0;
 
   // Clean up selected orders that no longer exist in the orders list

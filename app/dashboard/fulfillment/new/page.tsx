@@ -51,7 +51,7 @@ export default function NewFulfillmentPage() {
     }
     fetchProducts();
     fetchCategories();
-  }, [user]);
+  }, [user, router]);
 
   // Close category dropdown when clicking outside
   useEffect(() => {

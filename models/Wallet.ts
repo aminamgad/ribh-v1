@@ -79,8 +79,7 @@ const walletSchema = new Schema<WalletDocument>({
   userId: {
     type: Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
-    unique: true
+    required: true
   },
   balance: {
     type: Number,
@@ -122,7 +121,7 @@ const walletSchema = new Schema<WalletDocument>({
 });
 
 // Indexes
-walletSchema.index({ userId: 1 });
+walletSchema.index({ userId: 1 }, { unique: true });
 walletSchema.index({ isActive: 1 });
 walletSchema.index({ lastTransactionDate: -1 });
 

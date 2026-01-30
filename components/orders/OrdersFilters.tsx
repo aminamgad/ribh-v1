@@ -107,6 +107,7 @@ export default function OrdersFilters({ onFiltersChange }: OrdersFiltersProps) {
     if (endDateFromUrl !== endDate) {
       setEndDate(endDateFromUrl);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount - URL changes will be handled by the filters themselves
 
   // Auto-update function - accepts optional overrides for immediate updates
@@ -221,7 +222,7 @@ export default function OrdersFilters({ onFiltersChange }: OrdersFiltersProps) {
       // This ensures cacheKey updates immediately and data refreshes right away
       window.dispatchEvent(new CustomEvent('urlchange', { detail: { query: queryString } }));
     }
-  }, [customerSearch, orderNumberSearch, productSearch, startDate, endDate, filterStatus, pathname]);
+  }, [pathname]); // customerSearch, orderNumberSearch, productSearch, startDate, endDate, filterStatus are accessed via refs
   
   // Ref to track current filterStatus for immediate access in onChange handlers
   const filterStatusRef = useRef(filterStatus);

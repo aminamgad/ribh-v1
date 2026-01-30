@@ -181,7 +181,6 @@ export default function OrderDetailPage() {
   const [villages, setVillages] = useState<Array<{villageId: number; villageName: string; deliveryCost?: number; areaId?: number}>>([]);
   const [companyCities, setCompanyCities] = useState<string[]>([]);
   const [selectedVillageId, setSelectedVillageId] = useState<number | null>(null);
-  const [selectedVillageName, setSelectedVillageName] = useState<string>(''); // Store selected village name directly
   const [filteredVillages, setFilteredVillages] = useState<Array<{villageId: number; villageName: string; deliveryCost?: number; areaId?: number}>>([]);
   const [loadingVillages, setLoadingVillages] = useState(false); // Loading state for villages
   const [shippingStatus, setShippingStatus] = useState<{type: 'success' | 'error' | 'info' | null; message: string}>({type: null, message: ''});
@@ -569,12 +568,6 @@ export default function OrderDetailPage() {
 
   useEffect(() => {
     if (showShippingModal && user?.role === 'admin') {
-      // Initialize selected village name when modal opens
-      if (order?.shippingAddress?.villageId && order.shippingAddress?.villageName) {
-        setSelectedVillageId(order.shippingAddress.villageId);
-        setSelectedVillageName(order.shippingAddress.villageName);
-      }
-      
       fetchShippingCompanies().then((loadedCompanies) => {
         // Auto-select company if:
         // 1. Order already has a shipping company, OR
@@ -592,7 +585,7 @@ export default function OrderDetailPage() {
       });
       fetchVillages();
     }
-  }, [showShippingModal, user?.role, order, fetchShippingCompanies, updateCitiesForCompany, fetchVillages]);
+  }, [showShippingModal, user?.role, fetchShippingCompanies, updateCitiesForCompany, fetchVillages]);
 
   useEffect(() => {
     if (order) {
@@ -632,11 +625,43 @@ export default function OrderDetailPage() {
   useEffect(() => {
     if (order?.shippingAddress?.villageId) {
       setSelectedVillageId(order.shippingAddress.villageId);
-      if (order.shippingAddress.villageName) {
-        setSelectedVillageName(order.shippingAddress.villageName);
+      // Set village name in search query to display it in the input field
+      // Priority: order village name > villages list > empty
+      if (order.shippingAddress?.villageName) {
+        setVillageSearchQuery(order.shippingAddress.villageName);
+      } else if (villages.length > 0) {
+        // Try to find village name from villages list
+        const village = villages.find(v => v.villageId === order.shippingAddress?.villageId);
+        if (village?.villageName) {
+          setVillageSearchQuery(village.villageName);
+        }
       }
+    } else {
+      // Clear village selection if order doesn't have one
+      setSelectedVillageId(null);
+      setVillageSearchQuery('');
     }
-  }, [order]);
+  }, [order, villages]);
+
+
+  // Sync villageSearchQuery with selectedVillageId - ensures selected village name is always displayed
+  // This effect only runs when selectedVillageId changes (not when user types)
+  const prevSelectedVillageIdRef = useRef<number | null>(null);
+  const isUserTypingRef = useRef(false);
+  
+  useEffect(() => {
+    // Only update if selectedVillageId actually changed (not just on every render) and user is not typing
+    if (selectedVillageId && selectedVillageId !== prevSelectedVillageIdRef.current && !isUserTypingRef.current) {
+      const selectedVillage = filteredVillages.find(v => v.villageId === selectedVillageId) || villages.find(v => v.villageId === selectedVillageId);
+      if (selectedVillage?.villageName) {
+        // Update the search query to show the selected village name
+        setVillageSearchQuery(selectedVillage.villageName);
+      }
+      prevSelectedVillageIdRef.current = selectedVillageId;
+    } else if (!selectedVillageId) {
+      prevSelectedVillageIdRef.current = null;
+    }
+  }, [selectedVillageId, filteredVillages, villages]);
 
   // Apply search filter to villages - Real-time filtering
   useEffect(() => {
@@ -984,7 +1009,6 @@ export default function OrderDetailPage() {
               setShippingCompany('');
               setShippingCity('');
               setSelectedVillageId(null);
-              setSelectedVillageName('');
               setShippingStatus({type: null, message: ''});
             }, 2000);
           }
@@ -1006,7 +1030,6 @@ export default function OrderDetailPage() {
               setShippingCompany('');
               setShippingCity('');
               setSelectedVillageId(null);
-              setSelectedVillageName('');
               setShippingStatus({type: null, message: ''});
             }, 2000);
           } else {
@@ -2992,7 +3015,6 @@ export default function OrderDetailPage() {
                     setShippingCompany(order.shippingCompany || '');
                     setShippingCity(order.shippingAddress?.city || order.shippingAddress?.villageName || '');
                     setSelectedVillageId(order.shippingAddress?.villageId || null);
-                    setSelectedVillageName(order.shippingAddress?.villageName || '');
                     setShippingStatus({type: null, message: ''});
                     // Don't reset villagesLoadedRef - keep villages loaded for next time
                   }}
@@ -3070,27 +3092,48 @@ export default function OrderDetailPage() {
                       </div>
                       <input
                         type="text"
-                        value={villageSearchQuery.trim() ? villageSearchQuery : (selectedVillageName || (selectedVillageId ? villages.find(v => v.villageId === selectedVillageId)?.villageName || filteredVillages.find(v => v.villageId === selectedVillageId)?.villageName || (order.shippingAddress?.villageId === selectedVillageId ? order.shippingAddress?.villageName : '') : ''))}
+                        value={villageSearchQuery}
                         onChange={(e) => {
-                          setVillageSearchQuery(e.target.value);
+                          const newValue = e.target.value;
+                          isUserTypingRef.current = true;
+                          setVillageSearchQuery(newValue);
                           setSelectedVillageIndex(-1);
-                          // Clear selected village when user starts typing
-                          if (e.target.value.trim()) {
-                            if (selectedVillageId) {
+                          // Clear selected village ID when user starts typing a different value
+                          if (newValue && selectedVillageId) {
+                            const currentVillageName = filteredVillages.find(v => v.villageId === selectedVillageId)?.villageName || villages.find(v => v.villageId === selectedVillageId)?.villageName;
+                            if (newValue !== currentVillageName) {
                               setSelectedVillageId(null);
                             }
-                            if (selectedVillageName) {
-                              setSelectedVillageName('');
-                            }
+                          } else if (!newValue) {
+                            // If user clears the field, clear selection
+                            setSelectedVillageId(null);
                           }
+                          // Reset typing flag after a delay
+                          setTimeout(() => {
+                            isUserTypingRef.current = false;
+                          }, 100);
                         }}
                         onFocus={() => {
                           if (filteredVillages.length > 0) {
+                            // If there's a selected village, clear search query to show all options
+                            if (selectedVillageId && !villageSearchQuery) {
+                              const selectedVillage = filteredVillages.find(v => v.villageId === selectedVillageId) || villages.find(v => v.villageId === selectedVillageId);
+                              if (selectedVillage) {
+                                setVillageSearchQuery(selectedVillage.villageName);
+                              }
+                            }
                             setShowVillageDropdown(true);
                           }
                         }}
                         onClick={() => {
                           if (filteredVillages.length > 0) {
+                            // If there's a selected village, ensure it's displayed
+                            if (selectedVillageId && !villageSearchQuery) {
+                              const selectedVillage = filteredVillages.find(v => v.villageId === selectedVillageId) || villages.find(v => v.villageId === selectedVillageId);
+                              if (selectedVillage) {
+                                setVillageSearchQuery(selectedVillage.villageName);
+                              }
+                            }
                             setShowVillageDropdown(true);
                           }
                         }}
@@ -3119,9 +3162,10 @@ export default function OrderDetailPage() {
                               const indexToSelect = selectedVillageIndex >= 0 ? selectedVillageIndex : 0;
                               if (displayVillages[indexToSelect]) {
                                 const village = displayVillages[indexToSelect];
+                                // Set both state values immediately
+                                isUserTypingRef.current = false;
                                 setSelectedVillageId(village.villageId);
-                                setSelectedVillageName(village.villageName);
-                                setVillageSearchQuery('');
+                                setVillageSearchQuery(village.villageName); // Set village name to display in input
                                 setSelectedVillageIndex(-1);
                                 setShowVillageDropdown(false);
                                 toast.success(`تم اختيار: ${village.villageName}`);
@@ -3167,14 +3211,18 @@ export default function OrderDetailPage() {
                         required
                         aria-label={canEditShipping() ? "بحث عن القرية" : "اختيار القرية غير متاح - الطلب عند شركة الشحن"}
                       />
-                      {villageSearchQuery && (
+                      {(villageSearchQuery || selectedVillageId) && (
                         <button
                           onClick={() => {
+                            // Clear everything
+                            isUserTypingRef.current = false;
                             setVillageSearchQuery('');
+                            setSelectedVillageId(null);
                             setSelectedVillageIndex(-1);
+                            setShowVillageDropdown(false);
                           }}
                           className="absolute inset-y-0 left-0 pl-3 flex items-center hover:bg-gray-100 dark:hover:bg-slate-600 rounded-l-lg transition-colors z-10"
-                          aria-label="مسح البحث"
+                          aria-label="مسح"
                         >
                           <X className="w-4 h-4 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300" />
                         </button>
@@ -3202,10 +3250,13 @@ export default function OrderDetailPage() {
                               <button
                                 key={village.villageId}
                                 type="button"
-                                onClick={() => {
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  // Set both state values immediately
+                                  isUserTypingRef.current = false;
                                   setSelectedVillageId(village.villageId);
-                                  setSelectedVillageName(village.villageName);
-                                  setVillageSearchQuery('');
+                                  setVillageSearchQuery(village.villageName); // Set village name to display in input
                                   setSelectedVillageIndex(-1);
                                   setShowVillageDropdown(false);
                                   toast.success(`تم اختيار: ${village.villageName}`);
@@ -3412,8 +3463,6 @@ export default function OrderDetailPage() {
                       setShowShippingModal(false);
                       setShippingCompany(order.shippingCompany || '');
                       setShippingCity(order.shippingAddress?.city || order.shippingAddress?.villageName || '');
-                      setSelectedVillageId(order.shippingAddress?.villageId || null);
-                      setSelectedVillageName(order.shippingAddress?.villageName || '');
                     }}
                     disabled={updatingShipping}
                     className="btn-secondary"

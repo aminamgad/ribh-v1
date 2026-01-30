@@ -47,8 +47,10 @@ export default function GovernorateVillageSelect({
   const [shippingRegions, setShippingRegions] = useState<any[]>([]);
   const [villageSearchQuery, setVillageSearchQuery] = useState<string>('');
   const [selectedVillageIndex, setSelectedVillageIndex] = useState<number>(-1);
+  const [showVillageDropdown, setShowVillageDropdown] = useState(false);
   const [governorateSearchQuery, setGovernorateSearchQuery] = useState<string>('');
   const [selectedGovernorateIndex, setSelectedGovernorateIndex] = useState<number>(-1);
+  const [showGovernorateDropdown, setShowGovernorateDropdown] = useState(false);
 
   // Normalize text for search (remove diacritics, normalize Arabic characters)
   const normalizeText = (text: string): string => {
@@ -305,7 +307,7 @@ export default function GovernorateVillageSelect({
 
   // Handle village selection
   const handleVillageChange = (villageId: number) => {
-    const village = filteredVillages.find((v) => v.villageId === villageId);
+    const village = filteredVillages.find((v) => v.villageId === villageId) || baseFilteredVillages.find((v) => v.villageId === villageId);
     if (village) {
       setSelectedVillageId(villageId);
       // Extract village name (part after "-")
@@ -313,9 +315,10 @@ export default function GovernorateVillageSelect({
       const regionInfo = selectedRegionInfo;
       const regionName = regionInfo?.code || undefined;
       onVillageChange(village.villageId, villageName, village.deliveryCost, selectedGovernorate, regionName);
-      // Clear search after selection
-      setVillageSearchQuery('');
+      // Set search query to show selected village name in input
+      setVillageSearchQuery(village.villageName);
       setSelectedVillageIndex(-1);
+      setShowVillageDropdown(false);
     }
   };
 
@@ -323,7 +326,43 @@ export default function GovernorateVillageSelect({
   useEffect(() => {
     setVillageSearchQuery('');
     setSelectedVillageIndex(-1);
+    setShowGovernorateDropdown(false);
+    setShowVillageDropdown(false);
   }, [selectedGovernorate]);
+
+  // Close village dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (target && !(target as Element).closest('.village-search-container')) {
+        setShowVillageDropdown(false);
+      }
+    };
+
+    if (showVillageDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showVillageDropdown]);
+
+  // Close governorate dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (target && !(target as Element).closest('.governorate-search-container')) {
+        setShowGovernorateDropdown(false);
+      }
+    };
+
+    if (showGovernorateDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showGovernorateDropdown]);
 
 
   // Initialize from props
@@ -339,6 +378,8 @@ export default function GovernorateVillageSelect({
       const village = villages.find((v) => v.villageId === Number(initialVillageId));
       if (village) {
         setSelectedVillageId(Number(initialVillageId));
+        // Set search query to show village name in input
+        setVillageSearchQuery(village.villageName);
         const villageName = village.villageName.split('-').slice(1).join('-').trim();
         // Only call onVillageChange if village is found and matches initial data
         if (village.villageId === Number(initialVillageId)) {
@@ -399,47 +440,74 @@ export default function GovernorateVillageSelect({
       {/* Governorate Select */}
       <div className="space-y-2">
         {!loading && !error && (
-          <div className="relative">
+          <div className="relative governorate-search-container">
             <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none z-10">
               <Search className="w-4 h-4 text-gray-400 dark:text-gray-500" />
             </div>
             <input
               type="text"
-              value={selectedGovernorate || governorateSearchQuery}
+              value={governorateSearchQuery || selectedGovernorate || ''}
               onChange={(e) => {
-                setGovernorateSearchQuery(e.target.value);
+                const newValue = e.target.value;
+                setGovernorateSearchQuery(newValue);
                 setSelectedGovernorateIndex(-1);
+                // Clear selected governorate when user starts typing a different value
+                if (newValue && selectedGovernorate && newValue !== selectedGovernorate) {
+                  setSelectedGovernorate('');
+                  if (onGovernorateChange) {
+                    onGovernorateChange('', undefined);
+                  }
+                  onVillageChange(0, '', 0, '', undefined);
+                }
+                // Show dropdown when typing
+                if (newValue && activeGovernorates.length > 0) {
+                  setShowGovernorateDropdown(true);
+                }
               }}
               onFocus={() => {
                 if (!disabled && activeGovernorates.length > 0) {
-                  // Open dropdown when focusing
+                  // If there's a selected governorate, clear search query to show all options
+                  if (selectedGovernorate && !governorateSearchQuery) {
+                    setGovernorateSearchQuery('');
+                  }
+                  setShowGovernorateDropdown(true);
                 }
               }}
               onClick={() => {
                 if (!disabled && activeGovernorates.length > 0) {
-                  // Open dropdown when clicking
+                  // If there's a selected governorate, clear search query to show all options
+                  if (selectedGovernorate && !governorateSearchQuery) {
+                    setGovernorateSearchQuery('');
+                  }
+                  setShowGovernorateDropdown(true);
                 }
               }}
               onKeyDown={(e) => {
-                // Escape: Clear search
+                // Escape: Clear search and close dropdown
                 if (e.key === 'Escape') {
-                  setGovernorateSearchQuery('');
-                  setSelectedGovernorateIndex(-1);
+                  if (governorateSearchQuery) {
+                    setGovernorateSearchQuery('');
+                    setSelectedGovernorateIndex(-1);
+                  } else {
+                    setShowGovernorateDropdown(false);
+                  }
                   e.preventDefault();
                 }
                 // Enter: Select first result if only one, or selected one
-                else if (e.key === 'Enter' && activeGovernorates.length > 0) {
+                else if (e.key === 'Enter' && activeGovernorates.length > 0 && showGovernorateDropdown) {
                   e.preventDefault();
                   const indexToSelect = selectedGovernorateIndex >= 0 ? selectedGovernorateIndex : 0;
                   if (activeGovernorates[indexToSelect]) {
                     handleGovernorateChange(activeGovernorates[indexToSelect].name);
                     setGovernorateSearchQuery('');
                     setSelectedGovernorateIndex(-1);
+                    setShowGovernorateDropdown(false);
                   }
                 }
                 // Arrow Down: Navigate down
                 else if (e.key === 'ArrowDown' && activeGovernorates.length > 0) {
                   e.preventDefault();
+                  setShowGovernorateDropdown(true);
                   setSelectedGovernorateIndex((prev) => 
                     prev < activeGovernorates.length - 1 ? prev + 1 : 0
                   );
@@ -447,6 +515,7 @@ export default function GovernorateVillageSelect({
                 // Arrow Up: Navigate up
                 else if (e.key === 'ArrowUp' && activeGovernorates.length > 0) {
                   e.preventDefault();
+                  setShowGovernorateDropdown(true);
                   setSelectedGovernorateIndex((prev) => 
                     prev > 0 ? prev - 1 : activeGovernorates.length - 1
                   );
@@ -458,14 +527,20 @@ export default function GovernorateVillageSelect({
               required={required}
               aria-label="بحث عن المنطقة"
             />
-            {governorateSearchQuery && (
+            {(governorateSearchQuery || selectedGovernorate) && (
               <button
                 onClick={() => {
                   setGovernorateSearchQuery('');
+                  setSelectedGovernorate('');
                   setSelectedGovernorateIndex(-1);
+                  setShowGovernorateDropdown(false);
+                  if (onGovernorateChange) {
+                    onGovernorateChange('', undefined);
+                  }
+                  onVillageChange(0, '', 0, '', undefined);
                 }}
                 className="absolute inset-y-0 left-0 pl-3 flex items-center hover:bg-gray-100 dark:hover:bg-slate-600 rounded-l-lg transition-colors z-10"
-                aria-label="مسح البحث"
+                aria-label="مسح"
               >
                 <X className="w-4 h-4 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300" />
               </button>
@@ -473,7 +548,7 @@ export default function GovernorateVillageSelect({
             <ChevronDown className="absolute left-8 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none z-10" />
             
             {/* Dropdown List */}
-            {(governorateSearchQuery || !selectedGovernorate) && activeGovernorates.length > 0 && (
+            {showGovernorateDropdown && activeGovernorates.length > 0 && (
               <div className="absolute z-50 w-full mt-1 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                 {activeGovernorates.map((item: any, index) => (
                   <button
@@ -483,6 +558,7 @@ export default function GovernorateVillageSelect({
                       handleGovernorateChange(item.name);
                       setGovernorateSearchQuery('');
                       setSelectedGovernorateIndex(-1);
+                      setShowGovernorateDropdown(false);
                     }}
                     className={`w-full text-right px-4 py-2 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors ${
                       selectedGovernorateIndex === index && governorateSearchQuery
@@ -525,45 +601,72 @@ export default function GovernorateVillageSelect({
           </label>
           
           {!loading && baseFilteredVillages.length > 0 && (
-            <div className="relative">
+            <div className="relative village-search-container">
               <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none z-10">
                 <Search className="w-4 h-4 text-gray-400 dark:text-gray-500" />
               </div>
               <input
                 type="text"
-                value={selectedVillageName || villageSearchQuery}
+                value={villageSearchQuery || selectedVillageName || ''}
                 onChange={(e) => {
-                  setVillageSearchQuery(e.target.value);
+                  const newValue = e.target.value;
+                  setVillageSearchQuery(newValue);
                   setSelectedVillageIndex(-1);
+                  // Clear selected village when user starts typing a different value
+                  if (newValue && selectedVillageId) {
+                    const currentVillageName = selectedVillageName || '';
+                    if (newValue !== currentVillageName) {
+                      setSelectedVillageId(null);
+                      onVillageChange(0, '', 0, selectedGovernorate);
+                    }
+                  }
+                  // Show dropdown when typing
+                  if (newValue && filteredVillages.length > 0) {
+                    setShowVillageDropdown(true);
+                  }
                 }}
                 onFocus={() => {
                   if (!disabled && filteredVillages.length > 0) {
-                    // Open dropdown when focusing
+                    // If there's a selected village, clear search query to show all options
+                    if (selectedVillageId && !villageSearchQuery) {
+                      setVillageSearchQuery('');
+                    }
+                    setShowVillageDropdown(true);
                   }
                 }}
                 onClick={() => {
                   if (!disabled && filteredVillages.length > 0) {
-                    // Open dropdown when clicking
+                    // If there's a selected village, clear search query to show all options
+                    if (selectedVillageId && !villageSearchQuery) {
+                      setVillageSearchQuery('');
+                    }
+                    setShowVillageDropdown(true);
                   }
                 }}
                 onKeyDown={(e) => {
-                  // Escape: Clear search
+                  // Escape: Clear search and close dropdown
                   if (e.key === 'Escape') {
-                    setVillageSearchQuery('');
-                    setSelectedVillageIndex(-1);
+                    if (villageSearchQuery) {
+                      setVillageSearchQuery('');
+                      setSelectedVillageIndex(-1);
+                    } else {
+                      setShowVillageDropdown(false);
+                    }
                     e.preventDefault();
                   }
                   // Enter: Select first result if only one, or selected one
-                  else if (e.key === 'Enter' && filteredVillages.length > 0) {
+                  else if (e.key === 'Enter' && filteredVillages.length > 0 && showVillageDropdown) {
                     e.preventDefault();
                     const indexToSelect = selectedVillageIndex >= 0 ? selectedVillageIndex : 0;
                     if (filteredVillages[indexToSelect]) {
                       handleVillageChange(filteredVillages[indexToSelect].villageId);
+                      setShowVillageDropdown(false);
                     }
                   }
                   // Arrow Down: Navigate down
                   else if (e.key === 'ArrowDown' && filteredVillages.length > 0) {
                     e.preventDefault();
+                    setShowVillageDropdown(true);
                     setSelectedVillageIndex((prev) => 
                       prev < filteredVillages.length - 1 ? prev + 1 : 0
                     );
@@ -571,6 +674,7 @@ export default function GovernorateVillageSelect({
                   // Arrow Up: Navigate up
                   else if (e.key === 'ArrowUp' && filteredVillages.length > 0) {
                     e.preventDefault();
+                    setShowVillageDropdown(true);
                     setSelectedVillageIndex((prev) => 
                       prev > 0 ? prev - 1 : filteredVillages.length - 1
                     );
@@ -582,14 +686,17 @@ export default function GovernorateVillageSelect({
                 required={required}
                 aria-label="بحث عن القرية"
               />
-              {villageSearchQuery && (
+              {(villageSearchQuery || selectedVillageId) && (
                 <button
                   onClick={() => {
                     setVillageSearchQuery('');
+                    setSelectedVillageId(null);
                     setSelectedVillageIndex(-1);
+                    setShowVillageDropdown(false);
+                    onVillageChange(0, '', 0, selectedGovernorate);
                   }}
                   className="absolute inset-y-0 left-0 pl-3 flex items-center hover:bg-gray-100 dark:hover:bg-slate-600 rounded-l-lg transition-colors z-10"
-                  aria-label="مسح البحث"
+                  aria-label="مسح"
                 >
                   <X className="w-4 h-4 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300" />
                 </button>
@@ -597,7 +704,7 @@ export default function GovernorateVillageSelect({
               <MapPin className="absolute left-8 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none z-10" />
               
               {/* Dropdown List */}
-              {(villageSearchQuery || !selectedVillageName) && filteredVillages.length > 0 && (
+              {showVillageDropdown && filteredVillages.length > 0 && (
                 <div className="absolute z-50 w-full mt-1 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                   {filteredVillages.map((village, index) => {
                     const villageName = village.villageName.split('-').slice(1).join('-').trim();
@@ -605,7 +712,10 @@ export default function GovernorateVillageSelect({
                       <button
                         key={village.villageId}
                         type="button"
-                        onClick={() => handleVillageChange(village.villageId)}
+                        onClick={() => {
+                          handleVillageChange(village.villageId);
+                          setShowVillageDropdown(false);
+                        }}
                         className={`w-full text-right px-4 py-2 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors ${
                           selectedVillageIndex === index && villageSearchQuery
                             ? 'bg-[#FF9800] text-white'

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useForm } from 'react-hook-form';
@@ -138,19 +138,7 @@ export default function EditUserPage() {
 
   const watchedValues = watch();
 
-  useEffect(() => {
-    if (currentUser?.role !== 'admin') {
-      toast.error('غير مصرح لك بالوصول لهذه الصفحة');
-      router.push('/dashboard');
-      return;
-    }
-    
-    if (params.id) {
-      fetchUser();
-    }
-  }, [params.id, currentUser]);
-
-  const fetchUser = async () => {
+  const fetchUser = useCallback(async () => {
     try {
       const response = await fetch(`/api/admin/users/${params.id}`);
       if (response.ok) {
@@ -185,7 +173,19 @@ export default function EditUserPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.id, router, setValue]);
+
+  useEffect(() => {
+    if (currentUser?.role !== 'admin') {
+      toast.error('غير مصرح لك بالوصول لهذه الصفحة');
+      router.push('/dashboard');
+      return;
+    }
+    
+    if (params.id) {
+      fetchUser();
+    }
+  }, [params.id, currentUser, router, fetchUser]);
 
   const normalizeUrl = (url: string | undefined): string => {
     if (!url || url.trim() === '') return '';

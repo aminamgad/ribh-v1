@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useChat } from '@/components/providers/ChatProvider';
 import { format } from 'date-fns';
@@ -104,18 +104,11 @@ export default function ChatPage() {
     }
   }, [currentChat]);
 
-  // Fetch users for admin
-  useEffect(() => {
-    if (user?.role === 'admin') {
-      fetchUsers();
-    }
-  }, [user]);
-
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  }, []);
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       const response = await fetch('/api/admin/users');
       if (response.ok) {
@@ -125,7 +118,14 @@ export default function ChatPage() {
     } catch (error) {
       // Silently handle errors
     }
-  };
+  }, [user?._id]);
+
+  // Fetch users for admin
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      fetchUsers();
+    }
+  }, [user, fetchUsers]);
 
   const handleCreateChat = async () => {
     if (!newChatForm.subject || !newChatForm.message) {
@@ -500,9 +500,9 @@ export default function ChatPage() {
                                     } transition-colors`}
                                   >
                                     {attachment.type.startsWith('image/') ? (
-                                      <Image className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                                      <Image className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" aria-label="صورة" />
                                     ) : (
-                                      <File className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                                      <File className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" aria-label="ملف" />
                                     )}
                                     <span className="text-[10px] sm:text-xs truncate flex-1">
                                       {attachment.name}

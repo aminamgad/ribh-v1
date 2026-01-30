@@ -125,6 +125,7 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
         }
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]); // Only depend on pathname, not showFilters to avoid loops during filter updates
   
   // Listen to storage events to sync showFilters across tabs/windows

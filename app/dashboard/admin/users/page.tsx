@@ -227,7 +227,7 @@ export default function AdminUsersPage() {
       // This ensures cacheKey updates immediately and data refreshes right away
       window.dispatchEvent(new CustomEvent('urlchange', { detail: { query: queryString } }));
     }
-  }, [searchTerm, filterRole, filterStatus, pathname, user?.role]);
+  }, [searchTerm, filterRole, filterStatus, pathname]);
 
   // Sync filter states with URL params when URL changes externally
   useEffect(() => {
@@ -249,6 +249,7 @@ export default function AdminUsersPage() {
     if (statusFromUrl !== filterStatus) {
       setFilterStatus(statusFromUrl);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount - URL changes will be handled by the filters themselves
 
   // Sync with actual URL changes from popstate events and custom events
@@ -342,7 +343,7 @@ export default function AdminUsersPage() {
     }
   });
 
-  const users = usersData?.users || [];
+  const users = useMemo(() => usersData?.users || [], [usersData?.users]);
 
   useEffect(() => {
     if (user?.role !== 'admin') {

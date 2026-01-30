@@ -141,14 +141,7 @@ export default function EditProductPage() {
     }
   }, []);
 
-  useEffect(() => {
-    if (params.id) {
-      fetchProduct();
-      fetchCategories();
-    }
-  }, [params.id]);
-
-  const fetchProduct = async () => {
+  const fetchProduct = useCallback(async () => {
     try {
       const response = await fetch(`/api/products/${params.id}`);
       if (response.ok) {
@@ -212,7 +205,14 @@ export default function EditProductPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.id, router, setValue, user?.role]);
+
+  useEffect(() => {
+    if (params.id) {
+      fetchProduct();
+      fetchCategories();
+    }
+  }, [params.id, fetchProduct]);
 
   const fetchCategories = async () => {
     try {
@@ -743,7 +743,7 @@ export default function EditProductPage() {
     };
   }, [getValues, images, hasVariants, variants, tags, specifications, user?.role]);
 
-  const onSubmit = async (data: ProductFormData) => {
+  const onSubmit = useCallback(async (data: ProductFormData) => {
     // Validate hasVariants
     if (hasVariants === null) {
       toast.error('⚠️ يرجى تحديد ما إذا كان المنتج يحتوي على متغيرات أم لا', {
@@ -920,7 +920,7 @@ export default function EditProductPage() {
     } finally {
       setSaving(false);
     }
-  };
+  }, [hasVariants, images, variantOptions, user?.role, router, params.id, tags, specifications, selectedSupplierId]);
 
   // Keyboard shortcuts
   useEffect(() => {

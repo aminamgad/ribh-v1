@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useDataCache } from '@/components/hooks/useDataCache';
 import { useCart } from '@/components/providers/CartProvider';
@@ -50,7 +50,7 @@ export default function FavoritesPage() {
     }
   });
 
-  const favorites = favoritesData?.favorites || [];
+  const favorites = useMemo(() => favoritesData?.favorites || [], [favoritesData?.favorites]);
 
   // Prefetch images for visible favorites (first 8 products)
   useEffect(() => {

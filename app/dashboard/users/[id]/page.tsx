@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { 
@@ -87,7 +87,7 @@ export default function UserDetailPage() {
     }
   }, [params.id, user]);
 
-  const fetchUserDetail = async () => {
+  const fetchUserDetail = useCallback(async () => {
     try {
       const response = await fetch(`/api/admin/users/${params.id}`);
       if (response.ok) {
@@ -103,7 +103,7 @@ export default function UserDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.id, router]);
 
   const handleToggleStatus = async () => {
     if (!userDetail) return;

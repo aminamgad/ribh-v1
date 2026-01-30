@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { 
   MessageSquare, 
@@ -52,13 +52,7 @@ export default function AdminMessagesPage() {
   const [showModal, setShowModal] = useState(false);
   const [adminNotes, setAdminNotes] = useState('');
 
-  useEffect(() => {
-    if (user?.role === 'admin') {
-      fetchMessages();
-    }
-  }, [user, filter]);
-
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(`/api/admin/messages?filter=${filter}`);
@@ -73,7 +67,13 @@ export default function AdminMessagesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter]);
+
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      fetchMessages();
+    }
+  }, [user, filter, fetchMessages]);
 
   const handleApproveMessage = async (messageId: string) => {
     try {

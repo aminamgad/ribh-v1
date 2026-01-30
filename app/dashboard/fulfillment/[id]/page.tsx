@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { Package, Clock, CheckCircle, XCircle, Calendar, MapPin, User, AlertCircle } from 'lucide-react';
 import MediaThumbnail from '@/components/ui/MediaThumbnail';
@@ -64,11 +64,7 @@ export default function FulfillmentDetailPage({ params }: { params: { id: string
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showRejectConfirm, setShowRejectConfirm] = useState(false);
 
-  useEffect(() => {
-    fetchFulfillmentRequest();
-  }, [params.id]);
-
-  const fetchFulfillmentRequest = async () => {
+  const fetchFulfillmentRequest = useCallback(async () => {
     try {
       const response = await fetch(`/api/fulfillment/${params.id}`);
       
@@ -101,7 +97,11 @@ export default function FulfillmentDetailPage({ params }: { params: { id: string
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.id, router]);
+
+  useEffect(() => {
+    fetchFulfillmentRequest();
+  }, [fetchFulfillmentRequest]);
 
   const handleApprove = async () => {
     setShowApproveConfirm(true);
