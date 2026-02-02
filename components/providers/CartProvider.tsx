@@ -134,8 +134,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
         }
         
         // Get the appropriate price based on user role
+        // For marketers: use minimumSellingPrice as suggested price if available, otherwise use marketerPrice
         if (finalPrice === undefined || finalPrice === null || isNaN(finalPrice) || finalPrice <= 0) {
-          finalPrice = product.wholesalerPrice;
+          // Use minimumSellingPrice as default suggested price for marketers
+          if (product.minimumSellingPrice && product.minimumSellingPrice > 0) {
+            finalPrice = product.minimumSellingPrice;
+          } else {
+            finalPrice = product.marketerPrice || product.wholesalerPrice || 0;
+          }
         }
         if (finalPrice === undefined || finalPrice === null || isNaN(finalPrice) || finalPrice <= 0) {
           finalPrice = 0;

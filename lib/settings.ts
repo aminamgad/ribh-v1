@@ -261,6 +261,72 @@ export async function calculateAdminProfitForProduct(productPrice: number, quant
   return (productPrice * margin / 100) * quantity;
 }
 
+// Calculate marketer price from supplier price + admin profit margin
+// Formula: marketerPrice = supplierPrice + (supplierPrice * margin / 100)
+export async function calculateMarketerPriceFromSupplierPrice(supplierPrice: number): Promise<number> {
+  const margin = await getAdminProfitMargin(supplierPrice);
+  const adminProfit = (supplierPrice * margin) / 100;
+  const marketerPrice = supplierPrice + adminProfit;
+  logger.debug('Calculating marketer price from supplier price', {
+    supplierPrice,
+    margin,
+    adminProfit,
+    marketerPrice
+  });
+  return marketerPrice;
+}
+
+// Calculate supplier price from marketer price (reverse calculation)
+// Formula: marketerPrice = supplierPrice * (1 + margin / 100)
+// Therefore: supplierPrice = marketerPrice / (1 + margin / 100)
+export async function calculateSupplierPriceFromMarketerPrice(marketerPrice: number): Promise<number> {
+  const settings = await getSystemSettings();
+  
+  if (!settings || !settings.adminProfitMargins || settings.adminProfitMargins.length === 0) {
+    // Default margin 5%
+    const defaultMargin = 5;
+    const supplierPrice = marketerPrice / (1 + defaultMargin / 100);
+    logger.debug('Calculating supplier price from marketer price (default margin)', {
+      marketerPrice,
+      margin: defaultMargin,
+      supplierPrice
+    });
+    return supplierPrice;
+  }
+  
+  // Try to find the correct margin by testing different supplier prices
+  // We need to find which margin range would produce this marketerPrice
+  const sortedMargins = [...settings.adminProfitMargins].sort((a, b) => a.minPrice - b.minPrice);
+  
+  // Try each margin to see which one matches
+  for (const marginConfig of sortedMargins) {
+    const margin = marginConfig.margin;
+    // Calculate what supplierPrice would be with this margin
+    const calculatedSupplierPrice = marketerPrice / (1 + margin / 100);
+    
+    // Check if this supplierPrice falls within the margin's range
+    if (calculatedSupplierPrice >= marginConfig.minPrice && calculatedSupplierPrice <= marginConfig.maxPrice) {
+      logger.debug('Calculating supplier price from marketer price (matched margin)', {
+        marketerPrice,
+        margin,
+        supplierPrice: calculatedSupplierPrice,
+        range: `${marginConfig.minPrice} - ${marginConfig.maxPrice}`
+      });
+      return calculatedSupplierPrice;
+    }
+  }
+  
+  // If no match found, use the first margin or default
+  const defaultMargin = sortedMargins.length > 0 ? sortedMargins[0].margin : 5;
+  const supplierPrice = marketerPrice / (1 + defaultMargin / 100);
+  logger.debug('Calculating supplier price from marketer price (fallback margin)', {
+    marketerPrice,
+    margin: defaultMargin,
+    supplierPrice
+  });
+  return supplierPrice;
+}
+
 // Calculate total admin profit for order items (based on product prices, not order total)
 export async function calculateAdminProfitForOrder(items: Array<{ unitPrice: number; quantity: number }>): Promise<number> {
   let totalProfit = 0;

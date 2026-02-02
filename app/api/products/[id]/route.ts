@@ -5,6 +5,7 @@ import Product from '@/models/Product';
 import { productCache, generateCacheKey } from '@/lib/cache';
 import { logger } from '@/lib/logger';
 import { handleApiError } from '@/lib/error-handler';
+import { settingsManager } from '@/lib/settings-manager';
 
 interface RouteParams {
   params: { id: string };
@@ -82,6 +83,42 @@ async function getProduct(req: NextRequest, user: any, ...args: unknown[]) {
       );
     }
 
+    // Use the original supplierPrice from database directly
+    // Only calculate if supplierPrice is truly missing (null/undefined) AND marketerPrice exists
+    // Do NOT calculate if supplierPrice is 0 or any other value - use the stored value as-is
+    let finalSupplierPrice = product.supplierPrice;
+    
+    // Only calculate if supplierPrice is completely missing (null/undefined), not if it's 0
+    if ((finalSupplierPrice === null || finalSupplierPrice === undefined) && product.marketerPrice && product.marketerPrice > 0) {
+      try {
+        finalSupplierPrice = await settingsManager.calculateSupplierPriceFromMarketerPrice(product.marketerPrice);
+        logger.debug('Calculated supplierPrice from marketerPrice in getProduct (only because original was missing)', {
+          productId: product._id,
+          productName: product.name,
+          marketerPrice: product.marketerPrice,
+          calculatedSupplierPrice: finalSupplierPrice,
+          originalSupplierPrice: product.supplierPrice
+        });
+      } catch (error) {
+        logger.error('Error calculating supplierPrice from marketerPrice in getProduct', error, {
+          productId: product._id,
+          marketerPrice: product.marketerPrice
+        });
+        // Keep original value if calculation fails
+        finalSupplierPrice = product.supplierPrice;
+      }
+    } else {
+      // Use the stored supplierPrice directly - this is the original value from database
+      finalSupplierPrice = product.supplierPrice;
+      if (finalSupplierPrice !== null && finalSupplierPrice !== undefined) {
+        logger.debug('Using original supplierPrice from database in getProduct', {
+          productId: product._id,
+          productName: product.name,
+          originalSupplierPrice: finalSupplierPrice
+        });
+      }
+    }
+
     // Transform product for frontend
     const baseProduct = {
       _id: product._id,
@@ -89,6 +126,7 @@ async function getProduct(req: NextRequest, user: any, ...args: unknown[]) {
       description: product.description,
       marketingText: product.marketingText,
       images: product.images,
+      supplierPrice: finalSupplierPrice, // This is now the original stored value
       marketerPrice: product.marketerPrice,
       wholesalerPrice: product.wholesalerPrice,
       minimumSellingPrice: product.minimumSellingPrice,
@@ -183,7 +221,7 @@ async function updateProduct(req: NextRequest, user: any, ...args: unknown[]) {
     // Update allowed fields
     const allowedUpdates = [
       'name', 'description', 'marketingText', 'images', 'categoryId',
-      'marketerPrice', 'wholesalerPrice', 'minimumSellingPrice', 'isMinimumPriceMandatory', 'stockQuantity',
+      'supplierPrice', 'marketerPrice', 'wholesalerPrice', 'minimumSellingPrice', 'isMinimumPriceMandatory', 'stockQuantity',
       'isActive', 'tags', 'specifications', 'sku',
       // Product variants
       'hasVariants', 'variants', 'variantOptions'
@@ -218,6 +256,27 @@ async function updateProduct(req: NextRequest, user: any, ...args: unknown[]) {
         } else {
           updateData[field] = body[field];
         }
+      }
+    }
+    
+    // Calculate marketerPrice from supplierPrice if supplierPrice is updated
+    if (updateData.supplierPrice !== undefined && updateData.supplierPrice > 0) {
+      // If marketerPrice is not explicitly provided, calculate it from supplierPrice
+      if (updateData.marketerPrice === undefined || updateData.marketerPrice <= 0) {
+        updateData.marketerPrice = await settingsManager.calculateMarketerPriceFromSupplierPrice(updateData.supplierPrice);
+        logger.debug('Calculated marketerPrice from supplierPrice during update', {
+          supplierPrice: updateData.supplierPrice,
+          marketerPrice: updateData.marketerPrice
+        });
+      }
+    } else if (updateData.marketerPrice !== undefined && updateData.marketerPrice > 0) {
+      // If only marketerPrice is updated but supplierPrice exists, we might want to recalculate
+      // For now, we'll keep the existing supplierPrice if it exists
+      const currentSupplierPrice = existingProduct.supplierPrice || updateData.supplierPrice;
+      if (currentSupplierPrice && currentSupplierPrice > 0) {
+        // Recalculate to ensure consistency - but only if marketerPrice wasn't explicitly set
+        // Actually, if marketerPrice is provided, we should use it as-is
+        // So we'll only recalculate if supplierPrice was also updated
       }
     }
     

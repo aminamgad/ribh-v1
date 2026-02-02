@@ -94,7 +94,7 @@ async function searchProducts(req: NextRequest, user: any) {
     }
     
     // Price range filter
-    const priceField = user.role === 'wholesaler' ? 'wholesalePrice' : 'marketerPrice';
+    const priceField = user.role === 'wholesaler' ? 'wholesalerPrice' : 'marketerPrice';
     if (minPrice || maxPrice) {
       searchQuery[priceField] = {};
       if (minPrice) searchQuery[priceField].$gte = parseFloat(minPrice);
@@ -197,8 +197,9 @@ async function searchProducts(req: NextRequest, user: any) {
         name: product.name,
         description: product.description,
         images: product.images,
+        supplierPrice: product.supplierPrice,
         marketerPrice: product.marketerPrice,
-        wholesalePrice: product.wholesalePrice,
+        wholesalerPrice: product.wholesalerPrice,
         stockQuantity: product.stockQuantity,
         categoryName: product.categoryId?.name,
         sku: product.sku,

@@ -109,14 +109,21 @@ async function createOrderHandler(req: NextRequest, user: any) {
         }
         
         // Use variant price if available
-        const variantPrice = variantOption.price || (product as any).marketerPrice || (product as any).wholesalerPrice || 0;
+        // Priority: customPrice > minimumSellingPrice > variantPrice > marketerPrice > wholesalerPrice
+        let variantPrice = variantOption.price || (product as any).marketerPrice || (product as any).wholesalerPrice || 0;
+        // Use minimumSellingPrice as default suggested price if available
+        if (item.customPrice === undefined && (product as any).minimumSellingPrice && (product as any).minimumSellingPrice > 0) {
+          variantPrice = (product as any).minimumSellingPrice;
+        }
         const unitPrice = item.customPrice !== undefined ? item.customPrice : variantPrice;
         const totalPrice = unitPrice * item.quantity;
         subtotal += totalPrice;
         
-        // marketer profit based on custom selling price minus base price (marketerPrice of variant or product)
-        // Use variant's marketerPrice if available, otherwise use product's marketerPrice
+        // marketer profit based on custom selling price minus base price (marketerPrice)
+        // marketerPrice = supplierPrice + admin profit margin
+        // For variants, use variant price if it's set (which should be marketerPrice), otherwise use product's marketerPrice
         const variantMarketerPrice = variantOption.price || (product as any).marketerPrice || 0;
+        // Base price for marketer profit calculation is marketerPrice (supplierPrice + admin profit)
         const basePrice = variantMarketerPrice;
         const itemMarketerProfit = Math.max(unitPrice - basePrice, 0) * item.quantity;
         marketerProfitTotal += itemMarketerProfit;
@@ -147,12 +154,19 @@ async function createOrderHandler(req: NextRequest, user: any) {
           );
         }
         
-        const fallbackPrice = (product as any).marketerPrice ?? (product as any).wholesalerPrice ?? 0;
+        // Priority: customPrice > minimumSellingPrice > marketerPrice > wholesalerPrice
+        let fallbackPrice = (product as any).marketerPrice ?? (product as any).wholesalerPrice ?? 0;
+        // Use minimumSellingPrice as default suggested price if available
+        if (item.customPrice === undefined && (product as any).minimumSellingPrice && (product as any).minimumSellingPrice > 0) {
+          fallbackPrice = (product as any).minimumSellingPrice;
+        }
         const unitPrice = item.customPrice !== undefined ? item.customPrice : fallbackPrice;
         const totalPrice = unitPrice * item.quantity;
         subtotal += totalPrice;
 
         // marketer profit based on custom selling price minus base price (marketerPrice)
+        // marketerPrice = supplierPrice + admin profit margin
+        // Base price for marketer profit calculation is marketerPrice (supplierPrice + admin profit)
         const basePrice = (product as any).marketerPrice ?? 0;
         const itemMarketerProfit = Math.max(unitPrice - basePrice, 0) * item.quantity;
         marketerProfitTotal += itemMarketerProfit;
@@ -266,12 +280,22 @@ async function createOrderHandler(req: NextRequest, user: any) {
     
     const total = subtotal + finalShippingCost;
     
-    // Calculate admin profit (commission) based on product prices, not order total
-    const orderItemsForProfit = orderItems.map(item => ({
-      unitPrice: item.unitPrice,
-      quantity: item.quantity
-    }));
-    const commission = await settingsManager.calculateAdminProfitForOrder(orderItemsForProfit);
+    // Calculate admin profit (commission) based on supplier prices, not selling prices
+    // Admin profit = supplierPrice * margin / 100
+    // We need to get supplierPrice from products
+    let commission = 0;
+    for (const item of orderItems) {
+      const product = await Product.findById(item.productId).lean();
+      if (!product) continue;
+      
+      // Get supplierPrice from product
+      const supplierPrice = (product as any).supplierPrice || 0;
+      if (supplierPrice > 0) {
+        // Calculate admin profit for this item based on supplierPrice
+        const itemAdminProfit = await settingsManager.calculateAdminProfitForProduct(supplierPrice, item.quantity);
+        commission += itemAdminProfit;
+      }
+    }
     
     // Create order
     const order = await Order.create({

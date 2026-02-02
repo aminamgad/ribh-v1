@@ -19,12 +19,32 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
   
-  const { login } = useAuth();
+  const { login, user, loading: authLoading, isAuthenticated } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!authLoading && isAuthenticated && user) {
+      // توجيه تلقائي حسب دور المستخدم
+      const userRole = user.role;
+      if (userRole === 'admin') {
+        router.push('/dashboard');
+      } else if (userRole === 'supplier') {
+        router.push('/dashboard');
+      } else if (userRole === 'marketer') {
+        router.push('/dashboard/products');
+      } else if (userRole === 'wholesaler') {
+        router.push('/dashboard');
+      } else {
+        // Default fallback
+        router.push('/dashboard');
+      }
+    }
+  }, [authLoading, isAuthenticated, user, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,10 +55,18 @@ export default function LoginPage() {
       
       if (result.success) {
         toast.success('تم تسجيل الدخول بنجاح');
-        // توجيه المسوق لصفحة المنتجات مباشرة
-        if (result.user?.role === 'marketer') {
+        // توجيه تلقائي حسب دور المستخدم
+        const userRole = result.user?.role;
+        if (userRole === 'admin') {
+          router.push('/dashboard');
+        } else if (userRole === 'supplier') {
+          router.push('/dashboard');
+        } else if (userRole === 'marketer') {
           router.push('/dashboard/products');
+        } else if (userRole === 'wholesaler') {
+          router.push('/dashboard');
         } else {
+          // Default fallback
           router.push('/dashboard');
         }
       } else {
@@ -72,7 +100,8 @@ export default function LoginPage() {
     });
   };
 
-  if (!mounted) {
+  // Show loading while checking auth or redirecting
+  if (!mounted || authLoading || (isAuthenticated && user)) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#FF9800]/10 via-white to-[#4CAF50]/10 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full space-y-8">

@@ -33,6 +33,11 @@ const productSchema = new Schema<ProductDocument>({
     ref: 'User',
     required: [true, 'المورد مطلوب']
   },
+  supplierPrice: {
+    type: Number,
+    required: [true, 'سعر المورد مطلوب'],
+    min: [0, 'سعر المورد يجب أن يكون أكبر من صفر']
+  },
   marketerPrice: {
     type: Number,
     required: [true, 'سعر المسوق مطلوب'],
@@ -261,6 +266,7 @@ productSchema.path('images').validate(function(images: string[]) {
 productSchema.index({ name: 1 });
 productSchema.index({ supplierId: 1 });
 productSchema.index({ categoryId: 1 });
+productSchema.index({ supplierPrice: 1 });
 productSchema.index({ marketerPrice: 1 });
 productSchema.index({ wholesalerPrice: 1 });
 productSchema.index({ stockQuantity: 1 });

@@ -7,7 +7,7 @@ import { useAuth } from '@/components/providers/AuthProvider';
 import { useForm, type FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Save, Maximize2, Minimize2, Package, ImageIcon, DollarSign, Warehouse, Layers, Eye, FileText, Cloud, CloudOff, ChevronLeft, ChevronRight, X, AlertCircle, CheckCircle2, Info, AlertTriangle, Lightbulb, Sparkles, Zap, BarChart2, Clock, Star, Search, Plus, Trash2, Tag, Upload, ArrowLeft } from 'lucide-react';
+import { Save, Package, ImageIcon, DollarSign, Warehouse, Layers, Eye, ChevronLeft, ChevronRight, X, AlertCircle, CheckCircle2, Info, Search, Plus, ArrowLeft, Tag } from 'lucide-react';
 import toast from 'react-hot-toast';
 import MediaUpload from '@/components/ui/MediaUpload';
 import ProductVariants from '@/components/ui/ProductVariants';
@@ -20,7 +20,8 @@ const productSchema = z.object({
   name: z.string().min(3, 'اسم المنتج يجب أن يكون 3 أحرف على الأقل'),
   description: z.string().optional(),
   categoryId: z.string().optional(),
-  marketerPrice: z.number().min(0.01, 'سعر المسوق يجب أن يكون أكبر من 0'),
+  supplierPrice: z.number().min(0.01, 'سعر المورد يجب أن يكون أكبر من 0'),
+  marketerPrice: z.number().min(0.01, 'سعر المسوق يجب أن يكون أكبر من 0').optional(),
   wholesalerPrice: z.number().min(0.01, 'سعر الجملة يجب أن يكون أكبر من 0').nullish(),
   minimumSellingPrice: z.number().min(0.01, 'السعر الأدنى للبيع يجب أن يكون أكبر من 0').optional(),
   isMinimumPriceMandatory: z.boolean().default(false),
@@ -42,14 +43,13 @@ interface Supplier {
   email: string;
 }
 
-// Steps configuration
+// Steps configuration - 5 steps with Variants as separate step (matching new product page)
 const STEPS = [
   { id: 1, name: 'المعلومات الأساسية', icon: Package, key: 'basic' },
   { id: 2, name: 'الوسائط', icon: ImageIcon, key: 'media' },
-  { id: 3, name: 'الأسعار', icon: DollarSign, key: 'pricing' },
-  { id: 4, name: 'المخزون', icon: Warehouse, key: 'inventory' },
-  { id: 5, name: 'المتغيرات', icon: Layers, key: 'variants' },
-  { id: 6, name: 'المراجعة', icon: Eye, key: 'review' },
+  { id: 3, name: 'الأسعار والمخزون', icon: DollarSign, key: 'pricing' },
+  { id: 4, name: 'المتغيرات', icon: Layers, key: 'variants' },
+  { id: 5, name: 'المراجعة', icon: Eye, key: 'review' },
 ];
 
 export default function EditProductPage() {
@@ -91,10 +91,7 @@ export default function EditProductPage() {
   const [showErrors, setShowErrors] = useState(false);
   const [suggestedSku, setSuggestedSku] = useState<string>('');
   const [skuError, setSkuError] = useState<string>('');
-  const [showTemplateModal, setShowTemplateModal] = useState(false);
-  const [savedTemplates, setSavedTemplates] = useState<any[]>([]);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [quickEditMode, setQuickEditMode] = useState(false);
+  // Removed: showTemplateModal, savedTemplates, isFullscreen, quickEditMode for simplicity
   // Duplicate checking
   const [duplicateWarning, setDuplicateWarning] = useState<string>('');
   const [similarProducts, setSimilarProducts] = useState<any[]>([]);
@@ -121,6 +118,7 @@ export default function EditProductPage() {
       description: '',
       categoryId: '',
       stockQuantity: 0,
+      supplierPrice: 0,
       marketerPrice: 0,
       wholesalerPrice: undefined,
       minimumSellingPrice: 0,
@@ -155,6 +153,7 @@ export default function EditProductPage() {
         setValue('name', data.product.name);
         setValue('description', data.product.description || '');
         setValue('categoryId', data.product.categoryId || '');
+        setValue('supplierPrice', data.product.supplierPrice || 0);
         setValue('marketerPrice', data.product.marketerPrice);
         setValue('wholesalerPrice', data.product.wholesalerPrice);
         setValue('minimumSellingPrice', data.product.minimumSellingPrice || 0);
@@ -593,27 +592,29 @@ export default function EditProductPage() {
         return !!(formData.name && formData.name.length >= 3);
       case 2: // Media
         return images.length > 0;
-      case 3: // Pricing
-        return !!(formData.marketerPrice && formData.marketerPrice > 0);
-      case 4: // Inventory
-        // If product has variants, check that variant options have stock
+      case 3: // Pricing & Inventory (merged)
+        // Validate pricing - supplierPrice is required
+        if (!(formData.supplierPrice && formData.supplierPrice > 0)) return false;
+        // Validate inventory (only if no variants)
+        if (hasVariants === false) {
+          return formData.stockQuantity >= 0;
+        }
+        return true;
+      case 4: // Variants
+        // Must decide if product has variants or not
+        if (hasVariants === null) return false;
+        // If variants enabled, must have at least one variant with options and stock
         if (hasVariants === true) {
           return variantOptions.length > 0 && variantOptions.some(option => (option.stockQuantity || 0) > 0);
         }
-        // If no variants, check main stock quantity
-        return formData.stockQuantity >= 0;
-      case 5: // Variants
-        if (hasVariants === true) {
-          // If variants enabled, must have at least one variant with options
-          return variants.length > 0 && variantOptions.length > 0;
-        }
-        return hasVariants !== null;
-      case 6: // Review
+        // If no variants, validation passes
+        return true;
+      case 5: // Review
         return true;
       default:
         return false;
     }
-  }, [getValues, images, hasVariants, variants, variantOptions]);
+  }, [getValues, images, hasVariants, variantOptions]);
 
   // Mark step as completed
   const markStepCompleted = useCallback((stepId: number) => {
@@ -720,7 +721,8 @@ export default function EditProductPage() {
     if (!isSupplier && formData.categoryId) completedFields++;
     if (formData.description) completedFields++;
     if (images.length > 0) completedFields++;
-    if (formData.marketerPrice > 0) completedFields++;
+    if (formData.supplierPrice > 0) completedFields++;
+    if (formData.marketerPrice && formData.marketerPrice > 0) completedFields++;
     if (formData.minimumSellingPrice && formData.minimumSellingPrice > 0) completedFields++;
     if (formData.stockQuantity >= 0) completedFields++;
     // SKU - only for non-suppliers
@@ -764,7 +766,7 @@ export default function EditProductPage() {
     }
 
     // Validate pricing
-    if (data.wholesalerPrice && data.wholesalerPrice >= data.marketerPrice) {
+    if (data.wholesalerPrice && data.marketerPrice && data.wholesalerPrice >= data.marketerPrice) {
       toast.error('⚠️ سعر المسوق يجب أن يكون أكبر من سعر الجملة', {
         duration: 4000,
         style: { background: '#f59e0b', color: '#fff' }
@@ -773,7 +775,7 @@ export default function EditProductPage() {
       return;
     }
 
-    if (data.minimumSellingPrice && data.marketerPrice >= data.minimumSellingPrice) {
+    if (data.minimumSellingPrice && data.marketerPrice && data.marketerPrice >= data.minimumSellingPrice) {
       toast.error('⚠️ السعر الأدنى للبيع يجب أن يكون أكبر من سعر المسوق', {
         duration: 4000,
         style: { background: '#f59e0b', color: '#fff' }
@@ -822,7 +824,8 @@ export default function EditProductPage() {
         description: data.description?.trim() || '',
         // Category - only for non-suppliers
         ...(!isSupplier && { categoryId: data.categoryId && data.categoryId !== '' ? data.categoryId : null }),
-        marketerPrice: Number(data.marketerPrice),
+        supplierPrice: Number(data.supplierPrice),
+        marketerPrice: data.marketerPrice && data.marketerPrice > 0 ? Number(data.marketerPrice) : undefined,
         wholesalerPrice: data.wholesalerPrice && !isNaN(Number(data.wholesalerPrice)) 
           ? Number(data.wholesalerPrice) 
           : undefined,
@@ -873,8 +876,15 @@ export default function EditProductPage() {
             fontWeight: '600'
           }
         });
+        // Set flag to refresh products data when page loads
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('refresh-products', 'true');
+        }
+        // Dispatch event for immediate refresh if page is already open
+        window.dispatchEvent(new CustomEvent('refresh-products'));
         setTimeout(() => {
-        router.push(`/dashboard/products/${params.id}`);
+          router.push('/dashboard/products');
+          router.refresh();
         }, 1000);
       } else if (response.status === 403) {
         // Access denied - supplier trying to edit another supplier's product
@@ -920,7 +930,7 @@ export default function EditProductPage() {
     } finally {
       setSaving(false);
     }
-  }, [hasVariants, images, variantOptions, user?.role, router, params.id, tags, specifications, selectedSupplierId]);
+  }, [hasVariants, images, variantOptions, user?.role, router, params.id, tags, specifications, selectedSupplierId, product?.isActive, product?.isApproved, variants]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -966,25 +976,6 @@ export default function EditProductPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentStep, hasUnsavedChanges, handleSubmit, onSubmit, onError, saveDraft, router, nextStep, prevStep]);
 
-  // Toggle fullscreen mode
-  const toggleFullscreen = () => {
-    setIsFullscreen(!isFullscreen);
-    if (!isFullscreen) {
-      document.documentElement.requestFullscreen?.();
-    } else {
-      document.exitFullscreen?.();
-    }
-  };
-
-  // Handle fullscreen change
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
-
   // Warn before leaving with unsaved changes
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -998,10 +989,82 @@ export default function EditProductPage() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [hasUnsavedChanges]);
 
+  const supplierPrice = watch('supplierPrice') || 0;
   const marketerPrice = watch('marketerPrice') || 0;
   const wholesalerPrice = watch('wholesalerPrice') || undefined;
   const minimumSellingPrice = watch('minimumSellingPrice') || 0;
   const isMinimumPriceMandatory = watch('isMinimumPriceMandatory') || false;
+  
+  // State to track if marketerPrice is auto-calculated
+  const [isMarketerPriceAutoCalculated, setIsMarketerPriceAutoCalculated] = useState(false);
+  const [adminProfitMargin, setAdminProfitMargin] = useState<number | null>(null);
+  
+  // Calculate marketerPrice from supplierPrice when supplierPrice changes
+  useEffect(() => {
+    if (supplierPrice > 0) {
+      const calculateMarketerPrice = async () => {
+        try {
+          const response = await fetch('/api/settings');
+          const data = await response.json();
+          if (data.success && data.settings?.adminProfitMargins) {
+            const margins = data.settings.adminProfitMargins;
+            // Find the appropriate margin for this supplierPrice
+            const sortedMargins = [...margins].sort((a: any, b: any) => a.minPrice - b.minPrice);
+            let margin = 5; // Default margin
+            for (const m of sortedMargins) {
+              if (supplierPrice >= m.minPrice && supplierPrice <= m.maxPrice) {
+                margin = m.margin;
+                break;
+              }
+            }
+            setAdminProfitMargin(margin);
+            
+            // Calculate marketerPrice = supplierPrice + (supplierPrice * margin / 100)
+            // Example: supplierPrice = 20, margin = 20%
+            // adminProfit = 20 * 20 / 100 = 4
+            // marketerPrice = 20 + 4 = 24
+            const adminProfit = (supplierPrice * margin) / 100;
+            const calculatedMarketerPrice = supplierPrice + adminProfit;
+            
+            console.log('Price calculation:', {
+              supplierPrice,
+              margin,
+              adminProfit,
+              calculatedMarketerPrice
+            });
+            
+            // Always update marketerPrice when supplierPrice changes
+            // Force update to calculated value
+            setValue('marketerPrice', Number(calculatedMarketerPrice.toFixed(2)), { shouldDirty: true });
+            setIsMarketerPriceAutoCalculated(true);
+          } else {
+            // Fallback: use default 5% margin
+            const defaultMargin = 5;
+            setAdminProfitMargin(defaultMargin);
+            const adminProfit = (supplierPrice * defaultMargin) / 100;
+            const calculatedMarketerPrice = supplierPrice + adminProfit;
+            // Force update to calculated value
+            setValue('marketerPrice', Number(calculatedMarketerPrice.toFixed(2)), { shouldDirty: true });
+            setIsMarketerPriceAutoCalculated(true);
+          }
+        } catch (error) {
+          console.error('Error calculating marketer price:', error);
+          // Fallback: use default 5% margin
+          const defaultMargin = 5;
+          setAdminProfitMargin(defaultMargin);
+          const adminProfit = (supplierPrice * defaultMargin) / 100;
+          const calculatedMarketerPrice = supplierPrice + adminProfit;
+          // Force update to calculated value
+          setValue('marketerPrice', Number(calculatedMarketerPrice.toFixed(2)), { shouldDirty: true });
+          setIsMarketerPriceAutoCalculated(true);
+        }
+      };
+      calculateMarketerPrice();
+    } else {
+      setIsMarketerPriceAutoCalculated(false);
+      setAdminProfitMargin(null);
+    }
+  }, [supplierPrice, setValue, getValues]);
 
   const progress = calculateProgress();
   const stats = useMemo(() => calculateStatistics(), [calculateStatistics]);
@@ -1041,44 +1104,20 @@ export default function EditProductPage() {
   }
 
   return (
-    <div className={`space-y-4 sm:space-y-6 max-w-[1920px] mx-auto px-2 sm:px-4 md:px-6 transition-all duration-300 ${isFullscreen ? 'fixed inset-0 bg-white dark:bg-slate-900 z-50 overflow-y-auto p-4' : ''}`}>
-        {/* Header */}
+    <div className="space-y-4 sm:space-y-6 max-w-[1920px] mx-auto px-2 sm:px-4 md:px-6">
+      {/* Header - Simplified */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100">تعديل المنتج</h1>
-          <p className="text-xs sm:text-sm md:text-base text-gray-600 dark:text-gray-400 mt-1 sm:mt-2">عدّل منتجك في المنصة</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">تعديل المنتج</h1>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">عدّل منتجك في المنصة</p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Fullscreen Toggle */}
-          <button
-            type="button"
-            onClick={toggleFullscreen}
-            className="btn-secondary text-sm px-3 py-2 flex items-center gap-2"
-            title={isFullscreen ? 'تصغير' : 'ملء الشاشة'}
-          >
-            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-            <span className="hidden sm:inline">{isFullscreen ? 'تصغير' : 'ملء الشاشة'}</span>
-          </button>
-          
-          {/* Auto-save indicator */}
-          {isSaving ? (
-            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-              <div className="loading-spinner w-4 h-4"></div>
-              <span className="hidden sm:inline">جاري الحفظ...</span>
-            </div>
-          ) : lastSaved ? (
-            <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
-              <Cloud className="w-4 h-4" />
-              <span className="hidden sm:inline">آخر حفظ: {lastSaved.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}</span>
-            </div>
-          ) : hasUnsavedChanges ? (
-            <div className="flex items-center gap-2 text-sm text-yellow-600 dark:text-yellow-400">
-              <CloudOff className="w-4 h-4" />
-              <span className="hidden sm:inline">غير محفوظ</span>
-            </div>
-          ) : null}
+        {isSaving && (
+          <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+            <div className="loading-spinner w-4 h-4"></div>
+            <span className="hidden sm:inline">جاري الحفظ...</span>
           </div>
-        </div>
+        )}
+      </div>
 
       {/* Errors Summary */}
       {showErrors && Object.keys(errors).length > 0 && (
@@ -1123,72 +1162,22 @@ export default function EditProductPage() {
         </div>
       )}
 
-      {/* Progress Bar & Statistics */}
-      <div className="card p-4 sm:p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
-              <span className="text-sm font-bold text-primary-600 dark:text-primary-400">{progress}%</span>
-            </div>
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">التقدم: {progress}%</span>
-          </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">
+      {/* Simplified Progress & Steps Navigation - Mobile Optimized */}
+      <div className="card p-3 sm:p-6">
+        <div className="flex items-center justify-between mb-3 sm:mb-4">
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
             الخطوة {currentStep} من {STEPS.length}
+          </span>
+          <div className="flex-1 mx-3 bg-gray-200 dark:bg-gray-700 rounded-full h-2 max-w-[120px]">
+            <div 
+              className="bg-primary-600 h-2 rounded-full transition-all duration-300"
+              style={{ width: `${progress}%` }}
+            />
           </div>
-        </div>
-        
-        {/* Quick Statistics */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4">
-          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 border border-blue-200 dark:border-blue-800">
-            <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">الحقول المكتملة</p>
-            <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
-              {stats.completedFields}/{stats.totalFields}
-            </p>
-          </div>
-          <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 border border-green-200 dark:border-green-800">
-            <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">نسبة الإكمال</p>
-            <p className="text-lg font-bold text-green-600 dark:text-green-400">
-              {stats.completionRate}%
-            </p>
-          </div>
-          <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 border border-purple-200 dark:border-purple-800">
-            <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">الوقت المقدر</p>
-            <p className="text-lg font-bold text-purple-600 dark:text-purple-400">
-              {stats.estimatedMinutes} دقيقة
-            </p>
-          </div>
-          <div className={`rounded-lg p-3 border ${
-            stats.quality === 'ممتاز' 
-              ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
-              : stats.quality === 'جيد'
-              ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
-              : stats.quality === 'متوسط'
-              ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800'
-              : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
-          }`}>
-            <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">الجودة</p>
-            <p className={`text-lg font-bold ${
-              stats.quality === 'ممتاز' 
-                ? 'text-green-600 dark:text-green-400'
-                : stats.quality === 'جيد'
-                ? 'text-blue-600 dark:text-blue-400'
-                : stats.quality === 'متوسط'
-                ? 'text-yellow-600 dark:text-yellow-400'
-                : 'text-red-600 dark:text-red-400'
-            }`}>
-              {stats.quality}
-            </p>
-          </div>
-        </div>
-        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mb-6">
-          <div 
-            className="bg-primary-600 h-2.5 rounded-full transition-all duration-500 ease-out"
-            style={{ width: `${progress}%` }}
-          />
         </div>
 
-        {/* Steps Navigation */}
-        <div className="flex flex-wrap gap-2 sm:gap-4 justify-center sm:justify-between">
+        {/* Simplified Steps Navigation - Mobile Friendly */}
+        <div className="flex gap-1 sm:gap-2 justify-center overflow-x-auto pb-2">
           {STEPS.map((step) => {
             const StepIcon = step.icon;
             const isActive = currentStep === step.id;
@@ -1202,25 +1191,20 @@ export default function EditProductPage() {
                 onClick={() => canAccess && goToStep(step.id)}
                 disabled={!canAccess}
                 className={`
-                  flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-3 rounded-lg transition-all duration-200
+                  flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 rounded-lg transition-all text-xs sm:text-sm whitespace-nowrap
                   ${isActive 
-                    ? 'bg-primary-600 text-white shadow-lg scale-105' 
+                    ? 'bg-primary-600 text-white' 
                     : isCompleted 
-                      ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/30' 
+                      ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400' 
                       : canAccess
-                        ? 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                        ? 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
                         : 'bg-gray-50 dark:bg-gray-900 text-gray-400 dark:text-gray-600 cursor-not-allowed opacity-50'
                   }
-                  ${canAccess ? 'cursor-pointer' : 'cursor-not-allowed'}
                 `}
               >
-                {isCompleted && !isActive ? (
-                  <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                ) : (
-                  <StepIcon className={`w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 ${isActive ? 'text-white' : ''}`} />
-                )}
-                <span className="text-xs sm:text-sm font-medium hidden sm:inline">{step.name}</span>
-                <span className="text-xs sm:text-sm font-medium sm:hidden">{step.id}</span>
+                <StepIcon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                <span className="hidden sm:inline">{step.name}</span>
+                <span className="sm:hidden">{step.id}</span>
               </button>
             );
           })}
@@ -1670,29 +1654,84 @@ export default function EditProductPage() {
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-              <div>
+                <div>
                   <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2">
                     <span className="text-red-500 dark:text-red-400 mr-1">*</span>
-                    سعر المسوق (السعر الأساسي)
+                    سعر المورد
                     <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">(مطلوب)</span>
-                </label>
+                  </label>
                   <div className="relative">
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  {...register('marketerPrice', { valueAsNumber: true })}
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      {...register('supplierPrice', { valueAsNumber: true })}
                       className={`input-field text-sm sm:text-base pr-8 min-h-[44px] ${
+                        errors.supplierPrice 
+                          ? 'border-red-500 dark:border-red-500 focus:ring-red-500' : 
+                          supplierPrice > 0 
+                            ? 'border-green-500 dark:border-green-500' : ''
+                      }`}
+                      placeholder="0.00"
+                    />
+                    <span className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400 text-sm sm:text-base">₪</span>
+                  </div>
+                  {errors.supplierPrice && (
+                    <p className="text-red-600 dark:text-red-400 text-xs sm:text-sm mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      {errors.supplierPrice.message}
+                    </p>
+                  )}
+                  {supplierPrice > 0 && adminProfitMargin !== null && (
+                    <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800">
+                      <p className="text-xs text-blue-700 dark:text-blue-300 font-medium">
+                        💡 سيتم حساب سعر المسوق تلقائياً
+                      </p>
+                      <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                        نسبة ربح الإدارة: {adminProfitMargin}%
+                      </p>
+                      <p className="text-xs text-blue-600 dark:text-blue-400">
+                        ربح الإدارة: {((supplierPrice * adminProfitMargin) / 100).toFixed(2)} ₪
+                      </p>
+                    </div>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2">
+                    <span className="text-gray-400 dark:text-gray-500 mr-1">(محسوب تلقائياً)</span>
+                    سعر المسوق
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      {...register('marketerPrice', { 
+                        valueAsNumber: true,
+                        required: false
+                      })}
+                      readOnly={isMarketerPriceAutoCalculated && supplierPrice > 0}
+                      className={`input-field text-sm sm:text-base pr-8 min-h-[44px] ${
+                        isMarketerPriceAutoCalculated && supplierPrice > 0
+                          ? 'bg-gray-50 dark:bg-gray-800 cursor-not-allowed' : ''
+                      } ${
                         errors.marketerPrice || (wholesalerPrice && marketerPrice <= wholesalerPrice && marketerPrice > 0) 
                           ? 'border-red-500 dark:border-red-500 focus:ring-red-500' : 
                           marketerPrice > 0 && (!wholesalerPrice || marketerPrice > wholesalerPrice) 
                             ? 'border-green-500 dark:border-green-500' : ''
                       }`}
-                  placeholder="0.00"
-                />
+                      placeholder="سيتم الحساب تلقائياً"
+                      title={isMarketerPriceAutoCalculated && supplierPrice > 0 ? "يمكنك التعديل يدوياً إذا أردت" : ""}
+                    />
                     <span className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400 text-sm sm:text-base">₪</span>
                   </div>
-                {errors.marketerPrice && (
+                  {isMarketerPriceAutoCalculated && supplierPrice > 0 && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      💡 يمكنك التعديل يدوياً إذا أردت تغيير القيمة المحسوبة
+                    </p>
+                  )}
+                  {errors.marketerPrice && (
                     <p className="text-red-600 dark:text-red-400 text-xs sm:text-sm mt-1 flex items-center gap-1">
                       <AlertCircle className="w-3 h-3" />
                       {errors.marketerPrice.message}
@@ -1702,25 +1741,28 @@ export default function EditProductPage() {
                     <p className="text-red-600 dark:text-red-400 text-xs sm:text-sm mt-1 flex items-center gap-1">
                       <AlertCircle className="w-3 h-3" />
                       يجب أن يكون سعر المسوق أكبر من سعر الجملة
-                  </p>
-                )}
-                  {marketerPrice > 0 && (!wholesalerPrice || marketerPrice > wholesalerPrice) && !errors.marketerPrice && (
-                    <p className="text-green-600 dark:text-green-400 text-xs sm:text-sm mt-1 flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3" />
-                      السعر صحيح
                     </p>
                   )}
-                  <div className="flex items-center gap-1 mt-1">
-                    <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">
-                  السعر الأساسي للمسوق - يحدد ربحه عند الطلب
-                </p>
-                    <Tooltip 
-                      content="هذا هو السعر الذي يدفعه المسوق عند الطلب. المسوق يحدد سعر البيع للمستهلك النهائي وربحه هو الفرق بين السعرين."
-                      icon
-                    />
-                  </div>
+                  {supplierPrice > 0 && marketerPrice > 0 && adminProfitMargin !== null && (
+                    <div className="mt-2 space-y-1">
+                      {isMarketerPriceAutoCalculated && (
+                        <p className="text-xs text-green-600 dark:text-green-400 font-medium flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" />
+                          محسوب تلقائياً
+                        </p>
+                      )}
+                      <div className="p-2 bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                          <span className="font-medium">الحساب:</span> {supplierPrice.toFixed(2)} + ({supplierPrice.toFixed(2)} × {adminProfitMargin}%) = {supplierPrice.toFixed(2)} + {((supplierPrice * adminProfitMargin) / 100).toFixed(2)} = {marketerPrice.toFixed(2)} ₪
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                          ربح الإدارة: {((supplierPrice * adminProfitMargin) / 100).toFixed(2)} ₪ ({adminProfitMargin}% من {supplierPrice.toFixed(2)})
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
 
               {/* Profit Calculator */}
               {marketerPrice > 0 && (
@@ -1808,7 +1850,7 @@ export default function EditProductPage() {
                   <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
                     <label className="block text-sm sm:text-base font-medium text-gray-700 dark:text-gray-300 mb-2">
                       السعر الأدنى للبيع
-                      <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">(اختياري)</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">(السعر المقترح للمسوق)</span>
                     </label>
                     <div className="relative">
                   <input
@@ -1844,7 +1886,7 @@ export default function EditProductPage() {
                       {minimumSellingPrice > 0 && marketerPrice < minimumSellingPrice && !errors.minimumSellingPrice && (
                         <p className="text-green-600 dark:text-green-400 text-xs sm:text-sm flex items-center gap-1.5">
                           <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
-                          السعر الأدنى للبيع صحيح
+                          السعر الأدنى للبيع (السعر المقترح للمسوق) صحيح
                     </p>
                   )}
                 </div>
@@ -1875,45 +1917,42 @@ export default function EditProductPage() {
               </div>
             </div>
           </div>
-            </div>
-          )}
 
-          {/* Step 4: Inventory */}
-          {currentStep === 4 && (
-            <div className="card p-4 sm:p-6 animate-fade-in">
+              {/* Inventory Section - Added to Step 3 */}
+              <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
               <div className="flex items-center gap-3 mb-4">
-                <Warehouse className="w-6 h-6 text-primary-600 dark:text-primary-400" />
-                <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100">المخزون والمواصفات</h2>
+                  <Warehouse className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">المخزون</h3>
               </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-            <div>
+                <div>
                   <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2">
                     الكمية المتوفرة
                     {hasVariants === true && (
                       <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">(يتم حسابها تلقائياً من المتغيرات)</span>
                     )}
-              </label>
-              <input
-                type="number"
-                min="0"
-                {...register('stockQuantity', { valueAsNumber: true })}
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    {...register('stockQuantity', { valueAsNumber: true })}
                     disabled={hasVariants === true}
                     className={`input-field text-sm sm:text-base min-h-[44px] ${
                       hasVariants === true ? 'bg-gray-100 dark:bg-gray-800 cursor-not-allowed opacity-60' : ''
                     }`}
-                placeholder="0"
-              />
+                    placeholder="0"
+                  />
                   {hasVariants === true && (
                     <p className="text-xs text-blue-600 dark:text-blue-400 mt-1 flex items-center gap-1">
                       <Info className="w-3 h-3" />
                       يتم حساب المخزون تلقائياً من إجمالي مخزون المتغيرات
                     </p>
                   )}
-              {errors.stockQuantity && (
+                  {errors.stockQuantity && (
                     <p className="text-danger-600 dark:text-danger-400 text-xs sm:text-sm mt-1">{errors.stockQuantity.message}</p>
-              )}
-            </div>
+                  )}
+                </div>
 
                 {user?.role !== 'supplier' && (
                   <div>
@@ -1969,27 +2008,143 @@ export default function EditProductPage() {
                 )}
               </div>
             </div>
+            </div>
           )}
 
-          {/* Step 5: Variants */}
+          {/* Step 4: Variants */}
+          {currentStep === 4 && (
+            <div className="card p-4 sm:p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-6">متغيرات المنتج</h2>
+              
+              {/* Simple Question: Does product have variants? */}
+              {hasVariants === null && (
+                <div className="space-y-6">
+                  <div className="text-center py-8">
+                    <Layers className="w-16 h-16 mx-auto mb-4 text-primary-600 dark:text-primary-400" />
+                    <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                      هل المنتج له متغيرات؟
+                    </h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                      المتغيرات مثل الألوان، الأحجام، أو أي خصائص أخرى تختلف بين وحدات المنتج
+                    </p>
+                    
+                    <div className="flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto">
+                      <button
+                        type="button"
+                        onClick={() => setHasVariants(true)}
+                        className="btn-primary px-8 py-4 text-lg flex items-center justify-center gap-3"
+                      >
+                        <CheckCircle2 className="w-5 h-5" />
+                        نعم، له متغيرات
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setHasVariants(false)}
+                        className="btn-secondary px-8 py-4 text-lg flex items-center justify-center gap-3"
+                      >
+                        <X className="w-5 h-5" />
+                        لا، منتج بسيط
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Variants Configuration */}
+              {hasVariants !== null && (
+                <div className="space-y-4">
+                  {/* Option to change decision */}
+                  <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      {hasVariants ? (
+                        <>
+                          <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
+                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                            المنتج له متغيرات
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <X className="w-5 h-5 text-gray-400" />
+                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                            المنتج بسيط (بدون متغيرات)
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setHasVariants(null);
+                        setVariants([]);
+                        setVariantOptions([]);
+                      }}
+                      className="text-xs text-primary-600 dark:text-primary-400 hover:underline"
+                    >
+                      تغيير القرار
+                    </button>
+                  </div>
+
+                  {/* Variants Form */}
+                  {hasVariants === true && (
+                    <div className="mt-6">
+                      <ProductVariants
+                        hasVariants={hasVariants}
+                        variants={variants}
+                        variantOptions={variantOptions}
+                        onVariantsChange={handleVariantsChange}
+                        marketerPrice={watch('marketerPrice') || 0}
+                      />
+                    </div>
+                  )}
+
+                  {hasVariants === false && (
+                    <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                      <p className="text-sm text-blue-800 dark:text-blue-300">
+                        <Info className="w-4 h-4 inline ml-2" />
+                        المنتج بسيط بدون متغيرات. يمكنك إضافة الكمية مباشرة في خطوة الأسعار والمخزون.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Quick Preview of Variants */}
+                  {hasVariants === true && variants.length > 0 && variantOptions.length > 0 && (
+                    <div className="mt-6 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                      <h4 className="text-sm font-semibold text-green-900 dark:text-green-100 mb-2 flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4" />
+                        ملخص المتغيرات
+                      </h4>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex items-center justify-between">
+                          <span className="text-green-800 dark:text-green-300">عدد المتغيرات:</span>
+                          <span className="font-medium text-green-900 dark:text-green-100">{variants.length}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-green-800 dark:text-green-300">إجمالي الخيارات:</span>
+                          <span className="font-medium text-green-900 dark:text-green-100">{variantOptions.length}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-green-800 dark:text-green-300">إجمالي المخزون:</span>
+                          <span className="font-medium text-green-900 dark:text-green-100">
+                            {variantOptions.reduce((sum, option) => sum + (option.stockQuantity || 0), 0)} قطعة
+                          </span>
+                        </div>
+                        <div className="pt-2 border-t border-green-200 dark:border-green-700">
+                          <span className="text-green-800 dark:text-green-300">المتغيرات:</span>
+                          <p className="text-green-900 dark:text-green-100 font-medium mt-1">
+                            {variants.map(v => v.name).join('، ')}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Step 5: Review (was Step 6) */}
           {currentStep === 5 && (
-            <div className="card p-4 sm:p-6 animate-fade-in">
-              <div className="flex items-center gap-3 mb-4">
-                <Layers className="w-6 h-6 text-primary-600 dark:text-primary-400" />
-                <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100">متغيرات المنتج</h2>
-              </div>
-            <ProductVariants
-              hasVariants={hasVariants}
-              variants={variants}
-              variantOptions={variantOptions}
-              onVariantsChange={handleVariantsChange}
-              marketerPrice={watch('marketerPrice') || 0}
-            />
-          </div>
-          )}
-
-          {/* Step 6: Review */}
-          {currentStep === 6 && (
             <div className="space-y-6">
               {/* Live Preview */}
               <div className="card p-4 sm:p-6 animate-fade-in">
@@ -2230,86 +2385,80 @@ export default function EditProductPage() {
         </div>
       </form>
 
-      {/* Navigation Buttons */}
-      <div className="flex flex-col sm:flex-row justify-between gap-2 sm:gap-3 space-y-2 sm:space-y-0 space-y-reverse sm:space-x-3 sm:space-x-reverse sticky bottom-0 bg-white dark:bg-slate-900 p-3 sm:p-4 -mx-2 sm:-mx-4 md:-mx-6 border-t border-gray-200 dark:border-slate-700 z-10 shadow-lg">
-        <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
-          {currentStep > 1 && (
-            <button
-              type="button"
-              onClick={prevStep}
-              className="btn-secondary min-h-[44px] text-sm sm:text-base flex items-center justify-center gap-2 w-full sm:w-auto"
-            >
-              <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
-              السابق
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => {
-              if (hasUnsavedChanges) {
-                setUnsavedChangesAction(() => () => {
-                  localStorage.removeItem(`product-edit-draft-${params.id}`);
-                  router.push(`/dashboard/products/${params.id}`);
-                });
-                setShowUnsavedChangesModal(true);
-              } else {
-                router.push(`/dashboard/products/${params.id}`);
-              }
-            }}
-            className="btn-secondary min-h-[44px] text-sm sm:text-base w-full sm:w-auto"
-            >
-              إلغاء
-          </button>
-        </div>
-        
-        <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
-          {currentStep < STEPS.length ? (
-            <>
-            <button
-                type="button"
-                onClick={saveDraft}
-                className="btn-secondary min-h-[44px] text-sm sm:text-base flex items-center justify-center gap-2 w-full sm:w-auto"
-                title="حفظ المسودة (Ctrl+S)"
-              >
-                <Save className="w-4 h-4" />
-                <span className="hidden sm:inline">حفظ مسودة</span>
-              </button>
+      {/* Navigation Buttons - Mobile Optimized */}
+      <div className="sticky bottom-0 bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-700 z-10 shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 py-3">
+          <div className="flex flex-col sm:flex-row gap-3">
+            {/* Left Side - Back/Cancel */}
+            <div className="flex gap-2 sm:gap-3 flex-1 sm:flex-initial">
+              {currentStep > 1 && (
+                <button
+                  type="button"
+                  onClick={prevStep}
+                  className="btn-secondary min-h-[48px] sm:min-h-[44px] text-base sm:text-sm flex items-center justify-center gap-2 flex-1 sm:flex-initial px-4"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                  السابق
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => {
-                  markStepCompleted(currentStep);
-                  nextStep();
+                  if (hasUnsavedChanges) {
+                    setUnsavedChangesAction(() => () => {
+                      localStorage.removeItem(`product-edit-draft-${params.id}`);
+                      router.back();
+                    });
+                    setShowUnsavedChangesModal(true);
+                  } else {
+                    localStorage.removeItem(`product-edit-draft-${params.id}`);
+                    router.back();
+                  }
                 }}
-                disabled={!validateStep(currentStep)}
-                className="btn-primary min-h-[44px] text-sm sm:text-base flex items-center justify-center gap-2 w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
-                title="التالي (Ctrl+→)"
+                className="btn-secondary min-h-[48px] sm:min-h-[44px] text-base sm:text-sm flex-1 sm:flex-initial px-4"
               >
-                التالي
-                <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+                إلغاء
               </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              onClick={() => handleSubmit(onSubmit, onError)()}
-              disabled={saving || uploading || !validateStep(6)}
-              className="btn-primary min-h-[44px] text-sm sm:text-base flex items-center justify-center gap-2 w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
-              title="حفظ المنتج (Ctrl+S)"
-            >
-              {saving ? (
-                <>
-                  <div className="loading-spinner w-4 h-4"></div>
-                  جاري الحفظ...
-                </>
+            </div>
+            
+            {/* Right Side - Next/Save */}
+            <div className="flex gap-2 sm:gap-3 flex-1 sm:flex-initial">
+              {currentStep < STEPS.length ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    markStepCompleted(currentStep);
+                    nextStep();
+                  }}
+                  disabled={!validateStep(currentStep)}
+                  className="btn-primary min-h-[48px] sm:min-h-[44px] text-base sm:text-sm flex items-center justify-center gap-2 flex-1 sm:flex-initial px-4 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  التالي
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
               ) : (
-                <>
-                  <Save className="w-4 h-4 sm:w-5 sm:h-5" />
-                  حفظ التغييرات
-                </>
+                <button
+                  type="button"
+                  onClick={() => handleSubmit(onSubmit, onError)()}
+                  disabled={saving || uploading || !validateStep(5)}
+                  className="btn-primary min-h-[48px] sm:min-h-[44px] text-base sm:text-sm flex items-center justify-center gap-2 flex-1 sm:flex-initial px-4 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {saving ? (
+                    <>
+                      <div className="loading-spinner w-5 h-5"></div>
+                      جاري الحفظ...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-5 h-5" />
+                      حفظ المنتج
+                    </>
+                  )}
+                </button>
               )}
-            </button>
-          )}
+            </div>
           </div>
+        </div>
       </div>
 
       {/* Draft Restore Modal */}

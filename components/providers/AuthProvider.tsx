@@ -33,10 +33,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const checkAuth = async () => {
     try {
+      // First, try to load user from localStorage for faster initial render
+      if (typeof window !== 'undefined') {
+        const savedUser = localStorage.getItem('ribh-user');
+        if (savedUser) {
+          try {
+            const parsedUser = JSON.parse(savedUser);
+            setUser(parsedUser);
+            // Don't set loading to false yet, we still need to verify with server
+          } catch (error) {
+            // Invalid saved user, clear it
+            localStorage.removeItem('ribh-user');
+          }
+        }
+      }
+
+      // Verify with server
       const response = await fetch('/api/auth/me');
       if (response.ok) {
         const data = await response.json();
         setUser(data.user);
+        // Save user to localStorage for persistence
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('ribh-user', JSON.stringify(data.user));
+        }
         // Clear cache when user is authenticated to ensure fresh data based on user role
         try {
           if (typeof window !== 'undefined') {
@@ -45,9 +65,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } catch (error) {
           // Silently handle cache clearing errors
         }
+      } else {
+        // If server verification fails, clear saved user
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('ribh-user');
+        }
+        setUser(null);
       }
     } catch (error) {
-      // Silently handle auth check errors
+      // If there's an error, clear saved user
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('ribh-user');
+      }
+      setUser(null);
     } finally {
       setLoading(false);
     }
@@ -67,6 +97,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (response.ok) {
         setUser(data.user);
+        // Save user to localStorage for persistence
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('ribh-user', JSON.stringify(data.user));
+        }
         // Clear cache when user logs in to ensure fresh data based on user role
         try {
           if (typeof window !== 'undefined') {
@@ -106,6 +140,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (response.ok) {
         setUser(data.user);
+        // Save user to localStorage for persistence
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('ribh-user', JSON.stringify(data.user));
+        }
         return { success: true, user: data.user };
       } else {
         return { success: false, error: data.error || 'فشل التسجيل' };
@@ -121,6 +159,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         method: 'POST',
       });
       setUser(null);
+      // Clear saved user from localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('ribh-user');
+      }
       // Clear cache when user logs out
       try {
         if (typeof window !== 'undefined') {
@@ -136,7 +178,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updateUser = (userData: Partial<User>) => {
     if (user) {
-      setUser({ ...user, ...userData });
+      const updatedUser = { ...user, ...userData };
+      setUser(updatedUser);
+      // Update saved user in localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('ribh-user', JSON.stringify(updatedUser));
+      }
     }
   };
 

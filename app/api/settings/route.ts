@@ -72,6 +72,13 @@ export const GET = async (req: NextRequest) => {
         maximumWithdrawal: settings.withdrawalSettings?.maximumWithdrawal || 50000,
         withdrawalFees: settings.withdrawalSettings?.withdrawalFees || 0
       },
+      // Admin profit margins (needed for product price calculation)
+      adminProfitMargins: settings.adminProfitMargins || [
+        { minPrice: 1, maxPrice: 100, margin: 10 },
+        { minPrice: 101, maxPrice: 500, margin: 8 },
+        { minPrice: 501, maxPrice: 1000, margin: 6 },
+        { minPrice: 1001, maxPrice: 999999, margin: 5 }
+      ],
       
       // Legacy fields for backward compatibility (deprecated - use new fields)
       freeShippingThreshold: settings.defaultFreeShippingThreshold,

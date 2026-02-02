@@ -10,6 +10,7 @@ import { sanitizeString, sanitizeObject } from '@/lib/sanitize';
 import { productCache, generateCacheKey } from '@/lib/cache';
 import { logger } from '@/lib/logger';
 import { generateProductSKU, generateVariantOptionSKUs, isSKUUnique } from '@/lib/sku-generator';
+import { settingsManager } from '@/lib/settings-manager';
 
 // Dynamic product schema based on system settings
 async function getProductSchema() {
@@ -43,7 +44,8 @@ async function getProductSchema() {
       .optional()
       .refine((val) => !val || val.length <= 2000, 'النص التسويقي لا يمكن أن يتجاوز 2000 حرف'),
     categoryId: z.string().optional().nullable(),
-    marketerPrice: z.number().min(0.01, 'سعر المسوق يجب أن يكون أكبر من 0'),
+    supplierPrice: z.number().min(0.01, 'سعر المورد يجب أن يكون أكبر من 0'),
+    marketerPrice: z.number().min(0.01, 'سعر المسوق يجب أن يكون أكبر من 0').optional(),
     wholesalerPrice: z.number().min(0.01, 'سعر الجملة يجب أن يكون أكبر من 0').nullish(),
     minimumSellingPrice: z.number().min(0.01, 'السعر الأدنى للبيع يجب أن يكون أكبر من 0').optional(),
     isMinimumPriceMandatory: z.boolean().default(false),
@@ -91,7 +93,6 @@ async function getProducts(req: NextRequest, user: any) {
     
     // Test database connection and get product count
     const totalProductCount = await Product.countDocuments({});
-    logger.debug('Total products count', { totalProductCount });
     
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -118,12 +119,6 @@ async function getProducts(req: NextRequest, user: any) {
       // CRITICAL: Ensure supplierId is set and matches user._id exactly
       // Simple equality check - MongoDB will automatically exclude null/undefined
       query.supplierId = user._id;
-      logger.debug('Supplier filter applied', { 
-        userId: user._id.toString(), 
-        userEmail: user.email,
-        querySupplierId: user._id.toString(),
-        querySupplierIdType: typeof user._id
-      });
     }
     
     // Additional filters
@@ -166,43 +161,15 @@ async function getProducts(req: NextRequest, user: any) {
     
     // Admin filters: Suppliers (multi-select)
     // IMPORTANT: This must be applied AFTER role-based filtering to override it for admin
-    logger.debug('Checking suppliers filter', { 
-      userRole: user.role, 
-      suppliers, 
-      suppliersTrimmed: suppliers?.trim(),
-      hasSuppliers: !!suppliers,
-      suppliersLength: suppliers?.length
-    });
-    
     if (user.role === 'admin' && suppliers && suppliers.trim()) {
       const supplierIds = suppliers.split(',').map(id => id.trim()).filter(Boolean);
-      logger.debug('Processing suppliers filter', { 
-        suppliers, 
-        supplierIds, 
-        supplierIdsLength: supplierIds.length 
-      });
       
       if (supplierIds.length > 0) {
         // Override role-based supplierId filter with admin's selected suppliers
         query.supplierId = { $in: supplierIds };
-        logger.debug('Suppliers filter applied successfully', { 
-          suppliers, 
-          supplierIds, 
-          querySupplierId: query.supplierId,
-          supplierIdType: typeof query.supplierId,
-          supplierIdKeys: Object.keys(query.supplierId || {})
-        });
       } else {
         logger.warn('Suppliers filter provided but no valid IDs after processing', { suppliers, supplierIds });
       }
-    } else {
-      logger.debug('Suppliers filter NOT applied', { 
-        userRole: user.role, 
-        isAdmin: user.role === 'admin',
-        hasSuppliers: !!suppliers,
-        suppliers,
-        suppliersTrimmed: suppliers?.trim()
-      });
     }
     
     // Admin filters: Date Range
@@ -220,28 +187,12 @@ async function getProducts(req: NextRequest, user: any) {
     // Determine price field based on user role
     const priceField = user.role === 'wholesaler' ? 'wholesalerPrice' : 'marketerPrice';
     
-    // Log price filter parameters for debugging
-    logger.debug('Price filter parameters', {
-      minPrice,
-      maxPrice,
-      priceField,
-      userRole: user.role,
-      hasMinPrice: !!minPrice,
-      hasMaxPrice: !!maxPrice
-    });
-    
     if (minPrice || maxPrice) {
       query[priceField] = {};
       if (minPrice) {
         const min = parseFloat(minPrice);
         if (!isNaN(min) && min >= 0) {
           query[priceField].$gte = min;
-          logger.debug('Price filter - min applied', {
-            minPrice,
-            parsedMin: min,
-            priceField,
-            queryField: query[priceField]
-          });
         } else {
           logger.warn('Price filter - invalid minPrice', { minPrice });
         }
@@ -250,30 +201,10 @@ async function getProducts(req: NextRequest, user: any) {
         const max = parseFloat(maxPrice);
         if (!isNaN(max) && max >= 0) {
           query[priceField].$lte = max;
-          logger.debug('Price filter - max applied', {
-            maxPrice,
-            parsedMax: max,
-            priceField,
-            queryField: query[priceField]
-          });
         } else {
           logger.warn('Price filter - invalid maxPrice', { maxPrice });
         }
       }
-      
-      // Log final price filter query
-      logger.debug('Price filter applied successfully', {
-        priceField,
-        queryPriceField: query[priceField],
-        minPrice,
-        maxPrice
-      });
-    } else {
-      logger.debug('Price filter NOT applied', {
-        minPrice,
-        maxPrice,
-        reason: 'No price filters provided'
-      });
     }
     
     // Build text search conditions (name, description)
@@ -436,7 +367,7 @@ async function getProducts(req: NextRequest, user: any) {
     // Fetch from database with optimized query
     // Use select to only get needed fields
     const products = await Product.find(query)
-      .select('name description images marketerPrice wholesalerPrice minimumSellingPrice isMinimumPriceMandatory stockQuantity isActive isApproved isRejected rejectionReason adminNotes approvedAt approvedBy rejectedAt rejectedBy isFulfilled isLocked lockedAt lockedBy lockReason sku weight dimensions tags createdAt categoryId supplierId hasVariants variants variantOptions')
+      .select('name description images supplierPrice marketerPrice wholesalerPrice minimumSellingPrice isMinimumPriceMandatory stockQuantity isActive isApproved isRejected rejectionReason adminNotes approvedAt approvedBy rejectedAt rejectedBy isFulfilled isLocked lockedAt lockedBy lockReason sku weight dimensions tags createdAt categoryId supplierId hasVariants variants variantOptions')
       .populate('categoryId', 'name')
       .populate('supplierId', 'name companyName')
       .sort({ createdAt: -1 })
@@ -502,7 +433,7 @@ async function getProducts(req: NextRequest, user: any) {
       : await Product.countDocuments(query);
     
     // Transform products for frontend
-    const transformedProducts = filteredProducts.map((product: any) => {
+    const transformedProducts = await Promise.all(filteredProducts.map(async (product: any) => {
       // Extract supplierId as string for consistent comparison
       let supplierIdString: string | null = null;
       if (product.supplierId) {
@@ -513,11 +444,34 @@ async function getProducts(req: NextRequest, user: any) {
         }
       }
       
+      // Use the original supplierPrice from database directly
+      // Only calculate if supplierPrice is truly missing (null/undefined) AND marketerPrice exists
+      // Do NOT calculate if supplierPrice is 0 or any other value - use the stored value as-is
+      let finalSupplierPrice = product.supplierPrice;
+      
+      // Only calculate if supplierPrice is completely missing (null/undefined), not if it's 0
+      if ((finalSupplierPrice === null || finalSupplierPrice === undefined) && product.marketerPrice && product.marketerPrice > 0) {
+        try {
+          finalSupplierPrice = await settingsManager.calculateSupplierPriceFromMarketerPrice(product.marketerPrice);
+        } catch (error) {
+          logger.error('Error calculating supplierPrice from marketerPrice', error, {
+            productId: product._id,
+            marketerPrice: product.marketerPrice
+          });
+          // Keep original value if calculation fails
+          finalSupplierPrice = product.supplierPrice;
+        }
+      } else {
+        // Use the stored supplierPrice directly - this is the original value from database
+        finalSupplierPrice = product.supplierPrice;
+      }
+      
       const baseProduct = {
         _id: product._id,
         name: product.name,
         description: product.description,
         images: product.images,
+        supplierPrice: finalSupplierPrice, // This is now the original stored value
         marketerPrice: product.marketerPrice,
         wholesalerPrice: product.wholesalerPrice,
         minimumSellingPrice: product.minimumSellingPrice,
@@ -559,7 +513,7 @@ async function getProducts(req: NextRequest, user: any) {
       }
       
       return baseProduct;
-    });
+    }));
     
     // Cache the results
     productCache.set(cacheKey, { products: transformedProducts, total });
@@ -615,16 +569,17 @@ async function createProduct(req: NextRequest, user: any) {
     });
     
     logger.apiRequest('POST', '/api/products', { userId: user._id, role: user.role });
-    logger.debug('Creating product', { sanitizedBody });
     
     // Clean and prepare data
     const cleanData = {
       name: body.name?.trim(),
       description: body.description?.trim() || '',
       categoryId: body.categoryId && body.categoryId !== '' ? body.categoryId : null,
-      marketerPrice: parseFloat(body.marketerPrice) || 0,
-      wholesalerPrice: body.wholesalerPrice ? parseFloat(body.wholesalerPrice) : undefined,
-      minimumSellingPrice: body.minimumSellingPrice && body.minimumSellingPrice > 0 ? parseFloat(body.minimumSellingPrice) : null,
+      // Fix: Use !== undefined && !== null instead of truthy check to handle 0 values correctly
+      supplierPrice: (body.supplierPrice !== undefined && body.supplierPrice !== null) ? parseFloat(String(body.supplierPrice)) : undefined,
+      marketerPrice: (body.marketerPrice !== undefined && body.marketerPrice !== null) ? parseFloat(String(body.marketerPrice)) : undefined, // Optional - will be calculated from supplierPrice
+      wholesalerPrice: (body.wholesalerPrice !== undefined && body.wholesalerPrice !== null) ? parseFloat(String(body.wholesalerPrice)) : undefined,
+      minimumSellingPrice: body.minimumSellingPrice && body.minimumSellingPrice > 0 ? parseFloat(String(body.minimumSellingPrice)) : null,
       isMinimumPriceMandatory: body.isMinimumPriceMandatory || false,
       stockQuantity: parseInt(body.stockQuantity) || 0,
       images: Array.isArray(body.images) ? body.images : [],
@@ -658,14 +613,32 @@ async function createProduct(req: NextRequest, user: any) {
       })) : []
     };
     
+    
     // Validate input
     const productSchema = await getProductSchema();
     let validatedData;
     try {
       validatedData = productSchema.parse(cleanData);
     } catch (error: any) {
-      console.error('Zod validation error:', error.errors);
       if (error.errors) {
+        // Check for supplierPrice validation error specifically
+        const supplierPriceError = error.errors.find((e: any) => e.path.includes('supplierPrice'));
+        if (supplierPriceError) {
+          logger.error('supplierPrice validation failed', {
+            supplierPrice: cleanData.supplierPrice,
+            error: supplierPriceError.message,
+            allErrors: error.errors
+          });
+          return NextResponse.json(
+            { 
+              success: false, 
+              message: supplierPriceError.message || 'سعر المورد غير صحيح أو مفقود',
+              errors: error.errors
+            },
+            { status: 400 }
+          );
+        }
+        
         const wholesalerPriceError = error.errors.find((e: any) => e.path.includes('wholesalerPrice'));
         if (wholesalerPriceError) {
           // If wholesalerPrice validation fails, remove it and try again
@@ -680,6 +653,21 @@ async function createProduct(req: NextRequest, user: any) {
       }
     }
     
+    // Additional validation: Ensure supplierPrice is present and valid after Zod validation
+    if (!validatedData.supplierPrice || validatedData.supplierPrice <= 0 || isNaN(validatedData.supplierPrice)) {
+      logger.error('supplierPrice is missing or invalid after validation', {
+        supplierPrice: validatedData.supplierPrice,
+        cleanDataSupplierPrice: cleanData.supplierPrice
+      });
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: 'سعر المورد غير صحيح أو مفقود. يرجى التأكد من إدخال قيمة صحيحة أكبر من 0'
+        },
+        { status: 400 }
+      );
+    }
+    
     // Check if category exists (only if categoryId is provided)
     if (validatedData.categoryId) {
       const category = await Category.findById(validatedData.categoryId);
@@ -691,15 +679,21 @@ async function createProduct(req: NextRequest, user: any) {
       }
     }
     
+    // Calculate marketerPrice from supplierPrice + admin profit margin if not provided
+    let finalMarketerPrice = validatedData.marketerPrice;
+    if (!finalMarketerPrice || finalMarketerPrice <= 0) {
+      finalMarketerPrice = await settingsManager.calculateMarketerPriceFromSupplierPrice(validatedData.supplierPrice);
+    }
+    
     // Validate pricing logic
-    if (validatedData.wholesalerPrice && validatedData.wholesalerPrice >= validatedData.marketerPrice) {
+    if (validatedData.wholesalerPrice && validatedData.wholesalerPrice >= finalMarketerPrice) {
       return NextResponse.json(
         { success: false, message: 'سعر المسوق يجب أن يكون أكبر من سعر الجملة' },
         { status: 400 }
       );
     }
     
-    if (validatedData.minimumSellingPrice && validatedData.marketerPrice >= validatedData.minimumSellingPrice) {
+    if (validatedData.minimumSellingPrice && finalMarketerPrice >= validatedData.minimumSellingPrice) {
       return NextResponse.json(
         { success: false, message: 'السعر الأدنى للبيع يجب أن يكون أكبر من سعر المسوق' },
         { status: 400 }
@@ -742,6 +736,24 @@ async function createProduct(req: NextRequest, user: any) {
       });
     }
     
+    // Calculate variant option prices from supplier price if needed
+    let variantOptionsWithPrices = variantOptionsWithSKU;
+    if (validatedData.hasVariants && variantOptionsWithPrices.length > 0) {
+      variantOptionsWithPrices = await Promise.all(variantOptionsWithPrices.map(async (option) => {
+        // If option has a price, use it; otherwise calculate from supplier price
+        if (option.price && option.price > 0) {
+          return option;
+        }
+        // Calculate marketer price for variant from supplier price
+        // For variants, we use the product's supplier price as base
+        const variantMarketerPrice = await settingsManager.calculateMarketerPriceFromSupplierPrice(validatedData.supplierPrice);
+        return {
+          ...option,
+          price: variantMarketerPrice
+        };
+      }));
+    }
+    
     // Create product data
     const productData: any = {
       name: validatedData.name,
@@ -749,7 +761,8 @@ async function createProduct(req: NextRequest, user: any) {
       marketingText: validatedData.marketingText,
       categoryId: validatedData.categoryId,
       supplierId: user.role === 'supplier' ? user._id : (body.supplierId || user._id), // Admin can create for themselves or specify supplier
-      marketerPrice: validatedData.marketerPrice,
+      supplierPrice: validatedData.supplierPrice, // CRITICAL: This must be present
+      marketerPrice: finalMarketerPrice,
       minimumSellingPrice: validatedData.minimumSellingPrice,
       isMinimumPriceMandatory: validatedData.isMinimumPriceMandatory,
       // stockQuantity: If hasVariants=true, this should be the sum of all variant option stock quantities
@@ -762,7 +775,7 @@ async function createProduct(req: NextRequest, user: any) {
       // Product variants
       hasVariants: validatedData.hasVariants,
       variants: validatedData.variants || [],
-      variantOptions: variantOptionsWithSKU,
+      variantOptions: variantOptionsWithPrices,
       isApproved: user.role === 'admin' ? true : (currentSettings.autoApproveProducts || false),
       isActive: true,
       isFulfilled: false,
@@ -774,13 +787,23 @@ async function createProduct(req: NextRequest, user: any) {
       productData.wholesalerPrice = validatedData.wholesalerPrice;
     }
     
-    logger.debug('Final product data prepared', {
-      productName: productData.name,
-      supplierId: productData.supplierId.toString(),
-      userRole: user.role,
-      userId: user._id.toString()
-    });
-    
+    // Final safety check: Ensure supplierPrice is present before saving
+    if (!productData.supplierPrice || productData.supplierPrice <= 0 || isNaN(productData.supplierPrice)) {
+      logger.error('supplierPrice is missing or invalid right before saving to database', {
+        productDataSupplierPrice: productData.supplierPrice,
+        validatedSupplierPrice: validatedData.supplierPrice,
+        cleanDataSupplierPrice: cleanData.supplierPrice,
+        bodySupplierPrice: body.supplierPrice
+      });
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: 'خطأ حرج: سعر المورد مفقود قبل الحفظ. يرجى المحاولة مرة أخرى أو الاتصال بالدعم الفني.'
+        },
+        { status: 500 }
+      );
+    }
+
     const product = await Product.create(productData);
     
     logger.business('Product created', {
@@ -788,7 +811,8 @@ async function createProduct(req: NextRequest, user: any) {
       productName: product.name,
       supplierId: product.supplierId.toString(),
       isApproved: product.isApproved,
-      userId: user._id.toString()
+      userId: user._id.toString(),
+      supplierPrice: product.supplierPrice
     });
     
     // Populate category and supplier info
@@ -834,6 +858,9 @@ async function createProduct(req: NextRequest, user: any) {
       }
     }
     
+    // Get product as plain object to ensure all fields are accessible
+    const productObject = product.toObject ? product.toObject() : product;
+    
     return NextResponse.json({
       success: true,
       message: 'تم إضافة المنتج بنجاح' + (user.role === 'supplier' ? ' وسيتم مراجعته من قبل الإدارة' : ''),
@@ -842,8 +869,12 @@ async function createProduct(req: NextRequest, user: any) {
         name: product.name,
         description: product.description,
         images: product.images,
+        // Fix: Use productObject to ensure supplierPrice is accessible
+        supplierPrice: productObject.supplierPrice || product.supplierPrice,
         marketerPrice: product.marketerPrice,
         wholesalerPrice: product.wholesalerPrice,
+        minimumSellingPrice: product.minimumSellingPrice,
+        isMinimumPriceMandatory: product.isMinimumPriceMandatory,
         stockQuantity: product.stockQuantity,
         isActive: product.isActive,
         isApproved: product.isApproved,

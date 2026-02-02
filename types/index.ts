@@ -132,6 +132,7 @@ export interface Product {
   images: string[];
   categoryId?: string;
   supplierId: string;
+  supplierPrice: number;
   marketerPrice: number;
   wholesalerPrice: number;
   minimumSellingPrice?: number;

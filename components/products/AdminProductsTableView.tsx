@@ -13,6 +13,7 @@ interface Product {
   name: string;
   description: string;
   images: string[];
+  supplierPrice?: number;
   marketerPrice: number | undefined;
   wholesalerPrice: number | undefined;
   minimumSellingPrice?: number;
@@ -96,20 +97,23 @@ const AdminProductsTableView = memo(function AdminProductsTableView({
   }, [products, viewMode]);
   
   // Calculate profits
-  const calculateMarketerProfit = (marketerPrice: number | undefined, wholesalerPrice: number | undefined) => {
+  const calculateMarketerProfit = (marketerPrice: number | undefined, minimumSellingPrice: number | undefined) => {
+    // Marketer profit is the difference between selling price and marketer price (base price)
+    // For display, we show potential profit if selling at minimum price
     const marketer = marketerPrice ?? 0;
-    const wholesaler = wholesalerPrice ?? 0;
-    return marketer - wholesaler;
+    const minPrice = minimumSellingPrice ?? 0;
+    if (minPrice > marketer) {
+      return minPrice - marketer;
+    }
+    return 0; // No profit if selling at base price
   };
 
-  const calculateAdminProfit = (marketerPrice: number | undefined, wholesalerPrice: number | undefined) => {
-    // Admin profit calculation: typically a percentage of marketer price
-    // Based on SystemSettings.adminProfitMargins (default: 5% if not configured)
-    // For display purposes, we'll use a simple calculation: 5% of marketer price
-    // In production, this should fetch from settings
-    const adminMarginPercent = 5; // Default margin, should be fetched from settings
+  const calculateAdminProfit = (supplierPrice: number | undefined, marketerPrice: number | undefined) => {
+    // Admin profit = marketerPrice - supplierPrice
+    // This is the profit margin added to supplier price
+    const supplier = supplierPrice ?? 0;
     const marketer = marketerPrice ?? 0;
-    return (marketer * adminMarginPercent) / 100;
+    return marketer - supplier;
   };
 
   const getStatusBadge = (product: Product) => {
@@ -171,8 +175,8 @@ const AdminProductsTableView = memo(function AdminProductsTableView({
         {/* Grid View */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {products.map((product) => {
-            const marketerProfit = calculateMarketerProfit(product.marketerPrice, product.wholesalerPrice);
-            const adminProfit = calculateAdminProfit(product.marketerPrice, product.wholesalerPrice);
+            const marketerProfit = calculateMarketerProfit(product.marketerPrice, product.minimumSellingPrice);
+            const adminProfit = calculateAdminProfit(product.supplierPrice, product.marketerPrice);
 
             return (
               <div
@@ -214,7 +218,7 @@ const AdminProductsTableView = memo(function AdminProductsTableView({
                     </div>
                     <div>
                       <span className="text-gray-600 dark:text-slate-400">سعر المورد: </span>
-                      <span className="font-medium">{(product.wholesalerPrice ?? 0).toFixed(2)} ₪</span>
+                      <span className="font-medium">{(product.supplierPrice ?? 0).toFixed(2)} ₪</span>
                     </div>
                     <div className="p-2">
                       <span className="text-gray-600 dark:text-slate-400">سعر المسوق: </span>
@@ -379,8 +383,8 @@ const AdminProductsTableView = memo(function AdminProductsTableView({
             </thead>
             <tbody className="bg-white dark:bg-slate-900">
               {products.map((product, index) => {
-                const marketerProfit = calculateMarketerProfit(product.marketerPrice, product.wholesalerPrice);
-                const adminProfit = calculateAdminProfit(product.marketerPrice, product.wholesalerPrice);
+                const marketerProfit = calculateMarketerProfit(product.marketerPrice, product.minimumSellingPrice);
+                const adminProfit = calculateAdminProfit(product.supplierPrice, product.marketerPrice);
 
                 return (
                   <tr
@@ -434,8 +438,13 @@ const AdminProductsTableView = memo(function AdminProductsTableView({
                     {/* Supplier Price */}
                     <td className="px-4 py-3 whitespace-nowrap border-r border-gray-200 dark:border-slate-700">
                       <div className="text-sm font-medium text-gray-900 dark:text-slate-100">
-                        {(product.wholesalerPrice ?? 0).toFixed(2)} ₪
+                        {(product.supplierPrice ?? 0).toFixed(2)} ₪
                       </div>
+                      {product.supplierPrice && product.marketerPrice && (
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          ربح الإدارة: {((product.marketerPrice - product.supplierPrice) / product.supplierPrice * 100).toFixed(1)}%
+                        </div>
+                      )}
                     </td>
 
                     {/* Marketer Price with Profit */}

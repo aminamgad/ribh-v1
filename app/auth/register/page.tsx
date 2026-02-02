@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
@@ -32,9 +32,34 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
   
-  const { register } = useAuth();
+  const { register, user, loading: authLoading, isAuthenticated } = useAuth();
   const router = useRouter();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!authLoading && isAuthenticated && user) {
+      // توجيه تلقائي حسب دور المستخدم
+      const userRole = user.role;
+      if (userRole === 'admin') {
+        router.push('/dashboard');
+      } else if (userRole === 'supplier') {
+        router.push('/dashboard');
+      } else if (userRole === 'marketer') {
+        router.push('/dashboard/products');
+      } else if (userRole === 'wholesaler') {
+        router.push('/dashboard');
+      } else {
+        // Default fallback
+        router.push('/dashboard');
+      }
+    }
+  }, [authLoading, isAuthenticated, user, router]);
 
   const normalizeUrl = (url: string): string => {
     if (!url || url.trim() === '') return '';
@@ -65,10 +90,18 @@ export default function RegisterPage() {
       
       if (result.success) {
         toast.success('تم إنشاء الحساب بنجاح');
-        // توجيه المسوق لصفحة المنتجات مباشرة
-        if (result.user?.role === 'marketer') {
+        // توجيه تلقائي حسب دور المستخدم
+        const userRole = result.user?.role;
+        if (userRole === 'admin') {
+          router.push('/dashboard');
+        } else if (userRole === 'supplier') {
+          router.push('/dashboard');
+        } else if (userRole === 'marketer') {
           router.push('/dashboard/products');
+        } else if (userRole === 'wholesaler') {
+          router.push('/dashboard');
         } else {
+          // Default fallback
           router.push('/dashboard');
         }
       } else {
@@ -94,6 +127,27 @@ export default function RegisterPage() {
       country: value,
     });
   };
+
+  // Show loading while checking auth or redirecting
+  if (!mounted || authLoading || (isAuthenticated && user)) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#FF9800]/10 via-white to-[#4CAF50]/10 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8">
+          <div className="text-center">
+            <div className="h-8 w-32 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mx-auto mb-4" />
+            <div className="h-8 w-48 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mx-auto" />
+          </div>
+          <div className="card">
+            <div className="space-y-6">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="h-12 bg-gray-200 dark:bg-gray-700 rounded-xl animate-pulse" />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const roleOptions = [
     {

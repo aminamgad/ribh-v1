@@ -421,6 +421,29 @@ export default function SettingsPage() {
           }));
         }
         
+        // If financial settings were updated, recalculate product prices
+        if (section === 'financial') {
+          try {
+            toast.loading('جاري إعادة حساب أسعار المنتجات...', { id: 'recalculate-prices' });
+            const recalculateResponse = await fetch('/api/admin/products/recalculate-prices', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            });
+            
+            const recalculateResult = await recalculateResponse.json();
+            if (recalculateResult.success) {
+              toast.success(`تم إعادة حساب أسعار ${recalculateResult.stats?.updated || 0} منتج بنجاح`, { id: 'recalculate-prices' });
+            } else {
+              toast.error(recalculateResult.message || 'حدث خطأ في إعادة حساب الأسعار', { id: 'recalculate-prices' });
+            }
+          } catch (error) {
+            toast.error('حدث خطأ أثناء إعادة حساب أسعار المنتجات', { id: 'recalculate-prices' });
+            console.error('Error recalculating prices:', error);
+          }
+        }
+        
         // Refresh settings after successful save
         await fetchSettings();
       } else {

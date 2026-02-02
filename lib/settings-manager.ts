@@ -61,6 +61,16 @@ class SettingsManager {
   async calculateAdminProfitForOrder(items: Array<{ unitPrice: number; quantity: number }>) {
     return await calculateAdminProfitForOrder(items);
   }
+
+  async calculateMarketerPriceFromSupplierPrice(supplierPrice: number) {
+    const { calculateMarketerPriceFromSupplierPrice } = await import('./settings');
+    return await calculateMarketerPriceFromSupplierPrice(supplierPrice);
+  }
+
+  async calculateSupplierPriceFromMarketerPrice(marketerPrice: number) {
+    const { calculateSupplierPriceFromMarketerPrice } = await import('./settings');
+    return await calculateSupplierPriceFromMarketerPrice(marketerPrice);
+  }
 }
 
 // Export a singleton instance

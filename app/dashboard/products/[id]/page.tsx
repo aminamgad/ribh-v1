@@ -46,6 +46,7 @@ interface Product {
   description: string;
   marketingText?: string;
   images: string[];
+  supplierPrice?: number;
   marketerPrice: number;
   wholesalerPrice: number;
   minimumSellingPrice?: number;
@@ -915,9 +916,20 @@ export default function ProductDetailPage() {
                   <p className="text-xs text-green-600 dark:text-green-400">السعر الثابت للتجار</p>
                 </div>
               ) : (
-                // Supplier/Admin sees both prices
+                // Supplier/Admin sees all prices
                 <>
                   <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="text-center p-3 rounded-lg bg-gray-50 dark:bg-slate-700">
+                      <p className="text-sm text-gray-600 dark:text-slate-400">سعر المورد</p>
+                      <p className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                        {new Intl.NumberFormat('en-US').format(product.supplierPrice || 0)} ₪
+                      </p>
+                      {product.supplierPrice && product.marketerPrice && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          ربح الإدارة: {((product.marketerPrice - product.supplierPrice) / product.supplierPrice * 100).toFixed(1)}%
+                        </p>
+                      )}
+                    </div>
                     <div className="text-center p-3 rounded-lg bg-gray-50 dark:bg-slate-700">
                       <p className="text-sm text-gray-600 dark:text-slate-400">سعر المسوق (الأساسي)</p>
                       <p className={`text-xl font-bold ${
@@ -933,11 +945,13 @@ export default function ProductDetailPage() {
                         </p>
                       )}
                     </div>
-                    <div className="text-center p-3 bg-gray-50 dark:bg-slate-700 rounded-lg">
+                  </div>
+                  {product.wholesalerPrice && (
+                    <div className="text-center p-3 bg-gray-50 dark:bg-slate-700 rounded-lg mb-4">
                       <p className="text-sm text-gray-600 dark:text-slate-400">سعر الجملة (للتجار)</p>
                       <p className="text-xl font-bold text-primary-600 dark:text-primary-400">{new Intl.NumberFormat('en-US').format(product.wholesalerPrice)} ₪</p>
                     </div>
-                  </div>
+                  )}
                 </>
               )}
             </div>

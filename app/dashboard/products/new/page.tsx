@@ -18,7 +18,8 @@ const productSchema = z.object({
   name: z.string().min(3, 'اسم المنتج يجب أن يكون 3 أحرف على الأقل'),
   description: z.string().optional(),
   categoryId: z.string().optional(),
-  marketerPrice: z.number().min(0.01, 'سعر المسوق يجب أن يكون أكبر من 0'),
+  supplierPrice: z.number().min(0.01, 'سعر المورد يجب أن يكون أكبر من 0'),
+  marketerPrice: z.number().min(0.01, 'سعر المسوق يجب أن يكون أكبر من 0').optional(),
   wholesalerPrice: z.number().min(0.01, 'سعر الجملة يجب أن يكون أكبر من 0').nullish(),
   minimumSellingPrice: z.number().min(0.01, 'السعر الأدنى للبيع يجب أن يكون أكبر من 0').optional(),
   isMinimumPriceMandatory: z.boolean().default(false),
@@ -101,6 +102,7 @@ export default function NewProductPage() {
       description: '',
       categoryId: '',
       stockQuantity: 0,
+      supplierPrice: 0,
       marketerPrice: 0,
       wholesalerPrice: undefined,
       minimumSellingPrice: 0,
@@ -111,7 +113,6 @@ export default function NewProductPage() {
 
   // Handle form submission errors
   const onError = useCallback((errors: FieldErrors<ProductFormData>) => {
-    console.log('Form validation errors:', errors);
     setShowErrors(true);
     // Show first error
     const firstError = Object.values(errors)[0];
@@ -185,7 +186,7 @@ export default function NewProductPage() {
         }
       }
     } catch (error) {
-      console.error('Failed to check SKU:', error);
+      // Silently handle SKU check errors
     }
   };
 
@@ -213,7 +214,7 @@ export default function NewProductPage() {
               }
             }
           } catch (error) {
-            console.error('Failed to check product name:', error);
+            // Silently handle product name check errors
           }
         }, 500); // Debounce
 
@@ -408,8 +409,8 @@ export default function NewProductPage() {
       case 2: // Media
         return images.length > 0;
       case 3: // Pricing & Inventory (merged)
-        // Validate pricing
-        if (!(formData.marketerPrice && formData.marketerPrice > 0)) return false;
+        // Validate pricing - supplierPrice is required
+        if (!(formData.supplierPrice && formData.supplierPrice > 0)) return false;
         // Validate inventory (only if no variants)
         if (hasVariants === false) {
           return formData.stockQuantity >= 0;
@@ -505,7 +506,7 @@ export default function NewProductPage() {
       setHasUnsavedChanges(false);
       toast.success('تم حفظ المسودة تلقائياً', { duration: 2000, icon: '💾' });
     } catch (error) {
-      console.error('Failed to save draft:', error);
+      // Silently handle draft save errors
     } finally {
       setIsSaving(false);
     }
@@ -542,7 +543,6 @@ export default function NewProductPage() {
         localStorage.removeItem('product-duplicate');
         toast.success('تم تحميل نسخة المنتج');
       } catch (error) {
-        console.error('Failed to load duplicate:', error);
         localStorage.removeItem('product-duplicate');
       }
     }
@@ -564,7 +564,6 @@ export default function NewProductPage() {
         setHasUnsavedChanges(false);
         toast.success('تم استعادة المسودة تلقائياً', { duration: 2000 });
       } catch (error) {
-        console.error('Failed to load draft:', error);
         localStorage.removeItem('product-draft');
       }
     }
@@ -617,7 +616,8 @@ export default function NewProductPage() {
     if (images.length > 0) completedFields++;
     
     // Pricing
-    if (formData.marketerPrice > 0) completedFields++;
+    if (formData.supplierPrice > 0) completedFields++;
+    if (formData.marketerPrice && formData.marketerPrice > 0) completedFields++;
     if (formData.minimumSellingPrice && formData.minimumSellingPrice > 0) completedFields++;
     
     // Inventory
@@ -647,8 +647,6 @@ export default function NewProductPage() {
   }, [getValues, images, hasVariants, variants, user?.role]);
 
   const onSubmit = useCallback(async (data: ProductFormData) => {
-    console.log('Form submitted', { data, images, hasVariants, variants, variantOptions });
-    
     // Validate hasVariants
     if (hasVariants === null) {
       toast.error('⚠️ يرجى تحديد ما إذا كان المنتج يحتوي على متغيرات أم لا', {
@@ -675,7 +673,7 @@ export default function NewProductPage() {
     }
 
     // Validate pricing logic
-    if (data.wholesalerPrice && data.wholesalerPrice >= data.marketerPrice) {
+    if (data.wholesalerPrice && data.marketerPrice && data.marketerPrice > 0 && data.wholesalerPrice >= data.marketerPrice) {
       toast.error('⚠️ سعر المسوق يجب أن يكون أكبر من سعر الجملة', {
         duration: 4000,
         style: {
@@ -687,7 +685,7 @@ export default function NewProductPage() {
       return;
     }
 
-    if (data.minimumSellingPrice && data.marketerPrice >= data.minimumSellingPrice) {
+    if (data.minimumSellingPrice && data.marketerPrice && data.marketerPrice > 0 && data.marketerPrice >= data.minimumSellingPrice) {
       toast.error('⚠️ السعر الأدنى للبيع يجب أن يكون أكبر من سعر المسوق', {
         duration: 4000,
         style: {
@@ -741,14 +739,46 @@ export default function NewProductPage() {
 
     setLoading(true);
     try {
+      // Validate supplierPrice before sending
+      if (!data.supplierPrice || data.supplierPrice <= 0 || isNaN(Number(data.supplierPrice))) {
+        toast.error('⚠️ يجب إدخال سعر مورد صحيح (أكبر من 0)', {
+          duration: 4000,
+          style: {
+            background: '#f59e0b',
+            color: '#fff'
+          }
+        });
+        setCurrentStep(3); // Go to pricing step
+        setLoading(false);
+        return;
+      }
+
       // Prepare clean data
       const isSupplier = user?.role === 'supplier';
+      const parsedSupplierPrice = Number(data.supplierPrice);
+      
+      // Double-check supplierPrice is valid
+      if (isNaN(parsedSupplierPrice) || parsedSupplierPrice <= 0) {
+        toast.error('⚠️ سعر المورد غير صحيح', {
+          duration: 4000,
+          style: {
+            background: '#f59e0b',
+            color: '#fff'
+          }
+        });
+        setCurrentStep(3); // Go to pricing step
+        setLoading(false);
+        return;
+      }
+
       const productData: any = {
         name: data.name.trim(),
         description: data.description?.trim() || '',
         // Category - only for non-suppliers
         ...(!isSupplier && { categoryId: data.categoryId && data.categoryId !== '' ? data.categoryId : null }),
-        marketerPrice: Number(data.marketerPrice),
+        // Fix: Ensure supplierPrice is always a valid number
+        supplierPrice: parsedSupplierPrice,
+        marketerPrice: data.marketerPrice && data.marketerPrice > 0 ? Number(data.marketerPrice) : undefined,
         wholesalerPrice: data.wholesalerPrice && !isNaN(Number(data.wholesalerPrice)) 
           ? Number(data.wholesalerPrice) 
           : undefined,
@@ -771,8 +801,6 @@ export default function NewProductPage() {
         ...(user?.role === 'admin' && selectedSupplierId ? { supplierId: selectedSupplierId } : {})
       };
 
-      console.log('Sending product data:', productData);
-
       const response = await fetch('/api/products', {
         method: 'POST',
         headers: {
@@ -782,7 +810,6 @@ export default function NewProductPage() {
       });
 
       const result = await response.json();
-      console.log('API response:', { status: response.status, result });
       
       if (response.ok) {
         handleSuccessfulSubmit();
@@ -797,9 +824,16 @@ export default function NewProductPage() {
             fontWeight: '600'
           }
         });
+        // Set flag to refresh products data when page loads
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('refresh-products', 'true');
+        }
+        // Dispatch event for immediate refresh if page is already open
+        window.dispatchEvent(new CustomEvent('refresh-products'));
         // Small delay before redirect to show success message
         setTimeout(() => {
           router.push('/dashboard/products');
+          router.refresh();
         }, 1000);
       } else {
         toast.error(`❌ ${result.message || 'حدث خطأ أثناء إضافة المنتج'}`, {
@@ -885,10 +919,74 @@ export default function NewProductPage() {
 
   // Removed toggleFullscreen function for simplicity
 
+  const supplierPrice = watch('supplierPrice') || 0;
   const marketerPrice = watch('marketerPrice') || 0;
   const wholesalerPrice = watch('wholesalerPrice') || undefined;
   const minimumSellingPrice = watch('minimumSellingPrice') || 0;
   const isMinimumPriceMandatory = watch('isMinimumPriceMandatory') || false;
+  
+  // State to track if marketerPrice is auto-calculated
+  const [isMarketerPriceAutoCalculated, setIsMarketerPriceAutoCalculated] = useState(false);
+  const [adminProfitMargin, setAdminProfitMargin] = useState<number | null>(null);
+
+  // Calculate marketerPrice from supplierPrice when supplierPrice changes
+  useEffect(() => {
+    if (supplierPrice > 0) {
+      const calculateMarketerPrice = async () => {
+        try {
+          const response = await fetch('/api/settings');
+          const data = await response.json();
+          if (data.success && data.settings?.adminProfitMargins) {
+            const margins = data.settings.adminProfitMargins;
+            // Find the appropriate margin for this supplierPrice
+            const sortedMargins = [...margins].sort((a: any, b: any) => a.minPrice - b.minPrice);
+            let margin = 5; // Default margin
+            for (const m of sortedMargins) {
+              if (supplierPrice >= m.minPrice && supplierPrice <= m.maxPrice) {
+                margin = m.margin;
+                break;
+              }
+            }
+            setAdminProfitMargin(margin);
+            
+            // Calculate marketerPrice = supplierPrice + (supplierPrice * margin / 100)
+            // Example: supplierPrice = 20, margin = 20%
+            // adminProfit = 20 * 20 / 100 = 4
+            // marketerPrice = 20 + 4 = 24
+            const adminProfit = (supplierPrice * margin) / 100;
+            const calculatedMarketerPrice = supplierPrice + adminProfit;
+            
+            // Always update marketerPrice when supplierPrice changes
+            // Force update to calculated value
+            setValue('marketerPrice', Number(calculatedMarketerPrice.toFixed(2)), { shouldDirty: true });
+            setIsMarketerPriceAutoCalculated(true);
+          } else {
+            // Fallback: use default 5% margin
+            const defaultMargin = 5;
+            setAdminProfitMargin(defaultMargin);
+            const adminProfit = (supplierPrice * defaultMargin) / 100;
+            const calculatedMarketerPrice = supplierPrice + adminProfit;
+            // Force update to calculated value
+            setValue('marketerPrice', Number(calculatedMarketerPrice.toFixed(2)), { shouldDirty: true });
+            setIsMarketerPriceAutoCalculated(true);
+          }
+        } catch (error) {
+          // Fallback: use default 5% margin on error
+          const defaultMargin = 5;
+          setAdminProfitMargin(defaultMargin);
+          const adminProfit = (supplierPrice * defaultMargin) / 100;
+          const calculatedMarketerPrice = supplierPrice + adminProfit;
+          // Force update to calculated value
+          setValue('marketerPrice', Number(calculatedMarketerPrice.toFixed(2)), { shouldDirty: true });
+          setIsMarketerPriceAutoCalculated(true);
+        }
+      };
+      calculateMarketerPrice();
+    } else {
+      setIsMarketerPriceAutoCalculated(false);
+      setAdminProfitMargin(null);
+    }
+  }, [supplierPrice, setValue, getValues]);
 
   const progress = calculateProgress();
   const stats = useMemo(() => calculateStatistics(), [calculateStatistics]);
@@ -1331,27 +1429,81 @@ export default function NewProductPage() {
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      <span className="text-red-500 dark:text-red-400 mr-1">*</span>
-                      سعر المسوق
-                    </label>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <span className="text-red-500 dark:text-red-400 mr-1">*</span>
+                    سعر المورد
+                  </label>
                   <div className="relative">
                     <input
                       type="number"
                       step="0.01"
                       min="0.01"
-                      {...register('marketerPrice', { valueAsNumber: true })}
+                      {...register('supplierPrice', { valueAsNumber: true })}
                       className={`input-field text-sm sm:text-base pr-8 min-h-[44px] ${
-                        errors.marketerPrice || (wholesalerPrice && marketerPrice <= wholesalerPrice && marketerPrice > 0) 
+                        errors.supplierPrice 
                           ? 'border-red-500 dark:border-red-500 focus:ring-red-500' : 
-                          marketerPrice > 0 && (!wholesalerPrice || marketerPrice > wholesalerPrice) 
+                          supplierPrice > 0 
                             ? 'border-green-500 dark:border-green-500' : ''
                       }`}
                       placeholder="0.00"
                     />
                     <span className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400 text-sm sm:text-base">₪</span>
                   </div>
+                  {errors.supplierPrice && (
+                    <p className="text-red-600 dark:text-red-400 text-xs mt-1">
+                      {errors.supplierPrice.message}
+                    </p>
+                  )}
+                  {supplierPrice > 0 && adminProfitMargin !== null && (
+                    <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800">
+                      <p className="text-xs text-blue-700 dark:text-blue-300 font-medium">
+                        💡 سيتم حساب سعر المسوق تلقائياً
+                      </p>
+                      <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                        نسبة ربح الإدارة: {adminProfitMargin}%
+                      </p>
+                      <p className="text-xs text-blue-600 dark:text-blue-400">
+                        ربح الإدارة: {((supplierPrice * adminProfitMargin) / 100).toFixed(2)} ₪
+                      </p>
+                    </div>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <span className="text-gray-400 dark:text-gray-500 mr-1">(محسوب تلقائياً)</span>
+                    سعر المسوق
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      {...register('marketerPrice', { 
+                        valueAsNumber: true,
+                        required: false
+                      })}
+                      readOnly={isMarketerPriceAutoCalculated && supplierPrice > 0}
+                      className={`input-field text-sm sm:text-base pr-8 min-h-[44px] ${
+                        isMarketerPriceAutoCalculated && supplierPrice > 0
+                          ? 'bg-gray-50 dark:bg-gray-800 cursor-not-allowed' : ''
+                      } ${
+                        errors.marketerPrice || (wholesalerPrice && marketerPrice <= wholesalerPrice && marketerPrice > 0) 
+                          ? 'border-red-500 dark:border-red-500 focus:ring-red-500' : 
+                          marketerPrice > 0 && (!wholesalerPrice || marketerPrice > wholesalerPrice) 
+                            ? 'border-green-500 dark:border-green-500' : ''
+                      }`}
+                      placeholder="سيتم الحساب تلقائياً"
+                      title={isMarketerPriceAutoCalculated && supplierPrice > 0 ? "يمكنك التعديل يدوياً إذا أردت" : ""}
+                    />
+                    <span className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400 text-sm sm:text-base">₪</span>
+                  </div>
+                  {isMarketerPriceAutoCalculated && supplierPrice > 0 && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      💡 يمكنك التعديل يدوياً إذا أردت تغيير القيمة المحسوبة
+                    </p>
+                  )}
                   {errors.marketerPrice && (
                     <p className="text-red-600 dark:text-red-400 text-xs mt-1">
                       {errors.marketerPrice.message}
@@ -1361,6 +1513,24 @@ export default function NewProductPage() {
                     <p className="text-red-600 dark:text-red-400 text-xs mt-1">
                       يجب أن يكون سعر المسوق أكبر من سعر الجملة
                     </p>
+                  )}
+                  {supplierPrice > 0 && marketerPrice > 0 && adminProfitMargin !== null && (
+                    <div className="mt-2 space-y-1">
+                      {isMarketerPriceAutoCalculated && (
+                        <p className="text-xs text-green-600 dark:text-green-400 font-medium flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" />
+                          محسوب تلقائياً
+                        </p>
+                      )}
+                      <div className="p-2 bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                          <span className="font-medium">الحساب:</span> {supplierPrice.toFixed(2)} + ({supplierPrice.toFixed(2)} × {adminProfitMargin || 0}%) = {supplierPrice.toFixed(2)} + {((supplierPrice * (adminProfitMargin || 0)) / 100).toFixed(2)} = {marketerPrice.toFixed(2)} ₪
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                          ربح الإدارة: {((supplierPrice * (adminProfitMargin || 0)) / 100).toFixed(2)} ₪ ({adminProfitMargin || 0}% من {supplierPrice.toFixed(2)})
+                        </p>
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
@@ -1402,7 +1572,7 @@ export default function NewProductPage() {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       السعر الأدنى للبيع
-                      <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">(اختياري)</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">(السعر المقترح للمسوق)</span>
                     </label>
                     <div className="relative">
                       <input

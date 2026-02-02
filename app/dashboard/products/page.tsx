@@ -425,6 +425,20 @@ export default function ProductsPage() {
     }
   }, [productsData]);
 
+  // Check for refresh flag from sessionStorage on mount or route change
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const shouldRefresh = sessionStorage.getItem('refresh-products');
+      if (shouldRefresh === 'true') {
+        // Clear the flag
+        sessionStorage.removeItem('refresh-products');
+        // Refresh data
+        refresh();
+        refreshSections();
+      }
+    }
+  }, [refresh, refreshSections]);
+
   // Listen for refresh events from header button
   useEffect(() => {
     const handleRefresh = () => {
@@ -1952,7 +1966,7 @@ export default function ProductsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                    السعر الأدنى للبيع (اختياري)
+                    السعر الأدنى للبيع (السعر المقترح للمسوق)
                   </label>
                   <input
                     type="number"
