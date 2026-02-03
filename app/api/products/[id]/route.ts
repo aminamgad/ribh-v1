@@ -291,6 +291,14 @@ async function updateProduct(req: NextRequest, user: any, ...args: unknown[]) {
         if (updateData.marketerPrice !== undefined) {
           const finalSupplierPrice = updateData.supplierPrice !== undefined ? updateData.supplierPrice : existingProduct.supplierPrice;
           
+          // Validate that supplierPrice exists and is valid
+          if (!finalSupplierPrice || finalSupplierPrice <= 0) {
+            return NextResponse.json(
+              { success: false, message: 'يجب تحديد سعر المورد أولاً قبل تحديث سعر المسوق' },
+              { status: 400 }
+            );
+          }
+          
           // Validation: marketerPrice must be greater than supplierPrice
           if (updateData.marketerPrice <= finalSupplierPrice) {
             return NextResponse.json(
@@ -319,6 +327,14 @@ async function updateProduct(req: NextRequest, user: any, ...args: unknown[]) {
       // Admin is updating marketerPrice - check if it's different from auto-calculated value
       const finalSupplierPrice = updateData.supplierPrice !== undefined ? updateData.supplierPrice : existingProduct.supplierPrice;
       
+      // Validate that supplierPrice exists and is valid
+      if (!finalSupplierPrice || finalSupplierPrice <= 0) {
+        return NextResponse.json(
+          { success: false, message: 'يجب تحديد سعر المورد أولاً قبل تحديث سعر المسوق' },
+          { status: 400 }
+        );
+      }
+      
       // Validation: marketerPrice must be greater than supplierPrice
       if (updateData.marketerPrice <= finalSupplierPrice) {
         return NextResponse.json(
@@ -328,24 +344,34 @@ async function updateProduct(req: NextRequest, user: any, ...args: unknown[]) {
       }
       
       // Calculate what the auto-calculated marketerPrice would be
-      const autoCalculatedMarketerPrice = await settingsManager.calculateMarketerPriceFromSupplierPrice(finalSupplierPrice);
-      const priceDifference = Math.abs(updateData.marketerPrice - autoCalculatedMarketerPrice);
+      try {
+        const autoCalculatedMarketerPrice = await settingsManager.calculateMarketerPriceFromSupplierPrice(finalSupplierPrice);
+        const priceDifference = Math.abs(updateData.marketerPrice - autoCalculatedMarketerPrice);
       
-      // If the marketerPrice is different from auto-calculated (more than 0.01 difference), 
-      // it means admin manually adjusted it, so set the flag
-      if (priceDifference > 0.01) {
-        updateData.isMarketerPriceManuallyAdjusted = true;
-        shouldRecalculateMarketerPrice = false;
-        logger.debug('Admin manually adjusted marketerPrice (detected from price difference)', {
+        // If the marketerPrice is different from auto-calculated (more than 0.01 difference), 
+        // it means admin manually adjusted it, so set the flag
+        if (priceDifference > 0.01) {
+          updateData.isMarketerPriceManuallyAdjusted = true;
+          shouldRecalculateMarketerPrice = false;
+          logger.debug('Admin manually adjusted marketerPrice (detected from price difference)', {
+            productId: params.id,
+            supplierPrice: finalSupplierPrice,
+            autoCalculatedPrice: autoCalculatedMarketerPrice,
+            manualPrice: updateData.marketerPrice,
+            difference: priceDifference
+          });
+        } else if (existingProduct.isMarketerPriceManuallyAdjusted) {
+          // If it matches auto-calculated but was manually adjusted before, keep the flag
+          // (admin might have adjusted it to match the calculated value)
+          updateData.isMarketerPriceManuallyAdjusted = true;
+          shouldRecalculateMarketerPrice = false;
+        }
+      } catch (error) {
+        // If calculation fails, assume manual adjustment
+        logger.error('Error calculating marketerPrice from supplierPrice', error, {
           productId: params.id,
-          supplierPrice: finalSupplierPrice,
-          autoCalculatedPrice: autoCalculatedMarketerPrice,
-          manualPrice: updateData.marketerPrice,
-          difference: priceDifference
+          supplierPrice: finalSupplierPrice
         });
-      } else if (existingProduct.isMarketerPriceManuallyAdjusted) {
-        // If it matches auto-calculated but was manually adjusted before, keep the flag
-        // (admin might have adjusted it to match the calculated value)
         updateData.isMarketerPriceManuallyAdjusted = true;
         shouldRecalculateMarketerPrice = false;
       }
@@ -355,12 +381,21 @@ async function updateProduct(req: NextRequest, user: any, ...args: unknown[]) {
     if (updateData.supplierPrice !== undefined && updateData.supplierPrice > 0 && shouldRecalculateMarketerPrice) {
       // If marketerPrice is not explicitly provided, calculate it from supplierPrice
       if (updateData.marketerPrice === undefined || updateData.marketerPrice <= 0) {
-        updateData.marketerPrice = await settingsManager.calculateMarketerPriceFromSupplierPrice(updateData.supplierPrice);
-        updateData.isMarketerPriceManuallyAdjusted = false;
-        logger.debug('Calculated marketerPrice from supplierPrice during update', {
-          supplierPrice: updateData.supplierPrice,
-          marketerPrice: updateData.marketerPrice
-        });
+        try {
+          updateData.marketerPrice = await settingsManager.calculateMarketerPriceFromSupplierPrice(updateData.supplierPrice);
+          updateData.isMarketerPriceManuallyAdjusted = false;
+          logger.debug('Calculated marketerPrice from supplierPrice during update', {
+            supplierPrice: updateData.supplierPrice,
+            marketerPrice: updateData.marketerPrice
+          });
+        } catch (error) {
+          logger.error('Error calculating marketerPrice from supplierPrice during update', error, {
+            productId: params.id,
+            supplierPrice: updateData.supplierPrice
+          });
+          // If calculation fails, don't update marketerPrice and mark as manually adjusted
+          updateData.isMarketerPriceManuallyAdjusted = true;
+        }
       }
     } else if (updateData.marketerPrice !== undefined && updateData.marketerPrice > 0 && shouldRecalculateMarketerPrice) {
       // If only marketerPrice is updated but supplierPrice exists, we might want to recalculate
@@ -385,6 +420,14 @@ async function updateProduct(req: NextRequest, user: any, ...args: unknown[]) {
       { new: true, runValidators: true }
     ).populate('categoryId', 'name')
      .populate('supplierId', 'name companyName');
+
+    if (!updatedProduct) {
+      logger.error('Product not found after update', { productId: params.id });
+      return NextResponse.json(
+        { success: false, message: 'المنتج غير موجود' },
+        { status: 404 }
+      );
+    }
 
     // Invalidate cache for this product and product lists
     productCache.delete(generateCacheKey('product', params.id, user.role));

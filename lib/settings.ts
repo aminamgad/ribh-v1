@@ -225,34 +225,45 @@ export async function calculateCommission(orderTotal: number) {
 
 // Calculate admin profit margin for a product based on its price
 export async function getAdminProfitMargin(productPrice: number): Promise<number> {
-  const settings = await getSystemSettings();
-  logger.debug('Calculating admin profit margin', {
-    productPrice,
-    hasSettings: !!settings,
-    marginsCount: settings?.adminProfitMargins?.length || 0
-  });
-  
-  if (!settings || !settings.adminProfitMargins || settings.adminProfitMargins.length === 0) {
-    logger.debug('Using default margin (5%) - no margins defined');
-    return 5; // Default margin
-  }
-  
-  // Sort margins by minPrice to ensure correct matching
-  const sortedMargins = [...settings.adminProfitMargins].sort((a, b) => a.minPrice - b.minPrice);
-  
-  for (const margin of sortedMargins) {
-    if (productPrice >= margin.minPrice && productPrice <= margin.maxPrice) {
-      logger.debug('Profit margin found', {
-        productPrice,
-        margin: margin.margin,
-        range: `${margin.minPrice} - ${margin.maxPrice}`
-      });
-      return margin.margin;
+  try {
+    // Validate input
+    if (!productPrice || productPrice <= 0 || isNaN(productPrice)) {
+      logger.warn('Invalid productPrice for margin calculation', { productPrice });
+      return 5; // Default margin
     }
+    
+    const settings = await getSystemSettings();
+    logger.debug('Calculating admin profit margin', {
+      productPrice,
+      hasSettings: !!settings,
+      marginsCount: settings?.adminProfitMargins?.length || 0
+    });
+    
+    if (!settings || !settings.adminProfitMargins || settings.adminProfitMargins.length === 0) {
+      logger.debug('Using default margin (5%) - no margins defined');
+      return 5; // Default margin
+    }
+    
+    // Sort margins by minPrice to ensure correct matching
+    const sortedMargins = [...settings.adminProfitMargins].sort((a, b) => a.minPrice - b.minPrice);
+    
+    for (const margin of sortedMargins) {
+      if (productPrice >= margin.minPrice && productPrice <= margin.maxPrice) {
+        logger.debug('Profit margin found', {
+          productPrice,
+          margin: margin.margin,
+          range: `${margin.minPrice} - ${margin.maxPrice}`
+        });
+        return margin.margin;
+      }
+    }
+    
+    logger.debug('Using default margin (5%) - no matching range');
+    return 5; // Default margin if no match
+  } catch (error) {
+    logger.error('Error calculating admin profit margin', error, { productPrice });
+    return 5; // Default margin on error
   }
-  
-  logger.debug('Using default margin (5%) - no matching range');
-  return 5; // Default margin if no match
 }
 
 // Calculate admin profit for a single product
@@ -264,16 +275,32 @@ export async function calculateAdminProfitForProduct(productPrice: number, quant
 // Calculate marketer price from supplier price + admin profit margin
 // Formula: marketerPrice = supplierPrice + (supplierPrice * margin / 100)
 export async function calculateMarketerPriceFromSupplierPrice(supplierPrice: number): Promise<number> {
-  const margin = await getAdminProfitMargin(supplierPrice);
-  const adminProfit = (supplierPrice * margin) / 100;
-  const marketerPrice = supplierPrice + adminProfit;
-  logger.debug('Calculating marketer price from supplier price', {
-    supplierPrice,
-    margin,
-    adminProfit,
-    marketerPrice
-  });
-  return marketerPrice;
+  try {
+    // Validate input
+    if (!supplierPrice || supplierPrice <= 0 || isNaN(supplierPrice)) {
+      throw new Error(`Invalid supplierPrice: ${supplierPrice}`);
+    }
+    
+    const margin = await getAdminProfitMargin(supplierPrice);
+    const adminProfit = (supplierPrice * margin) / 100;
+    const marketerPrice = supplierPrice + adminProfit;
+    
+    // Validate result
+    if (!marketerPrice || isNaN(marketerPrice) || marketerPrice <= 0) {
+      throw new Error(`Invalid calculated marketerPrice: ${marketerPrice}`);
+    }
+    
+    logger.debug('Calculating marketer price from supplier price', {
+      supplierPrice,
+      margin,
+      adminProfit,
+      marketerPrice
+    });
+    return marketerPrice;
+  } catch (error) {
+    logger.error('Error calculating marketer price from supplier price', error, { supplierPrice });
+    throw error; // Re-throw to let caller handle it
+  }
 }
 
 // Calculate supplier price from marketer price (reverse calculation)
