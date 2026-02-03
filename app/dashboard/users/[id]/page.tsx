@@ -75,18 +75,6 @@ export default function UserDetailPage() {
   const [loading, setLoading] = useState(true);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  useEffect(() => {
-    if (user?.role !== 'admin') {
-      toast.error('غير مصرح لك بالوصول لهذه الصفحة');
-      router.push('/dashboard');
-      return;
-    }
-    
-    if (params.id) {
-      fetchUserDetail();
-    }
-  }, [params.id, user]);
-
   const fetchUserDetail = useCallback(async () => {
     try {
       const response = await fetch(`/api/admin/users/${params.id}`);
@@ -104,6 +92,18 @@ export default function UserDetailPage() {
       setLoading(false);
     }
   }, [params.id, router]);
+
+  useEffect(() => {
+    if (user?.role !== 'admin') {
+      toast.error('غير مصرح لك بالوصول لهذه الصفحة');
+      router.push('/dashboard');
+      return;
+    }
+    
+    if (params.id) {
+      fetchUserDetail();
+    }
+  }, [params.id, user, fetchUserDetail, router]);
 
   const handleToggleStatus = async () => {
     if (!userDetail) return;

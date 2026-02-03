@@ -38,7 +38,7 @@ export default function TemplateNameModal({
     }
   }, [isOpen]);
 
-  const validateName = (value: string): string => {
+  const validateName = useCallback((value: string): string => {
     const trimmed = value.trim();
     if (!trimmed) {
       return 'اسم القالب مطلوب';
@@ -53,7 +53,7 @@ export default function TemplateNameModal({
       return 'يوجد قالب بنفس الاسم بالفعل';
     }
     return '';
-  };
+  }, [existingNames]);
 
   const handleNameChange = (value: string) => {
     setName(value);
@@ -73,7 +73,7 @@ export default function TemplateNameModal({
     }
 
     onConfirm(trimmed);
-  }, [name, onConfirm]);
+  }, [name, onConfirm, validateName]);
 
   if (!isVisible) return null;
 

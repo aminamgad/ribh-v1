@@ -7,6 +7,7 @@ import { toast } from 'react-hot-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import { 
   CreditCard, 
   Clock, 
@@ -22,7 +23,9 @@ import {
 
 interface WithdrawalRequest {
   _id: string;
-  userId: {
+  userId: string;
+  user: {
+    _id: string;
     name: string;
     email: string;
     phone: string;
@@ -36,6 +39,11 @@ interface WithdrawalRequest {
   notes?: string;
   rejectionReason?: string;
   processedBy?: string;
+  walletInfo?: {
+    balance: number;
+    pendingWithdrawals: number;
+    availableBalance: number;
+  };
 }
 
 export default function AdminWithdrawalsPage() {
@@ -44,6 +52,17 @@ export default function AdminWithdrawalsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [processing, setProcessing] = useState<string | null>(null);
+  const [rejectionModal, setRejectionModal] = useState<{ isOpen: boolean; withdrawalId: string | null; reason: string }>({
+    isOpen: false,
+    withdrawalId: null,
+    reason: ''
+  });
+  const [notesModal, setNotesModal] = useState<{ isOpen: boolean; withdrawalId: string | null; status: string; notes: string }>({
+    isOpen: false,
+    withdrawalId: null,
+    status: '',
+    notes: ''
+  });
 
   // Generate cache key based on filters
   const cacheKey = useMemo(() => {
@@ -55,6 +74,13 @@ export default function AdminWithdrawalsPage() {
     success: boolean;
     withdrawals: WithdrawalRequest[];
     pagination: { pages: number };
+    statistics?: {
+      pending: number;
+      approved: number;
+      rejected: number;
+      completed: number;
+      total: number;
+    };
   }>({
     key: cacheKey,
     fetchFn: async () => {
@@ -121,13 +147,25 @@ export default function AdminWithdrawalsPage() {
       const data = await response.json();
       
       if (data.success) {
-        toast.success(data.message);
-        fetchWithdrawals(); // Refresh data
+        toast.success(data.message || 'تم تحديث حالة الطلب بنجاح');
+        // Refresh data and statistics
+        await fetchWithdrawals();
+        // Force refresh to update statistics
+        refresh();
       } else {
-        toast.error(data.message);
+        // Show detailed error message
+        const errorMessage = data.message || 'حدث خطأ في تحديث طلب السحب';
+        toast.error(errorMessage, {
+          duration: 5000,
+        });
       }
-    } catch (error) {
-      toast.error('حدث خطأ في تحديث طلب السحب');
+    } catch (error: any) {
+      // Handle network errors or JSON parsing errors
+      const errorMessage = error?.message || 'حدث خطأ في الاتصال بالخادم';
+      toast.error(`خطأ: ${errorMessage}`, {
+        duration: 5000,
+      });
+      console.error('Error updating withdrawal status:', error);
     } finally {
       setProcessing(null);
     }
@@ -167,6 +205,10 @@ export default function AdminWithdrawalsPage() {
   };
 
   const getStatusCount = (status: string) => {
+    // Use statistics from API if available, otherwise fallback to filtered withdrawals
+    if (withdrawalsData?.statistics) {
+      return withdrawalsData.statistics[status as keyof typeof withdrawalsData.statistics] || 0;
+    }
     return withdrawals.filter(w => w.status === status).length;
   };
 
@@ -292,18 +334,18 @@ export default function AdminWithdrawalsPage() {
                       <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
                         <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500 dark:text-gray-400 flex-shrink-0" />
                         <span className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white truncate">
-                          {withdrawal.userId.name}
+                          {withdrawal.user?.name || 'غير معروف'}
                         </span>
-                        <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 flex-shrink-0">({withdrawal.userId.role})</span>
+                        <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 flex-shrink-0">({withdrawal.user?.role || 'غير معروف'})</span>
                       </div>
                       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-4 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                         <div className="flex items-center">
                           <Mail className="w-3 h-3 ml-1 flex-shrink-0" />
-                          <span className="truncate">{withdrawal.userId.email}</span>
+                          <span className="truncate">{withdrawal.user?.email || 'غير متوفر'}</span>
                         </div>
                         <div className="flex items-center">
                           <Phone className="w-3 h-3 ml-1 flex-shrink-0" />
-                          <span>{withdrawal.userId.phone}</span>
+                          <span>{withdrawal.user?.phone || 'غير متوفر'}</span>
                         </div>
                       </div>
                     </div>
@@ -326,6 +368,37 @@ export default function AdminWithdrawalsPage() {
                       </p>
                     </div>
                   </div>
+                  
+                  {withdrawal.walletInfo && (
+                    <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3 sm:p-4 mb-3 sm:mb-4 border border-gray-200 dark:border-gray-700">
+                      <p className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 sm:mb-3">معلومات المحفظة:</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
+                        <div>
+                          <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mb-0.5">الرصيد الحالي:</p>
+                          <p className={`text-xs sm:text-sm font-semibold ${withdrawal.walletInfo.balance >= withdrawal.amount ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                            {formatAmount(withdrawal.walletInfo.balance)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mb-0.5">الرصيد المتاح:</p>
+                          <p className={`text-xs sm:text-sm font-semibold ${withdrawal.walletInfo.availableBalance >= withdrawal.amount ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                            {formatAmount(withdrawal.walletInfo.availableBalance)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mb-0.5">المبلغ المعلق:</p>
+                          <p className="text-xs sm:text-sm font-semibold text-orange-600 dark:text-orange-400">
+                            {formatAmount(withdrawal.walletInfo.pendingWithdrawals)}
+                          </p>
+                        </div>
+                      </div>
+                      {withdrawal.walletInfo.availableBalance < withdrawal.amount && (
+                        <div className="mt-2 sm:mt-3 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded text-xs sm:text-sm text-red-700 dark:text-red-300">
+                          ⚠️ الرصيد المتاح غير كافي للموافقة على هذا الطلب
+                        </div>
+                      )}
+                    </div>
+                  )}
                   
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm mb-3 sm:mb-4">
                     <div>
@@ -363,7 +436,14 @@ export default function AdminWithdrawalsPage() {
                   {withdrawal.status === 'pending' && (
                     <div className="flex flex-col sm:flex-row gap-2 mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200 dark:border-gray-700">
                       <Button
-                        onClick={() => handleStatusUpdate(withdrawal._id, 'approved')}
+                        onClick={() => {
+                          setNotesModal({
+                            isOpen: true,
+                            withdrawalId: withdrawal._id,
+                            status: 'approved',
+                            notes: ''
+                          });
+                        }}
                         disabled={processing === withdrawal._id}
                         className="bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 min-h-[44px] text-sm sm:text-base flex-1 sm:flex-initial"
                         size="sm"
@@ -371,7 +451,14 @@ export default function AdminWithdrawalsPage() {
                         {processing === withdrawal._id ? 'جاري...' : 'موافقة'}
                       </Button>
                       <Button
-                        onClick={() => handleStatusUpdate(withdrawal._id, 'completed')}
+                        onClick={() => {
+                          setNotesModal({
+                            isOpen: true,
+                            withdrawalId: withdrawal._id,
+                            status: 'completed',
+                            notes: ''
+                          });
+                        }}
                         disabled={processing === withdrawal._id}
                         className="bg-[#FF9800] hover:bg-[#F57C00] dark:bg-[#FF9800] dark:hover:bg-[#F57C00] min-h-[44px] text-sm sm:text-base flex-1 sm:flex-initial"
                         size="sm"
@@ -380,10 +467,11 @@ export default function AdminWithdrawalsPage() {
                       </Button>
                       <Button
                         onClick={() => {
-                          const reason = prompt('سبب الرفض:');
-                          if (reason) {
-                            handleStatusUpdate(withdrawal._id, 'rejected', undefined, reason);
-                          }
+                          setRejectionModal({
+                            isOpen: true,
+                            withdrawalId: withdrawal._id,
+                            reason: ''
+                          });
                         }}
                         disabled={processing === withdrawal._id}
                         variant="destructive"
@@ -442,6 +530,72 @@ export default function AdminWithdrawalsPage() {
           </Button>
         </div>
       )}
+
+      {/* Rejection Reason Modal */}
+      <ConfirmationModal
+        isOpen={rejectionModal.isOpen}
+        onClose={() => setRejectionModal({ isOpen: false, withdrawalId: null, reason: '' })}
+        onConfirm={() => {
+          if (rejectionModal.withdrawalId && rejectionModal.reason.trim()) {
+            handleStatusUpdate(rejectionModal.withdrawalId, 'rejected', undefined, rejectionModal.reason.trim());
+            setRejectionModal({ isOpen: false, withdrawalId: null, reason: '' });
+          } else {
+            toast.error('يرجى إدخال سبب الرفض');
+          }
+        }}
+        title="رفض طلب السحب"
+        message="يرجى إدخال سبب رفض طلب السحب:"
+        confirmText="رفض"
+        cancelText="إلغاء"
+        type="danger"
+        loading={processing === rejectionModal.withdrawalId}
+        customContent={
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              سبب الرفض
+            </label>
+            <textarea
+              value={rejectionModal.reason}
+              onChange={(e) => setRejectionModal({ ...rejectionModal, reason: e.target.value })}
+              placeholder="أدخل سبب الرفض..."
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 dark:bg-gray-700 dark:text-white text-sm min-h-[100px] resize-y"
+              autoFocus
+            />
+          </div>
+        }
+      />
+
+      {/* Notes Modal for Approval/Completion */}
+      <ConfirmationModal
+        isOpen={notesModal.isOpen}
+        onClose={() => setNotesModal({ isOpen: false, withdrawalId: null, status: '', notes: '' })}
+        onConfirm={() => {
+          if (notesModal.withdrawalId) {
+            handleStatusUpdate(notesModal.withdrawalId, notesModal.status, notesModal.notes.trim() || undefined);
+            setNotesModal({ isOpen: false, withdrawalId: null, status: '', notes: '' });
+          }
+        }}
+        title={notesModal.status === 'approved' ? 'موافقة على طلب السحب' : 'إكمال وتحويل طلب السحب'}
+        message={notesModal.status === 'approved' ? 'يمكنك إضافة ملاحظات اختيارية:' : 'يمكنك إضافة ملاحظات اختيارية:'}
+        confirmText={notesModal.status === 'approved' ? 'موافقة' : 'إكمال وتحويل'}
+        cancelText="إلغاء"
+        type={notesModal.status === 'approved' ? 'success' : 'info'}
+        loading={processing === notesModal.withdrawalId}
+        customContent={
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              الملاحظات (اختياري)
+            </label>
+            <textarea
+              value={notesModal.notes}
+              onChange={(e) => setNotesModal({ ...notesModal, notes: e.target.value })}
+              placeholder="أدخل ملاحظاتك هنا..."
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white text-sm min-h-[100px] resize-y"
+              autoFocus
+            />
+          </div>
+        }
+      />
     </div>
   );
 } 

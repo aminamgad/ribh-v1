@@ -161,6 +161,12 @@ export default function EditProductPage() {
         setValue('stockQuantity', data.product.stockQuantity);
         setValue('sku', data.product.sku || '');
         
+        // Set manual adjustment flag if exists
+        if (data.product.isMarketerPriceManuallyAdjusted) {
+          setIsMarketerPriceManuallyAdjusted(true);
+          setIsMarketerPriceAutoCalculated(false);
+        }
+        
         // Load variant data
         setHasVariants(data.product.hasVariants !== undefined ? data.product.hasVariants : null);
         setVariants(data.product.variants || []);
@@ -318,12 +324,43 @@ export default function EditProductPage() {
     setSpecifications(specifications.filter((_, i) => i !== index));
   };
 
+  // Map fields to their step numbers
+  const fieldToStepMap: Record<string, number> = {
+    name: 1,
+    description: 1,
+    categoryId: 1,
+    supplierPrice: 3,
+    marketerPrice: 3,
+    wholesalerPrice: 3,
+    minimumSellingPrice: 3,
+    isMinimumPriceMandatory: 3,
+    stockQuantity: 3,
+    sku: 1,
+  };
+
   // Scroll to error field
   const scrollToError = (fieldName: string) => {
-    const element = document.querySelector(`[name="${fieldName}"]`);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      (element as HTMLElement).focus();
+    // Determine which step contains this field
+    const targetStep = fieldToStepMap[fieldName] || 1;
+    
+    // If field is in a different step, navigate to that step first
+    if (targetStep !== currentStep) {
+      goToStep(targetStep);
+      // Wait for step to render, then scroll to field
+      setTimeout(() => {
+        const element = document.querySelector(`[name="${fieldName}"]`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          (element as HTMLElement).focus();
+        }
+      }, 300);
+    } else {
+      // Field is in current step, scroll directly
+      const element = document.querySelector(`[name="${fieldName}"]`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        (element as HTMLElement).focus();
+      }
     }
   };
 
@@ -745,6 +782,12 @@ export default function EditProductPage() {
     };
   }, [getValues, images, hasVariants, variants, tags, specifications, user?.role]);
 
+  // State to track if marketerPrice is auto-calculated
+  const [isMarketerPriceAutoCalculated, setIsMarketerPriceAutoCalculated] = useState(false);
+  const [adminProfitMargin, setAdminProfitMargin] = useState<number | null>(null);
+  const [isMarketerPriceManuallyAdjusted, setIsMarketerPriceManuallyAdjusted] = useState(false);
+  const isAdmin = user?.role === 'admin';
+
   const onSubmit = useCallback(async (data: ProductFormData) => {
     // Validate hasVariants
     if (hasVariants === null) {
@@ -849,8 +892,16 @@ export default function EditProductPage() {
         variantOptions: hasVariants === true ? variantOptions : [],
         isActive: product.isActive,
         isApproved: user?.role === 'admin' ? product.isApproved : product.isApproved,
-        ...(user?.role === 'admin' && selectedSupplierId ? { supplierId: selectedSupplierId } : {})
+        ...(user?.role === 'admin' && selectedSupplierId ? { supplierId: selectedSupplierId } : {}),
+        // Always include isMarketerPriceManuallyAdjusted for admin
+        ...(isAdmin ? { isMarketerPriceManuallyAdjusted: isMarketerPriceManuallyAdjusted } : {})
       };
+
+      console.log('Sending product data:', {
+        isMarketerPriceManuallyAdjusted,
+        isAdmin,
+        productData: { ...productData, isMarketerPriceManuallyAdjusted: isAdmin ? isMarketerPriceManuallyAdjusted : undefined }
+      });
 
       const response = await fetch(`/api/products/${params.id}`, {
         method: 'PUT',
@@ -930,7 +981,7 @@ export default function EditProductPage() {
     } finally {
       setSaving(false);
     }
-  }, [hasVariants, images, variantOptions, user?.role, router, params.id, tags, specifications, selectedSupplierId, product?.isActive, product?.isApproved, variants]);
+  }, [hasVariants, images, variantOptions, user?.role, router, params.id, tags, specifications, selectedSupplierId, product?.isActive, product?.isApproved, variants, isAdmin, isMarketerPriceManuallyAdjusted]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -995,12 +1046,13 @@ export default function EditProductPage() {
   const minimumSellingPrice = watch('minimumSellingPrice') || 0;
   const isMinimumPriceMandatory = watch('isMinimumPriceMandatory') || false;
   
-  // State to track if marketerPrice is auto-calculated
-  const [isMarketerPriceAutoCalculated, setIsMarketerPriceAutoCalculated] = useState(false);
-  const [adminProfitMargin, setAdminProfitMargin] = useState<number | null>(null);
-  
   // Calculate marketerPrice from supplierPrice when supplierPrice changes
   useEffect(() => {
+    // Don't auto-calculate if manually adjusted by admin
+    if (isMarketerPriceManuallyAdjusted && isAdmin) {
+      return;
+    }
+    
     if (supplierPrice > 0) {
       const calculateMarketerPrice = async () => {
         try {
@@ -1064,7 +1116,7 @@ export default function EditProductPage() {
       setIsMarketerPriceAutoCalculated(false);
       setAdminProfitMargin(null);
     }
-  }, [supplierPrice, setValue, getValues]);
+  }, [supplierPrice, setValue, getValues, isMarketerPriceManuallyAdjusted, isAdmin]);
 
   const progress = calculateProgress();
   const stats = useMemo(() => calculateStatistics(), [calculateStatistics]);
@@ -1682,26 +1734,60 @@ export default function EditProductPage() {
                       {errors.supplierPrice.message}
                     </p>
                   )}
-                  {supplierPrice > 0 && adminProfitMargin !== null && (
-                    <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800">
-                      <p className="text-xs text-blue-700 dark:text-blue-300 font-medium">
-                        💡 سيتم حساب سعر المسوق تلقائياً
-                      </p>
-                      <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                        نسبة ربح الإدارة: {adminProfitMargin}%
-                      </p>
-                      <p className="text-xs text-blue-600 dark:text-blue-400">
-                        ربح الإدارة: {((supplierPrice * adminProfitMargin) / 100).toFixed(2)} ₪
-                      </p>
-                    </div>
-                  )}
                 </div>
                 
                 <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2">
-                    <span className="text-gray-400 dark:text-gray-500 mr-1">(محسوب تلقائياً)</span>
-                    سعر المسوق
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {isMarketerPriceManuallyAdjusted && isAdmin && (
+                        <span className="text-orange-600 dark:text-orange-400 mr-1">(معدل يدوياً)</span>
+                      )}
+                      سعر المسوق
+                    </label>
+                    {isAdmin && (
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={isMarketerPriceManuallyAdjusted}
+                          onChange={(e) => {
+                            setIsMarketerPriceManuallyAdjusted(e.target.checked);
+                            if (!e.target.checked) {
+                              // Reset to auto-calculation
+                              setIsMarketerPriceAutoCalculated(true);
+                              // Recalculate if supplierPrice exists
+                              if (supplierPrice > 0) {
+                                const calculateMarketerPrice = async () => {
+                                  try {
+                                    const response = await fetch('/api/settings');
+                                    const data = await response.json();
+                                    if (data.success && data.settings?.adminProfitMargins) {
+                                      const margins = data.settings.adminProfitMargins;
+                                      const sortedMargins = [...margins].sort((a: any, b: any) => a.minPrice - b.minPrice);
+                                      let margin = 5;
+                                      for (const m of sortedMargins) {
+                                        if (supplierPrice >= m.minPrice && supplierPrice <= m.maxPrice) {
+                                          margin = m.margin;
+                                          break;
+                                        }
+                                      }
+                                      const adminProfit = (supplierPrice * margin) / 100;
+                                      const calculatedMarketerPrice = supplierPrice + adminProfit;
+                                      setValue('marketerPrice', Number(calculatedMarketerPrice.toFixed(2)), { shouldDirty: true });
+                                    }
+                                  } catch (error) {
+                                    console.error('Error calculating marketer price:', error);
+                                  }
+                                };
+                                calculateMarketerPrice();
+                              }
+                            }
+                          }}
+                          className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+                        />
+                        <span className="text-xs text-gray-600 dark:text-gray-400">تعديل يدوي</span>
+                      </label>
+                    )}
+                  </div>
                   <div className="relative">
                     <input
                       type="number"
@@ -1709,26 +1795,40 @@ export default function EditProductPage() {
                       min="0.01"
                       {...register('marketerPrice', { 
                         valueAsNumber: true,
-                        required: false
+                        required: false,
+                        validate: (value) => {
+                          if (value && supplierPrice && value <= supplierPrice) {
+                            return 'سعر المسوق يجب أن يكون أكبر من سعر المورد';
+                          }
+                          return true;
+                        }
                       })}
-                      readOnly={isMarketerPriceAutoCalculated && supplierPrice > 0}
+                      readOnly={isMarketerPriceAutoCalculated && supplierPrice > 0 && !isMarketerPriceManuallyAdjusted}
                       className={`input-field text-sm sm:text-base pr-8 min-h-[44px] ${
-                        isMarketerPriceAutoCalculated && supplierPrice > 0
+                        isMarketerPriceAutoCalculated && supplierPrice > 0 && !isMarketerPriceManuallyAdjusted
                           ? 'bg-gray-50 dark:bg-gray-800 cursor-not-allowed' : ''
+                      } ${
+                        isMarketerPriceManuallyAdjusted && isAdmin
+                          ? 'border-orange-500 dark:border-orange-500 focus:ring-orange-500' : ''
                       } ${
                         errors.marketerPrice || (wholesalerPrice && marketerPrice <= wholesalerPrice && marketerPrice > 0) 
                           ? 'border-red-500 dark:border-red-500 focus:ring-red-500' : 
-                          marketerPrice > 0 && (!wholesalerPrice || marketerPrice > wholesalerPrice) 
+                          marketerPrice > 0 && (!wholesalerPrice || marketerPrice > wholesalerPrice) && !isMarketerPriceManuallyAdjusted
                             ? 'border-green-500 dark:border-green-500' : ''
                       }`}
                       placeholder="سيتم الحساب تلقائياً"
-                      title={isMarketerPriceAutoCalculated && supplierPrice > 0 ? "يمكنك التعديل يدوياً إذا أردت" : ""}
+                      title={isMarketerPriceAutoCalculated && supplierPrice > 0 && !isMarketerPriceManuallyAdjusted ? "يمكنك التعديل يدوياً إذا أردت" : ""}
                     />
                     <span className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400 text-sm sm:text-base">₪</span>
                   </div>
-                  {isMarketerPriceAutoCalculated && supplierPrice > 0 && (
+                  {isMarketerPriceAutoCalculated && supplierPrice > 0 && !isMarketerPriceManuallyAdjusted && (
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                       💡 يمكنك التعديل يدوياً إذا أردت تغيير القيمة المحسوبة
+                    </p>
+                  )}
+                  {isMarketerPriceManuallyAdjusted && isAdmin && (
+                    <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                      ⚠️ تم تفعيل التعديل اليدوي - لن يتم إعادة حساب السعر تلقائياً
                     </p>
                   )}
                   {errors.marketerPrice && (
@@ -1742,24 +1842,6 @@ export default function EditProductPage() {
                       <AlertCircle className="w-3 h-3" />
                       يجب أن يكون سعر المسوق أكبر من سعر الجملة
                     </p>
-                  )}
-                  {supplierPrice > 0 && marketerPrice > 0 && adminProfitMargin !== null && (
-                    <div className="mt-2 space-y-1">
-                      {isMarketerPriceAutoCalculated && (
-                        <p className="text-xs text-green-600 dark:text-green-400 font-medium flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3" />
-                          محسوب تلقائياً
-                        </p>
-                      )}
-                      <div className="p-2 bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
-                        <p className="text-xs text-gray-600 dark:text-gray-400">
-                          <span className="font-medium">الحساب:</span> {supplierPrice.toFixed(2)} + ({supplierPrice.toFixed(2)} × {adminProfitMargin}%) = {supplierPrice.toFixed(2)} + {((supplierPrice * adminProfitMargin) / 100).toFixed(2)} = {marketerPrice.toFixed(2)} ₪
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                          ربح الإدارة: {((supplierPrice * adminProfitMargin) / 100).toFixed(2)} ₪ ({adminProfitMargin}% من {supplierPrice.toFixed(2)})
-                        </p>
-                      </div>
-                    </div>
                   )}
                 </div>
               </div>

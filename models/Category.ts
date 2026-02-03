@@ -46,8 +46,7 @@ const categorySchema = new Schema<CategoryDocument>({
     default: 0
   },
   slug: {
-    type: String,
-    sparse: true
+    type: String
   } as any,
   metaTitle: {
     type: String,

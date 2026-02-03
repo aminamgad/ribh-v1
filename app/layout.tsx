@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import './arabic-fonts.css';
@@ -16,12 +16,16 @@ import ImageCacheInitializer from '@/components/ImageCacheInitializer';
 
 const inter = Inter({ subsets: ['latin'] });
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+};
+
 export const metadata: Metadata = {
   title: 'ربح - منصة التجارة الإلكترونية الذكية',
   description: 'منصة ربح (Ribh) - نظام تجارة إلكترونية متعدد الأدوار يربط الموردين والمسوقين وتجار الجملة',
   keywords: 'تجارة إلكترونية, منصة ربح, موردين, مسوقين, تجار جملة, مصر',
   authors: [{ name: 'Ribh Team' }],
-  viewport: 'width=device-width, initial-scale=1',
   robots: 'index, follow',
   icons: {
     icon: '/favicon.ico',
@@ -48,7 +52,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ar" dir="rtl" className="bg-gray-50 dark:bg-[#282828]">
+    <html lang="ar" dir="rtl" className="bg-gray-50 dark:bg-[#282828]" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

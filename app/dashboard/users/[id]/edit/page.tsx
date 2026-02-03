@@ -138,18 +138,6 @@ export default function EditUserPage() {
 
   const watchedValues = watch();
 
-  useEffect(() => {
-    if (currentUser?.role !== 'admin') {
-      toast.error('غير مصرح لك بالوصول لهذه الصفحة');
-      router.push('/dashboard');
-      return;
-    }
-    
-    if (params.id) {
-      fetchUser();
-    }
-  }, [params.id, currentUser]);
-
   const fetchUser = useCallback(async () => {
     try {
       const response = await fetch(`/api/admin/users/${params.id}`);

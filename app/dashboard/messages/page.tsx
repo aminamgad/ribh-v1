@@ -93,9 +93,9 @@ export default function MessagesPage() {
   }, [refresh]);
 
   // Keep fetchConversations for backward compatibility and polling
-  const fetchConversations = async () => {
+  const fetchConversations = useCallback(async () => {
     refresh();
-  };
+  }, [refresh]);
 
   const fetchMessages = useCallback(async () => {
     if (!selectedConversation) return;

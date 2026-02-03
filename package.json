@@ -12,7 +12,8 @@
     "import:db": "node scripts/import-database.js",
     "deploy:prepare": "node scripts/deploy-to-cpanel.js",
     "test:shipping": "node scripts/test-shipping-api.js",
-    "test:sku": "node scripts/test-sku-generator.js"
+    "test:sku": "node scripts/test-sku-generator.js",
+    "delete:products": "node scripts/delete-products.js"
   },
   "keywords": [
     "ecommerce",

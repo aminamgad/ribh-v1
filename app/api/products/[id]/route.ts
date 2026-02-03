@@ -142,6 +142,7 @@ async function getProduct(req: NextRequest, user: any, ...args: unknown[]) {
       rejectedAt: product.rejectedAt,
       rejectedBy: product.rejectedBy,
       isFulfilled: product.isFulfilled,
+      isMarketerPriceManuallyAdjusted: product.isMarketerPriceManuallyAdjusted || false,
       categoryName: product.categoryId?.name,
       supplierId: product.supplierId,
       sku: product.sku,
@@ -232,9 +233,9 @@ async function updateProduct(req: NextRequest, user: any, ...args: unknown[]) {
       allowedUpdates.push('isRejected', 'rejectionReason', 'rejectedAt', 'rejectedBy');
     }
     
-    // For admins, allow approval/rejection fields
+    // For admins, allow approval/rejection fields and manual marketer price adjustment
     if (user.role === 'admin') {
-      allowedUpdates.push('isApproved', 'isRejected', 'rejectionReason', 'adminNotes', 'approvedAt', 'approvedBy', 'rejectedAt', 'rejectedBy');
+      allowedUpdates.push('isApproved', 'isRejected', 'rejectionReason', 'adminNotes', 'approvedAt', 'approvedBy', 'rejectedAt', 'rejectedBy', 'isMarketerPriceManuallyAdjusted');
     }
     
     const updateData: any = {};
@@ -243,6 +244,14 @@ async function updateProduct(req: NextRequest, user: any, ...args: unknown[]) {
     if (user.role === 'supplier' && body.supplierId !== undefined) {
       return NextResponse.json(
         { success: false, message: 'غير مصرح لك بتغيير مورد المنتج' },
+        { status: 403 }
+      );
+    }
+    
+    // Prevent non-admin users from manually adjusting marketer price
+    if (body.isMarketerPriceManuallyAdjusted !== undefined && user.role !== 'admin') {
+      return NextResponse.json(
+        { success: false, message: 'غير مصرح لك بتعديل سعر المسوق يدوياً' },
         { status: 403 }
       );
     }
@@ -259,17 +268,101 @@ async function updateProduct(req: NextRequest, user: any, ...args: unknown[]) {
       }
     }
     
-    // Calculate marketerPrice from supplierPrice if supplierPrice is updated
-    if (updateData.supplierPrice !== undefined && updateData.supplierPrice > 0) {
+    // Log for debugging
+    logger.debug('Product update data', {
+      productId: params.id,
+      hasIsMarketerPriceManuallyAdjusted: 'isMarketerPriceManuallyAdjusted' in body,
+      isMarketerPriceManuallyAdjusted: body.isMarketerPriceManuallyAdjusted,
+      updateDataHasFlag: 'isMarketerPriceManuallyAdjusted' in updateData,
+      updateDataFlag: updateData.isMarketerPriceManuallyAdjusted,
+      userRole: user.role
+    });
+    
+    // Handle marketerPrice manual adjustment by admin
+    const isManualAdjustment = body.isMarketerPriceManuallyAdjusted === true && user.role === 'admin';
+    let shouldRecalculateMarketerPrice = !existingProduct.isMarketerPriceManuallyAdjusted && !isManualAdjustment;
+    
+    // If admin explicitly sets isMarketerPriceManuallyAdjusted (true or false)
+    if (user.role === 'admin' && 'isMarketerPriceManuallyAdjusted' in body) {
+      const manualAdjustmentValue = body.isMarketerPriceManuallyAdjusted === true;
+      
+      if (manualAdjustmentValue) {
+        // If marketerPrice is also being updated, validate it
+        if (updateData.marketerPrice !== undefined) {
+          const finalSupplierPrice = updateData.supplierPrice !== undefined ? updateData.supplierPrice : existingProduct.supplierPrice;
+          
+          // Validation: marketerPrice must be greater than supplierPrice
+          if (updateData.marketerPrice <= finalSupplierPrice) {
+            return NextResponse.json(
+              { success: false, message: 'سعر المسوق يجب أن يكون أكبر من سعر المورد' },
+              { status: 400 }
+            );
+          }
+        }
+        
+        // Set the flag to true
+        updateData.isMarketerPriceManuallyAdjusted = true;
+        shouldRecalculateMarketerPrice = false;
+        logger.debug('Admin enabled manual marketerPrice adjustment', {
+          productId: params.id,
+          marketerPrice: updateData.marketerPrice || existingProduct.marketerPrice
+        });
+      } else {
+        // Admin wants to reset to auto-calculation
+        updateData.isMarketerPriceManuallyAdjusted = false;
+        shouldRecalculateMarketerPrice = true;
+        logger.debug('Admin disabled manual marketerPrice adjustment', {
+          productId: params.id
+        });
+      }
+    } else if (updateData.marketerPrice !== undefined && user.role === 'admin') {
+      // Admin is updating marketerPrice - check if it's different from auto-calculated value
+      const finalSupplierPrice = updateData.supplierPrice !== undefined ? updateData.supplierPrice : existingProduct.supplierPrice;
+      
+      // Validation: marketerPrice must be greater than supplierPrice
+      if (updateData.marketerPrice <= finalSupplierPrice) {
+        return NextResponse.json(
+          { success: false, message: 'سعر المسوق يجب أن يكون أكبر من سعر المورد' },
+          { status: 400 }
+        );
+      }
+      
+      // Calculate what the auto-calculated marketerPrice would be
+      const autoCalculatedMarketerPrice = await settingsManager.calculateMarketerPriceFromSupplierPrice(finalSupplierPrice);
+      const priceDifference = Math.abs(updateData.marketerPrice - autoCalculatedMarketerPrice);
+      
+      // If the marketerPrice is different from auto-calculated (more than 0.01 difference), 
+      // it means admin manually adjusted it, so set the flag
+      if (priceDifference > 0.01) {
+        updateData.isMarketerPriceManuallyAdjusted = true;
+        shouldRecalculateMarketerPrice = false;
+        logger.debug('Admin manually adjusted marketerPrice (detected from price difference)', {
+          productId: params.id,
+          supplierPrice: finalSupplierPrice,
+          autoCalculatedPrice: autoCalculatedMarketerPrice,
+          manualPrice: updateData.marketerPrice,
+          difference: priceDifference
+        });
+      } else if (existingProduct.isMarketerPriceManuallyAdjusted) {
+        // If it matches auto-calculated but was manually adjusted before, keep the flag
+        // (admin might have adjusted it to match the calculated value)
+        updateData.isMarketerPriceManuallyAdjusted = true;
+        shouldRecalculateMarketerPrice = false;
+      }
+    }
+    
+    // Calculate marketerPrice from supplierPrice if supplierPrice is updated and not manually adjusted
+    if (updateData.supplierPrice !== undefined && updateData.supplierPrice > 0 && shouldRecalculateMarketerPrice) {
       // If marketerPrice is not explicitly provided, calculate it from supplierPrice
       if (updateData.marketerPrice === undefined || updateData.marketerPrice <= 0) {
         updateData.marketerPrice = await settingsManager.calculateMarketerPriceFromSupplierPrice(updateData.supplierPrice);
+        updateData.isMarketerPriceManuallyAdjusted = false;
         logger.debug('Calculated marketerPrice from supplierPrice during update', {
           supplierPrice: updateData.supplierPrice,
           marketerPrice: updateData.marketerPrice
         });
       }
-    } else if (updateData.marketerPrice !== undefined && updateData.marketerPrice > 0) {
+    } else if (updateData.marketerPrice !== undefined && updateData.marketerPrice > 0 && shouldRecalculateMarketerPrice) {
       // If only marketerPrice is updated but supplierPrice exists, we might want to recalculate
       // For now, we'll keep the existing supplierPrice if it exists
       const currentSupplierPrice = existingProduct.supplierPrice || updateData.supplierPrice;

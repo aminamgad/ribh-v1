@@ -222,7 +222,7 @@ export default function OrdersFilters({ onFiltersChange }: OrdersFiltersProps) {
       // This ensures cacheKey updates immediately and data refreshes right away
       window.dispatchEvent(new CustomEvent('urlchange', { detail: { query: queryString } }));
     }
-  }, [pathname]); // customerSearch, orderNumberSearch, productSearch, startDate, endDate, filterStatus are accessed via refs
+  }, [pathname, startDate, endDate, filterStatus]); // customerSearch, orderNumberSearch, productSearch are accessed via refs
   
   // Ref to track current filterStatus for immediate access in onChange handlers
   const filterStatusRef = useRef(filterStatus);

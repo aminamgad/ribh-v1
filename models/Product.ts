@@ -118,6 +118,10 @@ const productSchema = new Schema<ProductDocument>({
     type: Boolean,
     default: false
   },
+  isMarketerPriceManuallyAdjusted: {
+    type: Boolean,
+    default: false
+  },
   tags: [{
     type: String,
     trim: true,

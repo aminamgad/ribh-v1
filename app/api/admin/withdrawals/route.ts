@@ -35,39 +35,148 @@ async function getAdminWithdrawalsHandler(req: NextRequest, user: any) {
       .skip(skip)
       .limit(limit);
     
+    // Get wallet info for each user
+    const userIds: any[] = [];
+    withdrawalRequests.forEach(req => {
+      try {
+        const userId = req.userId;
+        // Handle both populated and non-populated userId
+        if (userId) {
+          if (typeof userId === 'object' && '_id' in userId) {
+            userIds.push((userId as any)._id);
+          } else {
+            userIds.push(userId);
+          }
+        }
+      } catch (error) {
+        logger.warn('Error extracting userId from withdrawal request', { error, requestId: req._id });
+      }
+    });
+    
+    const wallets = userIds.length > 0 
+      ? await Wallet.find({ userId: { $in: userIds } }).lean()
+      : [];
+    const walletMap = new Map(wallets.map((w: any) => [w.userId.toString(), w]));
+    
     // Get total count
     const total = await WithdrawalRequest.countDocuments(query);
     
-    logger.debug('Withdrawal requests found', { count: withdrawalRequests.length, total, status });
+    // Get statistics for all statuses
+    const stats = await WithdrawalRequest.aggregate([
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+    
+    const statistics = {
+      pending: 0,
+      approved: 0,
+      rejected: 0,
+      completed: 0,
+      total: await WithdrawalRequest.countDocuments({})
+    };
+    
+    stats.forEach((stat: any) => {
+      if (stat._id in statistics) {
+        statistics[stat._id as keyof typeof statistics] = stat.count;
+      }
+    });
+    
+    logger.debug('Withdrawal requests found', { count: withdrawalRequests.length, total, status, statistics });
     
     logger.apiResponse('GET', '/api/admin/withdrawals', 200);
     
     return NextResponse.json({
       success: true,
-      withdrawals: withdrawalRequests.map(req => ({
-        _id: req._id,
-        userId: req.userId,
-        walletNumber: req.walletNumber,
-        amount: req.amount,
-        status: req.status,
-        requestDate: req.requestDate,
-        processedDate: req.processedDate,
-        notes: req.notes,
-        rejectionReason: req.rejectionReason,
-        processedBy: req.processedBy ? req.processedBy.name : null,
-        user: {
-          name: req.userId.name,
-          email: req.userId.email,
-          phone: req.userId.phone,
-          role: req.userId.role
+      withdrawals: withdrawalRequests.map(req => {
+        try {
+          // Extract userId safely
+          const userIdObj = req.userId;
+          let userId: any = null;
+          if (userIdObj) {
+            if (typeof userIdObj === 'object' && '_id' in userIdObj) {
+              userId = (userIdObj as any)._id;
+            } else {
+              userId = userIdObj;
+            }
+          }
+          
+          // Get wallet info
+          const wallet = userId ? walletMap.get(userId.toString()) : null;
+          const balance = wallet?.balance || 0;
+          const pendingWithdrawals = wallet?.pendingWithdrawals || 0;
+          const availableBalance = Math.max(0, balance - pendingWithdrawals);
+          
+          // Extract user info safely
+          const userInfo = userIdObj && typeof userIdObj === 'object' && 'name' in userIdObj
+            ? userIdObj as any
+            : null;
+          
+          return {
+            _id: req._id?.toString() || '',
+            userId: userId ? userId.toString() : null,
+            user: {
+              _id: userId ? userId.toString() : null,
+              name: userInfo?.name || '',
+              email: userInfo?.email || '',
+              phone: userInfo?.phone || '',
+              role: userInfo?.role || ''
+            },
+            walletNumber: req.walletNumber || '',
+            amount: req.amount || 0,
+            status: req.status || 'pending',
+            requestDate: req.requestDate ? new Date(req.requestDate).toISOString() : new Date().toISOString(),
+            processedDate: req.processedDate ? new Date(req.processedDate).toISOString() : undefined,
+            notes: req.notes || undefined,
+            rejectionReason: req.rejectionReason || undefined,
+            processedBy: req.processedBy && typeof req.processedBy === 'object' && 'name' in req.processedBy
+              ? (req.processedBy as any).name
+              : null,
+            walletInfo: {
+              balance,
+              pendingWithdrawals,
+              availableBalance
+            }
+          };
+        } catch (error) {
+          logger.error('Error processing withdrawal request', { error, requestId: req._id });
+          // Return minimal safe data
+          return {
+            _id: req._id?.toString() || '',
+            userId: null,
+            user: {
+              _id: null,
+              name: '',
+              email: '',
+              phone: '',
+              role: ''
+            },
+            walletNumber: req.walletNumber || '',
+            amount: req.amount || 0,
+            status: req.status || 'pending',
+            requestDate: req.requestDate ? new Date(req.requestDate).toISOString() : new Date().toISOString(),
+            processedDate: req.processedDate ? new Date(req.processedDate).toISOString() : undefined,
+            notes: req.notes || undefined,
+            rejectionReason: req.rejectionReason || undefined,
+            processedBy: null,
+            walletInfo: {
+              balance: 0,
+              pendingWithdrawals: 0,
+              availableBalance: 0
+            }
+          };
         }
-      })),
+      }),
       pagination: {
         page,
         limit,
         total,
         pages: Math.ceil(total / limit)
-      }
+      },
+      statistics
     });
     
   } catch (error) {
@@ -200,39 +309,103 @@ async function updateAdminWithdrawalHandler(req: NextRequest, user: any) {
       logger.info('Completing withdrawal request and finalizing transaction', {
         requestId: id,
         userId: withdrawalRequest.userId._id.toString(),
-        amount: withdrawalRequest.amount
+        amount: withdrawalRequest.amount,
+        previousStatus: withdrawalRequest.status
       });
       
+      const oldBalance = wallet.balance;
       const oldPendingWithdrawals = wallet.pendingWithdrawals || 0;
       const oldTotalWithdrawals = wallet.totalWithdrawals || 0;
+      const previousStatus = withdrawalRequest.status;
       
-      // Verify pending withdrawal exists
-      if (oldPendingWithdrawals < withdrawalRequest.amount) {
-        logger.warn('Pending withdrawals mismatch', {
-          pendingWithdrawals: oldPendingWithdrawals,
-          withdrawalAmount: withdrawalRequest.amount,
+      // If completing from pending (not approved), we need to deduct from balance
+      // If completing from approved, balance was already deducted, just move from pending
+      if (previousStatus === 'pending') {
+        // Check if user has sufficient available balance
+        const availableBalance = Math.max(0, (wallet.balance || 0) - (wallet.pendingWithdrawals || 0));
+        if (availableBalance < withdrawalRequest.amount) {
+          return NextResponse.json(
+            { 
+              success: false, 
+              message: `الرصيد المتاح غير كافي. المتاح: ${availableBalance}₪` 
+            },
+            { status: 400 }
+          );
+        }
+        
+        // Deduct from balance (amount is being withdrawn)
+        wallet.balance = wallet.balance - withdrawalRequest.amount;
+        // Add to total withdrawals (no pending withdrawal was created)
+        wallet.totalWithdrawals = (wallet.totalWithdrawals || 0) + withdrawalRequest.amount;
+        
+        logger.info('Deducting amount from balance for pending withdrawal completion', {
+          oldBalance,
+          newBalance: wallet.balance,
+          amount: withdrawalRequest.amount,
+          oldTotalWithdrawals,
+          newTotalWithdrawals: wallet.totalWithdrawals
+        });
+      } else if (previousStatus === 'approved') {
+        // Balance was already deducted when approved, just verify pending withdrawal exists
+        if (oldPendingWithdrawals < withdrawalRequest.amount) {
+          logger.warn('Pending withdrawals mismatch', {
+            pendingWithdrawals: oldPendingWithdrawals,
+            withdrawalAmount: withdrawalRequest.amount,
+            withdrawalRequestId: withdrawalRequest._id.toString()
+          });
+        }
+        
+        // Move from pending to completed (reduce pending, add to total)
+        wallet.pendingWithdrawals = Math.max(0, (wallet.pendingWithdrawals || 0) - withdrawalRequest.amount);
+        wallet.totalWithdrawals = (wallet.totalWithdrawals || 0) + withdrawalRequest.amount;
+        
+        logger.info('Moving approved withdrawal from pending to completed', {
+          oldPendingWithdrawals,
+          newPendingWithdrawals: wallet.pendingWithdrawals,
+          oldTotalWithdrawals,
+          newTotalWithdrawals: wallet.totalWithdrawals,
+          amount: withdrawalRequest.amount
+        });
+      }
+      
+      // Update canWithdraw flag
+      const newAvailableBalance = Math.max(0, wallet.balance - wallet.pendingWithdrawals);
+      wallet.canWithdraw = newAvailableBalance >= (wallet.minimumWithdrawal || 100);
+      
+      await wallet.save();
+      
+      // Add transaction record
+      try {
+        await wallet.addTransaction(
+          'debit',
+          withdrawalRequest.amount,
+          `طلب سحب مكتمل وتحويل المبلغ: ${withdrawalRequest.amount}₪`,
+          `withdrawal_completed_${withdrawalRequest._id}`,
+          {
+            withdrawalRequestId: withdrawalRequest._id.toString(),
+            status: 'completed',
+            previousStatus,
+            totalWithdrawals: wallet.totalWithdrawals
+          }
+        );
+      } catch (txError) {
+        logger.warn('Failed to create transaction record for completed withdrawal', {
+          error: txError,
           withdrawalRequestId: withdrawalRequest._id.toString()
         });
       }
       
-      // Move from pending to completed
-      wallet.pendingWithdrawals = Math.max(0, (wallet.pendingWithdrawals || 0) - withdrawalRequest.amount);
-      wallet.totalWithdrawals = (wallet.totalWithdrawals || 0) + withdrawalRequest.amount;
-      
-      // Update canWithdraw flag
-      const availableBalance = Math.max(0, wallet.balance - wallet.pendingWithdrawals);
-      wallet.canWithdraw = availableBalance >= (wallet.minimumWithdrawal || 100);
-      
-      await wallet.save();
-      
       logger.business('Wallet balance updated after withdrawal completion', {
         userId: withdrawalRequest.userId._id.toString(),
+        previousStatus,
+        oldBalance,
+        newBalance: wallet.balance,
         oldPendingWithdrawals,
         newPendingWithdrawals: wallet.pendingWithdrawals,
         oldTotalWithdrawals,
         newTotalWithdrawals: wallet.totalWithdrawals,
         completedAmount: withdrawalRequest.amount,
-        availableBalance
+        availableBalance: newAvailableBalance
       });
       
     } else if (status === 'rejected' && withdrawalRequest.status === 'approved') {

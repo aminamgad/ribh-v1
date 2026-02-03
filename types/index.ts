@@ -152,6 +152,7 @@ export interface Product {
   rejectedAt?: Date;
   rejectedBy?: string;
   isFulfilled: boolean; // stored in Ribh warehouse
+  isMarketerPriceManuallyAdjusted?: boolean; // Track if marketerPrice was manually adjusted by admin
   tags: string[];
   specifications?: Record<string, string | number | boolean>;
   sku?: string;

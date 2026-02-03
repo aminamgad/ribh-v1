@@ -51,7 +51,7 @@ export default function MediaUpload({
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
   // Function to upload large files directly to Cloudinary
-  const uploadToCloudinaryDirect = async (file: File): Promise<{ success: boolean; url?: string; error?: string }> => {
+  const uploadToCloudinaryDirect = useCallback(async (file: File): Promise<{ success: boolean; url?: string; error?: string }> => {
     try {
       // Generate public_id first
       const public_id = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -114,11 +114,11 @@ export default function MediaUpload({
       const errorMessage = error instanceof Error ? error.message : 'Upload failed';
       return { success: false, error: errorMessage };
     }
-  };
+  }, []);
 
 
 
-  const handleFileUpload = async (files: FileList) => {
+  const handleFileUpload = useCallback(async (files: FileList) => {
     if (files.length === 0) return;
 
 
@@ -250,7 +250,7 @@ export default function MediaUpload({
       setUploading(false);
       setUploadProgress({});
     }
-  };
+  }, [accept, maxSize, uploadedMedia, maxFiles, setUploading, onUpload, uploadToCloudinaryDirect]);
 
   const handleDragOverArea = useCallback((e: React.DragEvent) => {
     e.preventDefault();

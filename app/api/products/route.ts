@@ -803,7 +803,7 @@ async function createProduct(req: NextRequest, user: any) {
         { status: 500 }
       );
     }
-
+    
     const product = await Product.create(productData);
     
     logger.business('Product created', {

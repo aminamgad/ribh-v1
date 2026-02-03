@@ -51,6 +51,7 @@ interface Product {
   wholesalerPrice: number;
   minimumSellingPrice?: number;
   isMinimumPriceMandatory?: boolean;
+  isMarketerPriceManuallyAdjusted?: boolean;
   stockQuantity: number;
   isActive: boolean;
   isApproved: boolean;
@@ -924,14 +925,14 @@ export default function ProductDetailPage() {
                       <p className="text-xl font-bold text-gray-900 dark:text-gray-100">
                         {new Intl.NumberFormat('en-US').format(product.supplierPrice || 0)} ₪
                       </p>
-                      {product.supplierPrice && product.marketerPrice && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          ربح الإدارة: {((product.marketerPrice - product.supplierPrice) / product.supplierPrice * 100).toFixed(1)}%
-                        </p>
-                      )}
                     </div>
                     <div className="text-center p-3 rounded-lg bg-gray-50 dark:bg-slate-700">
-                      <p className="text-sm text-gray-600 dark:text-slate-400">سعر المسوق (الأساسي)</p>
+                      <p className="text-sm text-gray-600 dark:text-slate-400">
+                        سعر المسوق (الأساسي)
+                        {product.isMarketerPriceManuallyAdjusted && (
+                          <span className="mr-1 text-xs text-orange-600 dark:text-orange-400">(معدل يدوياً)</span>
+                        )}
+                      </p>
                       <p className={`text-xl font-bold ${
                         product.isMinimumPriceMandatory && product.minimumSellingPrice
                           ? 'text-orange-600 dark:text-orange-400'
@@ -946,6 +947,51 @@ export default function ProductDetailPage() {
                       )}
                     </div>
                   </div>
+                  {/* Admin Profit Display - Only for Admin */}
+                  {user?.role === 'admin' && product.supplierPrice && product.marketerPrice && (
+                    <div className={`mt-4 p-4 rounded-lg border-2 ${
+                      product.isMarketerPriceManuallyAdjusted
+                        ? 'bg-orange-50 dark:bg-orange-900/20 border-orange-300 dark:border-orange-700'
+                        : 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className={`text-sm font-semibold ${
+                            product.isMarketerPriceManuallyAdjusted
+                              ? 'text-orange-700 dark:text-orange-300'
+                              : 'text-green-700 dark:text-green-300'
+                          }`}>
+                            {product.isMarketerPriceManuallyAdjusted ? '💰 ربح الإدارة (يدوي)' : '💰 ربح الإدارة'}
+                          </p>
+                          <p className={`text-2xl font-bold mt-1 ${
+                            product.isMarketerPriceManuallyAdjusted
+                              ? 'text-orange-600 dark:text-orange-400'
+                              : 'text-green-600 dark:text-green-400'
+                          }`}>
+                            {new Intl.NumberFormat('en-US').format(product.marketerPrice - product.supplierPrice)} ₪
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className={`text-xs ${
+                            product.isMarketerPriceManuallyAdjusted
+                              ? 'text-orange-600 dark:text-orange-400'
+                              : 'text-green-600 dark:text-green-400'
+                          }`}>
+                            {((product.marketerPrice - product.supplierPrice) / product.supplierPrice * 100).toFixed(1)}%
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            من سعر المورد
+                          </p>
+                        </div>
+                      </div>
+                      {product.isMarketerPriceManuallyAdjusted && (
+                        <p className="text-xs text-orange-600 dark:text-orange-400 mt-2 flex items-center gap-1">
+                          <span>⚠️</span>
+                          تم تعديل سعر المسوق يدوياً لزيادة ربح الإدارة
+                        </p>
+                      )}
+                    </div>
+                  )}
                   {product.wholesalerPrice && (
                     <div className="text-center p-3 bg-gray-50 dark:bg-slate-700 rounded-lg mb-4">
                       <p className="text-sm text-gray-600 dark:text-slate-400">سعر الجملة (للتجار)</p>

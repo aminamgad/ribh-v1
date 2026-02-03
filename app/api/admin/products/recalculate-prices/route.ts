@@ -20,8 +20,19 @@ export const POST = withRole(['admin'])(async (req: NextRequest, user: any) => {
     let errorCount = 0;
     
     // Recalculate prices for each product
+    let skippedCount = 0;
     for (const product of products) {
       try {
+        // Skip products with manually adjusted marketer price
+        if ((product as any).isMarketerPriceManuallyAdjusted === true) {
+          logger.debug('Skipping product with manually adjusted marketer price', {
+            productId: product._id,
+            productName: (product as any).name
+          });
+          skippedCount++;
+          continue;
+        }
+        
         const currentSupplierPrice = (product as any).supplierPrice;
         const currentMarketerPrice = (product as any).marketerPrice;
         
@@ -116,15 +127,17 @@ export const POST = withRole(['admin'])(async (req: NextRequest, user: any) => {
       userId: user._id,
       totalProducts: products.length,
       updatedCount,
+      skippedCount,
       errorCount
     });
     
     return NextResponse.json({
       success: true,
-      message: `تم إعادة حساب أسعار ${updatedCount} منتج بنجاح`,
+      message: `تم إعادة حساب أسعار ${updatedCount} منتج بنجاح${skippedCount > 0 ? ` (تم تخطي ${skippedCount} منتج معدل يدوياً)` : ''}`,
       stats: {
         total: products.length,
         updated: updatedCount,
+        skipped: skippedCount,
         errors: errorCount
       }
     });

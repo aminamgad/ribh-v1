@@ -344,7 +344,7 @@ export default function AdminUsersPage() {
     }
   });
 
-  const users = usersData?.users || [];
+  const users = useMemo(() => usersData?.users || [], [usersData?.users]);
 
   useEffect(() => {
     if (user?.role !== 'admin') {

@@ -64,10 +64,14 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
+
   // Auto scroll to bottom when new messages
   useEffect(() => {
     scrollToBottom();
-  }, [currentChat?.messages]);
+  }, [currentChat?.messages, scrollToBottom]);
 
   // لا نحدث الرسائل تلقائياً - نترك المستخدم يتحكم في ذلك
   // useEffect(() => {
@@ -103,10 +107,6 @@ export default function ChatPage() {
       // لا نستدعي markAsRead تلقائياً - فقط عند فتح المحادثة يدوياً
     }
   }, [currentChat]);
-
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, []);
 
   const fetchUsers = useCallback(async () => {
     try {
