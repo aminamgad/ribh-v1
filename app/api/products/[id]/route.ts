@@ -414,19 +414,55 @@ async function updateProduct(req: NextRequest, user: any, ...args: unknown[]) {
     }
 
     // Update product
-    const updatedProduct = await Product.findByIdAndUpdate(
-      params.id,
-      updateData,
-      { new: true, runValidators: true }
-    ).populate('categoryId', 'name')
-     .populate('supplierId', 'name companyName');
-
-    if (!updatedProduct) {
-      logger.error('Product not found after update', { productId: params.id });
-      return NextResponse.json(
-        { success: false, message: 'المنتج غير موجود' },
-        { status: 404 }
+    let updatedProduct;
+    try {
+      updatedProduct = await Product.findByIdAndUpdate(
+        params.id,
+        updateData,
+        { new: true, runValidators: true }
       );
+      
+      if (!updatedProduct) {
+        logger.error('Product not found after update', { productId: params.id });
+        return NextResponse.json(
+          { success: false, message: 'المنتج غير موجود' },
+          { status: 404 }
+        );
+      }
+      
+      // Populate fields safely (handle null categoryId)
+      if (updatedProduct.categoryId) {
+        await updatedProduct.populate('categoryId', 'name');
+      }
+      if (updatedProduct.supplierId) {
+        await updatedProduct.populate('supplierId', 'name companyName');
+      }
+    } catch (validationError: any) {
+      // Handle Mongoose validation errors
+      logger.error('Product validation error', validationError, { 
+        productId: params.id, 
+        updateData 
+      });
+      
+      // Extract validation error messages
+      if (validationError.name === 'ValidationError') {
+        const errors = Object.values(validationError.errors || {}).map((err: any) => ({
+          path: err.path,
+          message: err.message
+        }));
+        
+        return NextResponse.json(
+          {
+            success: false,
+            message: 'بيانات المنتج غير صحيحة',
+            errors: errors
+          },
+          { status: 400 }
+        );
+      }
+      
+      // Re-throw if not a validation error
+      throw validationError;
     }
 
     // Invalidate cache for this product and product lists
@@ -448,7 +484,13 @@ async function updateProduct(req: NextRequest, user: any, ...args: unknown[]) {
       product: updatedProduct
     });
   } catch (error) {
-    logger.error('Error updating product', error, { productId: params.id, userId: user._id });
+    logger.error('Error updating product', error, { 
+      productId: params.id, 
+      userId: user._id?.toString(),
+      errorName: error instanceof Error ? error.name : 'Unknown',
+      errorMessage: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined
+    });
     return handleApiError(error, 'حدث خطأ أثناء تحديث المنتج');
   }
 }
