@@ -226,6 +226,15 @@ export interface Order {
   // Profit distribution tracking
   profitsDistributed?: boolean;
   profitsDistributedAt?: Date;
+  /** Easy Orders / external: source, integrationId, easyOrdersOrderId, easyOrdersStoreId */
+  metadata?: {
+    source?: string;
+    integrationId?: string;
+    easyOrdersOrderId?: string;
+    easyOrdersStoreId?: string;
+    easyOrdersStatus?: string;
+    [key: string]: unknown;
+  };
   createdAt: Date;
   updatedAt: Date;
 }

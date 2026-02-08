@@ -81,11 +81,10 @@ export async function convertProductToEasyOrders(
     }
   }
 
-  // Calculate prices
-  // EasyOrders requires supplierPrice, so use it if available, otherwise use marketerPrice
-  // But we should validate supplierPrice before calling this function
-  const price = product.supplierPrice || product.marketerPrice || 0;
-  const salePrice = 0; // Can be calculated based on business logic
+  // Prices shown in Easy Orders store = what the marketer sells at (marketerPrice).
+  // supplierPrice is internal cost; customers must see marketerPrice in the store.
+  const price = Number(product.marketerPrice) || Number(product.supplierPrice) || 0;
+  const salePrice = Number(product.salePrice) || 0;
 
   // Build description (combine description and marketingText)
   const description = [
@@ -104,11 +103,11 @@ export async function convertProductToEasyOrders(
   }
   const thumb = images[0] || '';
 
-  // Build EasyOrders product payload
+  // Build EasyOrders product payload (all fields so product displays correctly in Easy Orders)
   const easyOrdersProduct: any = {
-    name: product.name,
+    name: product.name || '',
     price: price,
-    sale_price: salePrice,
+    sale_price: salePrice > 0 ? salePrice : 0,
     description: description || `<p>${product.name}</p>`,
     slug: slug,
     sku: product.sku || `RIBH-${product._id}`,

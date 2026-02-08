@@ -89,32 +89,40 @@ export const POST = withAuth(async (req: NextRequest, user: any) => {
       verification.recommendations.push('تأكد من أن التكامل تم إنشاؤه بشكل صحيح');
     }
 
-    // Get recent orders (last 7 days)
+    // Get recent orders (last 7 days) — match by integrationId or by storeId (for orders saved with metadata)
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    const recentOrders = await Order.find({
+    const recentOrdersQuery = {
       'metadata.source': 'easy_orders',
-      'metadata.integrationId': String(integration._id),
+      $or: [
+        { 'metadata.integrationId': String(integration._id) },
+        ...(integration.storeId ? [{ 'metadata.easyOrdersStoreId': integration.storeId }] : [])
+      ],
       createdAt: { $gte: sevenDaysAgo }
-    })
-    .select('createdAt')
-    .sort({ createdAt: -1 })
-    .lean();
+    };
+
+    const recentOrders = await Order.find(recentOrdersQuery)
+      .select('createdAt')
+      .sort({ createdAt: -1 })
+      .lean();
 
     verification.recentOrdersCount = recentOrders.length;
 
     if (recentOrders.length > 0) {
       verification.lastOrderDate = recentOrders[0].createdAt;
     } else {
-      // Check if there are any orders at all
-      const anyOrder = await Order.findOne({
+      const anyOrderQuery = {
         'metadata.source': 'easy_orders',
-        'metadata.integrationId': String(integration._id)
-      })
-      .select('createdAt')
-      .sort({ createdAt: -1 })
-      .lean();
+        $or: [
+          { 'metadata.integrationId': String(integration._id) },
+          ...(integration.storeId ? [{ 'metadata.easyOrdersStoreId': integration.storeId }] : [])
+        ]
+      };
+      const anyOrder = await Order.findOne(anyOrderQuery)
+        .select('createdAt')
+        .sort({ createdAt: -1 })
+        .lean();
 
       if (anyOrder) {
         verification.lastOrderDate = (anyOrder as any).createdAt;

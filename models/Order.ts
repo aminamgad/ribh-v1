@@ -266,6 +266,11 @@ const orderSchema = new Schema<OrderDocument>({
   },
   profitsDistributedAt: {
     type: Date
+  },
+  // Easy Orders / external integrations (source, integrationId, easyOrdersOrderId, etc.)
+  metadata: {
+    type: Schema.Types.Mixed,
+    default: undefined
   }
 } as any, {
   timestamps: true,
@@ -295,6 +300,7 @@ orderSchema.index({ 'items.productId': 1 }); // For product order history
 orderSchema.index({ fulfillmentRequestId: 1 }); // For orders by fulfillment request
 orderSchema.index({ status: 1, profitsDistributed: 1 }); // For profit distribution queries
 orderSchema.index({ profitsDistributed: 1, deliveredAt: -1 }); // For pending profits queries
+orderSchema.index({ 'metadata.source': 1, 'metadata.integrationId': 1 }); // Easy Orders verification
 
 // Virtual for order summary
 orderSchema.virtual('itemCount').get(function() {
