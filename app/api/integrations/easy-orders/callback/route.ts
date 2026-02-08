@@ -20,18 +20,17 @@ export const OPTIONS = async (req: NextRequest) => {
 };
 
 // POST /api/integrations/easy-orders/callback - Handle callback from EasyOrders after user accepts
-// EasyOrders sends api_key and store_id here via POST request
+// EasyOrders sends api_key and store_id here. We MUST return 200 quickly (Vercel cold start + DB
+// can cause timeout on their side and show "حدث خطأ ما"). So we only store data and return;
+// the GET (redirect_url) will run completeIntegration when the user is redirected.
 export const POST = async (req: NextRequest) => {
-  try {
-    // Log incoming request for debugging
-    logger.info('EasyOrders POST callback received', {
-      url: req.url,
-      method: req.method,
-      hasBody: !!req.body,
-      origin: req.headers.get('origin'),
-      userAgent: req.headers.get('user-agent')
-    });
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  };
 
+  try {
     const body = await req.json();
     const { api_key, store_id } = body;
 
@@ -39,96 +38,50 @@ export const POST = async (req: NextRequest) => {
       logger.warn('EasyOrders callback missing required fields', { body });
       return NextResponse.json(
         { error: 'Missing required fields: api_key and store_id' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
     await connectDB();
 
-    // Get userId from query params (passed in callback_url)
     const searchParams = req.nextUrl.searchParams;
     const userId = searchParams.get('user_id');
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 min
 
-    if (!userId) {
-      logger.warn('EasyOrders callback missing userId in query params', {
-        url: req.url,
-        hasApiKey: !!api_key,
-        hasStoreId: !!store_id
-      });
-      
-      // Store callback data temporarily for later retrieval
-      // This happens when callback_url doesn't include userId or EasyOrders doesn't preserve query params
-      const callback = await EasyOrdersCallback.create({
+    if (userId && mongoose.Types.ObjectId.isValid(userId)) {
+      await EasyOrdersCallback.create({
         apiKey: api_key,
         storeId: store_id,
-        expiresAt: new Date(Date.now() + 30 * 60 * 1000) // 30 minutes
+        userId: new mongoose.Types.ObjectId(userId),
+        expiresAt,
       });
-
-      logger.info('EasyOrders callback stored temporarily (no userId)', {
-        callbackId: (callback._id as any)?.toString(),
-        storeId: store_id
+      logger.info('EasyOrders callback stored (with userId)', { storeId: store_id });
+    } else {
+      await EasyOrdersCallback.create({
+        apiKey: api_key,
+        storeId: store_id,
+        expiresAt,
       });
-
-      return NextResponse.json({
-        success: true,
-        message: 'Callback received. Please complete setup via redirect.',
-        callbackId: (callback._id as any)?.toString() || ''
-      }, {
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        }
-      });
+      logger.info('EasyOrders callback stored (no userId)', { storeId: store_id });
     }
 
-    // Validate userId format
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
-      logger.warn('EasyOrders callback invalid userId format', { userId });
-      return NextResponse.json(
-        { error: 'Invalid user ID format' },
-        { status: 400 }
-      );
-    }
-
-    // Complete integration and return 200 quickly so EasyOrders does not show "An error occurred"
-    const integration = await completeIntegration(userId, api_key, store_id);
-    runShippingSyncInBackground(integration);
-
-    logger.business('EasyOrders integration completed via POST callback', {
-      userId,
-      storeId: store_id
-    });
-
-    return NextResponse.json({
-      success: true,
-      message: 'Integration completed successfully',
-      redirect_url: `${req.nextUrl.origin}/api/integrations/easy-orders/callback?user_id=${userId}`
-    }, {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      }
-    });
-  } catch (error) {
-    logger.error('Error handling EasyOrders callback', error, {
-      url: req.url,
-      hasBody: !!req.body
-    });
+    // Return 200 immediately so EasyOrders does not show "حدث خطأ ما برجاء المحاولة لاحقاً"
     return NextResponse.json(
-      { 
-        error: 'حدث خطأ في معالجة الاستجابة',
-        details: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
+      {
+        success: true,
+        message: 'Callback received. Setup will complete when user is redirected.',
+        redirect_url: req.nextUrl.origin + `/api/integrations/easy-orders/callback?user_id=${userId || ''}`,
       },
-      { 
-        status: 500,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        }
-      }
+      { status: 200, headers: corsHeaders }
+    );
+  } catch (error) {
+    logger.error('Error handling EasyOrders callback', error, { url: req.url });
+    return NextResponse.json(
+      {
+        error: 'حدث خطأ في معالجة الاستجابة',
+        details: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined,
+      },
+      { status: 500, headers: corsHeaders }
     );
   }
 };
@@ -237,14 +190,20 @@ export const GET = async (req: NextRequest) => {
       return NextResponse.redirect(new URL('/dashboard/integrations?error=invalid_user', req.url));
     }
 
-    // Try to find unused callback for this user (with userId) or without userId (recent)
-    const callback = await EasyOrdersCallback.findOne({
-      $or: [
-        { userId: userId, used: false },
-        { userId: { $exists: false }, used: false }
-      ],
+    const userIdObjectId = new mongoose.Types.ObjectId(userId);
+    // Prefer callback that has this userId (from POST); else use latest without userId
+    let callback = await EasyOrdersCallback.findOne({
+      userId: userIdObjectId,
+      used: false,
       expiresAt: { $gt: new Date() }
     }).sort({ createdAt: -1 });
+    if (!callback) {
+      callback = await EasyOrdersCallback.findOne({
+        userId: { $exists: false },
+        used: false,
+        expiresAt: { $gt: new Date() }
+      }).sort({ createdAt: -1 });
+    }
 
     if (callback) {
       if (!callback.userId) {
