@@ -14,15 +14,19 @@ export const GET = withAuth(async (req: NextRequest, user: any) => {
       );
     }
 
-    // Get base URL from environment or request
-    // IMPORTANT: For EasyOrders integration to work, this must be a publicly accessible URL
-    // Use ngrok or similar service for local development, or set NEXT_PUBLIC_BASE_URL to your production URL
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
-                    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
-                    req.headers.get('origin') || 
-                    'http://localhost:3000';
-    
-    // Warn if using localhost (EasyOrders won't be able to reach it)
+    // Base URL must be publicly reachable (EasyOrders calls callback + webhook from their servers).
+    // On Vercel: set NEXT_PUBLIC_BASE_URL or we use VERCEL_URL (no protocol in env).
+    let baseUrl =
+      process.env.NEXT_PUBLIC_BASE_URL ||
+      (process.env.VERCEL_URL
+        ? (process.env.VERCEL_URL.startsWith('http')
+            ? process.env.VERCEL_URL
+            : `https://${process.env.VERCEL_URL}`)
+        : null) ||
+      req.headers.get('origin') ||
+      'http://localhost:3000';
+    baseUrl = baseUrl.replace(/\/$/, ''); // no trailing slash
+
     if (baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1')) {
       logger.warn('EasyOrders integration using localhost URL - EasyOrders cannot reach this from the internet!', {
         baseUrl,
@@ -38,8 +42,9 @@ export const GET = withAuth(async (req: NextRequest, user: any) => {
     // Build webhook URL for orders
     const ordersWebhookUrl = `${baseUrl}/api/integrations/easy-orders/webhook`;
     
-    // Build webhook URL for order status updates (optional)
-    const orderStatusWebhookUrl = `${baseUrl}/api/integrations/easy-orders/webhook/status`;
+    // Order status webhook: we receive updates from EasyOrders to update our order only.
+    // We never PATCH order status on Easy Orders from Ribh.
+    const orderStatusWebhookUrl = `${baseUrl}/api/integrations/easy-orders/webhook`;
 
     // Build redirect URL after authorization (same as callback but GET request)
     const redirectUrl = `${baseUrl}/api/integrations/easy-orders/callback?user_id=${user._id}`;

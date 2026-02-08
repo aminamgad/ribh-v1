@@ -4,7 +4,7 @@ import connectDB from '@/lib/database';
 import StoreIntegration, { IntegrationType, IntegrationStatus } from '@/models/StoreIntegration';
 import EasyOrdersCallback from '@/models/EasyOrdersCallback';
 import { logger } from '@/lib/logger';
-import { handleApiError } from '@/lib/error-handler';
+import { syncShippingForIntegration } from '@/lib/integrations/easy-orders/sync-shipping';
 
 // Handle CORS preflight requests
 export const OPTIONS = async (req: NextRequest) => {
@@ -91,16 +91,15 @@ export const POST = async (req: NextRequest) => {
       );
     }
 
-    // We have userId, complete the integration
-    await completeIntegration(userId, api_key, store_id);
+    // Complete integration and return 200 quickly so EasyOrders does not show "An error occurred"
+    const integration = await completeIntegration(userId, api_key, store_id);
+    runShippingSyncInBackground(integration);
 
     logger.business('EasyOrders integration completed via POST callback', {
       userId,
       storeId: store_id
     });
 
-    // Return success - EasyOrders will redirect to redirect_url
-    // The redirect_url will call GET endpoint to finalize
     return NextResponse.json({
       success: true,
       message: 'Integration completed successfully',
@@ -134,71 +133,89 @@ export const POST = async (req: NextRequest) => {
   }
 };
 
-// Helper function to complete integration
-async function completeIntegration(userId: string, apiKey: string, storeId: string) {
-  try {
-    await connectDB();
+/**
+ * Complete Easy Orders integration (create or update). Returns the integration document.
+ * We never update order status on Easy Orders from Ribh — only receive orders via webhook.
+ */
+async function completeIntegration(
+  userId: string,
+  apiKey: string,
+  storeId: string
+): Promise<InstanceType<typeof StoreIntegration>> {
+  await connectDB();
 
-    // Validate userId format
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
-      throw new Error(`Invalid userId format: ${userId}`);
-    }
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    throw new Error(`Invalid userId format: ${userId}`);
+  }
 
-    const userIdObjectId = new mongoose.Types.ObjectId(userId);
+  const userIdObjectId = new mongoose.Types.ObjectId(userId);
 
-    // Check if integration already exists (by storeId and userId, or just storeId for same user)
-    const existingIntegration = await StoreIntegration.findOne({
-      userId: userIdObjectId,
-      storeId: storeId,
-      type: IntegrationType.EASY_ORDERS
+  const existingIntegration = await StoreIntegration.findOne({
+    userId: userIdObjectId,
+    storeId: storeId,
+    type: IntegrationType.EASY_ORDERS
+  });
+
+  if (existingIntegration) {
+    existingIntegration.apiKey = apiKey;
+    existingIntegration.storeId = storeId;
+    existingIntegration.status = IntegrationStatus.ACTIVE;
+    existingIntegration.isActive = true;
+    await existingIntegration.save();
+
+    logger.business('EasyOrders integration updated', {
+      integrationId: existingIntegration._id?.toString() || '',
+      userId,
+      storeId
     });
+    return existingIntegration;
+  }
 
-    if (existingIntegration) {
-      // Update existing
-      existingIntegration.apiKey = apiKey;
-      existingIntegration.storeId = storeId;
-      existingIntegration.status = IntegrationStatus.ACTIVE;
-      existingIntegration.isActive = true;
-      await existingIntegration.save();
+  const integration = await StoreIntegration.create({
+    userId: userIdObjectId,
+    type: IntegrationType.EASY_ORDERS,
+    storeName: `EasyOrders Store ${storeId.substring(0, 8)}`,
+    apiKey: apiKey,
+    storeId: storeId,
+    status: IntegrationStatus.ACTIVE,
+    isActive: true,
+    settings: {
+      syncProducts: true,
+      syncOrders: true,
+      syncInventory: true,
+      autoFulfillment: false,
+      priceMarkup: 0
+    }
+  });
 
-      logger.business('EasyOrders integration updated', {
-        integrationId: existingIntegration._id?.toString() || '',
-        userId,
-        storeId
+  logger.business('EasyOrders integration created', {
+    integrationId: integration._id?.toString() || '',
+    userId,
+    storeId
+  });
+  return integration;
+}
+
+/** Run shipping sync in background so callback response is not delayed (e.g. for EasyOrders timeout). */
+function runShippingSyncInBackground(integration: InstanceType<typeof StoreIntegration>) {
+  syncShippingForIntegration(integration).then((result) => {
+    if (result.success) {
+      logger.info('EasyOrders shipping synced at link time', {
+        integrationId: integration._id?.toString(),
+        citiesCount: result.citiesCount
       });
     } else {
-      // Create new integration
-      const integration = await StoreIntegration.create({
-        userId: userIdObjectId,
-        type: IntegrationType.EASY_ORDERS,
-        storeName: `EasyOrders Store ${storeId.substring(0, 8)}`,
-        apiKey: apiKey,
-        storeId: storeId,
-        status: IntegrationStatus.ACTIVE,
-        isActive: true,
-        settings: {
-          syncProducts: true,
-          syncOrders: true,
-          syncInventory: true,
-          autoFulfillment: false,
-          priceMarkup: 0
-        }
-      });
-
-      logger.business('EasyOrders integration created', {
-        integrationId: integration._id?.toString() || '',
-        userId,
-        storeId
+      logger.warn('EasyOrders shipping sync at link time failed (user can sync manually)', {
+        integrationId: integration._id?.toString(),
+        error: result.error
       });
     }
-  } catch (error) {
-    logger.error('Error in completeIntegration', error, {
-      userId,
-      hasApiKey: !!apiKey,
-      hasStoreId: !!storeId
+  }).catch((err) => {
+    logger.warn('EasyOrders shipping sync at link time error', {
+      integrationId: integration._id?.toString(),
+      error: (err as Error)?.message
     });
-    throw error;
-  }
+  });
 }
 
 // GET /api/integrations/easy-orders/callback - Handle redirect after authorization
@@ -230,18 +247,16 @@ export const GET = async (req: NextRequest) => {
     }).sort({ createdAt: -1 });
 
     if (callback) {
-      // If callback doesn't have userId, set it now
       if (!callback.userId) {
         callback.userId = new mongoose.Types.ObjectId(userId);
         await callback.save();
       }
 
-      // Complete the integration
-      await completeIntegration(userId, callback.apiKey, callback.storeId);
-      
-      // Mark callback as used
+      const integration = await completeIntegration(userId, callback.apiKey, callback.storeId);
       callback.used = true;
       await callback.save();
+
+      runShippingSyncInBackground(integration);
 
       logger.business('EasyOrders integration completed via GET callback', {
         userId,

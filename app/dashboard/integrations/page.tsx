@@ -157,7 +157,7 @@ export default function IntegrationsPage() {
     const easyOrdersStatus = searchParams.get('easy_orders');
     
     if (easyOrdersStatus === 'connected') {
-      toast.success('تم ربط EasyOrders بنجاح!');
+      toast.success('تم ربط EasyOrders بنجاح! تمت مزامنة مدن الشحن مع متجرك تلقائياً.');
       // Clean URL
       window.history.replaceState({}, '', '/dashboard/integrations');
       refresh();

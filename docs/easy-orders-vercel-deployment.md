@@ -36,7 +36,7 @@ vercel --prod
 NEXT_PUBLIC_BASE_URL=https://your-app.vercel.app
 ```
 
-**ملاحظة:** يمكنك ترك هذا فارغاً - Vercel سيستخدم `VERCEL_URL` تلقائياً، لكن من الأفضل تحديده صراحة.
+**ملاحظة:** يمكنك ترك هذا فارغاً - Vercel سيستخدم `VERCEL_URL` تلقائياً (بدون بروتوكول في المتغير)، لكن من الأفضل تعيين `NEXT_PUBLIC_BASE_URL` صراحة لتفادي خطأ "An error occurred" عند الضغط على Accept في صفحة تثبيت التطبيق.
 
 ### 3. إضافة Environment Variables الأخرى
 

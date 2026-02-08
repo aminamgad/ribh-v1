@@ -21,7 +21,8 @@ export const OPTIONS = async (req: NextRequest) => {
   });
 };
 
-// POST /api/integrations/easy-orders/webhook - Receive orders and status updates from EasyOrders
+// POST /api/integrations/easy-orders/webhook - Receive orders and status updates from EasyOrders.
+// We only receive data from EasyOrders; we never PATCH or update order status on Easy Orders from Ribh.
 export const POST = async (req: NextRequest) => {
   const requestId = `webhook-${Date.now()}-${Math.random().toString(36).substring(7)}`;
   
