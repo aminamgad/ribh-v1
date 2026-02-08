@@ -15,11 +15,18 @@ interface RouteParams {
 async function getProduct(req: NextRequest, user: any, ...args: unknown[]) {
   const routeParams = args[0] as RouteParams;
   const params = 'then' in routeParams.params ? await routeParams.params : routeParams.params;
+  const productIdParam = typeof params?.id === 'string' ? params.id : Array.isArray(params?.id) ? params?.id?.[0] : undefined;
+  if (!productIdParam || typeof productIdParam !== 'string' || !productIdParam.trim()) {
+    return NextResponse.json(
+      { success: false, message: 'المنتج غير موجود' },
+      { status: 404 }
+    );
+  }
   try {
     await connectDB();
     
     // Try cache first
-    const cacheKey = generateCacheKey('product', params.id, user.role);
+    const cacheKey = generateCacheKey('product', productIdParam, user?.role);
     const cached = productCache.get(cacheKey);
     if (cached) {
       // Check access control
@@ -33,7 +40,7 @@ async function getProduct(req: NextRequest, user: any, ...args: unknown[]) {
     }
     
     // Fetch from database with optimized query
-    const product = await Product.findById(params.id)
+    const product = await Product.findById(productIdParam)
       .select('-__v') // Exclude version field
       .populate('categoryId', 'name')
       .populate('supplierId', 'name companyName')
@@ -186,9 +193,9 @@ async function getProduct(req: NextRequest, user: any, ...args: unknown[]) {
       product: transformedProduct
     });
     
-    logger.apiResponse('GET', `/api/products/${params.id}`, 200);
+    logger.apiResponse('GET', `/api/products/${productIdParam}`, 200);
   } catch (error) {
-    logger.error('Error fetching product', error, { productId: params.id, userId: user?._id });
+    logger.error('Error fetching product', error, { productId: productIdParam, userId: user?._id });
     return handleApiError(error, 'حدث خطأ أثناء جلب المنتج');
   }
 }

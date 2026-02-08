@@ -74,6 +74,13 @@ interface Order {
   deliveredAt?: string;
   cancelledAt?: string;
   returnedAt?: string;
+  metadata?: {
+    source?: string;
+    easyOrdersOrderId?: string;
+    easyOrdersStoreId?: string;
+    easyOrdersStatus?: string;
+    integrationId?: string;
+  };
 }
 
 const statusConfig = {
@@ -1664,10 +1671,16 @@ export default function OrderDetailPage() {
                     <StatusIcon className="w-6 h-6 sm:w-7 sm:h-7" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
                         الطلب #{order.orderNumber}
                       </h1>
+                      {order.metadata?.source === 'easy_orders' && (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-[#FF9800]/10 text-[#FF9800] dark:bg-[#FF9800]/20 dark:text-[#FF9800] border border-[#FF9800]/20">
+                          <span className="w-1.5 h-1.5 bg-[#FF9800] rounded-full"></span>
+                          EasyOrders
+                        </span>
+                      )}
                       <button
                         onClick={() => copyToClipboard(`#${order.orderNumber}`, 'رقم الطلب')}
                         className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
@@ -1684,6 +1697,19 @@ export default function OrderDetailPage() {
                         {status.label}
                       </span>
                     </div>
+                    {order.metadata?.easyOrdersOrderId && (
+                      <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 mb-2">
+                        <span>EasyOrders Order ID:</span>
+                        <code className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded font-mono">
+                          {order.metadata.easyOrdersOrderId.substring(0, 8)}...
+                        </code>
+                        {order.metadata.easyOrdersStatus && (
+                          <span className="text-gray-500 dark:text-gray-500">
+                            ({order.metadata.easyOrdersStatus})
+                          </span>
+                        )}
+                      </div>
+                    )}
                     <p className="text-sm text-gray-600 dark:text-gray-400">{status.description}</p>
                   </div>
                 </div>

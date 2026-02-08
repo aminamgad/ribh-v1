@@ -23,6 +23,11 @@ export interface IStoreIntegration extends Document {
   apiKey: string;
   apiSecret?: string;
   webhookUrl?: string;
+  // EasyOrders specific fields
+  storeId?: string; // EasyOrders store ID
+  webhookSecret?: string; // Secret key for webhook verification
+  lastShippingSync?: Date; // Last time shipping cities were synced
+  shippingSynced?: boolean; // Whether shipping has been synced
   settings: {
     syncProducts: boolean;
     syncOrders: boolean;
@@ -88,6 +93,22 @@ const storeIntegrationSchema = new Schema<IStoreIntegration, IStoreIntegrationMo
   webhookUrl: {
     type: String
   },
+  // EasyOrders specific fields
+  storeId: {
+    type: String,
+    trim: true
+  },
+  webhookSecret: {
+    type: String,
+    trim: true
+  },
+  lastShippingSync: {
+    type: Date
+  },
+  shippingSynced: {
+    type: Boolean,
+    default: false
+  },
   settings: {
     syncProducts: {
       type: Boolean,
@@ -131,7 +152,9 @@ const storeIntegrationSchema = new Schema<IStoreIntegration, IStoreIntegrationMo
 });
 
 // Indexes
-storeIntegrationSchema.index({ userId: 1, type: 1 }, { unique: true });
+// Removed unique constraint to support multiple stores per user
+storeIntegrationSchema.index({ userId: 1, type: 1 });
+storeIntegrationSchema.index({ userId: 1, storeId: 1 }); // For EasyOrders store lookup
 storeIntegrationSchema.index({ status: 1, isActive: 1 });
 storeIntegrationSchema.index({ lastSync: 1 });
 
@@ -141,30 +164,45 @@ storeIntegrationSchema.index({ status: 1, lastSync: 1 }); // For sync management
 
 // Instance methods
 storeIntegrationSchema.methods.testConnection = async function(): Promise<boolean> {
-  // This would be implemented with actual API calls to the respective platforms
-  // For now, simulate the test
   try {
     if (this.type === IntegrationType.EASY_ORDERS) {
-      // Simulate EasyOrders API test
-      if (process.env.NODE_ENV === 'development') {
-        const logger = require('@/lib/logger').logger;
-        logger.debug('Testing EasyOrders connection...');
+      // Test EasyOrders API connection by making a real API call
+      const logger = require('@/lib/logger').logger;
+      logger.debug('Testing EasyOrders connection...');
+      
+      if (!this.apiKey || this.apiKey.length < 10) {
+        logger.warn('EasyOrders API key is too short or missing');
+        return false;
       }
-      return this.apiKey.length > 10;
-    } else if (this.type === IntegrationType.YOUCAN) {
-      // Simulate YouCan API test
-      if (process.env.NODE_ENV === 'development') {
-        const logger = require('@/lib/logger').logger;
-        logger.debug('Testing YouCan connection...');
+
+      // Test connection by fetching categories (lightweight endpoint)
+      const EASY_ORDERS_API_BASE = 'https://api.easy-orders.net/api/v1/external-apps';
+      const response = await fetch(`${EASY_ORDERS_API_BASE}/categories/?limit=1`, {
+        method: 'GET',
+        headers: {
+          'Api-Key': this.apiKey,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        logger.debug('EasyOrders connection test successful');
+        return true;
+      } else if (response.status === 401) {
+        logger.warn('EasyOrders API key is invalid or expired');
+        return false;
+      } else if (response.status === 403) {
+        logger.warn('EasyOrders API key lacks required permissions');
+        return false;
+      } else {
+        logger.warn(`EasyOrders connection test failed with status: ${response.status}`);
+        return false;
       }
-      return this.apiKey.length > 10 && !!this.apiSecret;
     }
     return false;
   } catch (error) {
-    if (process.env.NODE_ENV === 'development') {
-      const logger = require('@/lib/logger').logger;
-      logger.error('Connection test failed', error);
-    }
+    const logger = require('@/lib/logger').logger;
+    logger.error('Connection test failed', error);
     return false;
   }
 };

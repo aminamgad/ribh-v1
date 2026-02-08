@@ -12,11 +12,11 @@ export const commissionRateSchema = z.object({
   rate: z.number().min(0).max(100)
 });
 
-// Admin Profit Margin Schema
+// Admin Profit Margin Schema - النسبة يمكن أن تكون أي قيمة ≥ 0 (مثل 100%، 200%)
 export const adminProfitMarginSchema = z.object({
   minPrice: z.number().min(0),
   maxPrice: z.number().min(0),
-  margin: z.number().min(0).max(100)
+  margin: z.number().min(0)
 }).refine(
   (data) => data.minPrice <= data.maxPrice,
   { message: 'الحد الأدنى يجب أن يكون أقل من أو يساوي الحد الأقصى', path: ['maxPrice'] }

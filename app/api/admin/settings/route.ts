@@ -18,7 +18,7 @@ const commissionRateSchema = z.object({
 const adminProfitMarginSchema = z.object({
   minPrice: z.number().min(0, 'الحد الأدنى يجب أن يكون 0 أو أكثر'),
   maxPrice: z.number().min(0, 'الحد الأقصى يجب أن يكون 0 أو أكثر'),
-  margin: z.number().min(0, 'الهامش يجب أن يكون 0 أو أكثر').max(100, 'الهامش لا يمكن أن يتجاوز 100%')
+  margin: z.number().min(0, 'الهامش يجب أن يكون 0 أو أكثر')
 }).refine(
   (data) => data.minPrice <= data.maxPrice,
   { message: 'الحد الأدنى يجب أن يكون أقل من أو يساوي الحد الأقصى', path: ['maxPrice'] }

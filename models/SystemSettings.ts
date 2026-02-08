@@ -133,8 +133,8 @@ const adminProfitMarginSchema = new Schema<AdminProfitMargin>({
   margin: {
     type: Number,
     required: true,
-    min: 0,
-    max: 100
+    min: 0
+    // لا حد أقصى: يمكن استخدام 100% أو 200% أو أي نسبة مئوية
   }
 });
 

@@ -9,10 +9,10 @@ import { handleApiError } from '@/lib/error-handler';
 
 // Validation schema
 const createIntegrationSchema = z.object({
-  type: z.enum(['easy_orders', 'youcan']),
+  type: z.enum(['easy_orders']),
   storeName: z.string().min(1, 'اسم المتجر مطلوب'),
   storeUrl: z.string().url('رابط المتجر غير صالح').optional(),
-  apiKey: z.string().min(10, 'مفتاح API مطلوب'),
+  apiKey: z.string().min(10, 'مفتاح API مطلوب').optional(), // Optional for EasyOrders (only created via callback)
   apiSecret: z.string().optional(),
   webhookUrl: z.string().url('رابط Webhook غير صالح').optional(),
   settings: z.object({
@@ -47,6 +47,9 @@ export const GET = withAuth(async (req: NextRequest, user: any) => {
       status: integration.status,
       storeName: integration.storeName,
       storeUrl: integration.storeUrl,
+      storeId: (integration as any).storeId, // EasyOrders store ID
+      shippingSynced: (integration as any).shippingSynced,
+      lastShippingSync: (integration as any).lastShippingSync,
       settings: integration.settings,
       lastSync: integration.lastSync,
       syncErrors: integration.syncErrors,
@@ -81,6 +84,15 @@ export const POST = withAuth(async (req: NextRequest, user: any) => {
     const body = await req.json();
     const validatedData = createIntegrationSchema.parse(body);
 
+    // For EasyOrders, only allow creation via callback (automatic connection)
+    // Manual creation via API is not allowed
+    if (validatedData.type === 'easy_orders' && !validatedData.apiKey) {
+      return NextResponse.json(
+        { error: 'يجب استخدام الربط التلقائي لإنشاء تكامل EasyOrders. يرجى استخدام زر "ربط تلقائي مع EasyOrders" في صفحة التكاملات.' },
+        { status: 400 }
+      );
+    }
+
     await connectDB();
 
     // Check if user already has an integration of this type
@@ -97,12 +109,13 @@ export const POST = withAuth(async (req: NextRequest, user: any) => {
     }
 
     // Create new integration
+      // Note: For EasyOrders, apiKey should always be provided (from callback for new integrations, or when updating existing integrations)
     const integration = await StoreIntegration.create({
       userId: user._id,
       type: validatedData.type as IntegrationType,
       storeName: validatedData.storeName,
       storeUrl: validatedData.storeUrl,
-      apiKey: validatedData.apiKey,
+      apiKey: validatedData.apiKey || '', // Should not be empty due to validation above
       apiSecret: validatedData.apiSecret,
       webhookUrl: validatedData.webhookUrl,
       settings: validatedData.settings || {

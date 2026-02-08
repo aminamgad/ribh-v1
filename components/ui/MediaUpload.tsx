@@ -456,52 +456,52 @@ export default function MediaUpload({
                       </div>
                     )}
 
-                    {/* Action Buttons */}
-                    <div className="absolute top-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                      {/* Set Primary Button */}
-                      {showPrimaryOption && !isPrimary && mediaType === 'image' && (
+                    {/* Action Buttons - centered in the middle of the thumbnail, visible on hover */}
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10 pointer-events-none">
+                      <div className="flex items-center justify-center gap-2 rounded-xl bg-black/70 backdrop-blur-sm px-2 py-2 shadow-lg pointer-events-auto">
+                        {/* Set Primary */}
+                        {showPrimaryOption && !isPrimary && mediaType === 'image' && (
+                          <button
+                            type="button"
+                            onClick={() => handleSetPrimary(index)}
+                            className="flex items-center justify-center p-2.5 rounded-lg text-white hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400 focus:ring-offset-1 focus:ring-offset-transparent"
+                            title="تعيين كصورة رئيسية"
+                          >
+                            <Star className="w-4 h-4" />
+                          </button>
+                        )}
+                        {/* Download */}
                         <button
                           type="button"
-                          onClick={() => handleSetPrimary(index)}
-                          className="bg-blue-500 text-white rounded-full p-1.5 hover:bg-blue-600 transition-colors"
-                          title="تعيين كصورة رئيسية"
-                        >
-                          <Star className="w-3 h-3" />
-                        </button>
-                      )}
-                      
-                      {/* Download Button */}
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          try {
-                            const mediaType = getMediaType(media);
-                            const filename = getFilenameFromUrl(media, mediaType);
-                            const success = await downloadMedia(media, filename);
-                            if (success) {
-                              toast.success(`تم تحميل ${filename} بنجاح`);
-                            } else {
+                          onClick={async () => {
+                            try {
+                              const type = getMediaType(media);
+                              const filename = getFilenameFromUrl(media, type);
+                              const success = await downloadMedia(media, filename);
+                              if (success) {
+                                toast.success(`تم تحميل ${filename} بنجاح`);
+                              } else {
+                                toast.error('فشل في تحميل الملف');
+                              }
+                            } catch {
                               toast.error('فشل في تحميل الملف');
                             }
-                          } catch (error) {
-                            toast.error('فشل في تحميل الملف');
-                          }
-                        }}
-                        className="bg-[#FF9800] text-white rounded-full p-1.5 hover:bg-[#F57C00] transition-colors"
-                        title="تحميل الملف"
-                      >
-                        <Download className="w-3 h-3" />
-                      </button>
-                      
-                      {/* Remove Button */}
-                      <button
-                        type="button"
-                        onClick={() => onRemove(index)}
-                        className="bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 transition-colors"
-                        title="حذف الملف"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
+                          }}
+                          className="flex items-center justify-center p-2.5 rounded-lg text-white hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-1 focus:ring-offset-transparent"
+                          title="تحميل الملف"
+                        >
+                          <Download className="w-4 h-4" />
+                        </button>
+                        {/* Remove */}
+                        <button
+                          type="button"
+                          onClick={() => onRemove(index)}
+                          className="flex items-center justify-center p-2.5 rounded-lg text-white hover:bg-red-500/80 transition-colors focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-1 focus:ring-offset-transparent"
+                          title="حذف الملف"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                     
                     {/* Index Badge */}

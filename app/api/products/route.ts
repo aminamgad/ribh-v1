@@ -47,7 +47,7 @@ async function getProductSchema() {
     supplierPrice: z.number().min(0.01, 'سعر المورد يجب أن يكون أكبر من 0'),
     marketerPrice: z.number().min(0.01, 'سعر المسوق يجب أن يكون أكبر من 0').optional(),
     wholesalerPrice: z.number().min(0.01, 'سعر الجملة يجب أن يكون أكبر من 0').nullish(),
-    minimumSellingPrice: z.number().min(0.01, 'السعر الأدنى للبيع يجب أن يكون أكبر من 0').optional(),
+    minimumSellingPrice: z.number().min(0, 'السعر الأدنى للبيع لا يمكن أن يكون سالباً').nullish(),
     isMinimumPriceMandatory: z.boolean().default(false),
     stockQuantity: z.number().min(0, 'الكمية يجب أن تكون 0 أو أكثر'),
     images: requireProductImages 
@@ -693,9 +693,10 @@ async function createProduct(req: NextRequest, user: any) {
       );
     }
     
-    if (validatedData.minimumSellingPrice && finalMarketerPrice >= validatedData.minimumSellingPrice) {
+    // التحقق من السعر الأدنى فقط عند إدخال قيمة أكبر من 0 (الحقل اختياري)
+    if (validatedData.minimumSellingPrice != null && validatedData.minimumSellingPrice > 0 && finalMarketerPrice >= validatedData.minimumSellingPrice) {
       return NextResponse.json(
-        { success: false, message: 'السعر الأدنى للبيع يجب أن يكون أكبر من سعر المسوق' },
+        { success: false, message: 'إذا أدخلت سعراً أدنى فيجب أن يكون أكبر من سعر المسوق' },
         { status: 400 }
       );
     }
@@ -763,7 +764,7 @@ async function createProduct(req: NextRequest, user: any) {
       supplierId: user.role === 'supplier' ? user._id : (body.supplierId || user._id), // Admin can create for themselves or specify supplier
       supplierPrice: validatedData.supplierPrice, // CRITICAL: This must be present
       marketerPrice: finalMarketerPrice,
-      minimumSellingPrice: validatedData.minimumSellingPrice,
+      minimumSellingPrice: validatedData.minimumSellingPrice != null && validatedData.minimumSellingPrice > 0 ? validatedData.minimumSellingPrice : null,
       isMinimumPriceMandatory: validatedData.isMinimumPriceMandatory,
       // stockQuantity: If hasVariants=true, this should be the sum of all variant option stock quantities
       // If hasVariants=false, this is the main stock quantity field value

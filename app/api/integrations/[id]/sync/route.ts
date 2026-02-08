@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth';
 import connectDB from '@/lib/database';
-import StoreIntegration, { IntegrationStatus } from '@/models/StoreIntegration';
+import StoreIntegration, { IntegrationStatus, IntegrationType } from '@/models/StoreIntegration';
 import Product from '@/models/Product';
 import Order from '@/models/Order';
 import { UserRole } from '@/types';
@@ -63,45 +63,98 @@ export const POST = withAuth(async (req: NextRequest, user: any, ...args: unknow
       errors: [] as string[]
     };
 
-    try {
-      // Sync products
-      if ((type === 'products' || type === 'all') && integration.settings.syncProducts) {
-        const productCount = await integration.syncProducts();
-        syncResults.products = productCount;
-        
-        // In a real implementation, we would:
-        // 1. Fetch products from external API
-        // 2. Map them to our Product model
-        // 3. Create/update products in our database
-        // For now, we'll simulate creating some products
-        if (productCount > 0) {
-          // Simulate creating products
-          for (let i = 0; i < Math.min(productCount, 5); i++) {
-            const externalProductId = `${integration.type}_${Date.now()}_${i}`;
-            const existingProduct = await Product.findOne({
-              'metadata.externalId': externalProductId,
-              supplierId: user.id
-            });
+    // Clear previous sync errors
+    integration.syncErrors = [];
+    await integration.save();
 
-            if (!existingProduct) {
-              await Product.create({
-                name: `منتج مستورد ${i + 1}`,
-                description: `منتج تم استيراده من ${integration.storeName}`,
-                supplierId: user._id,
-                categoryId: integration.settings.defaultCategory || null,
-                marketerPrice: 100 + (i * 10),
-                wholesalePrice: 80 + (i * 10),
-                costPrice: 70 + (i * 10),
-                stockQuantity: 50,
-                images: [],
-                metadata: {
-                  source: integration.type,
-                  externalId: externalProductId,
-                  storeUrl: integration.storeUrl
+    try {
+      // Sync products - Export user's products to EasyOrders
+      if ((type === 'products' || type === 'all') && integration.settings.syncProducts) {
+        if (integration.type === 'easy_orders') {
+          // For EasyOrders, export user's products
+          const userProducts = await Product.find({
+            supplierId: user._id,
+            isApproved: true,
+            isActive: true
+          }).populate('categoryId', 'name slug');
+
+          let exportedCount = 0;
+          const syncErrors: string[] = [];
+
+          for (const product of userProducts) {
+            try {
+              // Validate product before export
+              const validationErrors: string[] = [];
+
+              // Check supplierPrice
+              if (!product.supplierPrice || product.supplierPrice <= 0) {
+                validationErrors.push(`سعر المورد مطلوب - يرجى إضافة سعر المورد للمنتج "${product.name}" (ID: ${product._id})`);
+              }
+
+              // Check images
+              const images = Array.isArray(product.images) ? product.images : [];
+              if (images.length === 0) {
+                validationErrors.push(`يجب أن يحتوي المنتج "${product.name}" على صورة واحدة على الأقل`);
+              } else if (images.length > 10) {
+                validationErrors.push(`يجب ألا يزيد عدد الصور عن 10 صور للمنتج "${product.name}"`);
+              }
+
+              if (validationErrors.length > 0) {
+                syncErrors.push(...validationErrors);
+                continue; // Skip this product
+              }
+
+              // Export product using the export-product endpoint logic
+              const { convertProductToEasyOrders, sendProductToEasyOrders } = await import('@/lib/integrations/easy-orders/product-converter');
+              
+              const existingEasyOrdersProductId = (product as any).metadata?.easyOrdersProductId;
+              const easyOrdersProduct = await convertProductToEasyOrders(
+                product,
+                integration,
+                {
+                  includeVariations: true,
+                  categoryMapping: new Map()
                 }
+              );
+
+              const result = await sendProductToEasyOrders(
+                easyOrdersProduct,
+                integration.apiKey,
+                existingEasyOrdersProductId
+              );
+
+              if (result.success && result.productId) {
+                // Save EasyOrders product ID
+                (product as any).metadata = (product as any).metadata || {};
+                (product as any).metadata.easyOrdersProductId = result.productId;
+                (product as any).metadata.easyOrdersStoreId = integration.storeId;
+                (product as any).metadata.easyOrdersIntegrationId = String(integration._id);
+                await product.save();
+                exportedCount++;
+              } else {
+                syncErrors.push(`فشل تصدير المنتج "${product.name}": ${result.error || 'خطأ غير معروف'}`);
+              }
+            } catch (error: any) {
+              logger.error('Error exporting product during sync', error, {
+                productId: product._id,
+                productName: product.name
               });
+              syncErrors.push(`خطأ في تصدير المنتج "${product.name}": ${error.message || 'خطأ غير معروف'}`);
             }
           }
+
+          syncResults.products = exportedCount;
+          
+          // Save sync errors
+          if (syncErrors.length > 0) {
+            integration.syncErrors = syncErrors.slice(0, 10); // Keep last 10 errors
+            await integration.save();
+            syncResults.errors = syncErrors;
+          }
+        } else {
+          // For other integrations, use the default sync method
+          const productCount = await integration.syncProducts();
+          syncResults.products = productCount;
         }
       }
 

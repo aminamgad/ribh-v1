@@ -32,7 +32,8 @@ import {
   Edit,
   Save,
   Trash2,
-  RotateCw
+  RotateCw,
+  Link as LinkIcon
 } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -1160,6 +1161,10 @@ export default function DashboardPage() {
                 <Store className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 flex-shrink-0" />
                 <span className="truncate">تصفح المنتجات</span>
               </Link>
+              <Link href="/dashboard/integrations" className="btn-primary bg-gradient-to-r from-[#4CAF50] to-[#388E3C] hover:from-[#388E3C] hover:to-[#2E7D32] text-white border-0 shadow-lg min-h-[44px] text-xs sm:text-sm flex items-center justify-center px-2 sm:px-4 py-2.5 sm:py-3">
+                <LinkIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 flex-shrink-0" />
+                <span className="truncate">ربط Easy Orders</span>
+              </Link>
               <Link href="/dashboard/favorites" className="btn-secondary min-h-[44px] text-xs sm:text-sm flex items-center justify-center px-2 sm:px-4 py-2.5 sm:py-3">
                 <Heart className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 flex-shrink-0" />
                 <span className="truncate">المفضلة</span>
@@ -1180,6 +1185,10 @@ export default function DashboardPage() {
               <Link href="/dashboard/products" className="btn-primary min-h-[44px] text-xs sm:text-sm flex items-center justify-center px-2 sm:px-4 py-2.5 sm:py-3">
                 <Store className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 flex-shrink-0" />
                 <span className="truncate">تصفح المنتجات</span>
+              </Link>
+              <Link href="/dashboard/integrations" className="btn-primary bg-gradient-to-r from-[#4CAF50] to-[#388E3C] hover:from-[#388E3C] hover:to-[#2E7D32] text-white border-0 shadow-lg min-h-[44px] text-xs sm:text-sm flex items-center justify-center px-2 sm:px-4 py-2.5 sm:py-3">
+                <LinkIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 flex-shrink-0" />
+                <span className="truncate">ربط Easy Orders</span>
               </Link>
               <Link href="/dashboard/favorites" className="btn-secondary min-h-[44px] text-xs sm:text-sm flex items-center justify-center px-2 sm:px-4 py-2.5 sm:py-3">
                 <Heart className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 flex-shrink-0" />

@@ -54,6 +54,12 @@ interface Order {
     governorate?: string;
   };
   shippingCompany?: string;
+  metadata?: {
+    source?: string;
+    easyOrdersOrderId?: string;
+    easyOrdersStoreId?: string;
+    easyOrdersStatus?: string;
+  };
 }
 
 const statusIcons = {
@@ -594,9 +600,17 @@ export default function OrdersPage() {
                         </td>
                       )}
                       <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-slate-100">
-                        <span className="font-semibold text-gray-900 dark:text-gray-100">
-                          {order.orderNumber}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-gray-900 dark:text-gray-100">
+                            {order.orderNumber}
+                          </span>
+                          {order.metadata?.source === 'easy_orders' && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-[#FF9800]/10 text-[#FF9800] dark:bg-[#FF9800]/20 dark:text-[#FF9800] border border-[#FF9800]/20">
+                              <span className="w-1.5 h-1.5 bg-[#FF9800] rounded-full"></span>
+                              EasyOrders
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-slate-100">
                         <div className="space-y-0.5">

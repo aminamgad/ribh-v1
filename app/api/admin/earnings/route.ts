@@ -203,9 +203,9 @@ export const POST = withRole(['admin'])(async (req: NextRequest, user: any) => {
         );
       }
       
-      if (margin.margin < 0 || margin.margin > 100) {
+      if (margin.margin < 0 || !Number.isFinite(margin.margin)) {
         return NextResponse.json(
-          { success: false, message: 'هامش الربح يجب أن يكون بين 0 و 100' },
+          { success: false, message: 'هامش الربح يجب أن يكون رقماً موجباً أو صفراً (يمكن أن يكون أكبر من 100% مثل 200%)' },
           { status: 400 }
         );
       }

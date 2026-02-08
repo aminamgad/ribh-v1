@@ -709,6 +709,7 @@ export default function SettingsPage() {
                   <p className="text-sm text-blue-800 dark:text-blue-200">
                     <strong>ملاحظة:</strong> هامش ربح الإدارة يُحسب بناءً على <strong>سعر المنتج الفردي</strong> وليس إجمالي الطلب. 
                     على سبيل المثال: إذا كان سعر المنتج 50 وهامش الربح 10%، فستكون عمولة الإدارة 5 لكل منتج.
+                    يمكنك استخدام أي نسبة مئوية (0% أو أكثر)، بما فيها 100% أو 200% وما فوق.
                   </p>
                 </div>
               </div>
@@ -788,15 +789,15 @@ export default function SettingsPage() {
                         <Input
                           type="number"
                           min="0"
-                          max="100"
                           step="0.1"
                           value={margin.margin}
                           onChange={(e) => {
-                            const value = parseFloat(e.target.value) || 0;
-                            updateAdminProfitMargin(index, 'margin', value);
+                            const value = parseFloat(e.target.value);
+                            const safeValue = (value >= 0 && Number.isFinite(value)) ? value : 0;
+                            updateAdminProfitMargin(index, 'margin', safeValue);
                           }}
                           className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                          placeholder="5"
+                          placeholder="5 (أو 100، 200...)"
                         />
                         {margin.margin > 0 && margin.minPrice > 0 && (
                           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">

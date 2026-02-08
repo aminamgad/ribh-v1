@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useCart } from '@/components/providers/CartProvider';
@@ -225,31 +225,67 @@ export default function ProductDetailPage() {
     };
   }, [showChat, fetchMessages]);
 
+  // استخراج معرف المنتج بشكل آمن (يدعم [id] كسلسلة أو مصفوفة في Next.js)
+  const productId = typeof params?.id === 'string' ? params.id : Array.isArray(params?.id) ? params.id[0] : undefined;
+  const fetchAbortRef = useRef<AbortController | null>(null);
+
   const fetchProduct = useCallback(async () => {
+    const id = typeof params?.id === 'string' ? params.id : Array.isArray(params?.id) ? params.id[0] : undefined;
+    if (!id || typeof id !== 'string' || !id.trim()) {
+      setLoading(false);
+      return;
+    }
+    // إلغاء أي طلب سابق لتجنب تعارض الاستجابات (race condition)
+    if (fetchAbortRef.current) {
+      fetchAbortRef.current.abort();
+    }
+    const abort = new AbortController();
+    fetchAbortRef.current = abort;
     try {
-      const response = await fetch(`/api/products/${params.id}`);
-      
+      const response = await fetch(`/api/products/${id}`, { signal: abort.signal });
+      // تجاهل الاستجابة إذا تم إلغاء الطلب (مثلاً بسبب الانتقال لمنتج آخر)
+      if (abort.signal.aborted) return;
+
       if (response.ok) {
         const data = await response.json();
-        setProduct(data.product);
+        if (data.product && !abort.signal.aborted) {
+          setProduct(data.product);
+        }
       } else {
-        const errorData = await response.json();
-        toast.error(errorData.message || 'المنتج غير موجود');
+        const errorData = await response.json().catch(() => ({}));
+        const message = errorData.message || 'المنتج غير موجود';
+        toast.error(message);
+        setProduct(null);
+        // إعادة التوجيه فقط بعد تأخير بسيط حتى يرى المستخدم الرسالة، أو عدم إعادة التوجيه وعرض إعادة المحاولة
         router.push('/dashboard/products');
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.name === 'AbortError') return;
       toast.error('حدث خطأ أثناء جلب تفاصيل المنتج');
+      setProduct(null);
       router.push('/dashboard/products');
     } finally {
-      setLoading(false);
+      if (!abort.signal.aborted) {
+        setLoading(false);
+        fetchAbortRef.current = null;
+      }
     }
-  }, [params.id, router]);
+  }, [params?.id, router]);
 
   useEffect(() => {
-    if (params.id) {
+    if (productId) {
+      setLoading(true);
+      setProduct(null);
       fetchProduct();
+    } else {
+      setLoading(false);
     }
-  }, [params.id, fetchProduct]);
+    return () => {
+      if (fetchAbortRef.current) {
+        fetchAbortRef.current.abort();
+      }
+    };
+  }, [productId, fetchProduct]);
 
   // Preload product images for faster display
 

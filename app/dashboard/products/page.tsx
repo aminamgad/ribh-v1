@@ -32,7 +32,8 @@ import {
   Gamepad2,
   ArrowLeft,
   Clock,
-  Inbox
+  Inbox,
+  Link as LinkIcon
 } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -192,6 +193,14 @@ export default function ProductsPage() {
   const [lockReason, setLockReason] = useState('');
   const [lockAction, setLockAction] = useState<'lock' | 'unlock' | null>(null);
   const [locking, setLocking] = useState(false);
+  
+  // Export to Easy Orders states
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportingProductId, setExportingProductId] = useState<string | null>(null);
+  const [selectedIntegrationId, setSelectedIntegrationId] = useState<string>('');
+  const [integrations, setIntegrations] = useState<any[]>([]);
+  const [loadingIntegrations, setLoadingIntegrations] = useState(false);
+  const [exporting, setExporting] = useState(false);
   
   // Quick edit states
   const [quickEditData, setQuickEditData] = useState({
@@ -459,6 +468,92 @@ export default function ProductsPage() {
     refreshSections();
   };
 
+  // Fetch integrations for export functionality
+  useEffect(() => {
+    if ((user?.role === 'marketer' || user?.role === 'wholesaler') && !loadingIntegrations) {
+      setLoadingIntegrations(true);
+      fetch('/api/integrations')
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.integrations) {
+            const activeIntegrations = data.integrations.filter((int: any) => 
+              int.status === 'active' && int.type === 'easy_orders'
+            );
+            setIntegrations(activeIntegrations);
+            if (activeIntegrations.length === 1) {
+              setSelectedIntegrationId(activeIntegrations[0].id);
+            }
+          }
+        })
+        .catch(err => {
+          console.error('Error fetching integrations:', err);
+        })
+        .finally(() => {
+          setLoadingIntegrations(false);
+        });
+    }
+  }, [user?.role, loadingIntegrations]);
+
+  // Handle export product
+  const handleExportProduct = async (productId: string) => {
+    if (integrations.length === 0) {
+      toast.error('لا توجد تكاملات نشطة. يرجى إضافة تكامل Easy Orders أولاً');
+      router.push('/dashboard/integrations');
+      return;
+    }
+
+    if (integrations.length === 1) {
+      // Direct export if only one integration
+      setExportingProductId(productId);
+      setSelectedIntegrationId(integrations[0].id);
+      await performExport(productId, integrations[0].id);
+    } else {
+      // Show modal to select integration
+      setExportingProductId(productId);
+      setShowExportModal(true);
+    }
+  };
+
+  // Perform export
+  const performExport = async (productId: string, integrationId: string) => {
+    setExporting(true);
+    try {
+      const response = await fetch('/api/integrations/easy-orders/export-product', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          productId,
+          integrationId
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success('تم تصدير المنتج بنجاح إلى Easy Orders!');
+        setShowExportModal(false);
+        setExportingProductId(null);
+        setSelectedIntegrationId('');
+      } else {
+        toast.error(data.error || 'فشل في تصدير المنتج');
+      }
+    } catch (error) {
+      toast.error('حدث خطأ أثناء تصدير المنتج');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // Handle export from modal
+  const handleExportFromModal = async () => {
+    if (!exportingProductId || !selectedIntegrationId) {
+      toast.error('يرجى اختيار التكامل');
+      return;
+    }
+    await performExport(exportingProductId, selectedIntegrationId);
+  };
 
   // Handle search callback - memoize to prevent re-creating on every render
   // Empty function to prevent unnecessary re-renders of SearchFilters
@@ -1367,19 +1462,35 @@ export default function ProductsPage() {
                     )}
                   </div>
 
-                  {/* Stock Status for Marketer/Wholesaler */}
+                  {/* Stock Status and Export for Marketer/Wholesaler */}
                   {(user?.role === 'marketer' || user?.role === 'wholesaler') && (
-                    <div className="mt-2">
-                      {product.stockQuantity > 0 ? (
-                        <div className="flex items-center text-sm text-emerald-600 dark:text-emerald-400">
-                          <CheckCircle className="w-4 h-4 ml-1" />
-                          متوفر ({product.stockQuantity} قطعة)
-                        </div>
-                      ) : (
-                        <div className="flex items-center text-sm text-red-600 dark:text-red-400">
-                          <AlertCircle className="w-4 h-4 ml-1" />
-                          نفذ المخزون
-                        </div>
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      <div>
+                        {product.stockQuantity > 0 ? (
+                          <div className="flex items-center text-sm text-emerald-600 dark:text-emerald-400">
+                            <CheckCircle className="w-4 h-4 ml-1" />
+                            متوفر ({product.stockQuantity} قطعة)
+                          </div>
+                        ) : (
+                          <div className="flex items-center text-sm text-red-600 dark:text-red-400">
+                            <AlertCircle className="w-4 h-4 ml-1" />
+                            نفذ المخزون
+                          </div>
+                        )}
+                      </div>
+                      {/* Export to Easy Orders Button */}
+                      {product.isApproved && product.isActive && integrations.length > 0 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleExportProduct(product._id);
+                          }}
+                          className="text-xs px-2 py-1 bg-[#4CAF50] hover:bg-[#388E3C] text-white rounded-lg transition-colors flex items-center gap-1"
+                          title="تصدير إلى Easy Orders"
+                        >
+                          <LinkIcon className="w-3 h-3" />
+                          <span className="hidden sm:inline">تصدير</span>
+                        </button>
                       )}
                     </div>
                   )}
@@ -2133,6 +2244,81 @@ export default function ProductsPage() {
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Export to Easy Orders Modal */}
+      {showExportModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 max-w-md w-full">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-4">
+              تصدير المنتج إلى Easy Orders
+            </h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              اختر التكامل الذي تريد تصدير المنتج إليه:
+            </p>
+            <div className="space-y-2 mb-6">
+              {integrations.map((integration) => (
+                <label
+                  key={integration.id}
+                  className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                    selectedIntegrationId === integration.id
+                      ? 'border-[#4CAF50] bg-[#4CAF50]/10 dark:bg-[#4CAF50]/20'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="integration"
+                    value={integration.id}
+                    checked={selectedIntegrationId === integration.id}
+                    onChange={(e) => setSelectedIntegrationId(e.target.value)}
+                    className="w-4 h-4 text-[#4CAF50]"
+                  />
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-900 dark:text-white">
+                      {integration.storeName}
+                    </p>
+                    {integration.storeUrl && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {integration.storeUrl}
+                      </p>
+                    )}
+                  </div>
+                </label>
+              ))}
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowExportModal(false);
+                  setExportingProductId(null);
+                  setSelectedIntegrationId('');
+                }}
+                className="btn-secondary flex-1"
+                disabled={exporting}
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={handleExportFromModal}
+                disabled={exporting || !selectedIntegrationId}
+                className="btn-primary flex-1 flex items-center justify-center"
+              >
+                {exporting ? (
+                  <>
+                    <RotateCw className="w-4 h-4 ml-2 animate-spin" />
+                    جاري التصدير...
+                  </>
+                ) : (
+                  <>
+                    <LinkIcon className="w-4 h-4 ml-2" />
+                    تصدير
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>

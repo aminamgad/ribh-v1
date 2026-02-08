@@ -242,6 +242,13 @@ export const statsCache = new CacheManager({
   strategy: 'lru'
 });
 
+// Cache for EasyOrders API responses to respect rate limits
+export const easyOrdersCache = new CacheManager({
+  ttl: 2 * 60 * 1000, // 2 minutes (to respect 40 requests/minute rate limit)
+  maxSize: 200,
+  strategy: 'lru'
+});
+
 /**
  * Cache decorator for async functions
  */
@@ -283,6 +290,7 @@ export function invalidateCache(pattern: string | RegExp, cache?: CacheManager):
     orderCache.clearPattern(pattern);
     categoryCache.clearPattern(pattern);
     statsCache.clearPattern(pattern);
+    easyOrdersCache.clearPattern(pattern);
   }
 }
 

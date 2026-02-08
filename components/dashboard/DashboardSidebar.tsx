@@ -297,6 +297,16 @@ export default function DashboardSidebar({ onClose }: DashboardSidebarProps) {
             hoverTextColor: 'group-hover:text-[#2E7D32] dark:group-hover:text-[#81C784]',
           },
           {
+            href: '/dashboard/integrations',
+            label: 'التكاملات',
+            icon: Store,
+            gradient: 'from-[#4CAF50] to-[#388E3C]',
+            bgGradient: 'from-[#4CAF50]/10 to-[#388E3C]/10 dark:from-[#4CAF50]/20 dark:to-[#388E3C]/20',
+            borderColor: 'border-[#4CAF50]/20 dark:border-[#4CAF50]/30',
+            textColor: 'text-[#2E7D32] dark:text-[#81C784]',
+            hoverTextColor: 'group-hover:text-[#2E7D32] dark:group-hover:text-[#81C784]',
+          },
+          {
             href: '/dashboard/wallet',
             label: 'المحفظة والسحوبات',
             icon: Wallet,

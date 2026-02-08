@@ -462,6 +462,9 @@ async function getOrdersHandler(req: NextRequest, user: any) {
     // Country filter
     const country = searchParams.get('country');
     
+    // EasyOrders filter
+    const source = searchParams.get('source'); // 'easy_orders' or 'all'
+    
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '100'); // Increased limit for better search
     const skip = (page - 1) * limit;
@@ -475,6 +478,17 @@ async function getOrdersHandler(req: NextRequest, user: any) {
     } else {
       // marketer or wholesaler
       query.customerId = user._id;
+    }
+    
+    // Filter by source (EasyOrders)
+    if (source === 'easy_orders') {
+      query['metadata.source'] = 'easy_orders';
+    } else if (source === 'ribh') {
+      // Only Ribh orders (not from EasyOrders)
+      query.$or = [
+        { 'metadata.source': { $ne: 'easy_orders' } },
+        { 'metadata.source': { $exists: false } }
+      ];
     }
     // Status filter - support multiple statuses using $in operator
     if (Array.isArray(status) && status.length > 0) {

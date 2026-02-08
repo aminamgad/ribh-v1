@@ -22,6 +22,7 @@ export default function OrdersFilters({ onFiltersChange }: OrdersFiltersProps) {
   const [productSearch, setProductSearch] = useState(() => searchParams.get('productSearch') || '');
   const [startDate, setStartDate] = useState(() => searchParams.get('startDate') || '');
   const [endDate, setEndDate] = useState(() => searchParams.get('endDate') || '');
+  const [sourceFilter, setSourceFilter] = useState(() => searchParams.get('source') || 'all');
   
   // Refs to store current filter values for immediate access in onChange handlers
   const customerSearchRef = useRef(customerSearch);
@@ -160,6 +161,13 @@ export default function OrdersFilters({ onFiltersChange }: OrdersFiltersProps) {
       params.delete('status');
     }
 
+    // Source filter (EasyOrders)
+    if (sourceFilter && sourceFilter !== 'all') {
+      params.set('source', sourceFilter);
+    } else {
+      params.delete('source');
+    }
+
     const queryString = params.toString();
     const newUrl = `${pathname}${queryString ? `?${queryString}` : ''}`;
     
@@ -222,7 +230,7 @@ export default function OrdersFilters({ onFiltersChange }: OrdersFiltersProps) {
       // This ensures cacheKey updates immediately and data refreshes right away
       window.dispatchEvent(new CustomEvent('urlchange', { detail: { query: queryString } }));
     }
-  }, [pathname, startDate, endDate, filterStatus]); // customerSearch, orderNumberSearch, productSearch are accessed via refs
+  }, [pathname, startDate, endDate, filterStatus, sourceFilter]); // customerSearch, orderNumberSearch, productSearch are accessed via refs
   
   // Ref to track current filterStatus for immediate access in onChange handlers
   const filterStatusRef = useRef(filterStatus);
@@ -252,6 +260,7 @@ export default function OrdersFilters({ onFiltersChange }: OrdersFiltersProps) {
     setStartDate('');
     setEndDate('');
     setFilterStatus([]);
+    setSourceFilter('all');
 
     // Clear from sessionStorage
     try {
@@ -278,7 +287,8 @@ export default function OrdersFilters({ onFiltersChange }: OrdersFiltersProps) {
     productSearch.trim() ||
     startDate ||
     endDate ||
-    (filterStatus && filterStatus.length > 0);
+    (filterStatus && filterStatus.length > 0) ||
+    (sourceFilter && sourceFilter !== 'all');
 
   const [showFilters, setShowFilters] = useState(false);
 
@@ -464,6 +474,41 @@ export default function OrdersFilters({ onFiltersChange }: OrdersFiltersProps) {
               }}
               label="حالة الطلب"
             />
+          </div>
+        </div>
+
+        {/* Source Filter Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+          {/* Source Filter (EasyOrders) */}
+          <div>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5 sm:mb-2">
+              مصدر الطلب
+            </label>
+            <select
+              value={sourceFilter}
+              onChange={(e) => {
+                const newValue = e.target.value;
+                setSourceFilter(newValue);
+                // Apply immediately
+                if (!isInitialMount.current) {
+                  const params = new URLSearchParams(window.location.search);
+                  if (newValue && newValue !== 'all') {
+                    params.set('source', newValue);
+                  } else {
+                    params.delete('source');
+                  }
+                  const queryString = params.toString();
+                  const newUrl = `${pathname}${queryString ? `?${queryString}` : ''}`;
+                  window.history.replaceState({ ...window.history.state, as: newUrl, url: newUrl }, '', newUrl);
+                  window.dispatchEvent(new CustomEvent('urlchange', { detail: { query: queryString } }));
+                }
+              }}
+              className="w-full px-3 sm:px-4 py-2.5 text-sm sm:text-base border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-[#FF9800] focus:border-transparent dark:bg-slate-700 dark:text-slate-100 min-h-[44px]"
+            >
+              <option value="all">جميع المصادر</option>
+              <option value="easy_orders">EasyOrders</option>
+              <option value="ribh">ربح فقط</option>
+            </select>
           </div>
         </div>
 
