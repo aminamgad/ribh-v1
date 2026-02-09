@@ -251,23 +251,27 @@ export const POST = async (req: NextRequest) => {
       cartItemsCount: cartItems?.length || 0
     });
 
-    // Check if order already exists
+    // منع التكرار: التحقق من وجود طلب بنفس معرف الطلب من Easy Orders ونفس المتجر
     const existingOrder = await Order.findOne({
       'metadata.easyOrdersOrderId': easyOrdersOrderId,
-      supplierId: finalIntegration.userId
+      'metadata.easyOrdersStoreId': storeId
     });
 
     if (existingOrder) {
-      logger.info('EasyOrders webhook: Order already exists', {
+      logger.info('EasyOrders webhook: Order already exists, skipping duplicate', {
         requestId,
         orderId: existingOrder._id,
-        easyOrdersOrderId
+        orderNumber: existingOrder.orderNumber,
+        easyOrdersOrderId,
+        storeId
       });
       return NextResponse.json({
         success: true,
         message: 'Order already exists',
-        orderId: existingOrder._id
+        orderId: existingOrder._id,
+        orderNumber: existingOrder.orderNumber
       }, {
+        status: 200,
         headers: {
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods': 'POST, OPTIONS',

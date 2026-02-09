@@ -301,6 +301,7 @@ orderSchema.index({ fulfillmentRequestId: 1 }); // For orders by fulfillment req
 orderSchema.index({ status: 1, profitsDistributed: 1 }); // For profit distribution queries
 orderSchema.index({ profitsDistributed: 1, deliveredAt: -1 }); // For pending profits queries
 orderSchema.index({ 'metadata.source': 1, 'metadata.integrationId': 1 }); // Easy Orders verification
+orderSchema.index({ 'metadata.easyOrdersOrderId': 1, 'metadata.easyOrdersStoreId': 1 }); // منع تكرار الطلبات من الويب هوك
 
 // Virtual for order summary
 orderSchema.virtual('itemCount').get(function() {
