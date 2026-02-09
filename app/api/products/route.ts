@@ -768,7 +768,7 @@ async function createProduct(req: NextRequest, user: any) {
       resolvedSupplierId = body.supplierId;
     } else {
       const User = (await import('@/models/User')).default;
-      const adminUser = await User.findOne({ role: 'admin' }).select('_id').lean();
+      const adminUser = await User.findOne({ role: 'admin' }).select('_id').lean() as { _id: unknown } | null;
       if (adminUser) resolvedSupplierId = adminUser._id;
     }
 
