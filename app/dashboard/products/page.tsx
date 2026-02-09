@@ -80,6 +80,7 @@ interface Product {
     sku?: string;
     images?: string[];
   }>;
+  metadata?: { easyOrdersProductId?: string; easyOrdersStoreId?: string; easyOrdersIntegrationId?: string };
 }
 
 export default function ProductsPage() {
@@ -197,6 +198,7 @@ export default function ProductsPage() {
   // Export to Easy Orders states
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportingProductId, setExportingProductId] = useState<string | null>(null);
+  const [unlinkingProductId, setUnlinkingProductId] = useState<string | null>(null);
   const [selectedIntegrationId, setSelectedIntegrationId] = useState<string>('');
   const [integrations, setIntegrations] = useState<any[]>([]);
   const [loadingIntegrations, setLoadingIntegrations] = useState(false);
@@ -536,6 +538,7 @@ export default function ProductsPage() {
         setShowExportModal(false);
         setExportingProductId(null);
         setSelectedIntegrationId('');
+        refresh();
       } else {
         toast.error(data.error || 'فشل في تصدير المنتج');
       }
@@ -543,6 +546,31 @@ export default function ProductsPage() {
       toast.error('حدث خطأ أثناء تصدير المنتج');
     } finally {
       setExporting(false);
+    }
+  };
+
+  const handleUnlinkExport = async (product: { _id: string }) => {
+    if (integrations.length === 0) return;
+    const integrationId = integrations.length === 1 ? integrations[0].id : selectedIntegrationId || integrations[0]?.id;
+    if (!integrationId) return;
+    setUnlinkingProductId(product._id);
+    try {
+      const response = await fetch('/api/integrations/easy-orders/unlink-product', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId: product._id, integrationId })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        toast.success(data.message || 'تم إلغاء الربط. يمكنك تصدير المنتج مرة أخرى.');
+        refresh();
+      } else {
+        toast.error(data.error || 'فشل إلغاء الربط');
+      }
+    } catch {
+      toast.error('حدث خطأ أثناء إلغاء الربط');
+    } finally {
+      setUnlinkingProductId(null);
     }
   };
 
@@ -1053,6 +1081,11 @@ export default function ProductsPage() {
                 onAddToCart={(product: any) => handleAddToCart(product)}
                 onToggleFavorite={(product: any) => handleToggleFavorite(product)}
                 isFavorite={isFavorite}
+                showExport={integrations.length > 0}
+                onExport={(p) => handleExportProduct(p._id)}
+                exportingProductId={exportingProductId}
+                onUnlinkExport={handleUnlinkExport}
+                unlinkingProductId={unlinkingProductId}
               />
 
               {/* Best Sellers Section */}
@@ -1065,6 +1098,11 @@ export default function ProductsPage() {
                 onAddToCart={(product: any) => handleAddToCart(product)}
                 onToggleFavorite={(product: any) => handleToggleFavorite(product)}
                 isFavorite={isFavorite}
+                showExport={integrations.length > 0}
+                onExport={(p) => handleExportProduct(p._id)}
+                exportingProductId={exportingProductId}
+                onUnlinkExport={handleUnlinkExport}
+                unlinkingProductId={unlinkingProductId}
               />
 
               {/* Garden & Home Section */}
@@ -1081,6 +1119,11 @@ export default function ProductsPage() {
                 onAddToCart={(product: any) => handleAddToCart(product)}
                 onToggleFavorite={(product: any) => handleToggleFavorite(product)}
                 isFavorite={isFavorite}
+                showExport={integrations.length > 0}
+                onExport={(p) => handleExportProduct(p._id)}
+                exportingProductId={exportingProductId}
+                onUnlinkExport={handleUnlinkExport}
+                unlinkingProductId={unlinkingProductId}
               />
 
               {/* Health & Beauty Section */}
@@ -1097,6 +1140,11 @@ export default function ProductsPage() {
                 onAddToCart={(product: any) => handleAddToCart(product)}
                 onToggleFavorite={(product: any) => handleToggleFavorite(product)}
                 isFavorite={isFavorite}
+                showExport={integrations.length > 0}
+                onExport={(p) => handleExportProduct(p._id)}
+                exportingProductId={exportingProductId}
+                onUnlinkExport={handleUnlinkExport}
+                unlinkingProductId={unlinkingProductId}
               />
 
               {/* Electronics Section */}
@@ -1113,6 +1161,11 @@ export default function ProductsPage() {
                 onAddToCart={(product: any) => handleAddToCart(product)}
                 onToggleFavorite={(product: any) => handleToggleFavorite(product)}
                 isFavorite={isFavorite}
+                showExport={integrations.length > 0}
+                onExport={(p) => handleExportProduct(p._id)}
+                exportingProductId={exportingProductId}
+                onUnlinkExport={handleUnlinkExport}
+                unlinkingProductId={unlinkingProductId}
               />
 
               {/* Games Section */}
@@ -1129,6 +1182,11 @@ export default function ProductsPage() {
                 onAddToCart={(product: any) => handleAddToCart(product)}
                 onToggleFavorite={(product: any) => handleToggleFavorite(product)}
                 isFavorite={isFavorite}
+                showExport={integrations.length > 0}
+                onExport={(p) => handleExportProduct(p._id)}
+                exportingProductId={exportingProductId}
+                onUnlinkExport={handleUnlinkExport}
+                unlinkingProductId={unlinkingProductId}
               />
             </>
           )}
@@ -1478,8 +1536,8 @@ export default function ProductsPage() {
                           </div>
                         )}
                       </div>
-                      {/* Export to Easy Orders Button */}
-                      {product.isApproved && product.isActive && integrations.length > 0 && (
+                      {/* Export to Easy Orders: يظهر فقط إذا لم يكن المنتج مُصدَّراً */}
+                      {product.isApproved && product.isActive && integrations.length > 0 && !product.metadata?.easyOrdersProductId && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -1490,6 +1548,20 @@ export default function ProductsPage() {
                         >
                           <LinkIcon className="w-3 h-3" />
                           <span className="hidden sm:inline">تصدير</span>
+                        </button>
+                      )}
+                      {/* مُصدّر: زر إلغاء الربط إذا حذفه من Easy Orders */}
+                      {product.isApproved && product.isActive && integrations.length > 0 && product.metadata?.easyOrdersProductId && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleUnlinkExport(product);
+                          }}
+                          disabled={!!unlinkingProductId}
+                          className="text-xs px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors flex items-center gap-1 disabled:opacity-60"
+                          title="حذفته من Easy Orders - إلغاء الربط لتمكين التصدير مرة أخرى"
+                        >
+                          مُصدّر
                         </button>
                       )}
                     </div>

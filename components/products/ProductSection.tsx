@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, memo } from 'react';
-import { Package, ShoppingCart, Heart, ArrowLeft } from 'lucide-react';
+import { Package, ShoppingCart, Heart, ArrowLeft, Link as LinkIcon } from 'lucide-react';
 import MediaThumbnail from '@/components/ui/MediaThumbnail';
 import { OptimizedImage } from '@/components/ui/LazyImage';
 import { getCloudinaryThumbnailUrl, isCloudinaryUrl } from '@/lib/mediaUtils';
@@ -29,6 +29,7 @@ interface Product {
     sku?: string;
     images?: string[];
   }>;
+  metadata?: { easyOrdersProductId?: string; easyOrdersStoreId?: string; easyOrdersIntegrationId?: string };
 }
 
 interface ProductSectionProps {
@@ -40,6 +41,13 @@ interface ProductSectionProps {
   onAddToCart: (product: Product) => void;
   onToggleFavorite: (product: Product) => void;
   isFavorite: (productId: string) => boolean;
+  /** عرض زر التصدير إلى Easy Orders للمسوق/تاجر الجملة */
+  showExport?: boolean;
+  onExport?: (product: Product) => void;
+  exportingProductId?: string | null;
+  /** إلغاء ربط المنتج من Easy Orders (حذفته من Easy Orders) */
+  onUnlinkExport?: (product: Product) => void | Promise<void>;
+  unlinkingProductId?: string | null;
 }
 
 const ProductSection = memo(function ProductSection({
@@ -50,7 +58,12 @@ const ProductSection = memo(function ProductSection({
   onProductClick,
   onAddToCart,
   onToggleFavorite,
-  isFavorite
+  isFavorite,
+  showExport = false,
+  onExport,
+  exportingProductId = null,
+  onUnlinkExport,
+  unlinkingProductId = null
 }: ProductSectionProps) {
   // Prefetch critical images (first 6 products - visible on most screens)
   useEffect(() => {
@@ -139,6 +152,35 @@ const ProductSection = memo(function ProductSection({
                 }`}
               />
             </button>
+
+            {/* Export to Easy Orders: زر التصدير يظهر فقط إذا لم يكن المنتج مُصدَّراً مسبقاً */}
+            {showExport && product.isApproved && !product.metadata?.easyOrdersProductId && onExport && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onExport(product);
+                }}
+                disabled={!!exportingProductId}
+                className="absolute top-2 right-2 p-1.5 bg-[#4CAF50] hover:bg-[#388E3C] text-white rounded-full shadow-sm hover:shadow-md transition-shadow z-10 opacity-0 group-hover:opacity-100 flex items-center justify-center disabled:opacity-60"
+                title="تصدير إلى Easy Orders"
+              >
+                <LinkIcon className="w-4 h-4" />
+              </button>
+            )}
+            {/* حالة مُصدّر: إظهار زر إلغاء الربط إذا حذفه من Easy Orders */}
+            {showExport && product.isApproved && product.metadata?.easyOrdersProductId && onUnlinkExport && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onUnlinkExport(product);
+                }}
+                disabled={!!unlinkingProductId}
+                className="absolute top-2 right-2 p-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-full shadow-sm hover:shadow-md transition-shadow z-10 opacity-0 group-hover:opacity-100 flex items-center justify-center disabled:opacity-60 text-[10px]"
+                title="حذفته من Easy Orders - إلغاء الربط لتمكين التصدير مرة أخرى"
+              >
+                مُصدّر
+              </button>
+            )}
 
             {/* Product Image */}
             <div className="relative mb-3 aspect-square">

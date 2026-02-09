@@ -253,7 +253,12 @@ const productSchema = new Schema<ProductDocument>({
     images: [{
       type: String
     }]
-  }]
+  }],
+  // Easy Orders / external integrations: track exported product id per store
+  metadata: {
+    type: Schema.Types.Mixed,
+    default: undefined
+  }
 } as any, {
   timestamps: true,
   toJSON: { virtuals: true },

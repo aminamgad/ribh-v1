@@ -132,7 +132,7 @@ export const POST = withAuth(async (req: NextRequest, user: any) => {
     if (isConnected) {
       await integration.updateStatus(IntegrationStatus.ACTIVE);
     } else {
-      await integration.updateStatus(IntegrationStatus.ERROR, 'فشل الاتصال بالمتجر');
+      await integration.appendSyncError('فشل الاتصال بالمتجر');
     }
 
     return NextResponse.json({

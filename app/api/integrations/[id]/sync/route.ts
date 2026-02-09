@@ -71,12 +71,14 @@ export const POST = withAuth(async (req: NextRequest, user: any, ...args: unknow
       // Sync products - Export user's products to EasyOrders
       if ((type === 'products' || type === 'all') && integration.settings.syncProducts) {
         if (integration.type === 'easy_orders') {
-          // For EasyOrders, export user's products
-          const userProducts = await Product.find({
-            supplierId: user._id,
-            isApproved: true,
-            isActive: true
-          }).populate('categoryId', 'name slug');
+          // المسوق/تاجر الجملة يصدّر المنتجات المعتمدة المتاحة في المنصة (نفس ما يراه في قائمة المنتجات)
+          // المورد يصدّر منتجاته فقط (supplierId = user._id)
+          const productQuery =
+            user.role === 'marketer' || user.role === 'wholesaler'
+              ? { isApproved: true, isActive: true, isRejected: { $ne: true } }
+              : { supplierId: user._id, isApproved: true, isActive: true };
+          const userProducts = await Product.find(productQuery)
+            .populate('categoryId', 'name slug');
 
           let exportedCount = 0;
           const syncErrors: string[] = [];
@@ -104,34 +106,69 @@ export const POST = withAuth(async (req: NextRequest, user: any, ...args: unknow
                 continue; // Skip this product
               }
 
-              // Export product using the export-product endpoint logic
               const { convertProductToEasyOrders, sendProductToEasyOrders } = await import('@/lib/integrations/easy-orders/product-converter');
               
-              const existingEasyOrdersProductId = (product as any).metadata?.easyOrdersProductId;
-              const easyOrdersProduct = await convertProductToEasyOrders(
+              let existingEasyOrdersProductId = (product as any).metadata?.easyOrdersProductId;
+              const existingSlug = (product as any).metadata?.easyOrdersSlug;
+              const omitSlugForUpdate = !!existingEasyOrdersProductId && !existingSlug;
+              let easyOrdersProduct = await convertProductToEasyOrders(
                 product,
                 integration,
                 {
                   includeVariations: true,
-                  categoryMapping: new Map()
+                  categoryMapping: new Map(),
+                  existingSlug,
+                  omitSlugForUpdate
                 }
               );
 
-              const result = await sendProductToEasyOrders(
+              let result = await sendProductToEasyOrders(
                 easyOrdersProduct,
                 integration.apiKey,
                 existingEasyOrdersProductId
               );
 
+              if (!result.success && result.statusCode === 404 && existingEasyOrdersProductId) {
+                (product as any).metadata = (product as any).metadata || {};
+                delete (product as any).metadata.easyOrdersProductId;
+                delete (product as any).metadata.easyOrdersStoreId;
+                delete (product as any).metadata.easyOrdersIntegrationId;
+                delete (product as any).metadata.easyOrdersSlug;
+                if (Object.keys((product as any).metadata).length === 0) {
+                  (product as any).metadata = undefined;
+                }
+                await product.save();
+                result = await sendProductToEasyOrders(
+                  easyOrdersProduct,
+                  integration.apiKey,
+                  undefined
+                );
+              }
+
+              if (!result.success && (result as any).slugReserved) {
+                easyOrdersProduct = await convertProductToEasyOrders(
+                  product,
+                  integration,
+                  { includeVariations: true, categoryMapping: new Map(), existingSlug, extraSlugSuffix: String(Date.now()) }
+                );
+                result = await sendProductToEasyOrders(
+                  easyOrdersProduct,
+                  integration.apiKey,
+                  existingEasyOrdersProductId
+                );
+              }
+
               if (result.success && result.productId) {
-                // Save EasyOrders product ID
                 (product as any).metadata = (product as any).metadata || {};
                 (product as any).metadata.easyOrdersProductId = result.productId;
                 (product as any).metadata.easyOrdersStoreId = integration.storeId;
                 (product as any).metadata.easyOrdersIntegrationId = String(integration._id);
+                if (easyOrdersProduct?.slug) {
+                  (product as any).metadata.easyOrdersSlug = easyOrdersProduct.slug;
+                }
                 await product.save();
                 exportedCount++;
-              } else {
+              } else if (!result.success) {
                 syncErrors.push(`فشل تصدير المنتج "${product.name}": ${result.error || 'خطأ غير معروف'}`);
               }
             } catch (error: any) {
@@ -180,8 +217,8 @@ export const POST = withAuth(async (req: NextRequest, user: any, ...args: unknow
         results: syncResults
       });
     } catch (syncError: any) {
-      // Update integration status to error
-      await integration.updateStatus(IntegrationStatus.ERROR, syncError.message);
+      // تسجيل الخطأ فقط دون جعل التكامل غير نشط
+      await integration.appendSyncError(syncError.message);
       
       return NextResponse.json(
         { 

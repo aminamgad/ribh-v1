@@ -359,7 +359,9 @@ async function handler(req: NextRequest, user: any) {
             inStock: product.stockQuantity > 0,
             stockQuantity: product.stockQuantity,
             supplierName: product.supplierId?.name || 'غير محدد',
-            images: product.images || []
+            images: product.images || [],
+            isApproved: product.isApproved,
+            metadata: (product as any).metadata
           })),
           // إضافة إحصائيات خاصة بالمسوق
           favoritesCount: user.role === 'marketer' ? favoritesCount : 0,

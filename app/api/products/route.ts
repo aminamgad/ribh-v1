@@ -367,7 +367,7 @@ async function getProducts(req: NextRequest, user: any) {
     // Fetch from database with optimized query
     // Use select to only get needed fields
     const products = await Product.find(query)
-      .select('name description images supplierPrice marketerPrice wholesalerPrice minimumSellingPrice isMinimumPriceMandatory stockQuantity isActive isApproved isRejected rejectionReason adminNotes approvedAt approvedBy rejectedAt rejectedBy isFulfilled isLocked lockedAt lockedBy lockReason sku weight dimensions tags createdAt categoryId supplierId hasVariants variants variantOptions')
+      .select('name description images supplierPrice marketerPrice wholesalerPrice minimumSellingPrice isMinimumPriceMandatory stockQuantity isActive isApproved isRejected rejectionReason adminNotes approvedAt approvedBy rejectedAt rejectedBy isFulfilled isLocked lockedAt lockedBy lockReason sku weight dimensions tags createdAt categoryId supplierId hasVariants variants variantOptions metadata')
       .populate('categoryId', 'name')
       .populate('supplierId', 'name companyName')
       .sort({ createdAt: -1 })

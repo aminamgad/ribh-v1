@@ -61,16 +61,35 @@ export async function convertProductToEasyOrders(
   integration: any,
   options: {
     includeVariations?: boolean;
-    categoryMapping?: Map<string, string>; // Map Ribh category IDs to EasyOrders category IDs
+    categoryMapping?: Map<string, string>;
+    /** عند التحديث (PATCH) استخدم هذا الرابط المحفوظ لتفادي "رابط المنتج محجوز" */
+    existingSlug?: string;
+    /** لاحقة إضافية للرابط عند إعادة المحاولة بعد خطأ محجوز (مثلاً timestamp) */
+    extraSlugSuffix?: string;
+    /** عند التحديث: إن لم يكن لدينا رابط محفوظ، لا نرسل slug ليبقى الرابط الحالي على Easy Orders */
+    omitSlugForUpdate?: boolean;
   } = {}
 ): Promise<any> {
   const {
     includeVariations = true,
-    categoryMapping = new Map()
+    categoryMapping = new Map(),
+    existingSlug,
+    extraSlugSuffix,
+    omitSlugForUpdate = false
   } = options;
 
-  // Generate slug
-  const slug = generateSlug(product.name);
+  let slug: string | undefined;
+  if (omitSlugForUpdate) {
+    slug = undefined;
+  } else if (existingSlug && existingSlug.trim()) {
+    slug = existingSlug.trim();
+  } else {
+    const baseSlug = generateSlug(product.name);
+    const productIdStr = product._id ? String(product._id) : '';
+    const uniqueSuffix = productIdStr ? productIdStr.slice(-8) : `${Date.now().toString(36)}`;
+    const suffix = extraSlugSuffix ? `${uniqueSuffix}-${extraSlugSuffix}` : uniqueSuffix;
+    slug = baseSlug ? `${baseSlug}-${suffix}` : `product-${suffix}`;
+  }
 
   // Get category IDs
   const categories: { id: string }[] = [];
@@ -104,12 +123,13 @@ export async function convertProductToEasyOrders(
   const thumb = images[0] || '';
 
   // Build EasyOrders product payload (all fields so product displays correctly in Easy Orders)
+  // عند التحديث (PATCH) بدون رابط محفوظ: لا نرسل slug ليبقى الرابط الحالي على Easy Orders
   const easyOrdersProduct: any = {
     name: product.name || '',
     price: price,
     sale_price: salePrice > 0 ? salePrice : 0,
     description: description || `<p>${product.name}</p>`,
-    slug: slug,
+    ...(slug !== undefined && { slug }),
     sku: product.sku || `RIBH-${product._id}`,
     thumb: thumb,
     images: images,
@@ -237,7 +257,7 @@ export async function sendProductToEasyOrders(
   productId?: string, // For updates
   retries: number = 3,
   useCache: boolean = false // For GET requests only
-): Promise<{ success: boolean; productId?: string; error?: string; statusCode?: number }> {
+): Promise<{ success: boolean; productId?: string; error?: string; statusCode?: number; slugReserved?: boolean }> {
   // For GET requests, check cache first
   if (useCache && productId) {
     const cacheKey = generateCacheKey('easyorders', 'product', productId);
@@ -297,12 +317,18 @@ export async function sendProductToEasyOrders(
         } else if (response.status === 404 && productId) {
           errorMessage = 'المنتج غير موجود في EasyOrders';
         } else if (response.status === 400) {
-          // Try to parse validation errors
           try {
             const errorData = JSON.parse(errorText);
-            errorMessage = errorData.message || errorData.error || 'بيانات غير صالحة';
+            const msg =
+              errorData.message ||
+              errorData.error ||
+              (Array.isArray(errorData.errors) && errorData.errors[0]?.message) ||
+              (Array.isArray(errorData.errors) && errorData.errors[0]) ||
+              errorData.detail ||
+              errorData.msg;
+            errorMessage = typeof msg === 'string' ? msg : msg ? JSON.stringify(msg) : errorText?.substring(0, 300) || 'بيانات غير صالحة';
           } catch {
-            errorMessage = `بيانات غير صالحة: ${errorText.substring(0, 200)}`;
+            errorMessage = errorText?.substring(0, 300) || 'بيانات غير صالحة';
           }
         } else {
           errorMessage = `فشل في ${productId ? 'تحديث' : 'إنشاء'} المنتج: ${response.status}`;
@@ -311,16 +337,17 @@ export async function sendProductToEasyOrders(
           }
         }
 
+        const isSlugReserved =
+          response.status === 400 &&
+          (errorMessage.includes('محجوز') || errorMessage.toLowerCase().includes('reserved') || errorMessage.includes('رابط المنتج'));
         lastError = { message: errorMessage, status: response.status };
         
-        // Don't retry for client errors (4xx) except 429
         if (response.status >= 400 && response.status < 500 && response.status !== 429) {
           break;
         }
         
-        // Retry for server errors (5xx) or rate limit
         if (attempt < retries - 1 && (response.status >= 500 || response.status === 429)) {
-          const waitTime = Math.pow(2, attempt) * 1000; // Exponential backoff
+          const waitTime = Math.pow(2, attempt) * 1000;
           await new Promise(resolve => setTimeout(resolve, waitTime));
           continue;
         }
@@ -328,7 +355,8 @@ export async function sendProductToEasyOrders(
         return {
           success: false,
           error: errorMessage,
-          statusCode: response.status
+          statusCode: response.status,
+          slugReserved: isSlugReserved
         };
       }
 
@@ -358,9 +386,10 @@ export async function sendProductToEasyOrders(
     }
   }
 
+  const errMsg = lastError?.message ?? (typeof lastError === 'string' ? lastError : lastError ? String(lastError) : '');
   return {
     success: false,
-    error: lastError?.message || 'حدث خطأ في الاتصال بـ EasyOrders',
+    error: errMsg || 'حدث خطأ في الاتصال بـ EasyOrders',
     statusCode: lastStatusCode
   };
 }

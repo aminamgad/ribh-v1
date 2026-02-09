@@ -49,6 +49,8 @@ export interface IStoreIntegrationMethods {
   syncProducts(): Promise<number>;
   syncOrders(): Promise<number>;
   updateStatus(status: IntegrationStatus, error?: string): Promise<void>;
+  /** تسجيل خطأ في syncErrors دون تغيير حالة التكامل (يبقى نشطاً) */
+  appendSyncError(error: string): Promise<void>;
 }
 
 export interface IStoreIntegrationModel extends Model<IStoreIntegration, {}, IStoreIntegrationMethods> {
@@ -239,6 +241,19 @@ storeIntegrationSchema.methods.updateStatus = async function(status: Integration
     if (this.syncErrors.length > 10) {
       this.syncErrors = this.syncErrors.slice(-10); // Keep only last 10 errors
     }
+  }
+  await this.save();
+};
+
+/** تسجيل خطأ في syncErrors دون جعل التكامل غير نشط؛ إن كان حالياً ERROR نعيده إلى ACTIVE */
+storeIntegrationSchema.methods.appendSyncError = async function(error: string): Promise<void> {
+  this.syncErrors = this.syncErrors || [];
+  this.syncErrors.push(error);
+  if (this.syncErrors.length > 10) {
+    this.syncErrors = this.syncErrors.slice(-10);
+  }
+  if (this.status === IntegrationStatus.ERROR) {
+    this.status = IntegrationStatus.ACTIVE;
   }
   await this.save();
 };

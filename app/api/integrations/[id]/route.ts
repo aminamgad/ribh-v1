@@ -175,7 +175,7 @@ export const PUT = withAuth(async (req: NextRequest, user: any, ...args: unknown
       if (isConnected) {
         await integration.updateStatus(IntegrationStatus.ACTIVE);
       } else {
-        await integration.updateStatus(IntegrationStatus.ERROR, 'فشل الاتصال بالمتجر');
+        await integration.appendSyncError('فشل الاتصال بالمتجر');
       }
     }
 

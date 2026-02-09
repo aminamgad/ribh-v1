@@ -93,6 +93,99 @@ export default function DashboardPage() {
   });
   const [processing, setProcessing] = useState(false);
 
+  // Export to Easy Orders (marketer/wholesaler)
+  const [integrations, setIntegrations] = useState<any[]>([]);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportingProductId, setExportingProductId] = useState<string | null>(null);
+  const [unlinkingProductId, setUnlinkingProductId] = useState<string | null>(null);
+  const [selectedIntegrationId, setSelectedIntegrationId] = useState('');
+  const [exporting, setExporting] = useState(false);
+
+  const handleUnlinkExport = async (productId: string) => {
+    if (integrations.length === 0) return;
+    const integrationId = integrations.length === 1 ? integrations[0].id : selectedIntegrationId || integrations[0]?.id;
+    if (!integrationId) return;
+    setUnlinkingProductId(productId);
+    try {
+      const res = await fetch('/api/integrations/easy-orders/unlink-product', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId, integrationId })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(data.message || 'تم إلغاء الربط. يمكنك تصدير المنتج مرة أخرى.');
+        refresh();
+      } else {
+        toast.error(data.error || 'فشل إلغاء الربط');
+      }
+    } catch {
+      toast.error('حدث خطأ أثناء إلغاء الربط');
+    } finally {
+      setUnlinkingProductId(null);
+    }
+  };
+
+  useEffect(() => {
+    if ((user?.role === 'marketer' || user?.role === 'wholesaler')) {
+      fetch('/api/integrations')
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.integrations) {
+            const active = data.integrations.filter((int: any) => int.status === 'active' && int.type === 'easy_orders');
+            setIntegrations(active);
+            if (active.length === 1) setSelectedIntegrationId(active[0].id);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [user?.role]);
+
+  const handleExportProduct = async (e: React.MouseEvent, productId: string) => {
+    e.stopPropagation();
+    if (integrations.length === 0) {
+      toast.error('لا توجد تكاملات نشطة. يرجى إضافة تكامل Easy Orders أولاً');
+      router.push('/dashboard/integrations');
+      return;
+    }
+    if (integrations.length === 1) {
+      setExportingProductId(productId);
+      await performExport(productId, integrations[0].id);
+    } else {
+      setExportingProductId(productId);
+      setShowExportModal(true);
+    }
+  };
+
+  const performExport = async (productId: string, integrationId: string) => {
+    setExporting(true);
+    try {
+      const res = await fetch('/api/integrations/easy-orders/export-product', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId, integrationId })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success('تم تصدير المنتج بنجاح إلى Easy Orders!');
+        setShowExportModal(false);
+        setExportingProductId(null);
+        setSelectedIntegrationId('');
+      } else {
+        toast.error(data.error || 'فشل في تصدير المنتج');
+      }
+    } catch {
+      toast.error('حدث خطأ أثناء تصدير المنتج');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportFromModal = async () => {
+    if (!exportingProductId || !selectedIntegrationId) return;
+    await performExport(exportingProductId, selectedIntegrationId);
+  };
+
   useEffect(() => {
     if (!user) {
       router.push('/auth/login');
@@ -923,7 +1016,28 @@ export default function DashboardPage() {
                         </p>
                       </div>
                       
-                      <div className="flex items-center space-x-2 space-x-reverse">
+                      <div className="flex items-center gap-2">
+                        {(user?.role === 'marketer' || user?.role === 'wholesaler') && integrations.length > 0 && product.isApproved !== false && !(product as any).metadata?.easyOrdersProductId && (
+                          <button
+                            onClick={(e) => handleExportProduct(e, product._id)}
+                            disabled={!!exportingProductId}
+                            className="p-2 rounded-lg bg-[#4CAF50] hover:bg-[#388E3C] text-white disabled:opacity-60 transition-colors flex items-center gap-1 text-xs"
+                            title="تصدير إلى Easy Orders"
+                          >
+                            <LinkIcon className="w-4 h-4" />
+                            تصدير
+                          </button>
+                        )}
+                        {(user?.role === 'marketer' || user?.role === 'wholesaler') && integrations.length > 0 && product.isApproved !== false && (product as any).metadata?.easyOrdersProductId && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleUnlinkExport(product._id); }}
+                            disabled={!!unlinkingProductId}
+                            className="p-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white disabled:opacity-60 transition-colors text-xs"
+                            title="حذفته من Easy Orders - إلغاء الربط لتمكين التصدير مرة أخرى"
+                          >
+                            مُصدّر
+                          </button>
+                        )}
                         <span className={`badge ${product.inStock ? 'badge-success' : 'badge-danger'}`}>
                           {product.inStock ? 'متوفر' : 'غير متوفر'}
                         </span>
@@ -1426,6 +1540,42 @@ export default function DashboardPage() {
                     حفظ التغييرات
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Export Modal (marketer/wholesaler) */}
+      {showExportModal && (user?.role === 'marketer' || user?.role === 'wholesaler') && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">تصدير المنتج إلى Easy Orders</h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">اختر التكامل:</p>
+            <div className="space-y-2 mb-6">
+              {integrations.map((int: any) => (
+                <label
+                  key={int.id}
+                  className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer ${
+                    selectedIntegrationId === int.id ? 'border-[#4CAF50] bg-[#4CAF50]/10' : 'border-gray-200 dark:border-gray-700'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="integration"
+                    value={int.id}
+                    checked={selectedIntegrationId === int.id}
+                    onChange={(e) => setSelectedIntegrationId(e.target.value)}
+                    className="w-4 h-4 text-[#4CAF50]"
+                  />
+                  <span className="font-medium text-gray-900 dark:text-white">{int.storeName}</span>
+                </label>
+              ))}
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => { setShowExportModal(false); setExportingProductId(null); }} className="btn-secondary flex-1" disabled={exporting}>إلغاء</button>
+              <button onClick={handleExportFromModal} disabled={exporting || !selectedIntegrationId} className="btn-primary flex-1 flex items-center justify-center">
+                {exporting ? <><RotateCw className="w-4 h-4 ml-2 animate-spin" /> جاري التصدير...</> : <><LinkIcon className="w-4 h-4 ml-2" /> تصدير</>}
               </button>
             </div>
           </div>

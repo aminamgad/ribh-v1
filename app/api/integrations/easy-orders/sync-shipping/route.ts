@@ -44,8 +44,8 @@ export const POST = withAuth(async (req: NextRequest, user: any) => {
     const result = await syncShippingForIntegration(integration);
 
     if (!result.success) {
+      await integration.appendSyncError(result.error || 'فشلت مزامنة الشحن');
       if (result.error?.includes('فشل مزامنة الشحن')) {
-        await integration.updateStatus(IntegrationStatus.ERROR, result.error);
         const statusMatch = result.error?.match(/(\d+)/);
         const status = statusMatch ? parseInt(statusMatch[1], 10) : 502;
         return NextResponse.json({ error: result.error }, { status });

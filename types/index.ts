@@ -174,6 +174,14 @@ export interface Product {
   hasVariants: boolean;
   variants?: ProductVariant[];
   variantOptions?: ProductVariantOption[];
+  /** Easy Orders: easyOrdersProductId, easyOrdersStoreId, easyOrdersIntegrationId, easyOrdersSlug */
+  metadata?: {
+    easyOrdersProductId?: string;
+    easyOrdersStoreId?: string;
+    easyOrdersIntegrationId?: string;
+    easyOrdersSlug?: string;
+    [key: string]: unknown;
+  };
   createdAt: Date;
   updatedAt: Date;
 }

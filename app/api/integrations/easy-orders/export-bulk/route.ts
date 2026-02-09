@@ -123,41 +123,69 @@ export const POST = withAuth(async (req: NextRequest, user: any) => {
           continue;
         }
 
-        // Check if product already exists in EasyOrders
-        const existingEasyOrdersProductId = (product as any).metadata?.easyOrdersProductId;
+        let existingEasyOrdersProductId = (product as any).metadata?.easyOrdersProductId;
+        const existingSlug = (product as any).metadata?.easyOrdersSlug;
+        const omitSlugForUpdate = !!existingEasyOrdersProductId && !existingSlug;
 
-        // Convert product to EasyOrders format
-        const easyOrdersProduct = await convertProductToEasyOrders(
+        let easyOrdersProduct = await convertProductToEasyOrders(
           product,
           integration,
-          {
-            includeVariations: true,
-            categoryMapping: new Map()
-          }
+          { includeVariations: true, categoryMapping: new Map(), existingSlug, omitSlugForUpdate }
         );
 
-        // Send to EasyOrders
-        const result = await sendProductToEasyOrders(
+        let result = await sendProductToEasyOrders(
           easyOrdersProduct,
           integration.apiKey,
           existingEasyOrdersProductId
         );
 
+        if (!result.success && result.statusCode === 404 && existingEasyOrdersProductId) {
+          (product as any).metadata = (product as any).metadata || {};
+          delete (product as any).metadata.easyOrdersProductId;
+          delete (product as any).metadata.easyOrdersStoreId;
+          delete (product as any).metadata.easyOrdersIntegrationId;
+          delete (product as any).metadata.easyOrdersSlug;
+          if (Object.keys((product as any).metadata).length === 0) {
+            (product as any).metadata = undefined;
+          }
+          await product.save();
+          existingEasyOrdersProductId = undefined;
+          result = await sendProductToEasyOrders(
+            easyOrdersProduct,
+            integration.apiKey,
+            undefined
+          );
+        }
+
+        if (!result.success && (result as any).slugReserved) {
+          easyOrdersProduct = await convertProductToEasyOrders(
+            product,
+            integration,
+            { includeVariations: true, categoryMapping: new Map(), existingSlug, extraSlugSuffix: String(Date.now()) }
+          );
+          result = await sendProductToEasyOrders(
+            easyOrdersProduct,
+            integration.apiKey,
+            existingEasyOrdersProductId
+          );
+        }
+
         if (result.success && result.productId) {
-          // Save EasyOrders product ID
           (product as any).metadata = (product as any).metadata || {};
           (product as any).metadata.easyOrdersProductId = result.productId;
           (product as any).metadata.easyOrdersStoreId = integration.storeId;
           (product as any).metadata.easyOrdersIntegrationId = String(integration._id);
+          if (easyOrdersProduct?.slug) {
+            (product as any).metadata.easyOrdersSlug = easyOrdersProduct.slug;
+          }
           await product.save();
 
           results.success.push(product._id.toString());
-          
           logger.business('Product exported to EasyOrders (bulk)', {
             productId: product._id,
             easyOrdersProductId: result.productId
           });
-        } else {
+        } else if (!result.success) {
           results.failed.push({
             productId: product._id.toString(),
             error: result.error || 'فشل التصدير'
@@ -181,17 +209,14 @@ export const POST = withAuth(async (req: NextRequest, user: any) => {
       }
     }
 
-    // Update integration status
-    if (results.failed.length === 0) {
+    // تحديث الحالة: لا نجعل التكامل غير نشط عند الأخطاء، فقط نسجلها
+    if (results.failed.length === 0 || results.success.length > 0) {
       await integration.updateStatus(IntegrationStatus.ACTIVE);
-    } else if (results.success.length === 0) {
-      await integration.updateStatus(
-        IntegrationStatus.ERROR,
-        `فشل تصدير جميع المنتجات (${results.failed.length})`
+    }
+    if (results.failed.length > 0) {
+      await integration.appendSyncError(
+        `فشل تصدير ${results.failed.length} منتج: ${results.failed.map(f => f.error).slice(0, 3).join('؛ ')}${results.failed.length > 3 ? '...' : ''}`
       );
-    } else {
-      // Partial success
-      await integration.updateStatus(IntegrationStatus.ACTIVE);
     }
 
     logger.business('Bulk product export completed', {

@@ -35,6 +35,7 @@ async function getFavorites(req: NextRequest, user: any) {
         supplierId: fav.productId.supplierId,
         isActive: fav.productId.isActive,
         isApproved: fav.productId.isApproved,
+        metadata: (fav.productId as any).metadata,
         addedAt: fav.addedAt
       }));
     

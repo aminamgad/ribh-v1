@@ -104,55 +104,84 @@ export const POST = withAuth(async (req: NextRequest, user: any) => {
       );
     }
 
-    // Build category mapping if needed
     const categoryMapping = new Map<string, string>();
-    // TODO: Implement category mapping logic if categories need to be synced
+    let existingEasyOrdersProductId = (product as any).metadata?.easyOrdersProductId;
+    const existingSlug = (product as any).metadata?.easyOrdersSlug;
+    const omitSlugForUpdate = !!existingEasyOrdersProductId && !existingSlug;
 
-    // Convert product to EasyOrders format
-    const easyOrdersProduct = await convertProductToEasyOrders(
+    let easyOrdersProduct = await convertProductToEasyOrders(
       product,
       integration,
-      {
-        includeVariations: true,
-        categoryMapping
-      }
+      { includeVariations: true, categoryMapping, existingSlug, omitSlugForUpdate }
     );
 
-    // Check if product already exists in EasyOrders (by checking metadata)
-    const existingEasyOrdersProductId = (product as any).metadata?.easyOrdersProductId;
-
-    // Send to EasyOrders
-    const result = await sendProductToEasyOrders(
+    let result = await sendProductToEasyOrders(
       easyOrdersProduct,
       integration.apiKey,
       existingEasyOrdersProductId
     );
 
+    if (!result.success && result.statusCode === 404 && existingEasyOrdersProductId) {
+      logger.info('Product no longer exists on EasyOrders, unlinking and re-exporting as new', {
+        productId,
+        previousEasyOrdersId: existingEasyOrdersProductId
+      });
+      (product as any).metadata = (product as any).metadata || {};
+      delete (product as any).metadata.easyOrdersProductId;
+      delete (product as any).metadata.easyOrdersStoreId;
+      delete (product as any).metadata.easyOrdersIntegrationId;
+      delete (product as any).metadata.easyOrdersSlug;
+      if (Object.keys((product as any).metadata).length === 0) {
+        (product as any).metadata = undefined;
+      }
+      await product.save();
+      existingEasyOrdersProductId = undefined;
+      result = await sendProductToEasyOrders(
+        easyOrdersProduct,
+        integration.apiKey,
+        undefined
+      );
+    }
+
+    if (!result.success && (result as any).slugReserved) {
+      easyOrdersProduct = await convertProductToEasyOrders(
+        product,
+        integration,
+        { includeVariations: true, categoryMapping, existingSlug, extraSlugSuffix: String(Date.now()) }
+      );
+      result = await sendProductToEasyOrders(
+        easyOrdersProduct,
+        integration.apiKey,
+        existingEasyOrdersProductId
+      );
+    }
+
     if (!result.success) {
       logger.error('Failed to export product to EasyOrders', {
         productId,
         integrationId,
-        error: result.error
+        error: result.error,
+        statusCode: result.statusCode
       });
 
-      // Update integration status
-      await integration.updateStatus(
-        require('@/models/StoreIntegration').IntegrationStatus.ERROR,
-        result.error || 'فشل تصدير المنتج'
-      );
+      // تسجيل الخطأ فقط دون جعل التكامل غير نشط
+      await integration.appendSyncError(result.error || 'فشل تصدير المنتج');
 
+      const status = result.statusCode && result.statusCode >= 400 && result.statusCode < 500 ? result.statusCode : 500;
       return NextResponse.json(
         { error: result.error || 'فشل في تصدير المنتج' },
-        { status: 500 }
+        { status }
       );
     }
 
-    // Save EasyOrders product ID in product metadata
     if (result.productId) {
       (product as any).metadata = (product as any).metadata || {};
       (product as any).metadata.easyOrdersProductId = result.productId;
       (product as any).metadata.easyOrdersStoreId = integration.storeId;
       (product as any).metadata.easyOrdersIntegrationId = String(integration._id);
+      if (easyOrdersProduct?.slug) {
+        (product as any).metadata.easyOrdersSlug = easyOrdersProduct.slug;
+      }
       await product.save();
     }
 

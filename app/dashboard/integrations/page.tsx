@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
+import WebhookInfoModal, { WebhookInfoData } from '@/components/ui/WebhookInfoModal';
 import { 
   Store, 
   Link as LinkIcon, 
@@ -75,6 +76,8 @@ export default function IntegrationsPage() {
   const [showApiKey, setShowApiKey] = useState<{ [key: string]: boolean }>({});
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [integrationToDelete, setIntegrationToDelete] = useState<StoreIntegration | null>(null);
+  const [showWebhookInfoModal, setShowWebhookInfoModal] = useState(false);
+  const [webhookInfoData, setWebhookInfoData] = useState<WebhookInfoData | null>(null);
   const [formData, setFormData] = useState<IntegrationFormData>({
     type: 'easy_orders',
     storeName: '',
@@ -521,22 +524,22 @@ export default function IntegrationsPage() {
                           try {
                             const response = await fetch('/api/integrations/easy-orders/webhook/status');
                             const data = await response.json();
-                            
                             if (data.success) {
                               const webhookInfo = data.integrations?.find((i: any) => i.id === integration.id);
                               if (webhookInfo) {
-                                const message = `معلومات Webhook:\n\n` +
-                                  `Webhook URL: ${data.webhookUrl}\n` +
-                                  `Webhook Secret: ${webhookInfo.hasWebhookSecret ? 'محفوظ ✓' : 'غير محفوظ ✗'}\n` +
-                                  `Store ID: ${webhookInfo.storeId || 'غير محدد'}\n` +
-                                  `الحالة: ${webhookInfo.webhookConfigured ? 'مضبوط ✓' : 'غير مضبوط ✗'}\n` +
-                                  `إجمالي الطلبات: ${webhookInfo.stats?.totalOrders || 0}\n` +
-                                  `آخر طلب: ${webhookInfo.stats?.lastOrder ? webhookInfo.stats.lastOrder.orderNumber : 'لا يوجد'}` +
-                                  (data.warning ? `\n\n⚠️ تحذير: ${data.warning}` : '');
-                                alert(message);
+                                setWebhookInfoData({
+                                  webhookUrl: data.webhookUrl || '',
+                                  hasWebhookSecret: !!webhookInfo.hasWebhookSecret,
+                                  storeId: webhookInfo.storeId || 'غير محدد',
+                                  webhookConfigured: !!webhookInfo.webhookConfigured,
+                                  totalOrders: webhookInfo.stats?.totalOrders ?? 0,
+                                  lastOrder: webhookInfo.stats?.lastOrder?.orderNumber,
+                                  warning: data.warning
+                                });
+                                setShowWebhookInfoModal(true);
                               }
                             }
-                          } catch (error: any) {
+                          } catch {
                             toast.error('حدث خطأ في الحصول على معلومات Webhook');
                           }
                         }}
@@ -1171,6 +1174,16 @@ export default function IntegrationsPage() {
         confirmText="حذف"
         cancelText="إلغاء"
         type="danger"
+      />
+
+      {/* Webhook Info Modal */}
+      <WebhookInfoModal
+        isOpen={showWebhookInfoModal}
+        onClose={() => {
+          setShowWebhookInfoModal(false);
+          setWebhookInfoData(null);
+        }}
+        data={webhookInfoData}
       />
     </div>
   );
