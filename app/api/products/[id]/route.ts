@@ -43,7 +43,7 @@ async function getProduct(req: NextRequest, user: any, ...args: unknown[]) {
     const product = await Product.findById(productIdParam)
       .select('-__v') // Exclude version field
       .populate('categoryId', 'name')
-      .populate('supplierId', 'name companyName')
+      .populate('supplierId', 'name companyName role')
       .populate('approvedBy', 'name')
       .populate('rejectedBy', 'name')
       .lean() as any;
@@ -170,12 +170,13 @@ async function getProduct(req: NextRequest, user: any, ...args: unknown[]) {
       lockReason: product.lockReason
     };
     
-    // Only include supplierName for admin and supplier roles
+    // Only include supplierName for admin and supplier roles (عرض "الإدارة" عندما المورد هو أدمن)
+    const rawSupplier = product.supplierId;
+    const supplierName = (rawSupplier as any)?.role === 'admin'
+      ? 'الإدارة'
+      : (rawSupplier?.name || (rawSupplier as any)?.companyName || '');
     const transformedProduct = (user?.role === 'admin' || user?.role === 'supplier')
-      ? {
-          ...baseProduct,
-          supplierName: product.supplierId?.name || product.supplierId?.companyName
-        }
+      ? { ...baseProduct, supplierName }
       : baseProduct;
 
     logger.debug('Sending product data', {

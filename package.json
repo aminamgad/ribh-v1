@@ -13,7 +13,9 @@
     "deploy:prepare": "node scripts/deploy-to-cpanel.js",
     "test:shipping": "node scripts/test-shipping-api.js",
     "test:sku": "node scripts/test-sku-generator.js",
-    "delete:products": "node scripts/delete-products.js"
+    "delete:orders": "node scripts/delete-orders.js",
+    "delete:products": "node scripts/delete-products.js",
+    "set-products-to-admin": "node scripts/set-products-to-admin.js"
   },
   "keywords": [
     "ecommerce",

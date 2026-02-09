@@ -366,11 +366,12 @@ async function getProducts(req: NextRequest, user: any) {
     
     // Fetch from database with optimized query
     // Use select to only get needed fields
+    // ترتيب ثابت: createdAt ثم _id لتفادي اختلاف ترتيب النتائج عند نفس الوقت (ظهور/اختفاء آخر منتج)
     const products = await Product.find(query)
       .select('name description images supplierPrice marketerPrice wholesalerPrice minimumSellingPrice isMinimumPriceMandatory stockQuantity isActive isApproved isRejected rejectionReason adminNotes approvedAt approvedBy rejectedAt rejectedBy isFulfilled isLocked lockedAt lockedBy lockReason sku weight dimensions tags createdAt categoryId supplierId hasVariants variants variantOptions metadata')
       .populate('categoryId', 'name')
-      .populate('supplierId', 'name companyName')
-      .sort({ createdAt: -1 })
+      .populate('supplierId', 'name companyName role')
+      .sort({ createdAt: -1, _id: -1 })
       .skip(skip)
       .limit(limit)
       .lean();
@@ -506,9 +507,13 @@ async function getProducts(req: NextRequest, user: any) {
       
       // Only include supplierName for admin and supplier roles
       if (user?.role === 'admin' || user?.role === 'supplier') {
+        const rawSupplier = product.supplierId;
+        const supplierName = (rawSupplier as any)?.role === 'admin'
+          ? 'الإدارة'
+          : (rawSupplier?.name || (rawSupplier as any)?.companyName || '');
         return {
           ...baseProduct,
-          supplierName: product.supplierId?.name || product.supplierId?.companyName
+          supplierName
         };
       }
       
@@ -755,13 +760,25 @@ async function createProduct(req: NextRequest, user: any) {
       }));
     }
     
+    // عند عدم اختيار مورد من الأدمن: تسجيل المنتج للإدارة (أول مستخدم admin) وليس باسم الموظف
+    let resolvedSupplierId = user._id;
+    if (user.role === 'supplier') {
+      resolvedSupplierId = user._id;
+    } else if (body.supplierId && String(body.supplierId).trim()) {
+      resolvedSupplierId = body.supplierId;
+    } else {
+      const User = (await import('@/models/User')).default;
+      const adminUser = await User.findOne({ role: 'admin' }).select('_id').lean();
+      if (adminUser) resolvedSupplierId = adminUser._id;
+    }
+
     // Create product data
     const productData: any = {
       name: validatedData.name,
       description: validatedData.description,
       marketingText: validatedData.marketingText,
       categoryId: validatedData.categoryId,
-      supplierId: user.role === 'supplier' ? user._id : (body.supplierId || user._id), // Admin can create for themselves or specify supplier
+      supplierId: resolvedSupplierId,
       supplierPrice: validatedData.supplierPrice, // CRITICAL: This must be present
       marketerPrice: finalMarketerPrice,
       minimumSellingPrice: validatedData.minimumSellingPrice != null && validatedData.minimumSellingPrice > 0 ? validatedData.minimumSellingPrice : null,

@@ -336,28 +336,16 @@ export default function ProductsPage() {
     games: []
   };
 
-  // Fetch function - use useCallback to ensure it uses latest queryString
+  // استخدام نفس الـ API (/api/products) لجميع الأدوار لضمان اتساق القائمة والترتيب بين الأدمن والمسوق
   const fetchProducts = useCallback(async () => {
-    const params = new URLSearchParams(queryString);
-    const hasAdminFilters =
-      params.has('stockStatus') ||
-      params.has('suppliers') ||
-      params.has('startDate') ||
-      params.has('endDate');
-    const endpoint =
-      (hasAdminFilters || user?.role === 'admin')
-        ? (queryString ? `/api/products?${queryString}` : '/api/products')
-        : queryString
-          ? `/api/search?${queryString}`
-          : '/api/products';
-    
+    const endpoint = queryString ? `/api/products?${queryString}` : '/api/products';
     const response = await fetch(endpoint);
     if (!response.ok) {
       throw new Error('Failed to fetch products');
     }
     const data = await response.json();
     return data;
-  }, [queryString, user?.role]);
+  }, [queryString]);
 
   // Use cache hook for products
   const { data: productsData, loading, refresh } = useDataCache<{ products: Product[]; pagination?: any }>({

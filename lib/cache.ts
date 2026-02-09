@@ -207,7 +207,7 @@ class CacheManager {
 
 // Create cache instances for different use cases
 export const productCache = new CacheManager({
-  ttl: 10 * 60 * 1000, // 10 minutes
+  ttl: 2 * 60 * 1000, // 2 دقائق لضمان رؤية تحديثات المخزون والمنتجات من أي مدير
   maxSize: 500,
   strategy: 'lru'
 });

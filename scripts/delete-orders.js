@@ -7,7 +7,9 @@
  * Usage: node scripts/delete-orders.js
  */
 
+const path = require('path');
 const mongoose = require('mongoose');
+require('dotenv').config({ path: path.resolve(process.cwd(), '.env.local') });
 require('dotenv').config();
 
 // Import Order model

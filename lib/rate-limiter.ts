@@ -156,10 +156,10 @@ export const apiRateLimit = rateLimit({
   message: 'تم تجاوز الحد المسموح من الطلبات. يرجى المحاولة لاحقاً'
 });
 
-// Strict rate limiter for file uploads
+// Rate limiter for file uploads (مناسب لرفع عدة صور عند إضافة منتج - 10 صور أو أكثر)
 export const uploadRateLimit = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  maxRequests: 20, // 20 uploads per hour
+  maxRequests: 50, // 50 رفع في الساعة لتفادي "فشل رفع جميع الملفات" عند إضافة منتجات متعددة
   message: 'تم تجاوز الحد المسموح من رفع الملفات. يرجى المحاولة لاحقاً'
 });
 

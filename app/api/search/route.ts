@@ -124,12 +124,13 @@ async function searchProducts(req: NextRequest, user: any) {
     logger.apiRequest('GET', '/api/search', { userId: user._id, role: user.role, userEmail: user.email });
     logger.debug('Search query', { query, category: categoryParam, hasPriceRange: !!(minPrice || maxPrice) });
     
-    // Execute search
+    // ترتيب ثابت: إضافة _id كمعيار ثانوي لتفادي اختلاف ترتيب النتائج
+    const sortWithId = { ...sortOptions, _id: sortOrder === 'asc' ? 1 : -1 };
     const [products, total] = await Promise.all([
       Product.find(searchQuery)
         .populate('categoryId', 'name nameEn')
         .populate('supplierId', 'name companyName')
-        .sort(sortOptions)
+        .sort(sortWithId)
         .skip(skip)
         .limit(limit)
         .lean(),
