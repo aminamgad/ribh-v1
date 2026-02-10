@@ -728,9 +728,18 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
           {/* Filters Panel */}
           <div className="card p-4 sm:p-6 space-y-4 sm:space-y-6 fixed sm:relative inset-x-0 bottom-0 sm:bottom-auto sm:inset-x-auto z-50 sm:z-auto max-h-[85vh] sm:max-h-none overflow-y-auto sm:overflow-visible rounded-t-2xl sm:rounded-xl">
             <div className="flex justify-between items-center mb-3 sm:mb-4 sticky top-0 bg-white dark:bg-slate-800 pb-3 sm:pb-0 -mt-2 sm:mt-0 pt-2 sm:pt-0">
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-slate-100">
-                {user?.role === 'admin' ? 'فلاتر المنتجات المتقدمة' : 'فلاتر البحث'}
-              </h3>
+              <div>
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-slate-100">
+                  {user?.role === 'admin' ? 'فلاتر المنتجات' : 'فلاتر البحث'}
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                  {user?.role === 'admin'
+                    ? 'الفئة · السعر · المورد · حالة المنتج · المخزون'
+                    : (user?.role === 'marketer' || user?.role === 'wholesaler')
+                    ? 'الفئة · نطاق السعر'
+                    : 'الفئة · السعر'}
+                </p>
+              </div>
               <div className="flex items-center gap-2 sm:gap-3">
                 <button
                   onClick={clearFilters}
@@ -756,7 +765,7 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
             {/* Category Filter */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                الفئات
+                الفئة
               </label>
               <MultiSelect
                 options={categoryOptions}
@@ -782,7 +791,7 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
             {user?.role === 'admin' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                  حالة الموافقة
+                  حالة المنتج
                 </label>
                 <MultiSelect
                   options={approvalStatusOptions}
@@ -804,69 +813,63 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
               </div>
             )}
 
-            {/* Price Range */}
-            <div>
+            {/* Price Range - نطاق السعر (واحد للتسمية مع حقلين) */}
+            <div className="sm:col-span-2">
               <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                السعر من
+                نطاق السعر (₪)
               </label>
-              <input
-                type="number"
-                placeholder="0"
-                value={minPrice}
-                onChange={(e) => {
-                  const newValue = e.target.value;
-                  // Update state immediately first to reflect UI change
-                  setMinPrice(newValue || '');
-                  // CRITICAL FIX: Pass both minPrice (new value) and maxPrice (current from ref) together
-                  // This ensures the API receives both values correctly for proper filtering
-                  if (!isInitialMount.current) {
-                    applyFiltersAuto(undefined, newValue || '', maxPriceRef.current || '');
-                  }
-                }}
-                onBlur={(e) => {
-                  // Ensure empty values are properly handled on blur
-                  const value = e.target.value || '';
-                  if (value !== (minPrice || '')) {
-                    setMinPrice(value);
-                    if (!isInitialMount.current) {
-                      applyFiltersAuto(undefined, value, maxPriceRef.current || '');
-                    }
-                  }
-                }}
-                className="input-field"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                السعر إلى
-              </label>
-              <input
-                type="number"
-                placeholder="1000"
-                value={maxPrice}
-                onChange={(e) => {
-                  const newValue = e.target.value;
-                  // Update state immediately first to reflect UI change
-                  setMaxPrice(newValue || '');
-                  // CRITICAL FIX: Pass both maxPrice (new value) and minPrice (current from ref) together
-                  // This ensures the API receives both values correctly for proper filtering
-                  if (!isInitialMount.current) {
-                    applyFiltersAuto(undefined, minPriceRef.current || '', newValue || '');
-                  }
-                }}
-                onBlur={(e) => {
-                  // Ensure empty values are properly handled on blur
-                  const value = e.target.value || '';
-                  if (value !== (maxPrice || '')) {
-                    setMaxPrice(value);
-                    if (!isInitialMount.current) {
-                      applyFiltersAuto(undefined, minPriceRef.current || '', value);
-                    }
-                  }
-                }}
-                className="input-field"
-              />
+              <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                <div>
+                  <span className="block text-xs text-gray-500 dark:text-slate-400 mb-1">من</span>
+                  <input
+                    type="number"
+                    placeholder="0"
+                    value={minPrice}
+                    onChange={(e) => {
+                      const newValue = e.target.value;
+                      setMinPrice(newValue || '');
+                      if (!isInitialMount.current) {
+                        applyFiltersAuto(undefined, newValue || '', maxPriceRef.current || '');
+                      }
+                    }}
+                    onBlur={(e) => {
+                      const value = e.target.value || '';
+                      if (value !== (minPrice || '')) {
+                        setMinPrice(value);
+                        if (!isInitialMount.current) {
+                          applyFiltersAuto(undefined, value, maxPriceRef.current || '');
+                        }
+                      }
+                    }}
+                    className="input-field w-full"
+                  />
+                </div>
+                <div>
+                  <span className="block text-xs text-gray-500 dark:text-slate-400 mb-1">إلى</span>
+                  <input
+                    type="number"
+                    placeholder="—"
+                    value={maxPrice}
+                    onChange={(e) => {
+                      const newValue = e.target.value;
+                      setMaxPrice(newValue || '');
+                      if (!isInitialMount.current) {
+                        applyFiltersAuto(undefined, minPriceRef.current || '', newValue || '');
+                      }
+                    }}
+                    onBlur={(e) => {
+                      const value = e.target.value || '';
+                      if (value !== (maxPrice || '')) {
+                        setMaxPrice(value);
+                        if (!isInitialMount.current) {
+                          applyFiltersAuto(undefined, minPriceRef.current || '', value);
+                        }
+                      }
+                    }}
+                    className="input-field w-full"
+                  />
+                </div>
+              </div>
             </div>
 
           </div>
@@ -875,9 +878,10 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
           {user?.role === 'admin' && (
             <>
               <div className="pt-4 border-t border-gray-200 dark:border-slate-700">
-                <h4 className="text-md font-semibold text-gray-900 dark:text-slate-100 mb-4">
+                <h4 className="text-md font-semibold text-gray-900 dark:text-slate-100 mb-1">
                   فلاتر الإدارة
                 </h4>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mb-4">المورد · حالة المنتج · المخزون · تاريخ الإضافة</p>
                 
                 {/* Stock Quantity Range Filter */}
                 <div className="mb-4">

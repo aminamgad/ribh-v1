@@ -94,6 +94,14 @@ export interface SystemSettings {
   autoCreatePackages?: boolean;
   createPackageOnOrderCreate?: boolean;
   
+  // Product price recalculation status (for admin notification when done)
+  recalculationStatus?: {
+    status: 'idle' | 'running' | 'completed' | 'failed';
+    startedAt?: Date;
+    completedAt?: Date;
+    result?: { updated: number; skipped: number; errors: number };
+  };
+  
   createdAt: Date;
   updatedAt: Date;
 }
@@ -179,9 +187,9 @@ const systemSettingsSchema = new Schema<SystemSettingsDocument>({
   adminProfitMargins: {
     type: [adminProfitMarginSchema],
     default: [
-      { minPrice: 1, maxPrice: 100, margin: 10 },
-      { minPrice: 101, maxPrice: 500, margin: 8 },
-      { minPrice: 501, maxPrice: 1000, margin: 6 },
+      { minPrice: 1, maxPrice: 100, margin: 5 },
+      { minPrice: 101, maxPrice: 500, margin: 5 },
+      { minPrice: 501, maxPrice: 1000, margin: 5 },
       { minPrice: 1001, maxPrice: 999999, margin: 5 }
     ]
   },
@@ -381,6 +389,17 @@ const systemSettingsSchema = new Schema<SystemSettingsDocument>({
     default: true,
     // Alias for autoCreatePackages - for backward compatibility
     // If true: Order is sent to shipping company immediately upon creation
+  },
+  // Product price recalculation status (for admin completion notification)
+  recalculationStatus: {
+    status: { type: String, enum: ['idle', 'running', 'completed', 'failed'], default: 'idle' },
+    startedAt: { type: Date },
+    completedAt: { type: Date },
+    result: {
+      updated: { type: Number },
+      skipped: { type: Number },
+      errors: { type: Number }
+    }
   }
 }, {
   timestamps: true,

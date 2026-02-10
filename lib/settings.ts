@@ -39,9 +39,9 @@ export async function getSystemSettings() {
         // commissionRates deprecated - using adminProfitMargins only
         commissionRates: [],
         adminProfitMargins: [
-          { minPrice: 1, maxPrice: 100, margin: 10 },
-          { minPrice: 101, maxPrice: 500, margin: 8 },
-          { minPrice: 501, maxPrice: 1000, margin: 6 },
+          { minPrice: 1, maxPrice: 100, margin: 5 },
+          { minPrice: 101, maxPrice: 500, margin: 5 },
+          { minPrice: 501, maxPrice: 1000, margin: 5 },
           { minPrice: 1001, maxPrice: 999999, margin: 5 }
         ],
         platformName: 'ربح',

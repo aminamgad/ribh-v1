@@ -684,10 +684,17 @@ async function createProduct(req: NextRequest, user: any) {
       }
     }
     
-    // Calculate marketerPrice from supplierPrice + admin profit margin if not provided
-    let finalMarketerPrice = validatedData.marketerPrice;
-    if (!finalMarketerPrice || finalMarketerPrice <= 0) {
+    // Always calculate marketerPrice from supplierPrice using current system settings
+    // so new products use the correct admin profit margin (not a client-sent or stale value)
+    let finalMarketerPrice: number;
+    try {
       finalMarketerPrice = await settingsManager.calculateMarketerPriceFromSupplierPrice(validatedData.supplierPrice);
+    } catch (err) {
+      logger.error('Failed to calculate marketerPrice on product create', err, { supplierPrice: validatedData.supplierPrice });
+      return NextResponse.json(
+        { success: false, message: 'تعذر حساب سعر المسوق من إعدادات النظام. تحقق من الإعدادات المالية.' },
+        { status: 500 }
+      );
     }
     
     // Validate pricing logic

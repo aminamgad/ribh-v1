@@ -33,7 +33,9 @@ import {
   ArrowLeft,
   Clock,
   Inbox,
-  Link as LinkIcon
+  Link as LinkIcon,
+  List,
+  LayoutGrid
 } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -42,7 +44,7 @@ import MediaThumbnail from '@/components/ui/MediaThumbnail';
 import { useRouter } from 'next/navigation';
 import ProductSection from '@/components/products/ProductSection';
 import AdminProductsTableView from '@/components/products/AdminProductsTableView';
-import { getStockBadgeText } from '@/lib/product-helpers';
+import { getStockBadgeText, calculateVariantStockQuantity } from '@/lib/product-helpers';
 
 interface Product {
   _id: string;
@@ -158,18 +160,29 @@ export default function ProductsPage() {
   }, []); // Only run once on mount - URL changes handled by event listeners
   
   // Use URL query string directly - no need for searchParams which causes re-renders
-  // This is synchronous - no delay
   const queryString = urlQueryString || '';
   
-  // Generate cache key based on query string - synchronous calculation
-  // This updates immediately when queryString changes
+  // استعلام الفلاتر فقط (بدون page)
+  const baseQueryString = useMemo(() => {
+    const params = new URLSearchParams(queryString);
+    params.delete('page');
+    return params.toString();
+  }, [queryString]);
+
+  // رقم الصفحة الحالية من الـ URL (للترقيم: السابق / التالي)
+  const currentPage = useMemo(() => {
+    const p = new URLSearchParams(queryString).get('page');
+    const n = parseInt(p || '1', 10);
+    return isNaN(n) || n < 1 ? 1 : n;
+  }, [queryString]);
+  
   const cacheKey = useMemo(() => {
-    const newKey = `products_${queryString || 'default'}`;
+    const newKey = `products_${baseQueryString || 'default'}_p_${currentPage}`;
     if (cacheKeyRef.current !== newKey) {
       cacheKeyRef.current = newKey;
     }
     return newKey;
-  }, [queryString]);
+  }, [baseQueryString, currentPage]);
   
   const [pagination, setPagination] = useState({
     page: 1,
@@ -177,6 +190,8 @@ export default function ProductsPage() {
     total: 0,
     pages: 0
   });
+
+  const [accumulatedProducts, setAccumulatedProducts] = useState<Product[]>([]);
 
   // Modal states
   const [showApproveModal, setShowApproveModal] = useState(false);
@@ -216,6 +231,12 @@ export default function ProductsPage() {
 
   // View mode for admin (list/grid)
   const [adminViewMode, setAdminViewMode] = useState<'list' | 'grid'>('list');
+  // View mode for marketer/wholesaler (list/grid)
+  const [marketerViewMode, setMarketerViewMode] = useState<'list' | 'grid'>('grid');
+
+  // ترتيب القائمة: حسب الاسم، السعر، المخزون، التاريخ (للمسوق والأدمن)
+  const [sortBy, setSortBy] = useState<'name' | 'price' | 'stock' | 'date'>('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const router = useRouter();
 
@@ -336,16 +357,19 @@ export default function ProductsPage() {
     games: []
   };
 
-  // استخدام نفس الـ API (/api/products) لجميع الأدوار لضمان اتساق القائمة والترتيب بين الأدمن والمسوق
   const fetchProducts = useCallback(async () => {
-    const endpoint = queryString ? `/api/products?${queryString}` : '/api/products';
+    const params = new URLSearchParams(baseQueryString);
+    params.set('page', String(currentPage));
+    params.set('limit', '20');
+    const qs = params.toString();
+    const endpoint = qs ? `/api/products?${qs}` : `/api/products?page=${currentPage}&limit=20`;
     const response = await fetch(endpoint);
     if (!response.ok) {
       throw new Error('Failed to fetch products');
     }
     const data = await response.json();
     return data;
-  }, [queryString]);
+  }, [baseQueryString, currentPage]);
 
   // Use cache hook for products
   const { data: productsData, loading, refresh } = useDataCache<{ products: Product[]; pagination?: any }>({
@@ -355,74 +379,102 @@ export default function ProductsPage() {
     forceRefresh: false
   });
 
-  // CRITICAL: Client-side defensive check - filter products by supplierId for suppliers
-  // NOTE: This is a safety check - the API should already filter correctly
-  // API now returns supplierId as string, so comparison should be straightforward
-  const products = useMemo(() => {
-    const allProducts = productsData?.products || [];
-    if (user?.role === 'supplier' && user._id) {
-      const userSupplierId = user._id.toString();
-      const filtered = allProducts.filter((product: Product) => {
-        // API now returns supplierId as string, but handle both cases for safety
-        let productSupplierId: string | null = null;
-        if (product.supplierId) {
-          if (typeof product.supplierId === 'object' && product.supplierId !== null) {
-            // Object with _id property (shouldn't happen if API is correct, but handle it)
-            const supplierIdObj = product.supplierId as any;
-            productSupplierId = supplierIdObj._id?.toString() || String(supplierIdObj);
-          } else if (typeof product.supplierId === 'string') {
-            // String (expected from API)
-            productSupplierId = product.supplierId;
-          } else {
-            // Fallback for any other type
-            productSupplierId = String(product.supplierId);
-          }
+  // فلتر المورد: إبقاء منتجات المورد الحالي فقط (للمزامنة ولتحميل المزيد)
+  const filterSupplierProducts = useCallback((list: Product[]): Product[] => {
+    if (user?.role !== 'supplier' || !user._id) return list;
+    const userSupplierId = user._id.toString();
+    return list.filter((product: Product) => {
+      let productSupplierId: string | null = null;
+      if (product.supplierId) {
+        if (typeof product.supplierId === 'object' && product.supplierId !== null) {
+          productSupplierId = (product.supplierId as any)._id?.toString() || String(product.supplierId);
+        } else {
+          productSupplierId = String(product.supplierId);
         }
-        
-        const matches = productSupplierId === userSupplierId;
-        if (!matches && productSupplierId) {
-          console.warn('Product filtered out in client - supplier mismatch', {
-            productId: product._id,
-            productName: product.name,
-            productSupplierId,
-            userSupplierId,
-            supplierIdType: typeof product.supplierId
-          });
-        }
-        return matches;
-      });
-      
-      // Log for debugging only if there's a mismatch
-      if (allProducts.length > 0 && filtered.length === 0) {
-        console.warn('All products filtered out for supplier', {
-          userSupplierId,
-          totalProducts: allProducts.length,
-          allSupplierIds: allProducts.map((p: Product) => {
-            if (p.supplierId) {
-              return typeof p.supplierId === 'object' ? (p.supplierId as any)._id?.toString() : p.supplierId.toString();
-            }
-            return null;
-          }),
-          firstProduct: allProducts[0] ? {
-            id: allProducts[0]._id,
-            name: allProducts[0].name,
-            supplierId: allProducts[0].supplierId,
-            supplierIdType: typeof allProducts[0].supplierId
-          } : null
-        });
       }
-      
-      return filtered;
-    }
-    return allProducts;
-  }, [productsData?.products, user?.role, user?._id]);
-  
-  
+      return productSupplierId === userSupplierId;
+    });
+  }, [user?.role, user?._id]);
+
+  // مزامنة قائمة المنتجات من رد الـ API (صفحة واحدة لكل طلب)
   useEffect(() => {
-    if (productsData?.pagination) {
+    if (!productsData?.products) return;
+    const filtered = filterSupplierProducts(productsData.products);
+    setAccumulatedProducts(filtered);
+    if (productsData.pagination) {
       setPagination(productsData.pagination);
     }
-  }, [productsData]);
+  }, [productsData, filterSupplierProducts]);
+
+  // عند تغيير الفلاتر: إعادة الصفحة إلى 1
+  const prevBaseQueryRef = useRef(baseQueryString);
+  useEffect(() => {
+    if (prevBaseQueryRef.current !== baseQueryString) {
+      prevBaseQueryRef.current = baseQueryString;
+      const params = new URLSearchParams(baseQueryString);
+      params.set('page', '1');
+      const newQuery = params.toString();
+      if (typeof window !== 'undefined') {
+        const newUrl = `/dashboard/products${newQuery ? `?${newQuery}` : ''}`;
+        window.history.replaceState({ ...window.history.state, as: newUrl, url: newUrl }, '', newUrl);
+        setUrlQueryString(newQuery);
+        window.dispatchEvent(new CustomEvent('urlchange', { detail: { query: newQuery } }));
+      }
+    }
+  }, [baseQueryString]);
+
+  const products = accumulatedProducts;
+
+  // ملخص المنتجات: مخزون فعلي (مع احتساب المتغيرات) لأجل متوفر/غير متوفر
+  const getEffectiveStock = useCallback((p: Product) => {
+    if (p.hasVariants && p.variantOptions && p.variantOptions.length > 0) {
+      return calculateVariantStockQuantity(p.variantOptions);
+    }
+    return p.stockQuantity ?? 0;
+  }, []);
+
+  const summaryCounts = useMemo(() => {
+    const total = pagination.total || products.length;
+    const available = products.filter(p => getEffectiveStock(p) > 0).length;
+    const unavailable = products.filter(p => getEffectiveStock(p) <= 0).length;
+    const favorites = (user?.role === 'marketer' || user?.role === 'wholesaler')
+      ? products.filter(p => isFavorite(p._id)).length
+      : 0;
+    return { total, available, unavailable, favorites };
+  }, [products, pagination.total, getEffectiveStock, user?.role, isFavorite]);
+
+  // ترتيب المنتجات محلياً حسب الاختيار (اسم، سعر، مخزون، تاريخ)
+  const sortedProducts = useMemo(() => {
+    const list = [...products];
+    const getPrice = (p: Product) => (user?.role === 'wholesaler' ? (p.wholesalerPrice ?? 0) : (p.marketerPrice ?? 0));
+    const getDate = (p: Product) => new Date((p as any).createdAt || 0).getTime();
+    const mult = sortOrder === 'asc' ? 1 : -1;
+    list.sort((a, b) => {
+      let cmp = 0;
+      if (sortBy === 'name') {
+        cmp = (a.name || '').localeCompare(b.name || '', 'ar');
+      } else if (sortBy === 'price') {
+        cmp = getPrice(a) - getPrice(b);
+      } else if (sortBy === 'stock') {
+        cmp = getEffectiveStock(a) - getEffectiveStock(b);
+      } else {
+        cmp = getDate(a) - getDate(b);
+      }
+      return mult * cmp;
+    });
+    return list;
+  }, [products, sortBy, sortOrder, user?.role, getEffectiveStock]);
+
+  const goToPage = useCallback((page: number) => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(baseQueryString);
+    params.set('page', String(page));
+    const newQuery = params.toString();
+    const newUrl = `/dashboard/products${newQuery ? `?${newQuery}` : ''}`;
+    window.history.replaceState({ ...window.history.state, as: newUrl, url: newUrl }, '', newUrl);
+    setUrlQueryString(newQuery);
+    window.dispatchEvent(new CustomEvent('urlchange', { detail: { query: newQuery } }));
+  }, [baseQueryString]);
 
   // Check for refresh flag from sessionStorage on mount or route change
   useEffect(() => {
@@ -1183,33 +1235,110 @@ export default function ProductsPage() {
 
       {/* Products Display - Admin uses table/list view, others use grid */}
       {loading && !productsData ? (
-        // Show loading spinner inline when first loading (but keep filters visible)
-        <div className="flex items-center justify-center py-12">
-          <div className="loading-spinner w-8 h-8"></div>
-          <span className="mr-3 text-gray-600 dark:text-slate-400">جاري تحميل المنتجات...</span>
+        // هيكل ثابت أثناء التحميل الأول (skeleton) لتفادي قفز الصفحة
+        <div className="space-y-4" aria-busy="true" aria-label="جاري تحميل المنتجات">
+          <div className="flex flex-wrap items-center gap-3 mb-4">
+            <div className="h-10 w-24 rounded-lg bg-gray-200 dark:bg-slate-700 animate-pulse" />
+            <div className="h-10 w-32 rounded-lg bg-gray-200 dark:bg-slate-700 animate-pulse" />
+            <div className="h-10 w-28 rounded-lg bg-gray-200 dark:bg-slate-700 animate-pulse" />
+          </div>
+          {user?.role === 'admin' ? (
+            <div className="card overflow-hidden p-0">
+              <div className="overflow-hidden">
+                <div className="border-b border-gray-200 dark:border-slate-700">
+                  <div className="flex gap-4 px-4 py-3">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <div key={i} className="h-4 flex-1 min-w-[80px] rounded bg-gray-200 dark:bg-slate-700 animate-pulse" />
+                    ))}
+                  </div>
+                </div>
+                {[1, 2, 3, 4, 5, 6].map((row) => (
+                  <div key={row} className="flex gap-4 px-4 py-3 border-b border-gray-100 dark:border-slate-800">
+                    <div className="w-14 h-14 rounded bg-gray-200 dark:bg-slate-700 animate-pulse shrink-0" />
+                    <div className="flex-1 space-y-2 min-w-0">
+                      <div className="h-4 w-3/4 rounded bg-gray-200 dark:bg-slate-700 animate-pulse" />
+                      <div className="h-3 w-1/2 rounded bg-gray-100 dark:bg-slate-600 animate-pulse" />
+                    </div>
+                    <div className="h-4 w-16 rounded bg-gray-200 dark:bg-slate-700 animate-pulse shrink-0" />
+                    <div className="h-4 w-14 rounded bg-gray-200 dark:bg-slate-700 animate-pulse shrink-0" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                <div key={i} className="card overflow-hidden p-0">
+                  <div className="aspect-square sm:aspect-[4/3] bg-gray-200 dark:bg-slate-700 animate-pulse" />
+                  <div className="p-4 space-y-2">
+                    <div className="h-4 w-full rounded bg-gray-200 dark:bg-slate-700 animate-pulse" />
+                    <div className="h-4 w-2/3 rounded bg-gray-100 dark:bg-slate-600 animate-pulse" />
+                    <div className="h-6 w-1/4 rounded bg-gray-200 dark:bg-slate-700 animate-pulse mt-3" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="flex justify-center py-4">
+            <div className="loading-spinner w-6 h-6" />
+            <span className="mr-2 text-sm text-gray-600 dark:text-slate-400">جاري تحميل المنتجات...</span>
+          </div>
         </div>
       ) : products.length === 0 ? (
-        <div className="card text-center py-12">
-          <Package className="w-16 h-16 text-gray-400 dark:text-slate-500 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100 mb-2">لا توجد منتجات</h3>
-          <p className="text-gray-600 dark:text-slate-400">
-            {queryString 
-              ? 'لا توجد نتائج مطابقة لبحثك'
+        <div className="card text-center py-12 px-4 sm:py-16">
+          <Package className="w-16 h-16 sm:w-20 sm:h-20 text-gray-400 dark:text-slate-500 mx-auto mb-4" />
+          <h3 className="text-lg sm:text-xl font-medium text-gray-900 dark:text-slate-100 mb-2">
+            {queryString ? 'لا توجد نتائج' : 'لا توجد منتجات'}
+          </h3>
+          <p className="text-gray-600 dark:text-slate-400 max-w-md mx-auto">
+            {queryString
+              ? 'لا توجد نتائج مطابقة لبحثك أو الفلاتر المحددة. جرّب تغيير الكلمات أو الفلاتر.'
               : user?.role === 'supplier'
                 ? 'لم تقم بإضافة أي منتجات بعد. ابدأ بإضافة منتجك الأول!'
+                : user?.role === 'admin'
+                ? 'لا توجد منتجات في النظام. يمكن للموردين إضافة منتجات من حساباتهم.'
                 : user?.role === 'marketer'
-                ? 'لا توجد منتجات معتمدة متاحة حالياً.'
-                : 'لا توجد منتجات متاحة حالياً.'
-            }
+                ? 'لا توجد منتجات معتمدة متاحة للطلب حالياً. تواصل مع الإدارة أو جرّب لاحقاً.'
+                : user?.role === 'wholesaler'
+                ? 'لا توجد منتجات معتمدة للجملة متاحة حالياً. جرّب تغيير الفلاتر أو لاحقاً.'
+                : 'لا توجد منتجات متاحة حالياً.'}
           </p>
           {user?.role === 'supplier' && !queryString && (
-            <Link href="/dashboard/products/new" className="btn-primary mt-4">
+            <Link href="/dashboard/products/new" className="btn-primary mt-6 inline-flex items-center min-h-[44px]">
               <Plus className="w-5 h-5 ml-2" />
               إضافة منتج جديد
             </Link>
           )}
+          {queryString && (user?.role === 'admin' || user?.role === 'marketer' || user?.role === 'wholesaler') && (
+            <p className="text-sm text-gray-500 dark:text-slate-500 mt-4">جرّب مسح الفلاتر أو البحث بكلمات أخرى</p>
+          )}
         </div>
-      ) : user?.role === 'admin' ? (
+      ) : (
+        <>
+          {/* شريط الترتيب: اسم، سعر، مخزون، تاريخ - للمسوق والأدمن والمورد وتاجر الجملة */}
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4 mb-4 py-2 sm:py-0">
+            <span className="text-sm text-gray-600 dark:text-slate-400 w-full sm:w-auto">ترتيب حسب:</span>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as 'name' | 'price' | 'stock' | 'date')}
+              className="text-sm border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2.5 sm:py-2 min-h-[44px] sm:min-h-0 flex-1 sm:flex-initial min-w-0 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-primary-500"
+            >
+              <option value="name">الاسم</option>
+              <option value="price">{user?.role === 'wholesaler' ? 'سعر الجملة' : 'السعر'}</option>
+              <option value="stock">المخزون</option>
+              <option value="date">التاريخ</option>
+            </select>
+            <select
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
+              className="text-sm border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2.5 sm:py-2 min-h-[44px] sm:min-h-0 flex-1 sm:flex-initial min-w-0 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-primary-500"
+            >
+              <option value="asc">تصاعدي</option>
+              <option value="desc">تنازلي</option>
+            </select>
+          </div>
+
+          {user?.role === 'admin' ? (
         // Admin Table/List View - show loading indicator when loading new data
         <>
           {loading && productsData && (
@@ -1219,16 +1348,50 @@ export default function ProductsPage() {
             </div>
           )}
           <AdminProductsTableView
-            products={products}
+            products={sortedProducts}
             onApprove={handleApproveProduct}
             onReject={handleRejectProduct}
             onResubmit={handleResubmitProduct}
             onReview={handleReviewProduct}
             viewMode={adminViewMode}
             onViewModeChange={setAdminViewMode}
+            userRole="admin"
           />
+          {pagination.pages > 1 && (
+            <div className="flex justify-center items-center gap-3 sm:gap-4 mt-8 mb-4 flex-wrap">
+              <button type="button" onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1} className="btn-secondary min-h-[44px] px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed">السابق</button>
+              <span className="text-sm text-gray-700 dark:text-slate-300 font-medium">صفحة {currentPage} من {pagination.pages}</span>
+              <button type="button" onClick={() => goToPage(currentPage + 1)} disabled={currentPage >= pagination.pages} className="btn-secondary min-h-[44px] px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed">التالي</button>
+            </div>
+          )}
         </>
-      ) : (
+          ) : (user?.role === 'marketer' || user?.role === 'wholesaler') && marketerViewMode === 'list' ? (
+        // Marketer/Wholesaler List View - table with add to cart & favorite
+        <>
+          {loading && productsData && (
+            <div className="mb-4 flex items-center justify-center py-4">
+              <div className="loading-spinner w-6 h-6"></div>
+              <span className="mr-2 text-sm text-gray-600 dark:text-slate-400">جاري تحديث القائمة...</span>
+            </div>
+          )}
+          <AdminProductsTableView
+            products={sortedProducts}
+            userRole={user?.role === 'wholesaler' ? 'wholesaler' : 'marketer'}
+            viewMode={marketerViewMode}
+            onViewModeChange={setMarketerViewMode}
+            onAddToCart={(p) => handleAddToCart(p as Product)}
+            isFavorite={isFavorite}
+            onToggleFavorite={(p) => handleToggleFavorite(p as Product)}
+          />
+          {pagination.pages > 1 && (
+            <div className="flex justify-center items-center gap-3 sm:gap-4 mt-8 mb-4 flex-wrap">
+              <button type="button" onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1} className="btn-secondary min-h-[44px] px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed">السابق</button>
+              <span className="text-sm text-gray-700 dark:text-slate-300 font-medium">صفحة {currentPage} من {pagination.pages}</span>
+              <button type="button" onClick={() => goToPage(currentPage + 1)} disabled={currentPage >= pagination.pages} className="btn-secondary min-h-[44px] px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed">التالي</button>
+            </div>
+          )}
+        </>
+          ) : (
         <>
           {/* Show loading indicator when loading new data but keep previous data visible */}
           {loading && productsData && (
@@ -1237,8 +1400,29 @@ export default function ProductsPage() {
               <span className="mr-2 text-sm text-gray-600 dark:text-slate-400">جاري تحديث القائمة...</span>
             </div>
           )}
+          {/* View toggle for Marketer/Wholesaler */}
+          {(user?.role === 'marketer' || user?.role === 'wholesaler') && (
+            <div className="flex justify-end mb-4">
+              <div className="flex bg-gray-100 dark:bg-slate-700 rounded-lg p-1 gap-0.5">
+                <button
+                  onClick={() => setMarketerViewMode('list')}
+                  className={`px-4 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 rounded-md transition-colors flex items-center justify-center ${marketerViewMode === 'list' ? 'bg-white dark:bg-slate-600 text-primary-600 dark:text-primary-400 shadow-sm' : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'}`}
+                >
+                  <List className="w-4 h-4 ml-1" />
+                  قائمة
+                </button>
+                <button
+                  onClick={() => setMarketerViewMode('grid')}
+                  className={`px-4 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 rounded-md transition-colors flex items-center justify-center ${marketerViewMode === 'grid' ? 'bg-white dark:bg-slate-600 text-primary-600 dark:text-primary-400 shadow-sm' : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'}`}
+                >
+                  <LayoutGrid className="w-4 h-4 ml-1" />
+                  شبكة
+                </button>
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-            {products.map((product) => (
+            {sortedProducts.map((product) => (
               <div 
                 key={product._id} 
                 className={`card hover:shadow-medium transition-all duration-200 relative cursor-pointer active:scale-[0.98] ${
@@ -1316,6 +1500,16 @@ export default function ProductsPage() {
                       {user?.role !== 'wholesaler' && product.minimumSellingPrice && (
                         <p className="text-[10px] sm:text-xs mt-1 text-gray-500 dark:text-gray-400">
                           السعر الأدنى: {product.minimumSellingPrice} ₪
+                        </p>
+                      )}
+                      {(user?.role === 'marketer' || user?.role === 'wholesaler') && (
+                        <p className="text-xs font-semibold mt-1 text-[#FF9800] dark:text-[#FF9800]">
+                          ربح المسوق: {(() => {
+                            const base = user?.role === 'wholesaler' ? (product.wholesalerPrice ?? 0) : (product.marketerPrice ?? 0);
+                            const minP = product.minimumSellingPrice ?? 0;
+                            const profit = minP > base ? minP - base : 0;
+                            return `${profit.toFixed(2)} ₪`;
+                          })()}
                         </p>
                       )}
                       <div className="flex items-center flex-wrap gap-1.5 sm:gap-2 space-x-reverse mt-1.5 sm:mt-2">
@@ -1559,75 +1753,69 @@ export default function ProductsPage() {
             ))}
           </div>
 
-          {/* Pagination */}
+          {/* ترقيم الصفحات: السابق | صفحة X من Y | التالي - للإدارة والمسوق */}
           {pagination.pages > 1 && (
-            <div className="flex justify-center items-center space-x-2 space-x-reverse mt-8">
+            <div className="flex justify-center items-center gap-3 sm:gap-4 mt-8 mb-4 flex-wrap">
               <button
-                onClick={() => {
-                  const params = new URLSearchParams(queryString);
-                  params.set('page', (pagination.page - 1).toString());
-                  const newQuery = params.toString();
-                  const newUrl = `/dashboard/products${newQuery ? `?${newQuery}` : ''}`;
-                  
-                  // Update URL without page reload
-                  if (typeof window !== 'undefined') {
-                    const newState = { ...window.history.state, as: newUrl, url: newUrl };
-                    window.history.replaceState(newState, '', newUrl);
-                    
-                    // Update local state - no need for startTransition, urlQueryString update will trigger cache refresh
-                    setUrlQueryString(newQuery);
-                    
-                    // Trigger events for other listeners
-                    const popStateEvent = new PopStateEvent('popstate', { state: newState });
-                    window.dispatchEvent(popStateEvent);
-                    window.dispatchEvent(new CustomEvent('urlchange', { detail: { query: newQuery } }));
-                  }
-                }}
-                disabled={pagination.page === 1}
-                className="btn-secondary"
+                type="button"
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage <= 1}
+                className="btn-secondary min-h-[44px] px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 السابق
               </button>
-              
-              <span className="text-sm text-gray-600 dark:text-slate-400">
-                صفحة {pagination.page} من {pagination.pages}
+              <span className="text-sm text-gray-700 dark:text-slate-300 font-medium">
+                صفحة {currentPage} من {pagination.pages}
               </span>
-              
               <button
-                onClick={() => {
-                  const params = new URLSearchParams(queryString);
-                  params.set('page', (pagination.page + 1).toString());
-                  const newQuery = params.toString();
-                  const newUrl = `/dashboard/products${newQuery ? `?${newQuery}` : ''}`;
-                  
-                  // Update URL without page reload
-                  if (typeof window !== 'undefined') {
-                    const newState = { ...window.history.state, as: newUrl, url: newUrl };
-                    window.history.replaceState(newState, '', newUrl);
-                    
-                    // Update local state - no need for startTransition, urlQueryString update will trigger cache refresh
-                    setUrlQueryString(newQuery);
-                    
-                    // Trigger events for other listeners
-                    const popStateEvent = new PopStateEvent('popstate', { state: newState });
-                    window.dispatchEvent(popStateEvent);
-                    window.dispatchEvent(new CustomEvent('urlchange', { detail: { query: newQuery } }));
-                  }
-                }}
-                disabled={pagination.page === pagination.pages}
-                className="btn-secondary"
+                type="button"
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage >= pagination.pages}
+                className="btn-secondary min-h-[44px] px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 التالي
               </button>
             </div>
           )}
         </>
+          )}
+        </>
       )}
 
-                           {/* Stats - لا تظهر للمسوق */}
-          {user?.role !== 'marketer' && (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-              {/* إجمالي المنتجات المعتمدة */}
+          {/* شريط الملخص السفلي: إجمالي · متوفر · غير متوفر (لجميع الأدوار) */}
+          {products.length > 0 && (
+            <div className="card py-3 px-3 sm:px-4 mb-4 sm:mb-6 border border-gray-200 dark:border-slate-600">
+              <div className="flex flex-wrap items-center justify-center sm:justify-between gap-3 sm:gap-4 text-sm">
+                <span className="font-medium text-gray-700 dark:text-slate-300">
+                  <span className="text-gray-500 dark:text-slate-400 ml-1">إجمالي المنتجات:</span>
+                  <span className="text-lg font-bold text-gray-900 dark:text-slate-100 mr-2">{summaryCounts.total}</span>
+                </span>
+                <span className="hidden sm:inline text-gray-300 dark:text-slate-600">|</span>
+                <span className="font-medium">
+                  <span className="text-gray-500 dark:text-slate-400 ml-1">متوفر:</span>
+                  <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400 mr-2">{summaryCounts.available}</span>
+                </span>
+                <span className="hidden sm:inline text-gray-300 dark:text-slate-600">|</span>
+                <span className="font-medium">
+                  <span className="text-gray-500 dark:text-slate-400 ml-1">غير متوفر:</span>
+                  <span className="text-lg font-bold text-amber-600 dark:text-amber-400 mr-2">{summaryCounts.unavailable}</span>
+                </span>
+                {(user?.role === 'marketer' || user?.role === 'wholesaler') && (
+                  <>
+                    <span className="hidden sm:inline text-gray-300 dark:text-slate-600">|</span>
+                    <span className="font-medium">
+                      <span className="text-gray-500 dark:text-slate-400 ml-1">المفضلة:</span>
+                      <span className="text-lg font-bold text-red-600 dark:text-red-400">{summaryCounts.favorites}</span>
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* بطاقات الملخص (إجمالي، متوفر، غير متوفر، المفضلة للمسوق/تاجر الجملة) */}
+          {products.length > 0 && (
+            <div className={`grid grid-cols-1 gap-4 sm:gap-6 ${(user?.role === 'marketer' || user?.role === 'wholesaler') ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
               <div className="card p-6">
                 <div className="flex items-center gap-5">
                   <div className="bg-primary-100 dark:bg-primary-900/30 p-4 rounded-2xl shrink-0">
@@ -1635,12 +1823,11 @@ export default function ProductsPage() {
                   </div>
                   <div className="flex-1">
                     <p className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-3">إجمالي المنتجات</p>
-                    <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">{pagination.total || products.length}</p>
+                    <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">{summaryCounts.total}</p>
                   </div>
                 </div>
               </div>
 
-              {/* المنتجات المتوفرة */}
               <div className="card p-6">
                 <div className="flex items-center gap-5">
                   <div className="bg-success-100 dark:bg-success-900/30 p-4 rounded-2xl shrink-0">
@@ -1648,14 +1835,11 @@ export default function ProductsPage() {
                   </div>
                   <div className="flex-1">
                     <p className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-3">متوفر</p>
-                    <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">
-                      {products.filter(p => p.stockQuantity > 0).length}
-                    </p>
+                    <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">{summaryCounts.available}</p>
                   </div>
                 </div>
               </div>
 
-              {/* المنتجات غير المتوفرة */}
               <div className="card p-6">
                 <div className="flex items-center gap-5">
                   <div className="bg-warning-100 dark:bg-warning-900/30 p-4 rounded-2xl shrink-0">
@@ -1663,25 +1847,21 @@ export default function ProductsPage() {
                   </div>
                   <div className="flex-1">
                     <p className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-3">غير متوفر</p>
-                    <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">
-                      {products.filter(p => p.stockQuantity <= 0).length}
-                    </p>
+                    <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">{summaryCounts.unavailable}</p>
                   </div>
                 </div>
               </div>
 
-              {/* إحصائيات إضافية لتاجر الجملة فقط */}
-              {user?.role === 'wholesaler' && (
+              {/* المفضلة للمسوق وتاجر الجملة */}
+              {(user?.role === 'marketer' || user?.role === 'wholesaler') && (
                 <div className="card p-6">
                   <div className="flex items-center gap-5">
-                    <div className="bg-info-100 dark:bg-info-900/30 p-4 rounded-2xl shrink-0">
-                      <Package className="w-7 h-7 text-info-600 dark:text-info-400" />
+                    <div className="bg-red-100 dark:bg-red-900/30 p-4 rounded-2xl shrink-0">
+                      <Heart className="w-7 h-7 text-red-600 dark:text-red-400" />
                     </div>
                     <div className="flex-1">
                       <p className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-3">المفضلة</p>
-                      <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">
-                        {products.filter(p => isFavorite(p._id)).length}
-                      </p>
+                      <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">{summaryCounts.favorites}</p>
                     </div>
                   </div>
                 </div>

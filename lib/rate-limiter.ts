@@ -159,7 +159,7 @@ export const apiRateLimit = rateLimit({
 // Rate limiter for file uploads (مناسب لرفع عدة صور عند إضافة منتج - 10 صور أو أكثر)
 export const uploadRateLimit = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  maxRequests: 50, // 50 رفع في الساعة لتفادي "فشل رفع جميع الملفات" عند إضافة منتجات متعددة
+  maxRequests: 100, // 70 رفع في الساعة لتفادي "فشل رفع جميع الملفات" عند إضافة منتجات متعددة
   message: 'تم تجاوز الحد المسموح من رفع الملفات. يرجى المحاولة لاحقاً'
 });
 

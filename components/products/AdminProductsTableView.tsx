@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, memo } from 'react';
-import { Eye, Edit, BarChart3, CheckCircle, XCircle, LayoutGrid, List, RotateCw, Clock } from 'lucide-react';
+import { Eye, Edit, BarChart3, CheckCircle, XCircle, LayoutGrid, List, RotateCw, Clock, ShoppingCart, Heart } from 'lucide-react';
 import Link from 'next/link';
 import MediaThumbnail from '@/components/ui/MediaThumbnail';
 import { Package } from 'lucide-react';
@@ -39,12 +39,19 @@ interface Product {
 
 interface AdminProductsTableViewProps {
   products: Product[];
+  /** عند الأدمن فقط */
   onApprove?: (productId: string) => void;
   onReject?: (productId: string) => void;
   onResubmit?: (productId: string) => void;
   onReview?: (productId: string) => void;
   viewMode?: 'list' | 'grid';
   onViewModeChange?: (mode: 'list' | 'grid') => void;
+  /** لتخصيص الأعمدة والإجراءات حسب الدور */
+  userRole?: 'admin' | 'marketer' | 'wholesaler' | 'supplier';
+  /** للمسوق/تاجر الجملة في عرض القائمة */
+  onAddToCart?: (product: Product) => void;
+  isFavorite?: (productId: string) => boolean;
+  onToggleFavorite?: (product: Product) => void;
 }
 
 const AdminProductsTableView = memo(function AdminProductsTableView({
@@ -54,8 +61,14 @@ const AdminProductsTableView = memo(function AdminProductsTableView({
   onResubmit,
   onReview,
   viewMode = 'list',
-  onViewModeChange
+  onViewModeChange,
+  userRole = 'admin',
+  onAddToCart,
+  isFavorite,
+  onToggleFavorite
 }: AdminProductsTableViewProps) {
+  const isAdmin = userRole === 'admin';
+  const isMarketerOrWholesaler = userRole === 'marketer' || userRole === 'wholesaler';
   
   // Prefetch critical images (first 5 products in list view, first 8 in grid view)
   useEffect(() => {
@@ -175,7 +188,7 @@ const AdminProductsTableView = memo(function AdminProductsTableView({
         {/* Grid View */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {products.map((product) => {
-            const marketerProfit = calculateMarketerProfit(product.marketerPrice, product.minimumSellingPrice);
+            const marketerProfit = calculateMarketerProfit(userRole === 'wholesaler' ? product.wholesalerPrice : product.marketerPrice, product.minimumSellingPrice);
             const adminProfit = calculateAdminProfit(product.supplierPrice, product.marketerPrice);
 
             return (
@@ -204,30 +217,38 @@ const AdminProductsTableView = memo(function AdminProductsTableView({
                   </h3>
 
                   <div className="space-y-2 text-sm">
-                    <div>
-                      <span className="text-gray-600 dark:text-slate-400">المورد: </span>
-                      <span className="font-medium">{product.supplierName || 'غير محدد'}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-600 dark:text-slate-400">الحالة:</span>
-                      {getStatusBadge(product)}
-                    </div>
+                    {isAdmin && (
+                      <div>
+                        <span className="text-gray-600 dark:text-slate-400">المورد: </span>
+                        <span className="font-medium">{product.supplierName || 'غير محدد'}</span>
+                      </div>
+                    )}
+                    {isAdmin && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600 dark:text-slate-400">الحالة:</span>
+                        {getStatusBadge(product)}
+                      </div>
+                    )}
                     <div>
                       <span className="text-gray-600 dark:text-slate-400">المخزون: </span>
                       {getStockStatus(product)}
                     </div>
-                    <div>
-                      <span className="text-gray-600 dark:text-slate-400">سعر المورد: </span>
-                      <span className="font-medium">{(product.supplierPrice ?? 0).toFixed(2)} ₪</span>
-                    </div>
+                    {isAdmin && (
+                      <div>
+                        <span className="text-gray-600 dark:text-slate-400">سعر المورد: </span>
+                        <span className="font-medium">{(product.supplierPrice ?? 0).toFixed(2)} ₪</span>
+                      </div>
+                    )}
                     <div className="p-2">
-                      <span className="text-gray-600 dark:text-slate-400">سعر المسوق: </span>
+                      <span className="text-gray-600 dark:text-slate-400">
+                        {userRole === 'wholesaler' ? 'سعر تاجر الجملة: ' : 'سعر المسوق: '}
+                      </span>
                       <span className={`font-bold text-lg ${
                         product.isMinimumPriceMandatory && product.minimumSellingPrice
                           ? 'text-orange-600 dark:text-orange-400'
                           : 'text-gray-900 dark:text-slate-100'
                       }`}>
-                        {(product.marketerPrice ?? 0).toFixed(2)} ₪
+                        {((userRole === 'wholesaler' ? product.wholesalerPrice : product.marketerPrice) ?? 0).toFixed(2)} ₪
                       </span>
                       {product.minimumSellingPrice && (
                         <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -242,12 +263,14 @@ const AdminProductsTableView = memo(function AdminProductsTableView({
                         ربح المسوق: {marketerProfit.toFixed(2)} ₪
                       </div>
                     </div>
-                    <div>
-                      <span className="text-gray-600 dark:text-slate-400">ربح الإدارة: </span>
-                      <span className="font-bold text-primary-600 dark:text-primary-400">
-                        {adminProfit.toFixed(2)} ₪
-                      </span>
-                    </div>
+                    {isAdmin && (
+                      <div>
+                        <span className="text-gray-600 dark:text-slate-400">ربح الإدارة: </span>
+                        <span className="font-bold text-primary-600 dark:text-primary-400">
+                          {adminProfit.toFixed(2)} ₪
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Actions */}
@@ -260,21 +283,46 @@ const AdminProductsTableView = memo(function AdminProductsTableView({
                       عرض
                     </Link>
                     <div className="flex items-center space-x-2 space-x-reverse">
-                      <Link
-                        href={`/dashboard/products/${product._id}/edit`}
-                        className="text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100"
-                        title="تعديل"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Link>
-                      <Link
-                        href={`/dashboard/admin/product-stats?productId=${product._id}`}
-                        className="text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300"
-                        title="إحصائيات"
-                      >
-                        <BarChart3 className="w-4 h-4" />
-                      </Link>
-                      {!product.isApproved && !(product.isRejected ?? false) && onApprove && (
+                      {isMarketerOrWholesaler && onToggleFavorite && isFavorite && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.preventDefault(); onToggleFavorite(product); }}
+                          className={isFavorite(product._id) ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-slate-400 hover:text-red-600'}
+                          title="المفضلة"
+                        >
+                          <Heart className={`w-4 h-4 ${isFavorite(product._id) ? 'fill-current' : ''}`} />
+                        </button>
+                      )}
+                      {isMarketerOrWholesaler && onAddToCart && product.isApproved && !product.isLocked && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.preventDefault(); product.stockQuantity > 0 && onAddToCart(product); }}
+                          disabled={product.stockQuantity <= 0}
+                          className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 disabled:opacity-50"
+                          title={product.stockQuantity > 0 ? 'إضافة للسلة' : 'غير متوفر'}
+                        >
+                          <ShoppingCart className="w-4 h-4" />
+                        </button>
+                      )}
+                      {isAdmin && (
+                        <Link
+                          href={`/dashboard/products/${product._id}/edit`}
+                          className="text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100"
+                          title="تعديل"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Link>
+                      )}
+                      {isAdmin && (
+                        <Link
+                          href={`/dashboard/admin/product-stats?productId=${product._id}`}
+                          className="text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300"
+                          title="إحصائيات"
+                        >
+                          <BarChart3 className="w-4 h-4" />
+                        </Link>
+                      )}
+                      {isAdmin && !product.isApproved && !(product.isRejected ?? false) && onApprove && (
                         <button
                           onClick={() => onApprove(product._id)}
                           className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300"
@@ -283,7 +331,7 @@ const AdminProductsTableView = memo(function AdminProductsTableView({
                           <CheckCircle className="w-4 h-4" />
                         </button>
                       )}
-                      {!product.isApproved && !(product.isRejected ?? false) && onReject && (
+                      {isAdmin && !product.isApproved && !(product.isRejected ?? false) && onReject && (
                         <button
                           onClick={() => onReject(product._id)}
                           className="text-danger-600 dark:text-danger-400 hover:text-danger-700 dark:hover:text-danger-300"
@@ -292,7 +340,7 @@ const AdminProductsTableView = memo(function AdminProductsTableView({
                           <XCircle className="w-4 h-4" />
                         </button>
                       )}
-                      {product.isApproved && onReview && (
+                      {isAdmin && product.isApproved && onReview && (
                         <button
                           onClick={() => onReview(product._id)}
                           className="text-[#FF9800] dark:text-[#FF9800] hover:text-[#F57C00] dark:hover:text-[#F57C00]"
@@ -301,7 +349,7 @@ const AdminProductsTableView = memo(function AdminProductsTableView({
                           <Clock className="w-4 h-4" />
                         </button>
                       )}
-                      {(product.isRejected ?? false) && onResubmit && (
+                      {isAdmin && (product.isRejected ?? false) && onResubmit && (
                         <button
                           onClick={() => onResubmit(product._id)}
                           className="text-[#FF9800] dark:text-[#FF9800] hover:text-[#F57C00] dark:hover:text-[#F57C00]"
@@ -330,14 +378,14 @@ const AdminProductsTableView = memo(function AdminProductsTableView({
           <div className="flex bg-gray-100 dark:bg-slate-700 rounded-lg p-1">
             <button
               onClick={() => onViewModeChange('list')}
-              className="px-3 py-1.5 rounded-md transition-colors bg-white dark:bg-slate-600 text-primary-600 dark:text-primary-400 shadow-sm"
+              className={`px-3 py-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-slate-600 text-primary-600 dark:text-primary-400 shadow-sm' : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'}`}
             >
               <List className="w-4 h-4 inline ml-1" />
               قائمة
             </button>
             <button
               onClick={() => onViewModeChange('grid')}
-              className="px-3 py-1.5 rounded-md transition-colors text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200"
+              className={`px-3 py-1.5 rounded-md transition-colors ${viewMode !== 'list' ? 'bg-white dark:bg-slate-600 text-primary-600 dark:text-primary-400 shadow-sm' : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'}`}
             >
               <LayoutGrid className="w-4 h-4 inline ml-1" />
               شبكة
@@ -346,44 +394,60 @@ const AdminProductsTableView = memo(function AdminProductsTableView({
         </div>
       )}
 
-      {/* Table View - Google Sheets style */}
+      {/* Table View - Google Sheets style؛ على الجوال: اسحب أفقياً لعرض كل الأعمدة */}
       <div className="card overflow-hidden p-0 shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
+        <p className="sm:hidden text-xs text-gray-500 dark:text-slate-400 px-3 py-2 border-b border-gray-200 dark:border-slate-700">
+          اسحب لليسار لعرض كل الأعمدة
+        </p>
+        <div className="overflow-x-auto -webkit-overflow-scrolling-touch">
+          <table className="w-full border-collapse min-w-[640px]">
             <thead>
               <tr className="bg-gray-100 dark:bg-slate-800 border-b-2 border-gray-300 dark:border-slate-600">
-                <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider border-r border-gray-300 dark:border-slate-600">
+                <th className="px-2 sm:px-4 py-2 sm:py-3 text-right text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider border-r border-gray-300 dark:border-slate-600">
                   الصورة
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider border-r border-gray-300 dark:border-slate-600 min-w-[200px]">
+                <th className="px-2 sm:px-4 py-2 sm:py-3 text-right text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider border-r border-gray-300 dark:border-slate-600 min-w-[140px] sm:min-w-[200px]">
                   اسم المنتج
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider border-r border-gray-300 dark:border-slate-600 min-w-[150px]">
-                  المورد
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider border-r border-gray-300 dark:border-slate-600">
-                  حالة المنتج
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider border-r border-gray-300 dark:border-slate-600">
+                {isAdmin && (
+                  <th className="px-2 sm:px-4 py-2 sm:py-3 text-right text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider border-r border-gray-300 dark:border-slate-600 min-w-[150px]">
+                    المورد
+                  </th>
+                )}
+                {isAdmin && (
+                  <th className="px-2 sm:px-4 py-2 sm:py-3 text-right text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider border-r border-gray-300 dark:border-slate-600">
+                    حالة المنتج
+                  </th>
+                )}
+                <th className="px-2 sm:px-4 py-2 sm:py-3 text-right text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider border-r border-gray-300 dark:border-slate-600">
                   المخزون
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider border-r border-gray-300 dark:border-slate-600">
-                  سعر المورد
+                {isAdmin && (
+                  <th className="px-2 sm:px-4 py-2 sm:py-3 text-right text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider border-r border-gray-300 dark:border-slate-600">
+                    سعر المورد
+                  </th>
+                )}
+                <th className="px-2 sm:px-4 py-2 sm:py-3 text-right text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider border-r border-gray-300 dark:border-slate-600">
+                  {isMarketerOrWholesaler ? (userRole === 'wholesaler' ? 'السعر للجملة' : 'السعر للمسوق') : 'السعر للمسوق'}
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider border-r border-gray-300 dark:border-slate-600">
-                  السعر للمسوق
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider border-r border-gray-300 dark:border-slate-600">
-                  ربح الإدارة
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider">
+                {isAdmin && (
+                  <th className="px-2 sm:px-4 py-2 sm:py-3 text-right text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider border-r border-gray-300 dark:border-slate-600">
+                    ربح الإدارة
+                  </th>
+                )}
+                {isMarketerOrWholesaler && (
+                  <th className="px-2 sm:px-4 py-2 sm:py-3 text-right text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider border-r border-gray-300 dark:border-slate-600">
+                    ربح المسوق
+                  </th>
+                )}
+                <th className="px-2 sm:px-4 py-2 sm:py-3 text-right text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider">
                   الإجراءات
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-slate-900">
               {products.map((product, index) => {
-                const marketerProfit = calculateMarketerProfit(product.marketerPrice, product.minimumSellingPrice);
+                const marketerProfit = calculateMarketerProfit(userRole === 'wholesaler' ? product.wholesalerPrice : product.marketerPrice, product.minimumSellingPrice);
                 const adminProfit = calculateAdminProfit(product.supplierPrice, product.marketerPrice);
 
                 return (
@@ -394,7 +458,7 @@ const AdminProductsTableView = memo(function AdminProductsTableView({
                     }`}
                   >
                     {/* Image */}
-                    <td className="px-4 py-3 whitespace-nowrap border-r border-gray-200 dark:border-slate-700">
+                    <td className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap border-r border-gray-200 dark:border-slate-700">
                       <div className="w-16 h-16 rounded border border-gray-300 dark:border-slate-600 overflow-hidden bg-white dark:bg-slate-800">
                         <MediaThumbnail
                           media={product.images || []}
@@ -410,128 +474,161 @@ const AdminProductsTableView = memo(function AdminProductsTableView({
                     </td>
 
                     {/* Product Name */}
-                    <td className="px-4 py-3 border-r border-gray-200 dark:border-slate-700">
+                    <td className="px-2 sm:px-4 py-2 sm:py-3 border-r border-gray-200 dark:border-slate-700">
                       <div className="text-sm font-medium text-gray-900 dark:text-slate-100 max-w-xs">
                         {product.name}
                       </div>
                     </td>
 
-                    {/* Supplier */}
-                    <td className="px-4 py-3 whitespace-nowrap border-r border-gray-200 dark:border-slate-700">
-                      <div className="text-sm text-gray-900 dark:text-slate-100">
-                        {product.supplierName || 'غير محدد'}
-                      </div>
-                    </td>
-
-                    {/* Status */}
-                    <td className="px-4 py-3 whitespace-nowrap border-r border-gray-200 dark:border-slate-700">
-                      {getStatusBadge(product)}
-                    </td>
+                    {isAdmin && (
+                      <td className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap border-r border-gray-200 dark:border-slate-700">
+                        <div className="text-sm text-gray-900 dark:text-slate-100">
+                          {product.supplierName || 'غير محدد'}
+                        </div>
+                      </td>
+                    )}
+                    {isAdmin && (
+                      <td className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap border-r border-gray-200 dark:border-slate-700">
+                        {getStatusBadge(product)}
+                      </td>
+                    )}
 
                     {/* Stock */}
-                    <td className="px-4 py-3 whitespace-nowrap border-r border-gray-200 dark:border-slate-700">
+                    <td className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap border-r border-gray-200 dark:border-slate-700">
                       <div className="text-sm">
                         {getStockStatus(product)}
                       </div>
                     </td>
 
-                    {/* Supplier Price */}
-                    <td className="px-4 py-3 whitespace-nowrap border-r border-gray-200 dark:border-slate-700">
-                      <div className="text-sm font-medium text-gray-900 dark:text-slate-100">
-                        {(product.supplierPrice ?? 0).toFixed(2)} ₪
-                      </div>
-                      {product.supplierPrice && product.marketerPrice && (
-                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          ربح الإدارة: {((product.marketerPrice - product.supplierPrice) / product.supplierPrice * 100).toFixed(1)}%
+                    {isAdmin && (
+                      <td className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap border-r border-gray-200 dark:border-slate-700">
+                        <div className="text-sm font-medium text-gray-900 dark:text-slate-100">
+                          {(product.supplierPrice ?? 0).toFixed(2)} ₪
                         </div>
-                      )}
-                    </td>
+                        {product.supplierPrice && product.marketerPrice && (
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            ربح الإدارة: {((product.marketerPrice - product.supplierPrice) / product.supplierPrice * 100).toFixed(1)}%
+                          </div>
+                        )}
+                      </td>
+                    )}
 
-                    {/* Marketer Price with Profit */}
-                    <td className="px-4 py-3 whitespace-nowrap border-r border-gray-200 dark:border-slate-700">
+                    {/* Marketer/Wholesaler Price */}
+                    <td className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap border-r border-gray-200 dark:border-slate-700">
                       <div className={`text-sm font-bold ${
                         product.isMinimumPriceMandatory && product.minimumSellingPrice
                           ? 'text-orange-600 dark:text-orange-400'
                           : 'text-gray-900 dark:text-slate-100'
                       }`}>
-                        {(product.marketerPrice ?? 0).toFixed(2)} ₪
+                        {((userRole === 'wholesaler' ? product.wholesalerPrice : product.marketerPrice) ?? 0).toFixed(2)} ₪
                       </div>
                       {product.minimumSellingPrice && (
                         <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                           السعر الأدنى: {(product.minimumSellingPrice ?? 0).toFixed(2)} ₪
                         </div>
                       )}
-                      <div className={`text-xs font-semibold mt-1 pt-1 border-t-2 ${
-                        product.isMinimumPriceMandatory && product.minimumSellingPrice
-                          ? 'text-blue-600 dark:text-blue-400 border-blue-400 dark:border-blue-600'
-                          : 'text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-600'
-                      }`}>
-                        ربح المسوق: {marketerProfit.toFixed(2)} ₪
-                      </div>
+                      {isAdmin && (
+                        <div className={`text-xs font-semibold mt-1 pt-1 border-t-2 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-600`}>
+                          ربح المسوق: {marketerProfit.toFixed(2)} ₪
+                        </div>
+                      )}
                     </td>
 
-                    {/* Admin Profit */}
-                    <td className="px-4 py-3 whitespace-nowrap border-r border-gray-200 dark:border-slate-700">
-                      <div className="text-sm font-bold text-primary-700 dark:text-primary-300">
-                        {adminProfit.toFixed(2)} ₪
-                      </div>
-                    </td>
+                    {isAdmin && (
+                      <td className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap border-r border-gray-200 dark:border-slate-700">
+                        <div className="text-sm font-bold text-primary-700 dark:text-primary-300">
+                          {adminProfit.toFixed(2)} ₪
+                        </div>
+                      </td>
+                    )}
+                    {isMarketerOrWholesaler && (
+                      <td className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap border-r border-gray-200 dark:border-slate-700">
+                        <div className="text-sm font-bold text-[#FF9800] dark:text-[#FF9800]">
+                          {marketerProfit.toFixed(2)} ₪
+                        </div>
+                      </td>
+                    )}
 
-                    {/* Actions */}
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <div className="flex items-center space-x-2 space-x-reverse">
+                    {/* Actions - أزرار بحجم لمس مناسب على الجوال */}
+                    <td className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap">
+                      <div className="flex items-center gap-1 sm:space-x-2 sm:space-x-reverse flex-wrap">
                         <Link
                           href={`/dashboard/products/${product._id}`}
-                          className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
+                          className="inline-flex items-center justify-center p-2.5 sm:p-1 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
                           title="عرض المنتج"
                         >
                           <Eye className="w-4 h-4" />
                         </Link>
-                        <Link
-                          href={`/dashboard/products/${product._id}/edit`}
-                          className="text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100"
-                          title="تعديل"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Link>
-                        <Link
-                          href={`/dashboard/admin/product-stats?productId=${product._id}`}
-                          className="text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300"
-                          title="إحصائيات"
-                        >
-                          <BarChart3 className="w-4 h-4" />
-                        </Link>
-                        {!product.isApproved && !(product.isRejected ?? false) && onApprove && (
+                        {isMarketerOrWholesaler && onToggleFavorite && isFavorite && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.preventDefault(); onToggleFavorite(product); }}
+                            className={`inline-flex items-center justify-center p-2.5 sm:p-1 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 ${isFavorite(product._id) ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-slate-400 hover:text-red-600'}`}
+                            title="المفضلة"
+                          >
+                            <Heart className={`w-4 h-4 ${isFavorite(product._id) ? 'fill-current' : ''}`} />
+                          </button>
+                        )}
+                        {isMarketerOrWholesaler && onAddToCart && product.isApproved && !product.isLocked && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.preventDefault(); product.stockQuantity > 0 && onAddToCart(product); }}
+                            disabled={product.stockQuantity <= 0}
+                            className="inline-flex items-center justify-center p-2.5 sm:p-1 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 disabled:opacity-50"
+                            title={product.stockQuantity > 0 ? 'إضافة للسلة' : 'غير متوفر'}
+                          >
+                            <ShoppingCart className="w-4 h-4" />
+                          </button>
+                        )}
+                        {isAdmin && (
+                          <Link
+                            href={`/dashboard/products/${product._id}/edit`}
+                            className="inline-flex items-center justify-center p-2.5 sm:p-1 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100"
+                            title="تعديل"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Link>
+                        )}
+                        {isAdmin && (
+                          <Link
+                            href={`/dashboard/admin/product-stats?productId=${product._id}`}
+                            className="inline-flex items-center justify-center p-2.5 sm:p-1 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300"
+                            title="إحصائيات"
+                          >
+                            <BarChart3 className="w-4 h-4" />
+                          </Link>
+                        )}
+                        {isAdmin && !product.isApproved && !(product.isRejected ?? false) && onApprove && (
                           <button
                             onClick={() => onApprove(product._id)}
-                            className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300"
+                            className="inline-flex items-center justify-center p-2.5 sm:p-1 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300"
                             title="قبول"
                           >
                             <CheckCircle className="w-4 h-4" />
                           </button>
                         )}
-                        {!product.isApproved && !(product.isRejected ?? false) && onReject && (
+                        {isAdmin && !product.isApproved && !(product.isRejected ?? false) && onReject && (
                           <button
                             onClick={() => onReject(product._id)}
-                            className="text-danger-600 dark:text-danger-400 hover:text-danger-700 dark:hover:text-danger-300"
+                            className="inline-flex items-center justify-center p-2.5 sm:p-1 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 text-danger-600 dark:text-danger-400 hover:text-danger-700 dark:hover:text-danger-300"
                             title="رفض"
                           >
                             <XCircle className="w-4 h-4" />
                           </button>
                         )}
-                        {product.isApproved && onReview && (
+                        {isAdmin && product.isApproved && onReview && (
                           <button
                             onClick={() => onReview(product._id)}
-                            className="text-[#FF9800] dark:text-[#FF9800] hover:text-[#F57C00] dark:hover:text-[#F57C00]"
+                            className="inline-flex items-center justify-center p-2.5 sm:p-1 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 text-[#FF9800] dark:text-[#FF9800] hover:text-[#F57C00] dark:hover:text-[#F57C00]"
                             title="إعادة النظر"
                           >
                             <Clock className="w-4 h-4" />
                           </button>
                         )}
-                        {(product.isRejected ?? false) && onResubmit && (
+                        {isAdmin && (product.isRejected ?? false) && onResubmit && (
                           <button
                             onClick={() => onResubmit(product._id)}
-                            className="text-[#FF9800] dark:text-[#FF9800] hover:text-[#F57C00] dark:hover:text-[#F57C00]"
+                            className="inline-flex items-center justify-center p-2.5 sm:p-1 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 text-[#FF9800] dark:text-[#FF9800] hover:text-[#F57C00] dark:hover:text-[#F57C00]"
                             title="إعادة تقديم"
                           >
                             <RotateCw className="w-4 h-4" />

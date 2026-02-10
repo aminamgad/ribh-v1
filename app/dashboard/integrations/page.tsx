@@ -194,36 +194,36 @@ export default function IntegrationsPage() {
           <div className="card p-8 sm:p-10 text-center rounded-2xl border-2 border-[#FF9800]/20 dark:border-[#FF9800]/30 bg-gradient-to-b from-white to-gray-50/50 dark:from-gray-800 dark:to-gray-800/50">
             <div className="w-20 h-20 sm:w-24 sm:h-24 mx-auto mb-6 rounded-2xl bg-[#FF9800]/15 dark:bg-[#FF9800]/25 flex items-center justify-center">
               <span className="text-3xl sm:text-4xl font-bold text-[#FF9800]">EO</span>
-            </div>
+        </div>
             <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-2">
               ربط متجرك مع Easy Orders
             </h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-6 max-w-sm mx-auto leading-relaxed">
               اضغط على الزر أدناه للانتقال إلى Easy Orders والموافقة على الربط. سيتم إنشاء الاتصال ومزامنة مدن الشحن تلقائياً.
-            </p>
-            <button
-              type="button"
-              onClick={async () => {
-                try {
-                  const response = await fetch('/api/integrations/easy-orders/authorized-link');
-                  const data = await response.json();
-                  if (data.success && data.authorizedAppLink) {
-                    window.open(data.authorizedAppLink, '_blank');
+                      </p>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const response = await fetch('/api/integrations/easy-orders/authorized-link');
+                            const data = await response.json();
+                            if (data.success && data.authorizedAppLink) {
+                              window.open(data.authorizedAppLink, '_blank');
                     toast.success('تم فتح صفحة الربط. أكمل الموافقة في نافذة Easy Orders ثم ارجع هنا.');
-                  } else {
-                    throw new Error(data.error || 'فشل في إنشاء رابط الربط');
-                  }
-                } catch (error: any) {
-                  toast.error(error.message || 'حدث خطأ في إنشاء رابط الربط');
-                }
-              }}
+                            } else {
+                              throw new Error(data.error || 'فشل في إنشاء رابط الربط');
+                            }
+                          } catch (error: any) {
+                            toast.error(error.message || 'حدث خطأ في إنشاء رابط الربط');
+                          }
+                        }}
               className="btn-primary inline-flex items-center justify-center gap-2 min-h-[48px] px-6 sm:px-8 text-base font-medium rounded-xl shadow-lg hover:shadow-xl transition-all"
-            >
+                      >
               <LinkIcon className="w-5 h-5" />
               ربط تلقائي مع Easy Orders
-            </button>
-          </div>
-        </div>
+                      </button>
+                    </div>
+                  </div>
       ) : (
         <div className="max-w-lg mx-auto">
           {integrations.map((integration) => (
@@ -261,7 +261,7 @@ export default function IntegrationsPage() {
                   إلغاء الربط
                 </button>
               </div>
-            </div>
+          </div>
           ))}
         </div>
       )}

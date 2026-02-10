@@ -212,9 +212,9 @@ async function updateAdminSettingsHandler(req: NextRequest, user: any) {
           withdrawalFees: 0
         },
         adminProfitMargins: [
-          { minPrice: 1, maxPrice: 100, margin: 10 },
-          { minPrice: 101, maxPrice: 500, margin: 8 },
-          { minPrice: 501, maxPrice: 1000, margin: 6 },
+          { minPrice: 1, maxPrice: 100, margin: 5 },
+          { minPrice: 101, maxPrice: 500, margin: 5 },
+          { minPrice: 501, maxPrice: 1000, margin: 5 },
           { minPrice: 1001, maxPrice: 999999, margin: 5 }
         ],
         platformName: 'ربح',
@@ -291,9 +291,9 @@ async function updateAdminSettingsHandler(req: NextRequest, user: any) {
           // Empty array - set to default
           logger.debug('Setting default admin profit margins (empty array provided)');
           const defaultMargins = [
-            { minPrice: 1, maxPrice: 100, margin: 10 },
-            { minPrice: 101, maxPrice: 500, margin: 8 },
-            { minPrice: 501, maxPrice: 1000, margin: 6 },
+            { minPrice: 1, maxPrice: 100, margin: 5 },
+            { minPrice: 101, maxPrice: 500, margin: 5 },
+            { minPrice: 501, maxPrice: 1000, margin: 5 },
             { minPrice: 1001, maxPrice: 999999, margin: 5 }
           ];
           settings.set('adminProfitMargins', defaultMargins);
@@ -303,9 +303,9 @@ async function updateAdminSettingsHandler(req: NextRequest, user: any) {
           if (!settings.adminProfitMargins || settings.adminProfitMargins.length === 0) {
             logger.debug('Setting default admin profit margins (not existing)');
             const defaultMargins = [
-              { minPrice: 1, maxPrice: 100, margin: 10 },
-              { minPrice: 101, maxPrice: 500, margin: 8 },
-              { minPrice: 501, maxPrice: 1000, margin: 6 },
+              { minPrice: 1, maxPrice: 100, margin: 5 },
+              { minPrice: 101, maxPrice: 500, margin: 5 },
+              { minPrice: 501, maxPrice: 1000, margin: 5 },
               { minPrice: 1001, maxPrice: 999999, margin: 5 }
             ];
             settings.set('adminProfitMargins', defaultMargins);
@@ -444,9 +444,9 @@ async function updateAdminSettingsHandler(req: NextRequest, user: any) {
             margin: Number(m.margin)
           }))
         : [
-            { minPrice: 1, maxPrice: 100, margin: 10 },
-            { minPrice: 101, maxPrice: 500, margin: 8 },
-            { minPrice: 501, maxPrice: 1000, margin: 6 },
+            { minPrice: 1, maxPrice: 100, margin: 5 },
+            { minPrice: 101, maxPrice: 500, margin: 5 },
+            { minPrice: 501, maxPrice: 1000, margin: 5 },
             { minPrice: 1001, maxPrice: 999999, margin: 5 }
           ];
       
@@ -474,6 +474,48 @@ async function updateAdminSettingsHandler(req: NextRequest, user: any) {
     // Clear settings cache to ensure fresh data is loaded
     logger.debug('Clearing settings cache');
     settingsManager.clearCache();
+
+    // عند تغيير نسبة ربح الإدارة: تشغيل إعادة الحساب في الخلفية وإشعار المدير عند الانتهاء
+    let recalcMessage = '';
+    const settingsId = (savedSettings as any)?._id ?? settings._id;
+    if (section === 'financial' && financialData && financialData.adminProfitMargins !== undefined && settingsId) {
+      recalcMessage = ' جاري إعادة حساب أسعار المنتجات في الخلفية — سيصلك إشعار عند الانتهاء.';
+      await SystemSettings.updateOne(
+        { _id: settingsId },
+        { $set: { recalculationStatus: { status: 'running', startedAt: new Date() } } }
+      );
+      import('@/lib/recalculate-product-prices').then(({ recalculateAllProductPrices }) => {
+        recalculateAllProductPrices()
+          .then(async (recalc) => {
+            await SystemSettings.updateOne(
+              { _id: settingsId },
+              {
+                $set: {
+                  recalculationStatus: {
+                    status: 'completed',
+                    completedAt: new Date(),
+                    result: { updated: recalc.updated, skipped: recalc.skipped, errors: recalc.errors }
+                  }
+                }
+              }
+            );
+            if (recalc.updated > 0) {
+              logger.business('Product prices recalculated in background after settings save', {
+                updated: recalc.updated,
+                skipped: recalc.skipped,
+                errors: recalc.errors
+              });
+            }
+          })
+          .catch(async (recalcError) => {
+            logger.error('Error auto-recalculating product prices after settings save', recalcError);
+            await SystemSettings.updateOne(
+              { _id: settingsId },
+              { $set: { recalculationStatus: { status: 'failed', completedAt: new Date() } } }
+            );
+          });
+      }).catch((err) => logger.error('Failed to load recalculate module', err));
+    }
     
     logger.business('System settings saved successfully', { userId: user._id, section });
     
@@ -491,9 +533,9 @@ async function updateAdminSettingsHandler(req: NextRequest, user: any) {
         }));
       } else {
         settingsObject.adminProfitMargins = [
-          { minPrice: 1, maxPrice: 100, margin: 10 },
-          { minPrice: 101, maxPrice: 500, margin: 8 },
-          { minPrice: 501, maxPrice: 1000, margin: 6 },
+          { minPrice: 1, maxPrice: 100, margin: 5 },
+          { minPrice: 101, maxPrice: 500, margin: 5 },
+          { minPrice: 501, maxPrice: 1000, margin: 5 },
           { minPrice: 1001, maxPrice: 999999, margin: 5 }
         ];
       }
@@ -517,7 +559,7 @@ async function updateAdminSettingsHandler(req: NextRequest, user: any) {
     
     return NextResponse.json({
       success: true,
-      message: 'تم حفظ الإعدادات بنجاح',
+      message: 'تم حفظ الإعدادات بنجاح.' + (recalcMessage || ''),
       settings: settingsObject
     });
     

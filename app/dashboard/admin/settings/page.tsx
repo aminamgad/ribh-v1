@@ -98,6 +98,9 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState<SystemSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [recalculating, setRecalculating] = useState(false);
+  const [recalcProgress, setRecalcProgress] = useState(0); // 0-100
+  const [recalcDetail, setRecalcDetail] = useState<{ processed: number; total: number } | null>(null);
   const [activeTab, setActiveTab] = useState('general');
   
   // Form states for each section
@@ -108,9 +111,9 @@ export default function SettingsPage() {
       withdrawalFees: 0
     },
     adminProfitMargins: [
-      { minPrice: 1, maxPrice: 100, margin: 10 },
-      { minPrice: 101, maxPrice: 500, margin: 8 },
-      { minPrice: 501, maxPrice: 1000, margin: 6 },
+      { minPrice: 1, maxPrice: 100, margin: 5 },
+      { minPrice: 101, maxPrice: 500, margin: 5 },
+      { minPrice: 501, maxPrice: 1000, margin: 5 },
       { minPrice: 1001, maxPrice: 999999, margin: 5 }
     ]
   });
@@ -201,9 +204,9 @@ export default function SettingsPage() {
               withdrawalFees: data.settings.withdrawalSettings?.withdrawalFees || 0
             },
             adminProfitMargins: data.settings.adminProfitMargins || [
-              { minPrice: 1, maxPrice: 100, margin: 10 },
-              { minPrice: 101, maxPrice: 500, margin: 8 },
-              { minPrice: 501, maxPrice: 1000, margin: 6 },
+              { minPrice: 1, maxPrice: 100, margin: 5 },
+              { minPrice: 101, maxPrice: 500, margin: 5 },
+              { minPrice: 501, maxPrice: 1000, margin: 5 },
               { minPrice: 1001, maxPrice: 999999, margin: 5 }
             ]
           });
@@ -411,7 +414,8 @@ export default function SettingsPage() {
       const result = await response.json();
       
       if (result.success) {
-        toast.success('تم حفظ الإعدادات بنجاح');
+        // عرض رسالة الخادم (قد تتضمن إشعار إعادة الحساب في الخلفية)
+        toast.success(result.message || 'تم حفظ الإعدادات بنجاح');
         
         // Update local state immediately with saved data
         if (result.settings?.adminProfitMargins) {
@@ -419,29 +423,6 @@ export default function SettingsPage() {
             ...prev,
             adminProfitMargins: result.settings.adminProfitMargins
           }));
-        }
-        
-        // If financial settings were updated, recalculate product prices
-        if (section === 'financial') {
-          try {
-            toast.loading('جاري إعادة حساب أسعار المنتجات...', { id: 'recalculate-prices' });
-            const recalculateResponse = await fetch('/api/admin/products/recalculate-prices', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-            });
-            
-            const recalculateResult = await recalculateResponse.json();
-            if (recalculateResult.success) {
-              toast.success(`تم إعادة حساب أسعار ${recalculateResult.stats?.updated || 0} منتج بنجاح`, { id: 'recalculate-prices' });
-            } else {
-              toast.error(recalculateResult.message || 'حدث خطأ في إعادة حساب الأسعار', { id: 'recalculate-prices' });
-            }
-          } catch (error) {
-            toast.error('حدث خطأ أثناء إعادة حساب أسعار المنتجات', { id: 'recalculate-prices' });
-            console.error('Error recalculating prices:', error);
-          }
         }
         
         // Refresh settings after successful save
@@ -478,6 +459,69 @@ export default function SettingsPage() {
       ...prev,
       adminProfitMargins: (prev.adminProfitMargins || []).filter((_, i) => i !== index)
     }));
+  };
+
+  const handleRecalculatePrices = async () => {
+    setRecalculating(true);
+    setRecalcProgress(0);
+    setRecalcDetail(null);
+    try {
+      const response = await fetch('/api/admin/products/recalculate-prices-stream', { method: 'POST' });
+      if (!response.ok || !response.body) {
+        toast.error('حدث خطأ في الاتصال. يرجى المحاولة لاحقاً.');
+        return;
+      }
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop() || '';
+        for (const line of lines) {
+          const match = line.match(/^data:\s*(.+)$/m);
+          if (!match) continue;
+          try {
+            const data = JSON.parse(match[1].trim());
+            if (data.type === 'progress') {
+              setRecalcProgress(data.percent ?? 0);
+              setRecalcDetail({ processed: data.processed ?? 0, total: data.total ?? 0 });
+            } else if (data.type === 'done' && data.success) {
+              setRecalcProgress(100);
+              toast.success(data.message || 'تم إعادة حساب أسعار المنتجات بنجاح');
+            } else if (data.type === 'error' || (data.type === 'done' && !data.success)) {
+              toast.error(data.message || 'حدث خطأ أثناء إعادة حساب الأسعار');
+            }
+          } catch {
+            // ignore parse errors for partial chunks
+          }
+        }
+      }
+      if (buffer) {
+        const match = buffer.match(/^data:\s*(.+)$/m);
+        if (match) {
+          try {
+            const data = JSON.parse(match[1].trim());
+            if (data.type === 'done' && data.success) {
+              setRecalcProgress(100);
+              toast.success(data.message || 'تم إعادة حساب أسعار المنتجات بنجاح');
+            } else if (data.type === 'error' || (data.type === 'done' && !data.success)) {
+              toast.error(data.message || 'حدث خطأ أثناء إعادة حساب الأسعار');
+            }
+          } catch {
+            // ignore
+          }
+        }
+      }
+    } catch {
+      toast.error('حدث خطأ في الاتصال. يرجى المحاولة لاحقاً.');
+    } finally {
+      setRecalculating(false);
+      setRecalcDetail(null);
+      setTimeout(() => setRecalcProgress(0), 400);
+    }
   };
 
   // Maintenance settings state
@@ -830,21 +874,50 @@ export default function SettingsPage() {
                 )}
               </div>
 
-              <Button 
-                onClick={() => {
-                  // Ensure adminProfitMargins is always included
-                  const dataToSave = {
-                    ...financialData,
-                    adminProfitMargins: financialData.adminProfitMargins || []
-                  };
-                  saveSettings('financial', dataToSave);
-                }}
-                disabled={saving}
-                className="bg-[#FF9800] hover:bg-[#F57C00] dark:bg-[#FF9800] dark:hover:bg-[#F57C00]"
-              >
-                <Save className="w-4 h-4 ml-2" />
-                {saving ? 'جاري الحفظ...' : 'حفظ الإعدادات'}
-              </Button>
+              <div className="flex flex-wrap gap-3">
+                <Button 
+                  onClick={() => {
+                    const dataToSave = {
+                      ...financialData,
+                      adminProfitMargins: financialData.adminProfitMargins || []
+                    };
+                    saveSettings('financial', dataToSave);
+                  }}
+                  disabled={saving || recalculating}
+                  className="bg-[#FF9800] hover:bg-[#F57C00] dark:bg-[#FF9800] dark:hover:bg-[#F57C00]"
+                >
+                  <Save className="w-4 h-4 ml-2" />
+                  {saving ? 'جاري الحفظ...' : 'حفظ الإعدادات'}
+                </Button>
+                <Button 
+                  onClick={handleRecalculatePrices}
+                  disabled={saving || recalculating}
+                  variant="outline"
+                  className="border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30"
+                >
+                  <RotateCw className={`w-4 h-4 ml-2 ${recalculating ? 'animate-spin' : ''}`} />
+                  {recalculating ? 'جاري إعادة الحساب...' : 'إعادة حساب أسعار المنتجات الآن'}
+                </Button>
+              </div>
+              {recalculating && (
+                <div className="mt-4 p-4 rounded-lg bg-gray-50 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700">
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+                    جاري إعادة حساب الأسعار
+                  </p>
+                  <div className="h-2.5 w-full rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-blue-500 dark:bg-blue-500 transition-all duration-300 ease-out"
+                      style={{ width: `${recalcProgress}%` }}
+                    />
+                  </div>
+                  <div className="mt-2 flex justify-between text-xs text-gray-500 dark:text-gray-400">
+                    <span>{recalcProgress}%</span>
+                    {recalcDetail && recalcDetail.total > 0 && (
+                      <span>{recalcDetail.processed} من {recalcDetail.total} منتج</span>
+                    )}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
