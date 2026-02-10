@@ -6,6 +6,19 @@ import { z } from 'zod';
 import { logger } from '@/lib/logger';
 import { handleApiError } from '@/lib/error-handler';
 
+/** تشغيل مزامنة مدن الشحن لجميع تكاملات Easy Orders في الخلفية (بدون انتظار). */
+function triggerShippingSyncForAllEasyOrders() {
+  import('@/lib/integrations/easy-orders/sync-shipping-all').then(({ syncShippingForAllEasyOrdersIntegrations }) => {
+    syncShippingForAllEasyOrdersIntegrations()
+      .then((r) => {
+        if (r.failed > 0 && r.errors.length) {
+          logger.warn('Some Easy Orders integrations failed shipping sync', { failed: r.failed, total: r.total });
+        }
+      })
+      .catch((err) => logger.error('Background shipping sync for all Easy Orders failed', err));
+  }).catch((err) => logger.error('Failed to load sync-shipping-all', err));
+}
+
 // Disable caching for this route - always fetch fresh data
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -155,6 +168,8 @@ async function addShippingRegion(req: NextRequest, user: any) {
       addedBy: user._id,
       updatedAt: settings.updatedAt
     });
+
+    triggerShippingSyncForAllEasyOrders();
     
     return NextResponse.json({
       success: true,
@@ -262,6 +277,8 @@ async function updateShippingRegion(req: NextRequest, user: any) {
       regionId,
       updatedBy: user._id
     });
+
+    triggerShippingSyncForAllEasyOrders();
     
     return NextResponse.json({
       success: true,
@@ -331,6 +348,8 @@ async function deleteShippingRegion(req: NextRequest, user: any) {
       regionId,
       deletedBy: user._id
     });
+
+    triggerShippingSyncForAllEasyOrders();
     
     return NextResponse.json({
       success: true,
