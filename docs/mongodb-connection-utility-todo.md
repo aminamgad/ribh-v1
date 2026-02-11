@@ -39,15 +39,26 @@ Use a single MongoDB connection utility with a **cached global connection** (to 
 
 ---
 
+## Why 500+ connections? (Atlas "501 connections")
+
+- **Each Next.js process/instance** (dev server worker, production worker, or serverless function instance) has its **own** `global` and thus its own Mongoose connection pool.
+- **Total connections ≈ (number of instances) × maxPoolSize.**  
+  Example: 100 instances × 5 = 500 connections.
+- So even with a cached global connection **per process**, many processes mean many pools and high total connections.
+
+**Changes applied to reduce connections:**
+- `maxPoolSize: 2` (was 5) — fewer connections per instance.
+- `maxIdleTimeMS: 60000` — close idle connections after 1 minute so Atlas count drops when traffic is low.
+
+---
+
 ## Example options (for reference)
 
 ```ts
 const opts: mongoose.ConnectOptions = {
   bufferCommands: false,
-  maxPoolSize: 5,
-  // optional:
-  // minPoolSize: 0,
-  // serverSelectionTimeoutMS: 10000,
+  maxPoolSize: 2,
+  maxIdleTimeMS: 60000,
 };
 cached.promise = mongoose.connect(MONGODB_URI, opts).then((m) => m);
 ```

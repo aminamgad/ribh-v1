@@ -7,6 +7,8 @@ if (!MONGODB_URI) {
 }
 
 // Cached global connection to avoid multiple connections in Next.js (serverless / hot-reload).
+// Each process/instance has its own cache; total DB connections ≈ (number of instances) × maxPoolSize.
+// Keep maxPoolSize low (e.g. 1–2) so Atlas connection count stays under limit (e.g. 500).
 let cached = (global as any).mongoose;
 
 if (!cached) {
@@ -21,7 +23,8 @@ async function connectDB() {
   if (!cached.promise) {
     const opts: mongoose.ConnectOptions = {
       bufferCommands: false,
-      maxPoolSize: 5,
+      maxPoolSize: 2,
+      maxIdleTimeMS: 60000,
     };
 
     cached.promise = mongoose.connect(MONGODB_URI, opts).then((m) => m);
