@@ -8,36 +8,44 @@ if (!MONGODB_URI) {
 
 // Cached global connection to avoid multiple connections in Next.js (serverless / hot-reload).
 // Each process/instance has its own cache; total DB connections ≈ (number of instances) × maxPoolSize.
-// Keep maxPoolSize low (e.g. 1–2) so Atlas connection count stays under limit (e.g. 500).
-let cached = (global as any).mongoose;
-
+// Keep maxPoolSize low so Atlas connection count stays under limit. Do NOT set maxPoolSize in the URI.
+const g = (typeof globalThis !== 'undefined' ? globalThis : global) as { mongoose?: { conn: typeof mongoose | null; promise: Promise<typeof mongoose> | null } };
+let cached = g.mongoose ?? null;
 if (!cached) {
-  cached = (global as any).mongoose = { conn: null, promise: null };
+  cached = { conn: null, promise: null };
+  g.mongoose = cached;
 }
 
-async function connectDB() {
-  if (cached.conn) {
-    return cached.conn;
+async function connectDB(): Promise<typeof mongoose> {
+  if (cached!.conn) {
+    return cached!.conn;
   }
 
-  if (!cached.promise) {
+  // Reuse existing connection if cache was lost but Mongoose is still connected (e.g. after HMR).
+  if (mongoose.connection.readyState === 1) {
+    cached!.conn = mongoose;
+    return mongoose;
+  }
+
+  if (!cached!.promise) {
     const opts: mongoose.ConnectOptions = {
       bufferCommands: false,
       maxPoolSize: 2,
+      minPoolSize: 0,
       maxIdleTimeMS: 60000,
     };
 
-    cached.promise = mongoose.connect(MONGODB_URI, opts).then((m) => m);
+    cached!.promise = mongoose.connect(MONGODB_URI, opts).then((m) => m);
   }
 
   try {
-    cached.conn = await cached.promise;
+    cached!.conn = await cached!.promise;
   } catch (e) {
-    cached.promise = null;
+    cached!.promise = null;
     throw e;
   }
 
-  return cached.conn;
+  return cached!.conn;
 }
 
 export { connectDB };

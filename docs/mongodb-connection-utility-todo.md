@@ -49,6 +49,22 @@ Use a single MongoDB connection utility with a **cached global connection** (to 
 **Changes applied to reduce connections:**
 - `maxPoolSize: 2` (was 5) — fewer connections per instance.
 - `maxIdleTimeMS: 60000` — close idle connections after 1 minute so Atlas count drops when traffic is low.
+- `minPoolSize: 0` — pool can shrink to zero when idle.
+- Reuse existing connection when `mongoose.connection.readyState === 1` if cache was lost (e.g. HMR).
+- Use `globalThis` for cache so it works in all runtimes.
+
+---
+
+## Other possible causes (and how to address them)
+
+| Cause | What to do |
+|-------|------------|
+| **maxPoolSize in connection string** | If `MONGODB_URI` contains `?maxPoolSize=50` (or similar), it can increase the pool. Remove it from the URI; we set it in code (`lib/database.ts`). |
+| **Staging + production same cluster** | Both environments connect to the same Atlas cluster, so connections add up. Use a separate cluster for staging, or accept higher count and keep maxPoolSize low per app. |
+| **Cron jobs / workers / scripts** | Any other Node process using the same `MONGODB_URI` (e.g. cron, queue workers, one-off scripts) opens its own connections. Run them sparingly or use a dedicated connection limit for background jobs. |
+| **Next.js dev: multiple workers** | `next dev` can run several workers; each has its own cache and pool. Normal in development; production usually has fewer instances. |
+| **Serverless (Vercel etc.)** | Each function instance has its own cache. Limit concurrency in the platform if possible, and keep `maxPoolSize: 1` or `2`. |
+| **Connection not reused after HMR** | We now reuse `mongoose.connection` when `readyState === 1` even if the in-memory cache was cleared, so we don’t open a second connection. |
 
 ---
 
