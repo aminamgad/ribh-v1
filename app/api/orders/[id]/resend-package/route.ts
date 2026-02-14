@@ -70,9 +70,9 @@ async function resendPackageHandler(req: NextRequest, user: any, ...args: unknow
     const itemsDescription = (order.items || [])
       .map((item: any) => `${item.productName || item.name || 'منتج'} x${item.quantity || 1}`)
       .join(', ');
-    const description = `طلب رقم ${orderNumber}: ${itemsDescription}`;
+    const description = itemsDescription || 'محتويات الطرد';
     const packageType = 'normal';
-    const barcode = `ربح - ribh | ${orderNumber} | ${shippingAddress.fullName || 'غير محدد'}`;
+    const barcode = String(orderNumber);
 
     const packageData = {
       to_name: shippingAddress.fullName || 'غير محدد',
@@ -84,7 +84,8 @@ async function resendPackageHandler(req: NextRequest, user: any, ...args: unknow
       street: shippingAddress.street || '',
       total_cost: (order.total || 0).toString(),
       note: order.deliveryNotes || shippingAddress.notes || `طلب رقم ${orderNumber}`,
-      barcode: barcode
+      barcode: barcode,
+      qr_code2: orderNumber
     };
 
     // Call external API with retry mechanism

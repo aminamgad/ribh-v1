@@ -192,13 +192,16 @@ export default function OrdersFilters({ onFiltersChange }: OrdersFiltersProps) {
       if (!val || val === 'all') return '';
       return val.split(',').filter(Boolean).sort().join(',');
     };
+    const urlSource = normalizeParam(currentParams.get('source'));
+    const newSource = normalizeParam(newParams.get('source'));
     const allParamsMatch = 
       normalizeStatusArray(currentParams.get('status')) === normalizeStatusArray(newParams.get('status')) &&
       normalizeParam(currentParams.get('customerSearch')) === normalizeParam(newParams.get('customerSearch')) &&
       normalizeParam(currentParams.get('orderNumberSearch')) === normalizeParam(newParams.get('orderNumberSearch')) &&
       normalizeParam(currentParams.get('productSearch')) === normalizeParam(newParams.get('productSearch')) &&
       urlStartDate === newStartDate &&
-      urlEndDate === newEndDate;
+      urlEndDate === newEndDate &&
+      urlSource === newSource;
     
     // Always update if query strings don't match exactly (including empty strings)
     const currentQueryNormalized = currentSearch.replace(/^\?/, '');

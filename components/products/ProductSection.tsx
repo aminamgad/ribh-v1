@@ -19,6 +19,7 @@ interface Product {
   sales?: number;
   minimumSellingPrice?: number;
   isMinimumPriceMandatory?: boolean;
+  isMarketerPriceManuallyAdjusted?: boolean;
   hasVariants?: boolean;
   variantOptions?: Array<{
     variantId: string;
@@ -210,7 +211,7 @@ const ProductSection = memo(function ProductSection({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <span className={`text-lg font-bold ${
-                    product.isMinimumPriceMandatory && product.minimumSellingPrice
+                    product.isMarketerPriceManuallyAdjusted
                       ? 'text-orange-600 dark:text-orange-400'
                       : 'text-primary-600 dark:text-primary-400'
                   }`}>

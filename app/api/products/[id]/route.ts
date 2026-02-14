@@ -486,6 +486,14 @@ async function updateProduct(req: NextRequest, user: any, ...args: unknown[]) {
     logger.business('Product updated', { productId: params.id, userId: user._id.toString() });
     logger.apiResponse('PUT', `/api/products/${params.id}`, 200);
 
+    if ((updatedProduct as any)?.metadata?.easyOrdersProductId) {
+      import('@/lib/integrations/easy-orders/sync-product-on-edit').then((m) =>
+        m.syncProductToEasyOrdersOnEdit(params.id).catch((e) =>
+          logger.error('Easy Orders sync on edit failed', e, { productId: params.id })
+        )
+      ).catch(() => {});
+    }
+
     return NextResponse.json({
       success: true,
       message: 'تم تحديث المنتج بنجاح',

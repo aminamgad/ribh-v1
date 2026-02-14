@@ -95,25 +95,15 @@ async function createPackageFromOrderJS(orderId) {
     // Get order number
     const orderNumber = order.orderNumber || `ORD-${order._id.toString().slice(-8)}`;
     
-    // Get marketer name
-    let marketerName = 'غير محدد';
-    if (order.customerId) {
-      const customer = await User.findById(order.customerId).select('name').lean();
-      if (customer) {
-        marketerName = customer.name || 'غير محدد';
-      }
-    }
-    
-    // Create barcode
-    const platformName = 'ربح - ribh';
-    const barcode = `${platformName} | ${orderNumber} | ${marketerName}`;
+    // Barcode: رقم الطلب فقط لظهوره تحت الشريط في موقع شركة الشحن
+    const barcode = String(orderNumber);
     
     // Create description
     const items = order.items || [];
     const itemDescriptions = items.map(item => 
       `${item.productName || 'منتج'} x${item.quantity || 1}`
     ).join(', ');
-    const description = `طلب رقم ${orderNumber}: ${itemDescriptions}`;
+    const description = itemDescriptions || 'محتويات الطرد';
     
     // Create package
     const newPackage = new Package({

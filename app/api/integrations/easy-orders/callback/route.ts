@@ -137,6 +137,7 @@ async function completeIntegration(
       syncOrders: true,
       syncInventory: true,
       autoFulfillment: false,
+      syncShippingEnabled: true,
       priceMarkup: 0
     }
   });
@@ -215,7 +216,9 @@ export const GET = async (req: NextRequest) => {
       callback.used = true;
       await callback.save();
 
-      runShippingSyncInBackground(integration);
+      if (integration.settings?.syncShippingEnabled !== false) {
+        runShippingSyncInBackground(integration);
+      }
 
       logger.business('EasyOrders integration completed via GET callback', {
         userId,

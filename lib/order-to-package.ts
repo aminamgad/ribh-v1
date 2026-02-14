@@ -26,6 +26,7 @@ export async function callExternalShippingCompanyAPI(
     total_cost: string;
     note?: string;
     barcode: string;
+    qr_code2?: string;
   }
 ): Promise<{ 
   success: boolean; 
@@ -401,31 +402,15 @@ export async function createPackageFromOrder(orderId: string): Promise<CreatePac
     // Get order number
     const orderNumber = (order as any).orderNumber || `ORD-${order._id.toString().slice(-8)}`;
     
-    // Get marketer/customer name
-    let marketerName = 'غير محدد';
-    if ((order as any).customerId) {
-      try {
-        const User = (await import('@/models/User')).default;
-        const customer = await User.findById((order as any).customerId).select('name').lean();
-        if (customer) {
-          marketerName = (customer as any).name || 'غير محدد';
-        }
-      } catch (error) {
-        logger.warn('Error fetching customer name for barcode', { error, orderId: order._id.toString() });
-      }
-    }
-    
-    // Create barcode with order number, marketer name, and platform name
-    // Format: "ربح - ribh | رقم الطلب | اسم المسوق"
-    const platformName = 'ربح - ribh';
-    const barcode = `${platformName} | ${orderNumber} | ${marketerName}`;
+    // Barcode: رقم الطلب فقط لظهوره تحت الشريط في موقع شركة الشحن (كما في نموذجهم)
+    const barcode = String(orderNumber);
 
     // Create package description from order items
     const items = order.items || [];
     const itemDescriptions = items.map((item: any) => 
       `${item.productName || 'منتج'} x${item.quantity || 1}`
     ).join(', ');
-    const description = `طلب رقم ${orderNumber}: ${itemDescriptions}`;
+    const description = itemDescriptions || 'محتويات الطرد';
 
     // Get package type (default to 'normal')
     const packageType = 'normal'; // Can be enhanced to determine based on order items
@@ -493,7 +478,8 @@ export async function createPackageFromOrder(orderId: string): Promise<CreatePac
           street: shippingAddress.street || '',
           total_cost: (order.total || 0).toString(), // Must be string
           note: order.deliveryNotes || shippingAddress.notes || `طلب رقم ${orderNumber}`,
-          barcode: barcode
+          barcode: barcode,
+          qr_code2: orderNumber
         };
         
         // Log package data being sent (for debugging)

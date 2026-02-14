@@ -33,6 +33,8 @@ export interface IStoreIntegration extends Document {
     syncOrders: boolean;
     syncInventory: boolean;
     autoFulfillment: boolean;
+    /** مزامنة مدن الشحن تلقائياً مع Easy Orders — افتراضي true */
+    syncShippingEnabled?: boolean;
     priceMarkup?: number;
     defaultCategory?: mongoose.Types.ObjectId;
   };
@@ -127,6 +129,10 @@ const storeIntegrationSchema = new Schema<IStoreIntegration, IStoreIntegrationMo
     autoFulfillment: {
       type: Boolean,
       default: false
+    },
+    syncShippingEnabled: {
+      type: Boolean,
+      default: true
     },
     priceMarkup: {
       type: Number,

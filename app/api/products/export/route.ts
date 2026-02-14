@@ -24,6 +24,7 @@ async function exportProducts(req: NextRequest, user: any) {
     const suppliers = searchParams.get('suppliers');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
+    const manuallyModified = searchParams.get('manuallyModified');
     
     // Build query (same logic as GET /api/products)
     let query: any = {};
@@ -67,6 +68,11 @@ async function exportProducts(req: NextRequest, user: any) {
       if (endDate) {
         query.createdAt.$lte = new Date(endDate + 'T23:59:59.999Z');
       }
+    }
+    
+    // المنتجات المعدلة يدوياً (سعر المسوق)
+    if (manuallyModified === 'true') {
+      query.isMarketerPriceManuallyAdjusted = true;
     }
     
     // Fetch products with populated data

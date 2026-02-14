@@ -213,11 +213,11 @@ export default function CountrySelect({
         />
         {value && !disabled && (
           <button
-            onClick={(e) => {
+            type="button"
+            onMouseDown={(e) => {
+              e.preventDefault();
               e.stopPropagation();
               handleClear(e);
-              setSearchQuery('');
-              inputRef.current?.focus();
             }}
             className="absolute left-8 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-full transition-colors"
           >

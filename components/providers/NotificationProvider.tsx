@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo, ReactNode } from 'react';
 import { useAuth } from './AuthProvider';
 import toast from 'react-hot-toast';
 import { usePolling } from '@/components/hooks/usePolling';
@@ -90,51 +90,51 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     }
   }, [isAuthenticated, lastPollTimestamp]);
 
-  // Use polling hook for real-time updates
+  // Stable refs for polling callbacks so config reference stays stable (avoids duplicate subscriptions)
+  const onPollSuccessRef = useRef<(data: { notifications?: Notification[]; timestamp?: string }) => void>(() => {});
+  onPollSuccessRef.current = (data: { notifications?: Notification[]; timestamp?: string }) => {
+    if (data && typeof data === 'object' && 'notifications' in data) {
+      const newNotifications = Array.isArray(data.notifications) ? data.notifications : [];
+      setNotifications(prev => {
+        const existingIds = new Set(prev.map(n => n._id));
+        const uniqueNew = newNotifications.filter((n: Notification) => !existingIds.has(n._id));
+        if (uniqueNew.length > 0) {
+          uniqueNew.forEach((notification: Notification) => {
+            toast(notification.message, { icon: getNotificationIcon(notification.type) });
+          });
+        }
+        return [...uniqueNew, ...prev].slice(0, 100);
+      });
+      if (data.timestamp) setLastPollTimestamp(data.timestamp);
+    }
+  };
+
+  const pollingConfig = useMemo(
+    () => ({
+      interval: 5000,
+      onError: (error: Error) => logger.warn('Polling error', { error }),
+      onSuccess: (data: unknown) => onPollSuccessRef.current(data as { notifications?: Notification[]; timestamp?: string }),
+    }),
+    []
+  );
+
   const pollingEndpoint = isAuthenticated ? '/api/poll/notifications' : null;
   const { data: pollingData, error: pollingError } = usePolling<{ notifications: Notification[]; timestamp: string }>(
     pollingEndpoint,
-    {
-      interval: 5000, // Poll every 5 seconds
-      onError: (error) => {
-        logger.warn('Polling error', { error });
-      },
-      onSuccess: (data: any) => {
-        if (data && typeof data === 'object' && 'notifications' in data) {
-          const newNotifications = Array.isArray(data.notifications) ? data.notifications : [];
-          
-          // Add new notifications (avoid duplicates)
-          setNotifications(prev => {
-            const existingIds = new Set(prev.map(n => n._id));
-            const uniqueNew = newNotifications.filter((n: Notification) => !existingIds.has(n._id));
-            
-            if (uniqueNew.length > 0) {
-              // Show toast for new notifications
-              uniqueNew.forEach((notification: Notification) => {
-                toast(notification.message, {
-                  icon: getNotificationIcon(notification.type),
-                });
-              });
-            }
-            
-            return [...uniqueNew, ...prev].slice(0, 100); // Keep only latest 100
-          });
-          
-          if (data.timestamp) {
-            setLastPollTimestamp(data.timestamp);
-          }
-        }
-      }
-    }
+    pollingConfig
   );
 
-  // Initial fetch when authenticated
+  const initialFetchDoneRef = useRef(false);
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchNotifications();
-    } else {
+    if (!isAuthenticated) {
       setNotifications([]);
       setLastPollTimestamp(null);
+      initialFetchDoneRef.current = false;
+      return;
+    }
+    if (!initialFetchDoneRef.current) {
+      initialFetchDoneRef.current = true;
+      fetchNotifications();
     }
   }, [isAuthenticated, fetchNotifications]);
 

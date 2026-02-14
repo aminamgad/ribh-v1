@@ -854,7 +854,11 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     <div className="text-left ml-6">
-                      <p className="font-semibold text-gray-900 dark:text-slate-100 mb-2">{formatCurrency(product.marketerPrice)}</p>
+                      <p className={`font-semibold mb-2 ${
+                        (product as any).isMarketerPriceManuallyAdjusted
+                          ? 'text-orange-600 dark:text-orange-400'
+                          : 'text-gray-900 dark:text-slate-100'
+                      }`}>{formatCurrency(product.marketerPrice)}</p>
                       {user?.role !== 'marketer' && (
                         <span className={`badge ${product.isApproved ? 'badge-success' : 'badge-warning'}`}>
                           {product.isApproved ? 'معتمد' : 'قيد المراجعة'}
@@ -1008,7 +1012,11 @@ export default function DashboardPage() {
                     
                     <div className="text-left ml-6 flex flex-col items-end">
                       <div className="text-right mb-3">
-                        <p className="text-2xl font-bold text-gray-900 dark:text-slate-100 group-hover:text-[#FF9800] dark:group-hover:text-[#FF9800] transition-colors duration-200">
+                        <p className={`text-2xl font-bold group-hover:text-[#FF9800] dark:group-hover:text-[#FF9800] transition-colors duration-200 ${
+                          user?.role !== 'wholesaler' && (product as any).isMarketerPriceManuallyAdjusted
+                            ? 'text-orange-600 dark:text-orange-400'
+                            : 'text-gray-900 dark:text-slate-100'
+                        }`}>
                           {formatCurrency(user?.role === 'wholesaler' ? product.wholesalerPrice : product.marketerPrice)}
                         </p>
                         <p className="text-xs text-gray-500 dark:text-slate-400">

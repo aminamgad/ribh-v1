@@ -24,6 +24,7 @@ interface Product {
   addedAt: string;
   minimumSellingPrice?: number;
   isMinimumPriceMandatory?: boolean;
+  isMarketerPriceManuallyAdjusted?: boolean;
 }
 
 export default function FavoritesPage() {
@@ -305,7 +306,7 @@ export default function FavoritesPage() {
                 <div>
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <p className={`text-base sm:text-lg font-bold ${
-                      user?.role !== 'wholesaler' && product.isMinimumPriceMandatory && product.minimumSellingPrice
+                      user?.role !== 'wholesaler' && product.isMarketerPriceManuallyAdjusted
                         ? 'text-orange-600 dark:text-orange-400'
                         : 'text-[#FF9800] dark:text-[#FF9800]'
                     }`}>

@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
 import { User } from '@/types';
 
 interface AuthContextType {
@@ -24,6 +25,7 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -158,21 +160,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await fetch('/api/auth/logout', {
         method: 'POST',
       });
+    } catch (error) {
+      // Silently handle logout errors - still clear local state
+    } finally {
       setUser(null);
-      // Clear saved user from localStorage
       if (typeof window !== 'undefined') {
         localStorage.removeItem('ribh-user');
-      }
-      // Clear cache when user logs out
-      try {
-        if (typeof window !== 'undefined') {
+        try {
           sessionStorage.removeItem('ribh_data_cache');
+        } catch {
+          // ignore
         }
-      } catch (error) {
-        // Silently handle cache clearing errors
       }
-    } catch (error) {
-      // Silently handle logout errors
+      // Redirect to login so re-login works without full page reload
+      router.push('/login');
+      router.refresh();
     }
   };
 

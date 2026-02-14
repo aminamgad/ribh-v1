@@ -411,7 +411,11 @@ export default function CartPage() {
                         }`}>₪</span>
                       </div>
                       {item.product.minimumSellingPrice && item.product.minimumSellingPrice > 0 && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400 text-right">
+                        <p className={`text-xs text-right ${
+                          item.product.isMinimumPriceMandatory && item.product.minimumSellingPrice
+                            ? 'text-orange-600 dark:text-orange-400'
+                            : 'text-gray-500 dark:text-gray-400'
+                        }`}>
                           السعر المقترح: {item.product.minimumSellingPrice} ₪
                         </p>
                       )}

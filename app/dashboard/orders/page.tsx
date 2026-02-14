@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useDataCache } from '@/components/hooks/useDataCache';
-import { Search, Plus, Eye, CheckCircle, Truck, Package, Clock, DollarSign, Edit, X, RotateCcw, Download, Upload, Phone, Mail, MessageCircle, Printer } from 'lucide-react';
+import { Search, Plus, Eye, CheckCircle, Truck, Package, Clock, DollarSign, Edit, X, RotateCcw, Download, Upload, Phone, Mail, MessageCircle, Printer, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -178,6 +178,9 @@ export default function OrdersPage() {
   // Export/Import modal states
   const [showExportModal, setShowExportModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showDeleteOrderModal, setShowDeleteOrderModal] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
+  const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
 
   // Bulk operations state - with localStorage persistence
   // Bulk operations state - with localStorage persistence
@@ -263,8 +266,33 @@ export default function OrdersPage() {
   };
 
   const handlePrintInvoice = (order: any) => {
-    // Navigate to order details page with print parameter
     router.push(`/dashboard/orders/${order._id}?print=true`);
+  };
+
+  const handleDeleteOrderClick = (order: Order) => {
+    setOrderToDelete(order);
+    setShowDeleteOrderModal(true);
+  };
+
+  const confirmDeleteOrderFromList = async () => {
+    if (!orderToDelete?._id) return;
+    setDeletingOrderId(orderToDelete._id);
+    try {
+      const res = await fetch(`/api/orders/${orderToDelete._id}`, { method: 'DELETE', credentials: 'include' });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        toast.success(data.message || 'تم حذف الطلب بنجاح');
+        setShowDeleteOrderModal(false);
+        setOrderToDelete(null);
+        refresh();
+      } else {
+        toast.error(data.error || 'فشل في حذف الطلب');
+      }
+    } catch {
+      toast.error('حدث خطأ أثناء حذف الطلب');
+    } finally {
+      setDeletingOrderId(null);
+    }
   };
 
   const handleBulkPrint = (orderIds: string[]) => {
@@ -703,6 +731,18 @@ export default function OrdersPage() {
                           >
                             <Printer className="w-4 h-4" />
                           </button>
+                          {user?.role === 'admin' && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteOrderClick(order);
+                              }}
+                              className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all duration-200 flex-shrink-0 hover:scale-110 active:scale-95"
+                              title="حذف الطلب"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -833,11 +873,66 @@ export default function OrdersPage() {
                       >
                         <Printer className="w-4 h-4 sm:w-5 sm:h-5" />
                       </button>
+                      {user?.role === 'admin' && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteOrderClick(order);
+                          }}
+                          className="btn-danger flex items-center justify-center min-w-[44px] min-h-[44px] px-3 sm:px-4"
+                          title="حذف الطلب"
+                        >
+                          <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Delete Order Confirm Modal (admin) */}
+      {showDeleteOrderModal && orderToDelete && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6 border-2 border-gray-200 dark:border-slate-700">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                <Trash2 className="w-5 h-5 text-red-600 dark:text-red-400" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">حذف الطلب</h3>
+            </div>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              هل أنت متأكد من حذف الطلب <strong className="text-gray-900 dark:text-slate-100">#{orderToDelete.orderNumber}</strong>؟ لا يمكن التراجع عن هذا الإجراء.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => { setShowDeleteOrderModal(false); setOrderToDelete(null); }}
+                disabled={!!deletingOrderId}
+                className="btn-secondary"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={confirmDeleteOrderFromList}
+                disabled={!!deletingOrderId}
+                className="btn-danger flex items-center gap-2"
+              >
+                {deletingOrderId === orderToDelete._id ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    جاري الحذف...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    حذف الطلب
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -28,6 +28,7 @@ interface StoreIntegration {
     syncOrders: boolean;
     syncInventory: boolean;
     autoFulfillment: boolean;
+    syncShippingEnabled?: boolean;
     priceMarkup?: number;
     defaultCategory?: string;
   };
@@ -43,6 +44,7 @@ export default function IntegrationsPage() {
   const router = useRouter();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [integrationToDelete, setIntegrationToDelete] = useState<StoreIntegration | null>(null);
+  const [updatingSyncShipping, setUpdatingSyncShipping] = useState<string | null>(null);
 
   // Use cache hook for integrations
   const { data: integrationsData, loading, refresh } = useDataCache<{
@@ -119,6 +121,27 @@ export default function IntegrationsPage() {
   const handleDelete = async (integration: StoreIntegration) => {
     setIntegrationToDelete(integration);
     setShowDeleteConfirm(true);
+  };
+
+  const handleSyncShippingToggle = async (integration: StoreIntegration, checked: boolean) => {
+    if (!integration.id) return;
+    setUpdatingSyncShipping(integration.id);
+    try {
+      const response = await fetch(`/api/integrations/${integration.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          settings: { syncShippingEnabled: checked }
+        })
+      });
+      if (!response.ok) throw new Error('Failed to update');
+      toast.success(checked ? 'تم تفعيل مزامنة مدن الشحن تلقائياً' : 'تم إلغاء مزامنة مدن الشحن التلقائية');
+      refresh();
+    } catch {
+      toast.error('حدث خطأ في التحديث');
+    } finally {
+      setUpdatingSyncShipping(null);
+    }
   };
 
   const confirmDelete = async () => {
@@ -249,9 +272,24 @@ export default function IntegrationsPage() {
                   </div>
                 </div>
               </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                 متجرك مربوط مع ربح. يمكنك تصدير المنتجات من صفحة المنتجات ومزامنة الطلبات تلقائياً.
               </p>
+              <label className="flex items-center gap-2 mb-6 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={integration.settings?.syncShippingEnabled !== false}
+                  onChange={(e) => handleSyncShippingToggle(integration, e.target.checked)}
+                  disabled={!!updatingSyncShipping}
+                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">
+                  مزامنة مدن الشحن تلقائياً مع Easy Orders
+                </span>
+                {updatingSyncShipping === integration.id && (
+                  <span className="text-xs text-gray-500">جاري...</span>
+                )}
+              </label>
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={() => handleDelete(integration)}

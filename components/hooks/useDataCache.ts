@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useDataCache as useDataCacheContext } from '@/components/providers/DataCacheProvider';
 
 interface UseDataCacheOptions {
@@ -35,9 +35,11 @@ export function useDataCache<T = any>({
   const [loading, setLoading] = useState(true); // Start with true to show loading initially
   const [error, setError] = useState<Error | null>(null);
   const [hasFetched, setHasFetched] = useState(false);
+  const keyRef = useRef(key);
+  keyRef.current = key;
 
-  // Fetch data function
-  const fetchData = useCallback(async () => {
+  // Only apply result if key still matches (avoids stale result when typing/deleting in search)
+  const fetchData = useCallback(async (keyForThisFetch: string) => {
     if (!enabled) return;
 
     setLoading(true);
@@ -45,24 +47,20 @@ export function useDataCache<T = any>({
 
     try {
       const result = await fetchFn();
+      if (keyRef.current !== keyForThisFetch) return;
       setData(result);
-      cache.setCachedData(key, result);
+      cache.setCachedData(keyForThisFetch, result);
       setHasFetched(true);
-      
-      if (onSuccess) {
-        onSuccess(result);
-      }
+      if (onSuccess) onSuccess(result);
     } catch (err) {
-      const error = err instanceof Error ? err : new Error('Unknown error');
-      setError(error);
-      
-      if (onError) {
-        onError(error);
-      }
+      if (keyRef.current !== keyForThisFetch) return;
+      const errObj = err instanceof Error ? err : new Error('Unknown error');
+      setError(errObj);
+      if (onError) onError(errObj);
     } finally {
-      setLoading(false);
+      if (keyRef.current === keyForThisFetch) setLoading(false);
     }
-  }, [key, fetchFn, enabled, cache, onSuccess, onError]);
+  }, [fetchFn, enabled, cache, onSuccess, onError]);
 
   // Get cached data on mount and fetch if needed
   // This effect runs immediately when key changes - no delay
@@ -83,18 +81,15 @@ export function useDataCache<T = any>({
         onSuccess(cachedData);
       }
     } else {
-      // No cached data or force refresh - fetch immediately
-      // Reset hasFetched when key changes to ensure fresh fetch
       setHasFetched(false);
-      fetchData();
+      fetchData(key);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, enabled, forceRefresh]); // Only run when key, enabled, or forceRefresh changes
+  }, [key, enabled, forceRefresh]);
 
-  // Manual refresh function
   const refresh = useCallback(async () => {
     cache.refreshData(key);
-    await fetchData();
+    await fetchData(key);
   }, [key, fetchData, cache]);
 
   // Clear cache function

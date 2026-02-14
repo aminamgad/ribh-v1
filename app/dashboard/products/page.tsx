@@ -61,6 +61,7 @@ interface Product {
   supplierId: string;
   minimumSellingPrice?: number;
   isMinimumPriceMandatory?: boolean;
+  isMarketerPriceManuallyAdjusted?: boolean;
   tags: string[];
   categoryName?: string;
   supplierName?: string;
@@ -1490,7 +1491,7 @@ export default function ProductsPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <p className={`text-base sm:text-lg md:text-xl font-bold ${
-                          user?.role !== 'wholesaler' && product.isMinimumPriceMandatory && product.minimumSellingPrice
+                          user?.role !== 'wholesaler' && product.isMarketerPriceManuallyAdjusted
                             ? 'text-orange-600 dark:text-orange-400'
                             : 'text-primary-600 dark:text-primary-400'
                         }`}>
@@ -1498,7 +1499,11 @@ export default function ProductsPage() {
                         </p>
                       </div>
                       {user?.role !== 'wholesaler' && product.minimumSellingPrice && (
-                        <p className="text-[10px] sm:text-xs mt-1 text-gray-500 dark:text-gray-400">
+                        <p className={`text-[10px] sm:text-xs mt-1 ${
+                          product.isMinimumPriceMandatory && product.minimumSellingPrice
+                            ? 'text-orange-600 dark:text-orange-400'
+                            : 'text-gray-500 dark:text-gray-400'
+                        }`}>
                           السعر الأدنى: {product.minimumSellingPrice} ₪
                         </p>
                       )}

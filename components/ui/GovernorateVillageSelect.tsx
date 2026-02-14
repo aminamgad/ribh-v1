@@ -309,16 +309,15 @@ export default function GovernorateVillageSelect({
   const handleVillageChange = (villageId: number) => {
     const village = filteredVillages.find((v) => v.villageId === villageId) || baseFilteredVillages.find((v) => v.villageId === villageId);
     if (village) {
+      // مسح القديم واستبداله فوراً بالقيمة الجديدة
       setSelectedVillageId(villageId);
-      // Extract village name (part after "-")
+      setVillageSearchQuery(village.villageName);
+      setSelectedVillageIndex(-1);
+      setShowVillageDropdown(false);
       const villageName = village.villageName.split('-').slice(1).join('-').trim();
       const regionInfo = selectedRegionInfo;
       const regionName = regionInfo?.code || undefined;
       onVillageChange(village.villageId, villageName, village.deliveryCost, selectedGovernorate, regionName);
-      // Set search query to show selected village name in input
-      setVillageSearchQuery(village.villageName);
-      setSelectedVillageIndex(-1);
-      setShowVillageDropdown(false);
     }
   };
 
@@ -522,14 +521,17 @@ export default function GovernorateVillageSelect({
                 }
               }}
               placeholder={selectedGovernorate || "ابحث عن المنطقة أو اختر من القائمة..."}
-              className="w-full pl-10 pr-10 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-[#FF9800] focus:border-transparent transition-all"
+              className="w-full pl-10 pr-10 py-2.5 border-2 border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-[#FF9800] focus:border-transparent transition-all min-h-[44px]"
               disabled={disabled}
               required={required}
               aria-label="بحث عن المنطقة"
             />
             {(governorateSearchQuery || selectedGovernorate) && (
               <button
-                onClick={() => {
+                type="button"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   setGovernorateSearchQuery('');
                   setSelectedGovernorate('');
                   setSelectedGovernorateIndex(-1);
@@ -549,7 +551,7 @@ export default function GovernorateVillageSelect({
             
             {/* Dropdown List */}
             {showGovernorateDropdown && activeGovernorates.length > 0 && (
-              <div className="absolute z-50 w-full mt-1 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+              <div className="absolute z-[60] w-full mt-1 bg-white dark:bg-slate-800 border-2 border-gray-200 dark:border-slate-600 rounded-xl shadow-xl ring-2 ring-[#FF9800]/20 max-h-60 overflow-y-auto">
                 {activeGovernorates.map((item: any, index) => (
                   <button
                     key={item.name}
@@ -560,9 +562,9 @@ export default function GovernorateVillageSelect({
                       setSelectedGovernorateIndex(-1);
                       setShowGovernorateDropdown(false);
                     }}
-                    className={`w-full text-right px-4 py-2 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors ${
+                    className={`w-full text-right px-4 py-3 min-h-[44px] hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors ${
                       selectedGovernorateIndex === index && governorateSearchQuery
-                        ? 'bg-[#FF9800] text-white'
+                        ? 'bg-[#FF9800] text-white hover:bg-[#F57C00]'
                         : selectedGovernorate === item.name
                         ? 'bg-blue-50 dark:bg-blue-900/20 font-medium'
                         : ''
@@ -681,14 +683,17 @@ export default function GovernorateVillageSelect({
                   }
                 }}
                 placeholder={selectedVillageName || "ابحث عن القرية أو المحافظة أو ID..."}
-                className="w-full pl-10 pr-10 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-[#FF9800] focus:border-transparent transition-all"
+                className="w-full pl-10 pr-10 py-2.5 border-2 border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-[#FF9800] focus:border-transparent transition-all min-h-[44px]"
                 disabled={disabled || !selectedGovernorate}
                 required={required}
                 aria-label="بحث عن القرية"
               />
               {(villageSearchQuery || selectedVillageId) && (
                 <button
-                  onClick={() => {
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     setVillageSearchQuery('');
                     setSelectedVillageId(null);
                     setSelectedVillageIndex(-1);
@@ -705,7 +710,7 @@ export default function GovernorateVillageSelect({
               
               {/* Dropdown List */}
               {showVillageDropdown && filteredVillages.length > 0 && (
-                <div className="absolute z-50 w-full mt-1 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                <div className="absolute z-[60] w-full mt-1 bg-white dark:bg-slate-800 border-2 border-gray-200 dark:border-slate-600 rounded-xl shadow-xl ring-2 ring-[#FF9800]/20 max-h-60 overflow-y-auto">
                   {filteredVillages.map((village, index) => {
                     const villageName = village.villageName.split('-').slice(1).join('-').trim();
                     return (
@@ -716,9 +721,9 @@ export default function GovernorateVillageSelect({
                           handleVillageChange(village.villageId);
                           setShowVillageDropdown(false);
                         }}
-                        className={`w-full text-right px-4 py-2 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors ${
+                        className={`w-full text-right px-4 py-3 min-h-[44px] hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors ${
                           selectedVillageIndex === index && villageSearchQuery
-                            ? 'bg-[#FF9800] text-white'
+                            ? 'bg-[#FF9800] text-white hover:bg-[#F57C00]'
                             : selectedVillageId === village.villageId
                             ? 'bg-blue-50 dark:bg-blue-900/20 font-medium'
                             : ''
@@ -749,7 +754,7 @@ export default function GovernorateVillageSelect({
                 type="text"
                 placeholder="جاري تحميل القرى..."
                 disabled
-                className="w-full px-4 py-2.5 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-wait"
+                className="w-full px-4 py-2.5 pr-10 border-2 border-gray-200 dark:border-slate-600 rounded-lg bg-gray-50 dark:bg-slate-700/80 text-gray-500 dark:text-slate-400 cursor-wait min-h-[44px]"
               />
               <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
                 <div className="loading-spinner w-4 h-4"></div>

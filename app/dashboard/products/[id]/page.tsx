@@ -938,12 +938,21 @@ export default function ProductDetailPage() {
                 <div className="text-center p-3 rounded-lg bg-[#FF9800]/10 dark:bg-[#FF9800]/20">
                   <p className="text-sm text-[#FF9800] dark:text-[#FF9800]">سعر المسوق (الأساسي)</p>
                   <p className={`text-lg font-bold ${
-                    product.isMinimumPriceMandatory && product.minimumSellingPrice
+                    product.isMarketerPriceManuallyAdjusted
                       ? 'text-orange-600 dark:text-orange-400'
                       : 'text-[#F57C00] dark:text-[#F57C00]'
                   }`}>
                     {new Intl.NumberFormat('en-US').format(product.marketerPrice)} ₪
                   </p>
+                  {product.minimumSellingPrice && (
+                    <p className={`text-xs mt-1 ${
+                      product.isMinimumPriceMandatory && product.minimumSellingPrice
+                        ? 'text-orange-600 dark:text-orange-400'
+                        : 'text-gray-500 dark:text-gray-400'
+                    }`}>
+                      السعر الأدنى: {new Intl.NumberFormat('en-US').format(product.minimumSellingPrice)} ₪
+                    </p>
+                  )}
                 </div>
               ) : user?.role === 'wholesaler' ? (
                 // Wholesaler sees only wholesaler price
@@ -970,14 +979,18 @@ export default function ProductDetailPage() {
                         )}
                       </p>
                       <p className={`text-xl font-bold ${
-                        product.isMinimumPriceMandatory && product.minimumSellingPrice
+                        product.isMarketerPriceManuallyAdjusted
                           ? 'text-orange-600 dark:text-orange-400'
                           : 'text-primary-600 dark:text-primary-400'
                       }`}>
                         {new Intl.NumberFormat('en-US').format(product.marketerPrice)} ₪
                       </p>
                       {product.minimumSellingPrice && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        <p className={`text-xs mt-1 ${
+                          product.isMinimumPriceMandatory && product.minimumSellingPrice
+                            ? 'text-orange-600 dark:text-orange-400'
+                            : 'text-gray-500 dark:text-gray-400'
+                        }`}>
                           السعر الأدنى: {new Intl.NumberFormat('en-US').format(product.minimumSellingPrice)} ₪
                         </p>
                       )}

@@ -6,7 +6,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { handleApiError } from '@/lib/error-handler';
-import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,12 +36,6 @@ export async function GET(req: NextRequest) {
       .sort({ createdAt: -1 })
       .limit(50)
       .lean();
-
-    logger.debug('Polling notifications', {
-      userId: user._id,
-      count: notifications.length,
-      since: sinceDate.toISOString()
-    });
 
     return NextResponse.json({
       success: true,

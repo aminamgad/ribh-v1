@@ -21,6 +21,7 @@ const updateIntegrationSchema = z.object({
     syncOrders: z.boolean().optional(),
     syncInventory: z.boolean().optional(),
     autoFulfillment: z.boolean().optional(),
+    syncShippingEnabled: z.boolean().optional(),
     priceMarkup: z.number().min(0).max(100).optional(),
     defaultCategory: z.string().optional()
   }).optional(),
@@ -157,6 +158,9 @@ export const PUT = withAuth(async (req: NextRequest, user: any, ...args: unknown
       }
       if (validatedData.settings.autoFulfillment !== undefined) {
         integration.settings.autoFulfillment = validatedData.settings.autoFulfillment;
+      }
+      if (validatedData.settings.syncShippingEnabled !== undefined) {
+        (integration.settings as any).syncShippingEnabled = validatedData.settings.syncShippingEnabled;
       }
       if (validatedData.settings.priceMarkup !== undefined) {
         integration.settings.priceMarkup = validatedData.settings.priceMarkup;

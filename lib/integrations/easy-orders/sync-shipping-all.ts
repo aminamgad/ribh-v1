@@ -32,21 +32,24 @@ export async function syncShippingForAllEasyOrdersIntegrations(): Promise<SyncSh
       isActive: true,
       apiKey: { $exists: true, $ne: '' }
     })
-      .select('_id apiKey userId storeId')
+      .select('_id apiKey userId storeId settings')
       .lean();
 
-    result.total = integrations.length;
+    const integrationsToSync = integrations.filter(
+      (int) => (int as any).settings?.syncShippingEnabled !== false
+    );
+    result.total = integrationsToSync.length;
 
-    if (integrations.length === 0) {
-      logger.info('No active Easy Orders integrations to sync shipping — تأكد من ربط متجر Easy Orders من قبل مسوق واحد على الأقل');
+    if (integrationsToSync.length === 0) {
+      logger.info('No Easy Orders integrations with syncShippingEnabled to sync — تأكد من ربط متجر Easy Orders وتفعيل مزامنة الشحن');
       return result;
     }
 
     logger.business('Starting shipping sync for all Easy Orders integrations', {
-      count: integrations.length
+      count: integrationsToSync.length
     });
 
-    for (const integration of integrations) {
+    for (const integration of integrationsToSync) {
       const integrationId = (integration._id as any)?.toString?.() || '';
       try {
         const syncResult = await syncShippingForIntegration({
@@ -71,7 +74,7 @@ export async function syncShippingForAllEasyOrdersIntegrations(): Promise<SyncSh
         logger.error('EasyOrders shipping sync failed for integration', err, { integrationId });
       }
 
-      if (result.total > 1 && DELAY_BETWEEN_SYNCS_MS > 0) {
+      if (integrationsToSync.length > 1 && DELAY_BETWEEN_SYNCS_MS > 0) {
         await new Promise((r) => setTimeout(r, DELAY_BETWEEN_SYNCS_MS));
       }
     }

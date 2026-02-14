@@ -18,6 +18,7 @@ interface Product {
   wholesalerPrice: number | undefined;
   minimumSellingPrice?: number;
   isMinimumPriceMandatory?: boolean;
+  isMarketerPriceManuallyAdjusted?: boolean;
   stockQuantity: number;
   isActive: boolean;
   isApproved: boolean;
@@ -244,14 +245,18 @@ const AdminProductsTableView = memo(function AdminProductsTableView({
                         {userRole === 'wholesaler' ? 'سعر تاجر الجملة: ' : 'سعر المسوق: '}
                       </span>
                       <span className={`font-bold text-lg ${
-                        product.isMinimumPriceMandatory && product.minimumSellingPrice
+                        userRole !== 'wholesaler' && product.isMarketerPriceManuallyAdjusted
                           ? 'text-orange-600 dark:text-orange-400'
                           : 'text-gray-900 dark:text-slate-100'
                       }`}>
                         {((userRole === 'wholesaler' ? product.wholesalerPrice : product.marketerPrice) ?? 0).toFixed(2)} ₪
                       </span>
                       {product.minimumSellingPrice && (
-                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        <div className={`text-xs mt-1 ${
+                          product.isMinimumPriceMandatory && product.minimumSellingPrice
+                            ? 'text-orange-600 dark:text-orange-400'
+                            : 'text-gray-500 dark:text-gray-400'
+                        }`}>
                           السعر الأدنى: {(product.minimumSellingPrice ?? 0).toFixed(2)} ₪
                         </div>
                       )}
@@ -516,14 +521,18 @@ const AdminProductsTableView = memo(function AdminProductsTableView({
                     {/* Marketer/Wholesaler Price */}
                     <td className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap border-r border-gray-200 dark:border-slate-700">
                       <div className={`text-sm font-bold ${
-                        product.isMinimumPriceMandatory && product.minimumSellingPrice
+                        userRole !== 'wholesaler' && product.isMarketerPriceManuallyAdjusted
                           ? 'text-orange-600 dark:text-orange-400'
                           : 'text-gray-900 dark:text-slate-100'
                       }`}>
                         {((userRole === 'wholesaler' ? product.wholesalerPrice : product.marketerPrice) ?? 0).toFixed(2)} ₪
                       </div>
                       {product.minimumSellingPrice && (
-                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        <div className={`text-xs mt-1 ${
+                          product.isMinimumPriceMandatory && product.minimumSellingPrice
+                            ? 'text-orange-600 dark:text-orange-400'
+                            : 'text-gray-500 dark:text-gray-400'
+                        }`}>
                           السعر الأدنى: {(product.minimumSellingPrice ?? 0).toFixed(2)} ₪
                         </div>
                       )}

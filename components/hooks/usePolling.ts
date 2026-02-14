@@ -82,8 +82,6 @@ export function usePolling<T = unknown>(
       
       subscriptionIdRef.current = id;
       setIsLoading(true);
-      
-      logger.debug('Polling started', { endpoint, subscriptionId: id });
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
       setError(error);
@@ -98,9 +96,8 @@ export function usePolling<T = unknown>(
       pollingManager.unsubscribe(subscriptionIdRef.current);
       subscriptionIdRef.current = null;
       setIsLoading(false);
-      logger.debug('Polling stopped', { endpoint });
     }
-  }, [endpoint]);
+  }, []);
 
   // Auto-start on mount if endpoint is provided
   useEffect(() => {

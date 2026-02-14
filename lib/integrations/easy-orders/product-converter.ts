@@ -100,16 +100,22 @@ export async function convertProductToEasyOrders(
     }
   }
 
-  // Prices shown in Easy Orders store = what the marketer sells at (marketerPrice).
-  // supplierPrice is internal cost; customers must see marketerPrice in the store.
-  const price = Number(product.marketerPrice) || Number(product.supplierPrice) || 0;
+  // السعر المرسل لـ Easy Orders: سعر البيع المقترح إن وضعه المورد، وإلا سعر المسوق
+  const minSelling = Number(product.minimumSellingPrice);
+  const marketer = Number(product.marketerPrice);
+  const supplier = Number(product.supplierPrice);
+  const price = (minSelling > 0) ? minSelling : (marketer || supplier || 0);
   const salePrice = Number(product.salePrice) || 0;
 
-  // Build description (combine description and marketingText)
-  const description = [
+  // Build description (combine description and marketingText). لا نستخدم اسم المنتج كوصف
+  let description = [
     product.description || '',
     product.marketingText || ''
-  ].filter(Boolean).join('<br><br>');
+  ].filter(Boolean).join('<br><br>').trim();
+  // إن كان الوصف مطابقاً لاسم المنتج (مثل أن يكون المستخدم كتب الاسم في حقل الوصف) لا نرسله كوصف
+  if (description && product.name && description.trim() === (product.name || '').trim()) {
+    description = '';
+  }
 
   // Prepare images
   // EasyOrders requires at least one image
@@ -128,7 +134,7 @@ export async function convertProductToEasyOrders(
     name: product.name || '',
     price: price,
     sale_price: salePrice > 0 ? salePrice : 0,
-    description: description || `<p>${product.name}</p>`,
+    description: description ? description : '<p></p>',
     ...(slug !== undefined && { slug }),
     sku: product.sku || `RIBH-${product._id}`,
     thumb: thumb,

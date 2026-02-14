@@ -158,6 +158,7 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
   });
   const [startDate, setStartDate] = useState(() => getParamValue('startDate'));
   const [endDate, setEndDate] = useState(() => getParamValue('endDate'));
+  const [manuallyModified, setManuallyModified] = useState(() => getParamValue('manuallyModified'));
 
   // Refs to store current date values for immediate access in onChange handlers
   const startDateRef = useRef(startDate);
@@ -244,6 +245,7 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
           }
           if (params.get('startDate')) setStartDate(params.get('startDate') || '');
           if (params.get('endDate')) setEndDate(params.get('endDate') || '');
+          if (params.get('manuallyModified')) setManuallyModified(params.get('manuallyModified') || '');
         }
         
         // Apply the restored filters to URL
@@ -285,7 +287,8 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
     overrideSelectedApprovalStatuses?: string[],
     overrideSelectedSuppliers?: string[],
     overrideSortBy?: string,
-    overrideSortOrder?: string
+    overrideSortOrder?: string,
+    overrideManuallyModified?: string
   ) => {
     if (isInitialMount.current) return;
     
@@ -373,6 +376,12 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
       if (currentEndDate && currentEndDate.trim()) {
         params.set('endDate', currentEndDate.trim());
       }
+      const currentManuallyModified = overrideManuallyModified !== undefined ? overrideManuallyModified : manuallyModified;
+      if (currentManuallyModified === 'true') {
+        params.set('manuallyModified', 'true');
+      } else {
+        params.delete('manuallyModified');
+      }
     }
     
     const queryString = params.toString();
@@ -417,7 +426,8 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
       normalizeParam(currentParams.get('maxStock')) === normalizeParam(newParams.get('maxStock')) &&
       normalizeSuppliers(currentParams.get('suppliers')) === normalizeSuppliers(newParams.get('suppliers')) &&
       urlStartDate === newStartDate &&
-      urlEndDate === newEndDate;
+      urlEndDate === newEndDate &&
+      normalizeParam(currentParams.get('manuallyModified')) === normalizeParam(newParams.get('manuallyModified'));
     
     // Always update if query strings don't match exactly (including empty strings)
     const currentQueryNormalized = currentSearch.replace(/^\?/, '');
@@ -449,7 +459,7 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
       // This ensures cacheKey updates immediately and data refreshes right away
       window.dispatchEvent(new CustomEvent('urlchange', { detail: { query: queryString } }));
     }
-  }, [searchQuery, selectedCategories, minPrice, maxPrice, sortBy, sortOrder, selectedApprovalStatuses, minStock, maxStock, selectedSuppliers, startDate, endDate]);
+  }, [searchQuery, selectedCategories, minPrice, maxPrice, sortBy, sortOrder, selectedApprovalStatuses, minStock, maxStock, selectedSuppliers, startDate, endDate, manuallyModified]);
 
   // Note: All filters now apply immediately via onChange handlers
   // No useEffect needed - this ensures instant response
@@ -544,6 +554,7 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
       setSelectedSuppliers([]);
       setStartDate('');
       setEndDate('');
+      setManuallyModified('');
     }
     
     // Clear from sessionStorage
@@ -567,8 +578,8 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
 
   const hasActiveFilters = useMemo(() => 
     searchQuery || selectedCategories.length > 0 || minPrice || maxPrice || selectedApprovalStatuses.length > 0 ||
-    (user?.role === 'admin' && (minStock || maxStock || selectedSuppliers.length > 0 || startDate || endDate)),
-    [searchQuery, selectedCategories, minPrice, maxPrice, selectedApprovalStatuses, user?.role, minStock, maxStock, selectedSuppliers, startDate, endDate]
+    (user?.role === 'admin' && (minStock || maxStock || selectedSuppliers.length > 0 || startDate || endDate || manuallyModified === 'true')),
+    [searchQuery, selectedCategories, minPrice, maxPrice, selectedApprovalStatuses, user?.role, minStock, maxStock, selectedSuppliers, startDate, endDate, manuallyModified]
   );
 
   const handleExport = async () => {
@@ -589,6 +600,9 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
       }
       if (endDate) {
         params.append('endDate', endDate);
+      }
+      if (manuallyModified === 'true') {
+        params.append('manuallyModified', 'true');
       }
 
       const response = await fetch(`/api/products/export?${params.toString()}`);
@@ -683,7 +697,8 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
                       maxStock,
                       selectedSuppliers.length,
                       startDate,
-                      endDate
+                      endDate,
+                      manuallyModified === 'true'
                     ].filter(Boolean).length
                   : [
                       searchQuery,
@@ -881,8 +896,30 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
                 <h4 className="text-md font-semibold text-gray-900 dark:text-slate-100 mb-1">
                   فلاتر الإدارة
                 </h4>
-                <p className="text-xs text-gray-500 dark:text-slate-400 mb-4">المورد · حالة المنتج · المخزون · تاريخ الإضافة</p>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mb-4">المورد · حالة المنتج · المخزون · تاريخ الإضافة · المعدلة يدوياً</p>
                 
+                {/* المنتجات المعدلة يدوياً (سعر المسوق) */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                    المنتجات المعدلة يدوياً
+                  </label>
+                  <select
+                    value={manuallyModified || ''}
+                    onChange={(e) => {
+                      const newValue = e.target.value;
+                      setManuallyModified(newValue);
+                      if (!isInitialMount.current) {
+                        applyFiltersAuto(undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, newValue);
+                      }
+                    }}
+                    className="w-full py-2.5 pr-4 pl-10 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-[#FF9800] focus:border-transparent dark:bg-slate-700 dark:text-slate-100 appearance-none bg-[length:1.25rem] bg-[position:left_0.5rem_center] bg-no-repeat"
+                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")` }}
+                  >
+                    <option value="">جميع المنتجات</option>
+                    <option value="true">المنتجات المعدلة يدوياً فقط (سعر المسوق)</option>
+                  </select>
+                </div>
+
                 {/* Stock Quantity Range Filter */}
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">

@@ -111,6 +111,7 @@ async function getProducts(req: NextRequest, user: any) {
     const suppliers = searchParams.get('suppliers'); // Comma-separated supplier IDs
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
+    const manuallyModified = searchParams.get('manuallyModified'); // Admin: المنتجات المعدلة يدوياً (سعر المسوق)
     
     let query: any = {};
     
@@ -181,6 +182,11 @@ async function getProducts(req: NextRequest, user: any) {
       if (endDate) {
         query.createdAt.$lte = new Date(endDate + 'T23:59:59.999Z');
       }
+    }
+    
+    // Admin filter: المنتجات المعدلة يدوياً (سعر المسوق)
+    if (user.role === 'admin' && manuallyModified === 'true') {
+      query.isMarketerPriceManuallyAdjusted = true;
     }
     
     // Price range filter - works for all roles
@@ -346,7 +352,8 @@ async function getProducts(req: NextRequest, user: any) {
       maxStock || '',
       normalizedSuppliers,
       startDate || '',
-      endDate || ''
+      endDate || '',
+      manuallyModified || ''
     );
     
     // Try to get from cache
@@ -368,7 +375,7 @@ async function getProducts(req: NextRequest, user: any) {
     // Use select to only get needed fields
     // ترتيب ثابت: createdAt ثم _id لتفادي اختلاف ترتيب النتائج عند نفس الوقت (ظهور/اختفاء آخر منتج)
     const products = await Product.find(query)
-      .select('name description images supplierPrice marketerPrice wholesalerPrice minimumSellingPrice isMinimumPriceMandatory stockQuantity isActive isApproved isRejected rejectionReason adminNotes approvedAt approvedBy rejectedAt rejectedBy isFulfilled isLocked lockedAt lockedBy lockReason sku weight dimensions tags createdAt categoryId supplierId hasVariants variants variantOptions metadata')
+      .select('name description images supplierPrice marketerPrice wholesalerPrice minimumSellingPrice isMinimumPriceMandatory stockQuantity isActive isApproved isRejected rejectionReason adminNotes approvedAt approvedBy rejectedAt rejectedBy isFulfilled isLocked lockedAt lockedBy lockReason sku weight dimensions tags createdAt categoryId supplierId hasVariants variants variantOptions metadata isMarketerPriceManuallyAdjusted')
       .populate('categoryId', 'name')
       .populate('supplierId', 'name companyName role')
       .sort({ createdAt: -1, _id: -1 })
@@ -477,6 +484,7 @@ async function getProducts(req: NextRequest, user: any) {
         wholesalerPrice: product.wholesalerPrice,
         minimumSellingPrice: product.minimumSellingPrice,
         isMinimumPriceMandatory: product.isMinimumPriceMandatory,
+        isMarketerPriceManuallyAdjusted: product.isMarketerPriceManuallyAdjusted ?? false,
         stockQuantity: product.stockQuantity,
         isActive: product.isActive,
         isApproved: product.isApproved,

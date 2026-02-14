@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
-import { ArrowLeft, Phone, Mail, MapPin, Package, Truck, CheckCircle, Clock, AlertCircle, MessageSquare, ExternalLink, MessageCircle, Edit, CheckCircle2, DollarSign, User, Calendar, Printer, X, Save, Copy, Check, Search } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, MapPin, Package, Truck, CheckCircle, Clock, AlertCircle, MessageSquare, ExternalLink, MessageCircle, Edit, CheckCircle2, DollarSign, User, Calendar, Printer, X, Save, Copy, Check, Search, Trash2 } from 'lucide-react';
 import MediaThumbnail from '@/components/ui/MediaThumbnail';
 import OrderInvoice from '@/components/ui/OrderInvoice';
 import CommentsSection from '@/components/ui/CommentsSection';
@@ -177,6 +178,8 @@ export default function OrderDetailPage() {
   const [showShippingModal, setShowShippingModal] = useState(false);
   const [updatingShipping, setUpdatingShipping] = useState(false);
   const [showShipConfirmModal, setShowShipConfirmModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [shippingCompanies, setShippingCompanies] = useState<Array<{
     _id: string; 
     companyName: string;
@@ -204,6 +207,8 @@ export default function OrderDetailPage() {
   const [selectedVillageIndex, setSelectedVillageIndex] = useState<number>(-1);
   const [showVillageDropdown, setShowVillageDropdown] = useState(false);
   const villagesLoadedRef = useRef(false);
+  const villageInputContainerRef = useRef<HTMLDivElement>(null);
+  const [villageDropdownPos, setVillageDropdownPos] = useState<{ top: number; left: number; width: number } | null>(null);
 
   // Check for print parameter in URL
   useEffect(() => {
@@ -628,7 +633,11 @@ export default function OrderDetailPage() {
     }
   }, [villages, shippingCompany, shippingCompanies, filterVillagesForCompany]);
 
-  // Initialize selected village when order loads
+  // Initialize selected village when order loads or when modal opens for this order.
+  // Use stable deps (order id + village id) so we don't overwrite user's intentional clear on re-render.
+  const orderId = order?._id?.toString();
+  const orderVillageId = order?.shippingAddress?.villageId;
+  const orderVillageName = order?.shippingAddress?.villageName;
   useEffect(() => {
     if (order?.shippingAddress?.villageId) {
       setSelectedVillageId(order.shippingAddress.villageId);
@@ -648,13 +657,49 @@ export default function OrderDetailPage() {
       setSelectedVillageId(null);
       setVillageSearchQuery('');
     }
-  }, [order, villages]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- use stable deps to avoid overwriting user's clear on re-render
+  }, [orderId, orderVillageId, orderVillageName, villages.length]);
 
 
   // Sync villageSearchQuery with selectedVillageId - ensures selected village name is always displayed
   // This effect only runs when selectedVillageId changes (not when user types)
   const prevSelectedVillageIdRef = useRef<number | null>(null);
   const isUserTypingRef = useRef(false);
+  const userClearedVillageRef = useRef(false); // Prevents onFocus from repopulating after X clear
+
+  // Update dropdown position for portal (prevents clipping by modal overflow)
+  const updateVillageDropdownPosition = useCallback(() => {
+    if (villageInputContainerRef.current && showVillageDropdown) {
+      const rect = villageInputContainerRef.current.getBoundingClientRect();
+      setVillageDropdownPos({
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: rect.width,
+      });
+    } else {
+      setVillageDropdownPos(null);
+    }
+  }, [showVillageDropdown]);
+
+  useEffect(() => {
+    if (showVillageDropdown && villageInputContainerRef.current) {
+      const run = () => requestAnimationFrame(updateVillageDropdownPosition);
+      run();
+      const modalEl = document.querySelector('[data-shipping-modal]');
+      const ro = new ResizeObserver(run);
+      if (modalEl) ro.observe(modalEl);
+      window.addEventListener('scroll', run, true);
+      window.addEventListener('resize', run);
+      return () => {
+        ro.disconnect();
+        window.removeEventListener('scroll', run, true);
+        window.removeEventListener('resize', run);
+        setVillageDropdownPos(null);
+      };
+    } else {
+      setVillageDropdownPos(null);
+    }
+  }, [showVillageDropdown, updateVillageDropdownPosition]);
   
   useEffect(() => {
     // Only update if selectedVillageId actually changed (not just on every render) and user is not typing
@@ -1271,6 +1316,26 @@ export default function OrderDetailPage() {
     }
   };
 
+  const confirmDeleteOrder = async () => {
+    if (!order?._id) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/orders/${order._id}`, { method: 'DELETE', credentials: 'include' });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        toast.success(data.message || 'تم حذف الطلب بنجاح');
+        router.push('/dashboard/orders');
+        return;
+      }
+      toast.error(data.error || 'فشل في حذف الطلب');
+    } catch {
+      toast.error('حدث خطأ أثناء حذف الطلب');
+    } finally {
+      setDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -1581,15 +1646,28 @@ export default function OrderDetailPage() {
 
   return (
     <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 print:hidden">
-      {/* Back Button */}
-      <Link 
-        href="/dashboard/orders" 
-        className="btn-secondary min-h-[44px] text-sm sm:text-base px-3 sm:px-4 w-fit mb-4"
-        aria-label="العودة إلى صفحة الطلبات"
-      >
-        <ArrowLeft className="w-4 h-4 ml-1.5 sm:ml-2" aria-hidden="true" />
-        العودة للطلبات
-      </Link>
+      {/* Back Button + Delete (admin only) */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <Link 
+          href="/dashboard/orders" 
+          className="btn-secondary min-h-[44px] text-sm sm:text-base px-3 sm:px-4 w-fit"
+          aria-label="العودة إلى صفحة الطلبات"
+        >
+          <ArrowLeft className="w-4 h-4 ml-1.5 sm:ml-2" aria-hidden="true" />
+          العودة للطلبات
+        </Link>
+        {user?.role === 'admin' && (
+          <button
+            type="button"
+            onClick={() => setShowDeleteConfirm(true)}
+            className="btn-danger min-h-[44px] text-sm sm:text-base px-3 sm:px-4 flex items-center gap-1.5"
+            aria-label="حذف الطلب"
+          >
+            <Trash2 className="w-4 h-4" />
+            حذف الطلب
+          </button>
+        )}
+      </div>
 
       {/* Quick Stats Card - Enhanced Responsive */}
       <div className="card p-3 sm:p-4 md:p-6 bg-gradient-to-br from-[#FF9800]/5 via-white to-[#FF9800]/5 dark:from-[#FF9800]/10 dark:via-gray-800 dark:to-[#FF9800]/10 border-2 border-[#FF9800]/20 dark:border-[#FF9800]/30 mb-4 sm:mb-6 shadow-lg">
@@ -3024,7 +3102,7 @@ export default function OrderDetailPage() {
       {/* Shipping Management Modal - Enhanced */}
       {showShippingModal && order && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border-2 border-gray-200 dark:border-slate-700 animate-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border-2 border-gray-200 dark:border-slate-700 animate-in zoom-in-95 duration-200" data-shipping-modal>
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
@@ -3112,7 +3190,7 @@ export default function OrderDetailPage() {
                       </div>
                     </div>
                   ) : filteredVillages.length > 0 ? (
-                    <div className="relative village-search-container">
+                    <div className="relative village-search-container" ref={villageInputContainerRef}>
                       <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none z-10">
                         <Search className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                       </div>
@@ -3141,8 +3219,9 @@ export default function OrderDetailPage() {
                         }}
                         onFocus={() => {
                           if (filteredVillages.length > 0) {
-                            // If there's a selected village, clear search query to show all options
-                            if (selectedVillageId && !villageSearchQuery) {
+                            if (userClearedVillageRef.current) {
+                              userClearedVillageRef.current = false;
+                            } else if (selectedVillageId && !villageSearchQuery) {
                               const selectedVillage = filteredVillages.find(v => v.villageId === selectedVillageId) || villages.find(v => v.villageId === selectedVillageId);
                               if (selectedVillage) {
                                 setVillageSearchQuery(selectedVillage.villageName);
@@ -3153,8 +3232,9 @@ export default function OrderDetailPage() {
                         }}
                         onClick={() => {
                           if (filteredVillages.length > 0) {
-                            // If there's a selected village, ensure it's displayed
-                            if (selectedVillageId && !villageSearchQuery) {
+                            if (userClearedVillageRef.current) {
+                              userClearedVillageRef.current = false;
+                            } else if (selectedVillageId && !villageSearchQuery) {
                               const selectedVillage = filteredVillages.find(v => v.villageId === selectedVillageId) || villages.find(v => v.villageId === selectedVillageId);
                               if (selectedVillage) {
                                 setVillageSearchQuery(selectedVillage.villageName);
@@ -3188,10 +3268,11 @@ export default function OrderDetailPage() {
                               const indexToSelect = selectedVillageIndex >= 0 ? selectedVillageIndex : 0;
                               if (displayVillages[indexToSelect]) {
                                 const village = displayVillages[indexToSelect];
-                                // Set both state values immediately
                                 isUserTypingRef.current = false;
+                                // مسح القديم واستبداله فوراً بالقيمة الجديدة
                                 setSelectedVillageId(village.villageId);
-                                setVillageSearchQuery(village.villageName); // Set village name to display in input
+                                setVillageSearchQuery(village.villageName);
+                                setShippingCity(village.villageName);
                                 setSelectedVillageIndex(-1);
                                 setShowVillageDropdown(false);
                                 toast.success(`تم اختيار: ${village.villageName}`);
@@ -3229,9 +3310,11 @@ export default function OrderDetailPage() {
                             }
                           }
                         }}
-                        placeholder={order.shippingAddress?.villageId 
-                          ? `القرية الحالية: ${order.shippingAddress?.villageName || 'غير محدد'} (ID: ${order.shippingAddress.villageId})`
-                          : "ابحث عن القرية أو المحافظة أو ID..."}
+                        placeholder={
+                          (villageSearchQuery || selectedVillageId)
+                            ? undefined
+                            : "ابحث عن القرية أو المحافظة أو ID..."
+                        }
                         className="w-full pl-10 pr-10 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-[#FF9800] focus:border-transparent transition-all"
                         disabled={!canEditShipping()}
                         required
@@ -3239,9 +3322,12 @@ export default function OrderDetailPage() {
                       />
                       {(villageSearchQuery || selectedVillageId) && (
                         <button
-                          onClick={() => {
-                            // Clear everything
+                          type="button"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
                             isUserTypingRef.current = false;
+                            userClearedVillageRef.current = true;
                             setVillageSearchQuery('');
                             setSelectedVillageId(null);
                             setSelectedVillageIndex(-1);
@@ -3254,11 +3340,17 @@ export default function OrderDetailPage() {
                         </button>
                       )}
                       
-                      {/* Dropdown List */}
-                      {showVillageDropdown && filteredVillages.length > 0 && (
-                        <div className="absolute z-50 w-full mt-1 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      {/* Dropdown List - Rendered via Portal to prevent modal overflow clipping */}
+                      {showVillageDropdown && filteredVillages.length > 0 && villageDropdownPos && typeof document !== 'undefined' && createPortal(
+                        <div
+                          className="fixed z-[100] bg-white dark:bg-slate-800 border-2 border-gray-200 dark:border-slate-600 rounded-xl shadow-xl ring-2 ring-[#FF9800]/20 max-h-60 overflow-y-auto"
+                          style={{
+                            top: villageDropdownPos.top,
+                            left: villageDropdownPos.left,
+                            width: villageDropdownPos.width,
+                          }}
+                        >
                           {(() => {
-                            // Filter villages based on search query
                             const searchQuery = villageSearchQuery || '';
                             const displayVillages = searchQuery.trim() 
                               ? searchVillages(searchQuery, filteredVillages)
@@ -3279,17 +3371,18 @@ export default function OrderDetailPage() {
                                 onClick={(e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
-                                  // Set both state values immediately
                                   isUserTypingRef.current = false;
+                                  // مسح القيمة القديمة واستبدالها فوراً بالقيمة الجديدة
                                   setSelectedVillageId(village.villageId);
-                                  setVillageSearchQuery(village.villageName); // Set village name to display in input
+                                  setVillageSearchQuery(village.villageName);
+                                  setShippingCity(village.villageName);
                                   setSelectedVillageIndex(-1);
                                   setShowVillageDropdown(false);
                                   toast.success(`تم اختيار: ${village.villageName}`);
                                 }}
-                                className={`w-full text-right px-4 py-2 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors ${
-                                  selectedVillageIndex === index && villageSearchQuery
-                                    ? 'bg-[#FF9800] text-white'
+                                className={`w-full text-right px-4 py-3 min-h-[44px] hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors ${
+                                    selectedVillageIndex === index && villageSearchQuery
+                                    ? 'bg-[#FF9800] text-white hover:bg-[#F57C00]'
                                     : selectedVillageId === village.villageId || order.shippingAddress?.villageId === village.villageId
                                     ? 'bg-blue-50 dark:bg-blue-900/20 font-medium'
                                     : ''
@@ -3302,7 +3395,8 @@ export default function OrderDetailPage() {
                               </button>
                             ));
                           })()}
-                        </div>
+                        </div>,
+                        document.body
                       )}
                       
                       {/* Hidden select for form validation */}
@@ -3635,6 +3729,49 @@ export default function OrderDetailPage() {
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Order Confirm Modal (admin only) */}
+      {showDeleteConfirm && order && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6 border-2 border-gray-200 dark:border-slate-700">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                <Trash2 className="w-5 h-5 text-red-600 dark:text-red-400" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">حذف الطلب</h3>
+            </div>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              هل أنت متأكد من حذف الطلب <strong className="text-gray-900 dark:text-slate-100">#{order.orderNumber}</strong>؟ لا يمكن التراجع عن هذا الإجراء.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleting}
+                className="btn-secondary"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={confirmDeleteOrder}
+                disabled={deleting}
+                className="btn-danger flex items-center gap-2"
+              >
+                {deleting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    جاري الحذف...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    حذف الطلب
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>

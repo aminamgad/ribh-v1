@@ -132,6 +132,7 @@ export default function VillageSelect({
   const selectedVillageData = villages.find((v) => v.villageId === selectedVillage);
 
   const handleVillageSelect = (village: Village) => {
+    // مسح القديم واستبداله فوراً بالقيمة الجديدة
     setSelectedVillage(village.villageId);
     setSearch(village.villageName);
     setIsSearching(false);
@@ -182,7 +183,7 @@ export default function VillageSelect({
                 type="text"
                 placeholder="جاري تحميل القرى..."
                 disabled
-                className="w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-wait"
+                className="w-full px-4 py-2.5 pr-10 border-2 border-gray-200 dark:border-slate-600 rounded-lg bg-gray-50 dark:bg-slate-700/80 text-gray-500 dark:text-slate-400 cursor-wait min-h-[44px]"
               />
               <div className="absolute right-3 top-1/2 transform -translate-y-1/2 z-10">
                 <div className="loading-spinner w-5 h-5"></div>
@@ -194,7 +195,7 @@ export default function VillageSelect({
               <input
                 ref={searchInputRef}
                 type="text"
-                placeholder="ابحث عن قرية (اكتب اسم القرية)..."
+                placeholder="ابحث عن القرية أو المحافظة أو ID..."
                 value={search}
                 onChange={(e) => {
                   const newValue = e.target.value;
@@ -224,7 +225,7 @@ export default function VillageSelect({
                 }}
                 onKeyDown={handleKeyDown}
                 disabled={disabled}
-                className="w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                className="w-full px-4 py-2.5 pr-10 border-2 border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-[#FF9800] focus:border-transparent transition-all min-h-[44px]"
               />
             </>
           )}
@@ -233,19 +234,19 @@ export default function VillageSelect({
           {showDropdown && !loading && filteredVillages.length > 0 && (
             <div
               ref={dropdownRef}
-              className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+              className="absolute z-[60] w-full mt-1 bg-white dark:bg-slate-800 border-2 border-gray-200 dark:border-slate-600 rounded-xl shadow-xl ring-2 ring-[#FF9800]/20 max-h-60 overflow-y-auto"
             >
               {filteredVillages.map((village, index) => (
                 <button
                   key={village._id}
                   type="button"
                   onClick={() => handleVillageSelect(village)}
-                  className={`w-full text-right px-4 py-2 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors ${
+                  className={`w-full text-right px-4 py-3 min-h-[44px] hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors ${
                     highlightedIndex === index
-                      ? 'bg-blue-100 dark:bg-blue-900/50'
+                      ? 'bg-[#FF9800] text-white hover:bg-[#F57C00]'
                       : ''
                   } ${
-                    selectedVillage === village.villageId
+                    selectedVillage === village.villageId && highlightedIndex !== index
                       ? 'bg-blue-50 dark:bg-blue-900/20 font-medium'
                       : ''
                   }`}

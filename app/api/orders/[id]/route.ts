@@ -792,4 +792,88 @@ export const GET = withAuth(async (req: NextRequest, user: any, ...args: unknown
     logger.error('Error fetching order details', error, { orderId: params.id, userId: user._id });
     return handleApiError(error, 'حدث خطأ أثناء جلب تفاصيل الطلب');
   }
+});
+
+// DELETE /api/orders/[id] - Delete order (admin only)
+export const DELETE = withAuth(async (req: NextRequest, user: any, ...args: unknown[]) => {
+  const routeParams = args[0] as { params: { id: string } };
+  const params = routeParams.params;
+  try {
+    if (user.role !== 'admin') {
+      return NextResponse.json(
+        { success: false, error: 'غير مصرح لك بحذف الطلبات. الأدمن فقط.' },
+        { status: 403 }
+      );
+    }
+
+    await connectDB();
+    logger.apiRequest('DELETE', `/api/orders/${params.id}`, { userId: user._id, role: user.role });
+
+    const order = await Order.findById(params.id);
+    if (!order) {
+      return NextResponse.json(
+        { success: false, error: 'الطلب غير موجود' },
+        { status: 404 }
+      );
+    }
+
+    // Reverse profits if they were distributed (so wallet stays consistent)
+    if ((order as any).profitsDistributed) {
+      try {
+        await reverseOrderProfits(order);
+        logger.business('Profits reversed before order delete', {
+          orderId: order._id.toString(),
+          orderNumber: (order as any).orderNumber
+        });
+      } catch (err) {
+        logger.error('Error reversing profits before order delete', err, { orderId: params.id });
+        return NextResponse.json(
+          { success: false, error: 'فشل عكس أرباح الطلب. تم إلغاء الحذف.' },
+          { status: 500 }
+        );
+      }
+    }
+
+    // Restore product stock if order was in a state where stock was deducted
+    const status = (order as any).status;
+    if (status === 'confirmed' || status === 'processing' || status === 'shipped' || status === 'delivered') {
+      for (const item of (order as any).items || []) {
+        const product = await Product.findById(item.productId);
+        if (!product) continue;
+        if ((product as any).hasVariants && item.variantOption?.variantId) {
+          const variantOptions = (product as any).variantOptions || [];
+          const variantOptionIndex = variantOptions.findIndex(
+            (opt: any) => opt.variantId === item.variantOption.variantId && opt.value === item.variantOption.value
+          );
+          if (variantOptionIndex !== -1) {
+            const updatePath = `variantOptions.${variantOptionIndex}.stockQuantity`;
+            await Product.findByIdAndUpdate(item.productId, {
+              $inc: { [updatePath]: item.quantity, stockQuantity: item.quantity }
+            });
+          } else {
+            await Product.findByIdAndUpdate(item.productId, { $inc: { stockQuantity: item.quantity } });
+          }
+        } else {
+          await Product.findByIdAndUpdate(item.productId, { $inc: { stockQuantity: item.quantity } });
+        }
+      }
+    }
+
+    await Order.findByIdAndDelete(params.id);
+
+    logger.business('Order deleted by admin', {
+      orderId: params.id,
+      orderNumber: (order as any).orderNumber,
+      adminId: user._id.toString()
+    });
+    logger.apiResponse('DELETE', `/api/orders/${params.id}`, 200);
+
+    return NextResponse.json({
+      success: true,
+      message: 'تم حذف الطلب بنجاح'
+    });
+  } catch (error) {
+    logger.error('Error deleting order', error, { orderId: params.id, userId: user._id });
+    return handleApiError(error, 'حدث خطأ أثناء حذف الطلب');
+  }
 }); 
