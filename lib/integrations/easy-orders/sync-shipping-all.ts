@@ -32,18 +32,43 @@ export async function syncShippingForAllEasyOrdersIntegrations(): Promise<SyncSh
       isActive: true,
       apiKey: { $exists: true, $ne: '' }
     })
-      .select('_id apiKey userId storeId settings')
+      .select('_id apiKey userId storeId storeName settings')
       .lean();
 
-    // استبعاد التكاملات التي عُطّلت لها مزامنة الشحن — القيمة false تُحفظ صراحةً عند إلغاء التفعيل
+    // تسجيل تفصيلي لفهم سبب تضمين/استبعاد كل تكامل
+    const filterLog: Array<{ id: string; storeName?: string; syncShippingEnabled: unknown; included: boolean }> = [];
     const integrationsToSync = integrations.filter((int) => {
-      const enabled = (int as any).settings?.syncShippingEnabled;
-      return enabled !== false; // undefined أو true = مزامنة مفعّلة
+      const intId = (int as any)._id?.toString?.() || '';
+      const storeName = (int as any).storeName;
+      const settings = (int as any).settings;
+      // قراءة صريحة من الكائن — قد يأتي من .lean() أو من تخزين متداخل
+      const enabled = settings != null && typeof settings === 'object' && 'syncShippingEnabled' in settings
+        ? settings.syncShippingEnabled
+        : undefined;
+      // فقط المزامنة عند التفعيل الصريح (true) — undefined أو false = استبعاد
+      const included = enabled === true;
+      filterLog.push({
+        id: intId,
+        storeName,
+        syncShippingEnabled: enabled,
+        included
+      });
+      return included;
     });
     result.total = integrationsToSync.length;
 
+    logger.info('sync-shipping-all: filter results', {
+      totalIntegrations: integrations.length,
+      toSyncCount: integrationsToSync.length,
+      excludedCount: integrations.length - integrationsToSync.length,
+      filterDetails: filterLog
+    });
+
     if (integrationsToSync.length === 0) {
-      logger.info('No Easy Orders integrations with syncShippingEnabled to sync — تأكد من ربط متجر Easy Orders وتفعيل مزامنة الشحن');
+      logger.info('No Easy Orders integrations with syncShippingEnabled=true to sync', {
+        totalChecked: integrations.length,
+        filterDetails: filterLog
+      });
       return result;
     }
 

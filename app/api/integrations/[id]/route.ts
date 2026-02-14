@@ -160,12 +160,22 @@ export const PUT = withAuth(async (req: NextRequest, user: any, ...args: unknown
         integration.settings.autoFulfillment = validatedData.settings.autoFulfillment;
       }
       if (validatedData.settings.syncShippingEnabled !== undefined) {
-        (integration.settings as any).syncShippingEnabled = validatedData.settings.syncShippingEnabled;
-        // إجبار الحفظ مباشرةً لضمان عدم فقدان القيمة (مهم لمنع المزامنة عند التعطيل)
-        await StoreIntegration.updateOne(
-          { _id: params.id },
-          { $set: { 'settings.syncShippingEnabled': validatedData.settings.syncShippingEnabled } }
+        const newValue = Boolean(validatedData.settings.syncShippingEnabled);
+        (integration.settings as any).syncShippingEnabled = newValue;
+        // إجبار الحفظ مباشرةً بالمُعرف الفعلي للمستند (تفادي أي التباس مع params.id)
+        const updateResult = await StoreIntegration.updateOne(
+          { _id: integration._id },
+          { $set: { 'settings.syncShippingEnabled': newValue } }
         );
+        logger.info('syncShippingEnabled updated', {
+          integrationId: String(integration._id),
+          newValue,
+          modifiedCount: updateResult.modifiedCount,
+          matchedCount: updateResult.matchedCount
+        });
+        if (updateResult.matchedCount === 0) {
+          logger.warn('syncShippingEnabled: updateOne matched 0 documents', { integrationId: integration._id });
+        }
       }
       if (validatedData.settings.priceMarkup !== undefined) {
         integration.settings.priceMarkup = validatedData.settings.priceMarkup;

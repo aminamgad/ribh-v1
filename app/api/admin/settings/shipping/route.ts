@@ -8,9 +8,16 @@ import { handleApiError } from '@/lib/error-handler';
 
 /** تشغيل مزامنة مدن الشحن لجميع تكاملات Easy Orders في الخلفية (بدون انتظار). */
 function triggerShippingSyncForAllEasyOrders() {
+  logger.info('triggerShippingSyncForAllEasyOrders: starting (admin shipping region changed)');
   import('@/lib/integrations/easy-orders/sync-shipping-all').then(({ syncShippingForAllEasyOrdersIntegrations }) => {
     syncShippingForAllEasyOrdersIntegrations()
       .then((r) => {
+        logger.info('triggerShippingSyncForAllEasyOrders: completed', {
+          total: r.total,
+          succeeded: r.succeeded,
+          failed: r.failed,
+          errors: r.errors
+        });
         if (r.failed > 0 && r.errors.length) {
           logger.warn('Some Easy Orders integrations failed shipping sync', { failed: r.failed, total: r.total });
         }
