@@ -486,37 +486,63 @@ async function updateProduct(req: NextRequest, user: any, ...args: unknown[]) {
     logger.business('Product updated', { productId: params.id, userId: user._id.toString() });
     logger.apiResponse('PUT', `/api/products/${params.id}`, 200);
 
-    const hasEasyOrdersExport = Boolean(
-      (updatedProduct as any)?.metadata?.easyOrdersProductId ||
-      (Array.isArray((updatedProduct as any)?.metadata?.easyOrdersExports) &&
-        (updatedProduct as any).metadata.easyOrdersExports?.length > 0)
-    );
+    // قراءة metadata من DB بعد التحديث لضمان وجودها في قرار المزامنة (المستند المُرجَع قد لا يتضمنها)
+    const productForSync = await Product.findById(params.id).select('metadata').lean() as { metadata?: Record<string, unknown> } | null;
+    const meta = productForSync?.metadata;
+    const hasLegacyExport = Boolean(meta?.easyOrdersProductId);
+    const hasExportsArray = Array.isArray(meta?.easyOrdersExports) && meta.easyOrdersExports.length > 0;
+    const hasEasyOrdersExport = hasLegacyExport || hasExportsArray;
+
+    logger.info('Product update: Easy Orders sync check', {
+      productId: params.id,
+      hasMetadata: !!meta,
+      hasLegacyExport,
+      hasExportsArray,
+      exportsCount: Array.isArray(meta?.easyOrdersExports) ? meta.easyOrdersExports.length : 0,
+      willSync: hasEasyOrdersExport
+    });
+
+    if (!hasEasyOrdersExport) {
+      logger.info('Product update: Easy Orders sync skipped (no export link). Export product from integration page first.', { productId: params.id });
+    }
+
     if (hasEasyOrdersExport) {
+      const rawId = params.id;
+      const productIdToSync = typeof rawId === 'string' ? rawId : Array.isArray(rawId) ? rawId[0] : String(rawId);
       try {
         const { syncProductToEasyOrdersOnEdit } = await import('@/lib/integrations/easy-orders/sync-product-on-edit');
-        const syncResult = await syncProductToEasyOrdersOnEdit(params.id);
+        logger.info('Product update: starting Easy Orders sync', { productId: productIdToSync });
+        const syncResult = await syncProductToEasyOrdersOnEdit(productIdToSync);
+        logger.info('Product update: Easy Orders sync finished', {
+          productId: productIdToSync,
+          synced: syncResult.synced,
+          failed: syncResult.failed,
+          error: syncResult.error
+        });
         if (syncResult.failed > 0 && syncResult.synced === 0) {
           logger.warn('Easy Orders sync on edit: all integrations failed', {
-            productId: params.id,
+            productId: productIdToSync,
             failed: syncResult.failed,
             error: syncResult.error
           });
         } else if (syncResult.synced > 0) {
           logger.business('Product synced to Easy Orders on edit', {
-            productId: params.id,
+            productId: productIdToSync,
             synced: syncResult.synced,
             failed: syncResult.failed
           });
         }
       } catch (e) {
-        logger.error('Easy Orders sync on edit failed', e, { productId: params.id });
+        logger.error('Easy Orders sync on edit failed', e, { productId: productIdToSync });
       }
     }
 
     return NextResponse.json({
       success: true,
       message: 'تم تحديث المنتج بنجاح',
-      product: updatedProduct
+      product: updatedProduct,
+      // إذا لم يُشغّل التحديث على أيزي أوردر لأن المنتج غير مصدّر، يمكن للواجهة إظهار تلميح للمستخدم
+      ...(hasEasyOrdersExport ? {} : { easyOrdersSyncSkipped: true, easyOrdersSyncSkippedReason: 'المنتج غير مرتبط بتكامل أيزي أوردر. لوصول التعديلات لموقع المسوق، قم بتصدير المنتج من صفحة التكامل أولاً.' })
     });
   } catch (error) {
     logger.error('Error updating product', error, { 

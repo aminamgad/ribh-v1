@@ -190,35 +190,47 @@ export const POST = withAuth(async (req: NextRequest, user: any) => {
       );
     }
 
-    if (result.productId) {
-      (product as any).metadata = (product as any).metadata || {};
-      const meta = (product as any).metadata;
-      const entry = {
-        integrationId: String(integration._id),
-        easyOrdersProductId: result.productId,
-        storeId: integration.storeId,
-        slug: easyOrdersProduct?.slug
-      };
-      let exportsArray = Array.isArray(meta.easyOrdersExports) ? meta.easyOrdersExports : [];
-      if (meta.easyOrdersProductId && !meta.easyOrdersExports?.length) {
-        // التنسيق القديم: ترحيل إلى مصفوفة
-        exportsArray = [{
-          integrationId: meta.easyOrdersIntegrationId || String(integration._id),
-          easyOrdersProductId: meta.easyOrdersProductId,
-          storeId: meta.easyOrdersStoreId,
-          slug: meta.easyOrdersSlug
-        }];
-      }
-      const idx = exportsArray.findIndex((e: any) => String(e?.integrationId) === String(integration._id));
-      if (idx >= 0) exportsArray[idx] = { ...exportsArray[idx], ...entry };
-      else exportsArray.push(entry);
-      meta.easyOrdersExports = exportsArray;
-      meta.easyOrdersProductId = result.productId;
-      meta.easyOrdersStoreId = integration.storeId;
-      meta.easyOrdersIntegrationId = String(integration._id);
-      if (easyOrdersProduct?.slug) meta.easyOrdersSlug = easyOrdersProduct.slug;
-      await product.save();
+    // إذا واجهة Easy Orders لم تُرجع معرف المنتج، لا نستطيع حفظ الربط ولا المزامنة لاحقاً
+    if (!result.productId) {
+      logger.error('Easy Orders returned success but no product ID; cannot save export link', {
+        productId,
+        integrationId,
+        userId: user._id
+      });
+      await integration.appendSyncError('استجابة أيزي أوردر لا تحتوي معرف المنتج - يرجى المحاولة لاحقاً');
+      return NextResponse.json(
+        { error: 'لم تُرجع أيزي أوردر معرف المنتج. لم يُحفظ الربط ولمزامنة التعديلات لاحقاً يرجى إعادة التصدير.' },
+        { status: 502 }
+      );
     }
+
+    (product as any).metadata = (product as any).metadata || {};
+    const meta = (product as any).metadata;
+    const entry = {
+      integrationId: String(integration._id),
+      easyOrdersProductId: result.productId,
+      storeId: integration.storeId,
+      slug: easyOrdersProduct?.slug
+    };
+    let exportsArray = Array.isArray(meta.easyOrdersExports) ? meta.easyOrdersExports : [];
+    if (meta.easyOrdersProductId && !meta.easyOrdersExports?.length) {
+      // التنسيق القديم: ترحيل إلى مصفوفة
+      exportsArray = [{
+        integrationId: meta.easyOrdersIntegrationId || String(integration._id),
+        easyOrdersProductId: meta.easyOrdersProductId,
+        storeId: meta.easyOrdersStoreId,
+        slug: meta.easyOrdersSlug
+      }];
+    }
+    const idx = exportsArray.findIndex((e: any) => String(e?.integrationId) === String(integration._id));
+    if (idx >= 0) exportsArray[idx] = { ...exportsArray[idx], ...entry };
+    else exportsArray.push(entry);
+    meta.easyOrdersExports = exportsArray;
+    meta.easyOrdersProductId = result.productId;
+    meta.easyOrdersStoreId = integration.storeId;
+    meta.easyOrdersIntegrationId = String(integration._id);
+    if (easyOrdersProduct?.slug) meta.easyOrdersSlug = easyOrdersProduct.slug;
+    await product.save();
 
     logger.business('Product exported to EasyOrders', {
       productId,

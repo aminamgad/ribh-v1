@@ -27,6 +27,8 @@ export interface SyncProductOnEditResult {
 export async function syncProductToEasyOrdersOnEdit(productId: string): Promise<SyncProductOnEditResult> {
   const result: SyncProductOnEditResult = { success: true, synced: 0, failed: 0 };
 
+  logger.info('syncProductToEasyOrdersOnEdit: start', { productId });
+
   try {
     await connectDB();
 
@@ -36,18 +38,36 @@ export async function syncProductToEasyOrdersOnEdit(productId: string): Promise<
       return { ...result, success: false, error: 'المنتج غير موجود' };
     }
 
+    const meta = (product as any).metadata;
     const exports = getProductEasyOrdersExports(product);
+
+    logger.info('syncProductToEasyOrdersOnEdit: product loaded', {
+      productId,
+      hasMetadata: !!meta,
+      metadataKeys: meta ? Object.keys(meta) : [],
+      exportsCount: exports.length,
+      exportsSummary: exports.map((e) => ({ integrationId: e.integrationId, easyOrdersProductId: e.easyOrdersProductId }))
+    });
+
     if (exports.length === 0) {
+      logger.info('syncProductToEasyOrdersOnEdit: no exports to sync', { productId });
       return result;
     }
 
-    const meta = (product as any).metadata || {};
-    const easyOrdersExports = Array.isArray(meta.easyOrdersExports) ? [...meta.easyOrdersExports] : [];
+    const easyOrdersExports = Array.isArray(meta?.easyOrdersExports) ? [...meta.easyOrdersExports] : [];
 
     for (let i = 0; i < exports.length; i++) {
       const exp = exports[i];
       const integrationId = exp.integrationId;
       const easyOrdersProductId = exp.easyOrdersProductId;
+
+      logger.info('syncProductToEasyOrdersOnEdit: syncing to integration', {
+        productId,
+        integrationId,
+        easyOrdersProductId,
+        index: i + 1,
+        total: exports.length
+      });
 
       const integration = await StoreIntegration.findOne({
         _id: integrationId,
@@ -81,6 +101,15 @@ export async function syncProductToEasyOrdersOnEdit(productId: string): Promise<
           (integration as any).apiKey,
           easyOrdersProductId
         );
+
+        logger.info('syncProductToEasyOrdersOnEdit: Easy Orders API result', {
+          productId,
+          integrationId,
+          easyOrdersProductId,
+          success: syncResult.success,
+          error: syncResult.error,
+          statusCode: syncResult.statusCode
+        });
 
         if (syncResult.success && productData?.slug) {
           // تحديث slug في التنسيق الجديد (مصفوفة) أو القديم
@@ -136,11 +165,21 @@ export async function syncProductToEasyOrdersOnEdit(productId: string): Promise<
 
     return result;
   } catch (err: any) {
-    logger.error('syncProductToEasyOrdersOnEdit failed', err, { productId });
+    logger.error('syncProductToEasyOrdersOnEdit failed', err, {
+      productId,
+      message: err?.message,
+      stack: err?.stack
+    });
     return {
       ...result,
       success: false,
       error: err?.message || 'حدث خطأ في المزامنة'
     };
+  } finally {
+    logger.info('syncProductToEasyOrdersOnEdit: end', {
+      productId,
+      synced: result.synced,
+      failed: result.failed
+    });
   }
 }

@@ -39,8 +39,10 @@ async function checkProductName(req: NextRequest, user: any) {
     }
     
     // Find similar products (case-insensitive partial match)
+    // هروب أحرف الـ regex الخاصة (مثل () [] . * إلخ) حتى لا تُفسَّر وتعطّل الاستعلام
+    const escaped = String(name.trim()).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const similarQuery: any = {
-      name: { $regex: name.trim(), $options: 'i' }
+      name: { $regex: escaped, $options: 'i' }
     };
     if (excludeId) {
       similarQuery._id = { $ne: excludeId };

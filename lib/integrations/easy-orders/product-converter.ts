@@ -367,6 +367,16 @@ export async function sendProductToEasyOrders(
       }
 
       const result = await response.json();
+      // استخراج معرف المنتج من أشكال الاستجابة المحتملة (id, data.id, product.id, productId, product_id)
+      const resolvedId =
+        productId ||
+        result?.id ||
+        result?.productId ||
+        result?.product_id ||
+        result?.product?.id ||
+        result?.product?.productId ||
+        (result?.data && (result.data.id ?? result.data.productId ?? result.data.product_id)) ||
+        (typeof result?.data === 'object' && result?.data?.id);
       
       // Cache successful GET responses
       if (useCache && productId && response.status === 200) {
@@ -376,7 +386,7 @@ export async function sendProductToEasyOrders(
       
       return {
         success: true,
-        productId: result.id || productId,
+        productId: resolvedId ? String(resolvedId) : undefined,
         statusCode: response.status
       };
       
