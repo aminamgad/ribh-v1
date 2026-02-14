@@ -3,6 +3,7 @@ import { withAuth } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import StoreIntegration, { IntegrationType } from '@/models/StoreIntegration';
 import Product from '@/models/Product';
+import { isProductExportedToIntegration } from '@/lib/integrations/easy-orders/product-exports';
 import { logger } from '@/lib/logger';
 import { handleApiError } from '@/lib/error-handler';
 
@@ -62,28 +63,31 @@ export const POST = withAuth(async (req: NextRequest, user: any) => {
       );
     }
 
-    const meta = (product as any).metadata || {};
-    const storedIntegrationId = meta.easyOrdersIntegrationId?.toString?.() || meta.easyOrdersIntegrationId;
-    if (storedIntegrationId !== integrationId && String(integration._id) !== storedIntegrationId) {
-      return NextResponse.json(
-        { error: 'هذا المنتج غير مرتبط بهذا التكامل' },
-        { status: 400 }
-      );
-    }
-
-    if (!meta.easyOrdersProductId) {
+    if (!isProductExportedToIntegration(product, integrationId)) {
       return NextResponse.json({
         success: true,
-        message: 'المنتج غير مرتبط مسبقاً بـ Easy Orders'
+        message: 'المنتج غير مرتبط مسبقاً بهذا التكامل'
       });
     }
 
     (product as any).metadata = (product as any).metadata || {};
-    delete (product as any).metadata.easyOrdersProductId;
-    delete (product as any).metadata.easyOrdersStoreId;
-    delete (product as any).metadata.easyOrdersIntegrationId;
-    if (Object.keys((product as any).metadata).length === 0) {
-      (product as any).metadata = undefined;
+    const meta = (product as any).metadata;
+    const exportsArray = Array.isArray(meta.easyOrdersExports) ? meta.easyOrdersExports : [];
+    const newExports = exportsArray.filter((e: any) => String(e?.integrationId) !== String(integrationId));
+    if (newExports.length > 0) {
+      meta.easyOrdersExports = newExports;
+      const primary = newExports[0];
+      meta.easyOrdersProductId = primary.easyOrdersProductId;
+      meta.easyOrdersStoreId = primary.storeId;
+      meta.easyOrdersIntegrationId = primary.integrationId;
+      meta.easyOrdersSlug = primary.slug;
+    } else {
+      delete meta.easyOrdersProductId;
+      delete meta.easyOrdersStoreId;
+      delete meta.easyOrdersIntegrationId;
+      delete meta.easyOrdersSlug;
+      delete meta.easyOrdersExports;
+      if (Object.keys(meta).length === 0) (product as any).metadata = undefined;
     }
     await product.save();
 

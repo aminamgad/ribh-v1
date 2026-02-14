@@ -486,7 +486,12 @@ async function updateProduct(req: NextRequest, user: any, ...args: unknown[]) {
     logger.business('Product updated', { productId: params.id, userId: user._id.toString() });
     logger.apiResponse('PUT', `/api/products/${params.id}`, 200);
 
-    if ((updatedProduct as any)?.metadata?.easyOrdersProductId) {
+    const hasEasyOrdersExport = Boolean(
+      (updatedProduct as any)?.metadata?.easyOrdersProductId ||
+      Array.isArray((updatedProduct as any)?.metadata?.easyOrdersExports) &&
+      (updatedProduct as any).metadata.easyOrdersExports?.length > 0
+    );
+    if (hasEasyOrdersExport) {
       import('@/lib/integrations/easy-orders/sync-product-on-edit').then((m) =>
         m.syncProductToEasyOrdersOnEdit(params.id).catch((e) =>
           logger.error('Easy Orders sync on edit failed', e, { productId: params.id })

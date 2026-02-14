@@ -170,6 +170,8 @@ export const PUT = withAuth(async (req: NextRequest, user: any, ...args: unknown
           ? new mongoose.Types.ObjectId(validatedData.settings.defaultCategory)
           : undefined;
       }
+      // Mongoose قد لا يتتبع تغييرات الحقول المتداخلة — إجبار الحفظ لضمان استمرار syncShippingEnabled وغيره
+      integration.markModified('settings');
     }
     if (validatedData.isActive !== undefined) integration.isActive = validatedData.isActive;
 

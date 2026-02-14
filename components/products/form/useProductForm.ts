@@ -85,6 +85,7 @@ export function useProductForm({ mode, productId, user, onSuccess }: UseProductF
 
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
   const supplierDropdownRef = useRef<HTMLDivElement>(null);
+  const fetchProductAbortRef = useRef<AbortController | null>(null);
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -117,9 +118,13 @@ export function useProductForm({ mode, productId, user, onSuccess }: UseProductF
 
   const fetchProduct = useCallback(async () => {
     if (mode !== 'edit' || !productId) return;
+    if (fetchProductAbortRef.current) fetchProductAbortRef.current.abort();
+    const abort = new AbortController();
+    fetchProductAbortRef.current = abort;
     setLoading(true);
     try {
-      const res = await fetch(`/api/products/${productId}`);
+      const res = await fetch(`/api/products/${productId}`, { signal: abort.signal });
+      if (abort.signal.aborted) return;
       if (!res.ok) {
         if (res.status === 403) {
           toast.error('غير مصرح لك بالوصول لهذا المنتج');
@@ -130,6 +135,7 @@ export function useProductForm({ mode, productId, user, onSuccess }: UseProductF
         return;
       }
       const data = await res.json();
+      if (abort.signal.aborted) return;
       const p = data.product;
       setProduct(p);
       setImages(p.images || []);
@@ -158,11 +164,15 @@ export function useProductForm({ mode, productId, user, onSuccess }: UseProductF
         const cat = (data.categories || categories).find((c: Category) => c._id === p.categoryId);
         setCategorySearch(cat?.name || '');
       }
-    } catch {
+    } catch (err: any) {
+      if (err?.name === 'AbortError') return;
       toast.error('حدث خطأ أثناء جلب المنتج');
       router.push('/dashboard/products');
     } finally {
-      setLoading(false);
+      if (!abort.signal.aborted) {
+        setLoading(false);
+        fetchProductAbortRef.current = null;
+      }
     }
   }, [mode, productId, router, setValue, isAdmin, categories]);
 
@@ -172,7 +182,14 @@ export function useProductForm({ mode, productId, user, onSuccess }: UseProductF
   }, [fetchCategories, fetchSuppliers]);
 
   useEffect(() => {
-    if (mode === 'edit' && productId) fetchProduct();
+    if (mode !== 'edit' || !productId) return;
+    // إعادة تهيئة الحالة فور تغيير productId لتفادي عرض بيانات منتج سابق أو طلب بمعرف قديم
+    setProduct(null);
+    setLoading(true);
+    fetchProduct();
+    return () => {
+      if (fetchProductAbortRef.current) fetchProductAbortRef.current.abort();
+    };
   }, [mode, productId, fetchProduct]);
 
   useEffect(() => {

@@ -4,6 +4,7 @@ import connectDB from '@/lib/database';
 import StoreIntegration, { IntegrationType, IntegrationStatus } from '@/models/StoreIntegration';
 import Product from '@/models/Product';
 import { convertProductToEasyOrders, sendProductToEasyOrders } from '@/lib/integrations/easy-orders/product-converter';
+import { getProductEasyOrdersExports } from '@/lib/integrations/easy-orders/product-exports';
 import { logger } from '@/lib/logger';
 import { handleApiError } from '@/lib/error-handler';
 
@@ -123,8 +124,10 @@ export const POST = withAuth(async (req: NextRequest, user: any) => {
           continue;
         }
 
-        let existingEasyOrdersProductId = (product as any).metadata?.easyOrdersProductId;
-        const existingSlug = (product as any).metadata?.easyOrdersSlug;
+        const exports = getProductEasyOrdersExports(product);
+        const exportForIntegration = exports.find((e) => String(e.integrationId) === String(integration._id));
+        let existingEasyOrdersProductId = exportForIntegration?.easyOrdersProductId ?? (product as any).metadata?.easyOrdersProductId;
+        const existingSlug = exportForIntegration?.slug ?? (product as any).metadata?.easyOrdersSlug;
         const omitSlugForUpdate = !!existingEasyOrdersProductId && !existingSlug;
 
         let easyOrdersProduct = await convertProductToEasyOrders(
@@ -141,12 +144,23 @@ export const POST = withAuth(async (req: NextRequest, user: any) => {
 
         if (!result.success && result.statusCode === 404 && existingEasyOrdersProductId) {
           (product as any).metadata = (product as any).metadata || {};
-          delete (product as any).metadata.easyOrdersProductId;
-          delete (product as any).metadata.easyOrdersStoreId;
-          delete (product as any).metadata.easyOrdersIntegrationId;
-          delete (product as any).metadata.easyOrdersSlug;
-          if (Object.keys((product as any).metadata).length === 0) {
-            (product as any).metadata = undefined;
+          const meta = (product as any).metadata;
+          const exportsArray = Array.isArray(meta.easyOrdersExports) ? meta.easyOrdersExports : [];
+          const newExports = exportsArray.filter((e: any) => String(e?.integrationId) !== String(integration._id));
+          if (newExports.length > 0) {
+            meta.easyOrdersExports = newExports;
+            const primary = newExports[0];
+            meta.easyOrdersProductId = primary.easyOrdersProductId;
+            meta.easyOrdersStoreId = primary.storeId;
+            meta.easyOrdersIntegrationId = primary.integrationId;
+            meta.easyOrdersSlug = primary.slug;
+          } else {
+            delete meta.easyOrdersProductId;
+            delete meta.easyOrdersStoreId;
+            delete meta.easyOrdersIntegrationId;
+            delete meta.easyOrdersSlug;
+            delete meta.easyOrdersExports;
+            if (Object.keys(meta).length === 0) (product as any).metadata = undefined;
           }
           await product.save();
           existingEasyOrdersProductId = undefined;
@@ -172,12 +186,30 @@ export const POST = withAuth(async (req: NextRequest, user: any) => {
 
         if (result.success && result.productId) {
           (product as any).metadata = (product as any).metadata || {};
-          (product as any).metadata.easyOrdersProductId = result.productId;
-          (product as any).metadata.easyOrdersStoreId = integration.storeId;
-          (product as any).metadata.easyOrdersIntegrationId = String(integration._id);
-          if (easyOrdersProduct?.slug) {
-            (product as any).metadata.easyOrdersSlug = easyOrdersProduct.slug;
+          const meta = (product as any).metadata;
+          const entry = {
+            integrationId: String(integration._id),
+            easyOrdersProductId: result.productId,
+            storeId: integration.storeId,
+            slug: easyOrdersProduct?.slug
+          };
+          let exportsArray = Array.isArray(meta.easyOrdersExports) ? meta.easyOrdersExports : [];
+          if (meta.easyOrdersProductId && !meta.easyOrdersExports?.length) {
+            exportsArray = [{
+              integrationId: meta.easyOrdersIntegrationId || String(integration._id),
+              easyOrdersProductId: meta.easyOrdersProductId,
+              storeId: meta.easyOrdersStoreId,
+              slug: meta.easyOrdersSlug
+            }];
           }
+          const idx = exportsArray.findIndex((e: any) => String(e?.integrationId) === String(integration._id));
+          if (idx >= 0) exportsArray[idx] = { ...exportsArray[idx], ...entry };
+          else exportsArray.push(entry);
+          meta.easyOrdersExports = exportsArray;
+          meta.easyOrdersProductId = result.productId;
+          meta.easyOrdersStoreId = integration.storeId;
+          meta.easyOrdersIntegrationId = String(integration._id);
+          if (easyOrdersProduct?.slug) meta.easyOrdersSlug = easyOrdersProduct.slug;
           await product.save();
 
           results.success.push(product._id.toString());

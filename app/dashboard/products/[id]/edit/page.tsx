@@ -9,5 +9,6 @@ export default function EditProductPage() {
   const { user } = useAuth();
   const productId = typeof params.id === 'string' ? params.id : params.id?.[0];
 
-  return <ProductForm mode="edit" productId={productId} user={user} />;
+  // إعادة تركيب النموذج عند تغيير المنتج لتجنب استخدام حالة/معرف قديم (مشكلة "المنتج غير موجود" عند التبديل بين منتجات)
+  return <ProductForm key={productId ?? 'new'} mode="edit" productId={productId} user={user} />;
 }

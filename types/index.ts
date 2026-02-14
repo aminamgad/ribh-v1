@@ -174,12 +174,19 @@ export interface Product {
   hasVariants: boolean;
   variants?: ProductVariant[];
   variantOptions?: ProductVariantOption[];
-  /** Easy Orders: easyOrdersProductId, easyOrdersStoreId, easyOrdersIntegrationId, easyOrdersSlug */
+  /** Easy Orders: easyOrdersProductId (legacy), easyOrdersExports (مصفوفة تصديرات متعددة) */
   metadata?: {
     easyOrdersProductId?: string;
     easyOrdersStoreId?: string;
     easyOrdersIntegrationId?: string;
     easyOrdersSlug?: string;
+    /** مصفوفة تصديرات: [{ integrationId, easyOrdersProductId, storeId, slug }] — يدعم تصدير نفس المنتج لعدة مسوقين */
+    easyOrdersExports?: Array<{
+      integrationId: string;
+      easyOrdersProductId: string;
+      storeId?: string;
+      slug?: string;
+    }>;
     [key: string]: unknown;
   };
   createdAt: Date;
