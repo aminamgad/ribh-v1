@@ -488,15 +488,29 @@ async function updateProduct(req: NextRequest, user: any, ...args: unknown[]) {
 
     const hasEasyOrdersExport = Boolean(
       (updatedProduct as any)?.metadata?.easyOrdersProductId ||
-      Array.isArray((updatedProduct as any)?.metadata?.easyOrdersExports) &&
-      (updatedProduct as any).metadata.easyOrdersExports?.length > 0
+      (Array.isArray((updatedProduct as any)?.metadata?.easyOrdersExports) &&
+        (updatedProduct as any).metadata.easyOrdersExports?.length > 0)
     );
     if (hasEasyOrdersExport) {
-      import('@/lib/integrations/easy-orders/sync-product-on-edit').then((m) =>
-        m.syncProductToEasyOrdersOnEdit(params.id).catch((e) =>
-          logger.error('Easy Orders sync on edit failed', e, { productId: params.id })
-        )
-      ).catch(() => {});
+      try {
+        const { syncProductToEasyOrdersOnEdit } = await import('@/lib/integrations/easy-orders/sync-product-on-edit');
+        const syncResult = await syncProductToEasyOrdersOnEdit(params.id);
+        if (syncResult.failed > 0 && syncResult.synced === 0) {
+          logger.warn('Easy Orders sync on edit: all integrations failed', {
+            productId: params.id,
+            failed: syncResult.failed,
+            error: syncResult.error
+          });
+        } else if (syncResult.synced > 0) {
+          logger.business('Product synced to Easy Orders on edit', {
+            productId: params.id,
+            synced: syncResult.synced,
+            failed: syncResult.failed
+          });
+        }
+      } catch (e) {
+        logger.error('Easy Orders sync on edit failed', e, { productId: params.id });
+      }
     }
 
     return NextResponse.json({

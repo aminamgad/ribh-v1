@@ -35,9 +35,11 @@ export async function syncShippingForAllEasyOrdersIntegrations(): Promise<SyncSh
       .select('_id apiKey userId storeId settings')
       .lean();
 
-    const integrationsToSync = integrations.filter(
-      (int) => (int as any).settings?.syncShippingEnabled !== false
-    );
+    // استبعاد التكاملات التي عُطّلت لها مزامنة الشحن — القيمة false تُحفظ صراحةً عند إلغاء التفعيل
+    const integrationsToSync = integrations.filter((int) => {
+      const enabled = (int as any).settings?.syncShippingEnabled;
+      return enabled !== false; // undefined أو true = مزامنة مفعّلة
+    });
     result.total = integrationsToSync.length;
 
     if (integrationsToSync.length === 0) {

@@ -161,6 +161,11 @@ export const PUT = withAuth(async (req: NextRequest, user: any, ...args: unknown
       }
       if (validatedData.settings.syncShippingEnabled !== undefined) {
         (integration.settings as any).syncShippingEnabled = validatedData.settings.syncShippingEnabled;
+        // إجبار الحفظ مباشرةً لضمان عدم فقدان القيمة (مهم لمنع المزامنة عند التعطيل)
+        await StoreIntegration.updateOne(
+          { _id: params.id },
+          { $set: { 'settings.syncShippingEnabled': validatedData.settings.syncShippingEnabled } }
+        );
       }
       if (validatedData.settings.priceMarkup !== undefined) {
         integration.settings.priceMarkup = validatedData.settings.priceMarkup;
