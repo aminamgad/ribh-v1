@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useDataCache } from '@/components/hooks/useDataCache';
@@ -100,6 +100,7 @@ export default function DashboardPage() {
   const [unlinkingProductId, setUnlinkingProductId] = useState<string | null>(null);
   const [selectedIntegrationId, setSelectedIntegrationId] = useState('');
   const [exporting, setExporting] = useState(false);
+  const exportLockRef = useRef(false);
 
   const handleUnlinkExport = async (productId: string) => {
     if (integrations.length === 0) return;
@@ -143,6 +144,7 @@ export default function DashboardPage() {
 
   const handleExportProduct = async (e: React.MouseEvent, productId: string) => {
     e.stopPropagation();
+    if (exportLockRef.current) return; // منع التصدير المتكرر
     if (integrations.length === 0) {
       toast.error('لا توجد تكاملات نشطة. يرجى إضافة تكامل Easy Orders أولاً');
       router.push('/dashboard/integrations');
@@ -158,6 +160,8 @@ export default function DashboardPage() {
   };
 
   const performExport = async (productId: string, integrationId: string) => {
+    if (exportLockRef.current) return;
+    exportLockRef.current = true;
     setExporting(true);
     try {
       const res = await fetch('/api/integrations/easy-orders/export-product', {
@@ -178,6 +182,7 @@ export default function DashboardPage() {
       toast.error('حدث خطأ أثناء تصدير المنتج');
     } finally {
       setExporting(false);
+      exportLockRef.current = false;
     }
   };
 

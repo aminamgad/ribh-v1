@@ -290,8 +290,9 @@ export const POST = async (req: NextRequest) => {
       cartItemsCount: cartItems?.length || 0
     });
 
-    // Process cart items and find products
+    // Process cart items and find products (جميع البنود بما فيها المنتجات المقترحة / cross-sell)
     const orderItems = [];
+    const estimatedItemData = new Map<number, { supplierPrice: number }>(); // للمنتجات غير الموجودة في ربح
     let subtotal = 0;
 
     for (const cartItem of cartItems || []) {
@@ -308,11 +309,12 @@ export const POST = async (req: NextRequest) => {
       let product = null;
       
       if (productData?.taager_code) {
-        // Find by taager_code (which should match our product SKU or external ID)
+        // Find by taager_code, easyOrdersProductId, or easyOrdersExports (دعم المنتجات المُصدَّرة والمقترحة)
         product = await Product.findOne({
           $or: [
             { sku: productData.taager_code },
-            { 'metadata.easyOrdersProductId': productId }
+            { 'metadata.easyOrdersProductId': productId },
+            { 'metadata.easyOrdersExports.easyOrdersProductId': productId }
           ],
           supplierId: { $exists: true } // Make sure it's a supplier product
         });
@@ -327,21 +329,23 @@ export const POST = async (req: NextRequest) => {
       }
 
       if (!product) {
-        logger.warn('EasyOrders webhook: Product not found', {
+        logger.info('EasyOrders webhook: Product not found (cross-sell or external) - will estimate profit', {
           productId,
           taagerCode: productData?.taager_code,
           sku: productData?.sku,
           productName: productData?.name
         });
-        // Continue with basic product info
-        // Use itemPrice as marketerPrice, estimate supplierPrice (70% of marketer price = 30% markup)
+        // منتج مقترح أو مضاف مباشرة على EO: تقدير سعر المورد (30% هامش = 70% من سعر البيع)
+        const estimatedSupplierPrice = itemPrice * 0.7;
         product = {
           _id: null,
           name: productData?.name || 'منتج غير معروف',
           marketerPrice: itemPrice,
-          supplierPrice: itemPrice * 0.7, // Estimate - 30% markup
+          supplierPrice: estimatedSupplierPrice,
           supplierId: null
         };
+        // حفظ التقدير لاستخدامه في حساب الربح لاحقاً (orderItems يستخدم productId عشوائي)
+        estimatedItemData.set(orderItems.length, { supplierPrice: estimatedSupplierPrice });
       } else {
         // Log successful product match for debugging
         logger.info('EasyOrders webhook: Product found', {
@@ -354,8 +358,8 @@ export const POST = async (req: NextRequest) => {
         });
       }
 
-      // Calculate prices
-      const unitPrice = product.marketerPrice || itemPrice;
+      // Calculate prices: استخدام سعر البند من EO (ما دفعه العميل فعلياً) لضمان تطابق الإجمالي والربح
+      const unitPrice = itemPrice; // سعر البيع الفعلي من Easy Orders
       const itemTotal = unitPrice * itemQuantity;
       subtotal += itemTotal;
 
@@ -392,43 +396,51 @@ export const POST = async (req: NextRequest) => {
       });
     }
 
-    // Calculate totals
+    // Calculate totals: استخدام total_cost و cost من Easy Orders لضمان تطابق إجمالي الطلب مع ما دفعه العميل
     const finalShippingCost = shippingCost || 0;
-    const total = subtotal + finalShippingCost;
+    const calculatedTotal = subtotal + finalShippingCost;
+    // استخدام القيم من EO عند توفرها (cost = مجموع المنتجات، total_cost = cost + shipping_cost)
+    const orderSubtotal = (typeof cost === 'number' ? cost : null) ?? subtotal;
+    const orderTotal = (typeof totalCost === 'number' ? totalCost : null) ?? calculatedTotal;
     
     // Calculate commission (admin profit) and marketer profit
-    // Commission is calculated based on supplierPrice using adminProfitMargins from system settings
-    // Marketer profit is the difference between marketerPrice and supplierPrice
+    // يشمل المنتجات الرئيسية والمنتجات المقترحة (cross-sell)
     let totalCommission = 0;
     let marketerProfitTotal = 0;
     
-    for (const item of orderItems) {
+    for (let i = 0; i < orderItems.length; i++) {
+      const item = orderItems[i];
       const product = await Product.findById(item.productId).catch(() => null);
+      const estimated = estimatedItemData.get(i);
       
       if (product && product.supplierPrice) {
-        // Calculate admin profit based on supplierPrice using system settings
+        // منتج موجود في ربح: حساب دقيق
         const itemAdminProfit = await settingsManager.calculateAdminProfitForProduct(
           product.supplierPrice,
           item.quantity
         );
         totalCommission += itemAdminProfit;
         
-        // Calculate marketer profit (difference between marketerPrice and supplierPrice)
-        if (product.marketerPrice && product.supplierPrice) {
-          const itemMarketerProfit = (product.marketerPrice - product.supplierPrice) * item.quantity;
-          marketerProfitTotal += itemMarketerProfit;
-        }
+        const itemMarketerProfit = (item.unitPrice - product.supplierPrice) * item.quantity;
+        marketerProfitTotal += itemMarketerProfit;
+      } else if (estimated) {
+        // منتج مقترح أو خارجي: استخدام التقدير المحفوظ
+        const itemAdminProfit = await settingsManager.calculateAdminProfitForProduct(
+          estimated.supplierPrice,
+          item.quantity
+        );
+        totalCommission += itemAdminProfit;
+        
+        const itemMarketerProfit = (item.unitPrice - estimated.supplierPrice) * item.quantity;
+        marketerProfitTotal += Math.max(0, itemMarketerProfit);
       } else {
-        // If product not found, calculate commission based on unitPrice (selling price)
-        // Use adminProfitMargins on the selling price
+        // fallback: تقدير عام
         const itemAdminProfit = await settingsManager.calculateAdminProfitForProduct(
           item.unitPrice,
           item.quantity
         );
         totalCommission += itemAdminProfit;
-        
-        // Estimate marketer profit (10% of item total as fallback)
-        marketerProfitTotal += item.totalPrice * 0.1;
+        marketerProfitTotal += Math.max(0, item.totalPrice * 0.1);
       }
     }
     
@@ -471,12 +483,12 @@ export const POST = async (req: NextRequest) => {
         (await Product.findById(orderItems[0].productId))?.supplierId : 
         marketerId, // Fallback to marketer if no supplier found
       items: orderItems,
-      subtotal: subtotal,
+      subtotal: orderSubtotal,
       shippingCost: finalShippingCost,
       shippingMethod: 'الشحن الأساسي',
       shippingZone: government || 'المملكة العربية السعودية',
       commission: commission,
-      total: total,
+      total: orderTotal,
       marketerProfit: marketerProfit,
       status: orderStatus,
       paymentMethod: paymentMethod === 'cod' ? 'cod' : 'cod',
@@ -508,7 +520,7 @@ export const POST = async (req: NextRequest) => {
       orderNumber: order.orderNumber,
       easyOrdersOrderId,
       marketerId: marketerId.toString(),
-      total,
+      total: orderTotal,
       itemCount: orderItems.length
     });
 

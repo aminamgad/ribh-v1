@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useDataCache } from '@/components/hooks/useDataCache';
 import { useCart } from '@/components/providers/CartProvider';
@@ -41,6 +41,7 @@ export default function FavoritesPage() {
   const [unlinkingProductId, setUnlinkingProductId] = useState<string | null>(null);
   const [selectedIntegrationId, setSelectedIntegrationId] = useState('');
   const [exporting, setExporting] = useState(false);
+  const exportLockRef = useRef(false);
 
   const handleUnlinkExport = async (productId: string) => {
     if (integrations.length === 0) return;
@@ -83,6 +84,7 @@ export default function FavoritesPage() {
   }, [user?.role]);
 
   const handleExportProduct = async (productId: string) => {
+    if (exportLockRef.current) return; // منع التصدير المتكرر
     if (integrations.length === 0) {
       toast.error('لا توجد تكاملات نشطة. يرجى إضافة تكامل Easy Orders أولاً');
       router.push('/dashboard/integrations');
@@ -98,6 +100,8 @@ export default function FavoritesPage() {
   };
 
   const performExport = async (productId: string, integrationId: string) => {
+    if (exportLockRef.current) return;
+    exportLockRef.current = true;
     setExporting(true);
     try {
       const res = await fetch('/api/integrations/easy-orders/export-product', {
@@ -119,6 +123,7 @@ export default function FavoritesPage() {
       toast.error('حدث خطأ أثناء تصدير المنتج');
     } finally {
       setExporting(false);
+      exportLockRef.current = false;
     }
   };
 

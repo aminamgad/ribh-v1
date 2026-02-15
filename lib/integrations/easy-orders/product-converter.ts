@@ -118,15 +118,18 @@ export async function convertProductToEasyOrders(
   }
 
   // Prepare images
-  // EasyOrders requires at least one image
-  const images = Array.isArray(product.images) ? product.images : [];
-  if (images.length === 0) {
+  // EasyOrders: thumb = الصورة الرئيسية، images = معرض الصور
+  // تجنب تكرار الصورة الأولى: thumb تُستخدم كصورة رئيسية، لذا لا نضمّنها في images
+  const rawImages = Array.isArray(product.images) ? product.images : [];
+  if (rawImages.length === 0) {
     throw new Error('يجب أن يحتوي المنتج على صورة واحدة على الأقل');
   }
-  if (images.length > 10) {
+  if (rawImages.length > 10) {
     throw new Error('يجب ألا يزيد عدد الصور عن 10 صور');
   }
-  const thumb = images[0] || '';
+  const thumb = rawImages[0] || '';
+  // استبعاد الصورة الأولى من images لتجنب التكرار (موجودة في thumb)
+  const images = rawImages.length > 1 ? rawImages.slice(1) : [];
 
   // Build EasyOrders product payload (all fields so product displays correctly in Easy Orders)
   // عند التحديث (PATCH) بدون رابط محفوظ: لا نرسل slug ليبقى الرابط الحالي على Easy Orders

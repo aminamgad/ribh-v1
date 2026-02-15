@@ -1,5 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth';
+
+// منع التصدير المتكرر: lock مؤقت لكل productId+integrationId
+const exportLocks = new Map<string, number>();
+const LOCK_TTL_MS = 15000; // 15 ثانية
+
+function acquireExportLock(productId: string, integrationId: string): boolean {
+  const key = `${productId}:${integrationId}`;
+  const now = Date.now();
+  const existing = exportLocks.get(key);
+  if (existing && now - existing < LOCK_TTL_MS) return false;
+  exportLocks.set(key, now);
+  return true;
+}
+
+function releaseExportLock(productId: string, integrationId: string): void {
+  exportLocks.delete(`${productId}:${integrationId}`);
+}
+
 import connectDB from '@/lib/database';
 import StoreIntegration, { IntegrationType } from '@/models/StoreIntegration';
 import Product from '@/models/Product';
@@ -30,6 +48,15 @@ export const POST = withAuth(async (req: NextRequest, user: any) => {
       );
     }
 
+    // منع التصدير المتكرر (طلبات مزدوجة سريعة)
+    if (!acquireExportLock(String(productId), String(integrationId))) {
+      return NextResponse.json(
+        { error: 'جاري تصدير هذا المنتج، يرجى الانتظار' },
+        { status: 429 }
+      );
+    }
+
+    try {
     await connectDB();
 
     // Find the integration
@@ -244,6 +271,10 @@ export const POST = withAuth(async (req: NextRequest, user: any) => {
       message: existingEasyOrdersProductId ? 'تم تحديث المنتج بنجاح' : 'تم تصدير المنتج بنجاح',
       productId: result.productId
     });
+
+  } finally {
+    releaseExportLock(String(productId), String(integrationId));
+  }
 
   } catch (error) {
     logger.error('Error exporting product to EasyOrders', error, { userId: user._id });

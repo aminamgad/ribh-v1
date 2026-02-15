@@ -219,6 +219,7 @@ export default function ProductsPage() {
   const [integrations, setIntegrations] = useState<any[]>([]);
   const [loadingIntegrations, setLoadingIntegrations] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const exportLockRef = useRef(false);
   
   // Quick edit states
   const [quickEditData, setQuickEditData] = useState({
@@ -539,6 +540,7 @@ export default function ProductsPage() {
 
   // Handle export product
   const handleExportProduct = async (productId: string) => {
+    if (exportLockRef.current) return; // منع التصدير المتكرر
     if (integrations.length === 0) {
       toast.error('لا توجد تكاملات نشطة. يرجى إضافة تكامل Easy Orders أولاً');
       router.push('/dashboard/integrations');
@@ -559,6 +561,8 @@ export default function ProductsPage() {
 
   // Perform export
   const performExport = async (productId: string, integrationId: string) => {
+    if (exportLockRef.current) return;
+    exportLockRef.current = true;
     setExporting(true);
     try {
       const response = await fetch('/api/integrations/easy-orders/export-product', {
@@ -587,6 +591,7 @@ export default function ProductsPage() {
       toast.error('حدث خطأ أثناء تصدير المنتج');
     } finally {
       setExporting(false);
+      exportLockRef.current = false;
     }
   };
 
