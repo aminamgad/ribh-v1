@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { MapPin, Loader2, ChevronDown, Search, X } from 'lucide-react';
 import { useSettings } from '@/components/providers/SettingsProvider';
+import ErrorMessage from './ErrorMessage';
 
 interface Village {
   _id: string;
@@ -421,7 +422,7 @@ export default function GovernorateVillageSelect({
             {label} {required && <span className="text-red-500">*</span>}
           </label>
         )}
-        <div className="text-sm text-red-600 dark:text-red-400">{error}</div>
+        <ErrorMessage message={error} onRetry={fetchAllVillages} />
       </div>
     );
   }
@@ -566,7 +567,7 @@ export default function GovernorateVillageSelect({
                       selectedGovernorateIndex === index && governorateSearchQuery
                         ? 'bg-[#FF9800] text-white hover:bg-[#F57C00]'
                         : selectedGovernorate === item.name
-                        ? 'bg-blue-50 dark:bg-blue-900/20 font-medium'
+                        ? 'bg-slate-100 dark:bg-slate-700/50 font-medium'
                         : ''
                     }`}
                     onMouseEnter={() => setSelectedGovernorateIndex(index)}
@@ -579,7 +580,7 @@ export default function GovernorateVillageSelect({
           </div>
         )}
         {governorateSearchQuery && activeGovernorates.length > 0 && (
-          <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+          <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
             🔍 عرض {activeGovernorates.length} من {baseActiveGovernorates.length} منطقة بناءً على البحث
           </p>
         )}
@@ -725,7 +726,7 @@ export default function GovernorateVillageSelect({
                           selectedVillageIndex === index && villageSearchQuery
                             ? 'bg-[#FF9800] text-white hover:bg-[#F57C00]'
                             : selectedVillageId === village.villageId
-                            ? 'bg-blue-50 dark:bg-blue-900/20 font-medium'
+                            ? 'bg-slate-100 dark:bg-slate-700/50 font-medium'
                             : ''
                         }`}
                         onMouseEnter={() => setSelectedVillageIndex(index)}
@@ -796,7 +797,7 @@ export default function GovernorateVillageSelect({
             </div>
           )}
           {villageSearchQuery && filteredVillages.length > 0 && (
-            <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
               🔍 عرض {filteredVillages.length} من {baseFilteredVillages.length} قرية بناءً على البحث
             </p>
           )}

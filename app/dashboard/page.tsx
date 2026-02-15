@@ -288,11 +288,18 @@ export default function DashboardPage() {
     return { label: config.label, class: config.class };
   };
 
-  const getPercentageDisplay = (percentage: number) => {
+  const getPercentageDisplay = (percentage: number | undefined) => {
+    if (percentage === undefined || percentage === null) return { text: '—', color: 'text-gray-500 dark:text-slate-400', icon: null };
     if (percentage === 0) return { text: '0%', color: 'text-gray-500 dark:text-slate-400', icon: null };
-    if (percentage > 0) return { text: `+${percentage}%`, color: 'text-emerald-600 dark:text-emerald-400', icon: ArrowUpRight };
+    if (percentage > 0) return { text: `+${percentage}%`, color: 'text-[#4CAF50] dark:text-[#4CAF50]', icon: ArrowUpRight };
     return { text: `${percentage}%`, color: 'text-red-600 dark:text-red-400', icon: ArrowDownRight };
   };
+
+  const pctOrders = getPercentageDisplay(stats?.ordersPercentage);
+  const pctRevenue = getPercentageDisplay(stats?.revenuePercentage);
+  const pctProducts = getPercentageDisplay(user?.role === 'marketer' ? stats?.favoritesPercentage : stats?.productsPercentage);
+  const pctUsers = getPercentageDisplay(stats?.usersPercentage);
+  const pctGrowth = getPercentageDisplay(user?.role === 'supplier' ? stats?.productsPercentage : stats?.revenuePercentage);
 
   // Quick edit functions for supplier
   const handleQuickEdit = (product: any) => {
@@ -425,11 +432,11 @@ export default function DashboardPage() {
               <button
                 onClick={handleManualRefresh}
                 disabled={loading}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-900/50 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-4 py-2 bg-[#FF9800]/10 dark:bg-[#FF9800]/20 hover:bg-[#FF9800]/20 dark:hover:bg-[#FF9800]/30 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 title="تحديث الإحصائيات يدوياً"
               >
-                <RotateCw className={`w-4 h-4 text-blue-600 dark:text-blue-400 ${loading ? 'animate-spin' : ''}`} />
-                <span className="text-sm font-medium text-blue-700 dark:text-blue-400">
+                <RotateCw className={`w-4 h-4 text-[#FF9800] dark:text-[#FFB74D] ${loading ? 'animate-spin' : ''}`} />
+                <span className="text-sm font-medium text-[#E65100] dark:text-[#FFB74D]">
                   {loading ? 'جاري التحديث...' : 'تحديث الآن'}
                 </span>
               </button>
@@ -465,9 +472,9 @@ export default function DashboardPage() {
                 <ShoppingBag className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 text-white" />
               </div>
               <div className="text-left">
-                <div className="flex items-center text-xs sm:text-sm font-medium text-[#4CAF50] dark:text-[#4CAF50]">
-                  <ArrowUpRight className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />
-                  +12.5%
+                <div className={`flex items-center text-xs sm:text-sm font-medium ${pctOrders.color}`}>
+                  {pctOrders.icon && <pctOrders.icon className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />}
+                  {pctOrders.text}
                 </div>
                 <p className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">من الشهر الماضي</p>
               </div>
@@ -496,9 +503,9 @@ export default function DashboardPage() {
                 <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 text-white" />
               </div>
               <div className="text-left">
-                <div className="flex items-center text-xs sm:text-sm font-medium text-[#FF9800] dark:text-[#FF9800]">
-                  <ArrowUpRight className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />
-                  +8.3%
+                <div className={`flex items-center text-xs sm:text-sm font-medium ${pctRevenue.color}`}>
+                  {pctRevenue.icon && <pctRevenue.icon className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />}
+                  {pctRevenue.text}
                 </div>
                 <p className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">من الشهر الماضي</p>
               </div>
@@ -527,9 +534,9 @@ export default function DashboardPage() {
                 <Package className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 text-white" />
               </div>
               <div className="text-left">
-                <div className="flex items-center text-xs sm:text-sm font-medium text-[#FF9800] dark:text-[#FF9800]">
-                  <ArrowUpRight className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />
-                  +15.2%
+                <div className={`flex items-center text-xs sm:text-sm font-medium ${pctProducts.color}`}>
+                  {pctProducts.icon && <pctProducts.icon className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />}
+                  {pctProducts.text}
                 </div>
                 <p className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">من الشهر الماضي</p>
               </div>
@@ -562,9 +569,9 @@ export default function DashboardPage() {
                     <Users className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 text-white" />
                   </div>
                   <div className="text-left">
-                    <div className="flex items-center text-xs sm:text-sm font-medium text-[#4CAF50] dark:text-[#4CAF50]">
-                      <ArrowUpRight className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />
-                      +5.8%
+                    <div className={`flex items-center text-xs sm:text-sm font-medium ${pctUsers.color}`}>
+                      {pctUsers.icon && <pctUsers.icon className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />}
+                      {pctUsers.text}
                     </div>
                     <p className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">من الشهر الماضي</p>
                   </div>
@@ -591,9 +598,8 @@ export default function DashboardPage() {
                     <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 text-white" />
                   </div>
                   <div className="text-left">
-                    <div className="flex items-center text-xs sm:text-sm font-medium text-[#FF9800] dark:text-[#FF9800]">
-                      <ArrowUpRight className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />
-                      +22.1%
+                    <div className="flex items-center text-xs sm:text-sm font-medium text-gray-500 dark:text-slate-400">
+                      —
                     </div>
                     <p className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">من الشهر الماضي</p>
                   </div>
@@ -628,9 +634,9 @@ export default function DashboardPage() {
                   <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 text-white" />
                 </div>
                 <div className="text-left">
-                  <div className="flex items-center text-xs sm:text-sm font-medium text-[#4CAF50] dark:text-[#4CAF50]">
-                    <ArrowUpRight className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />
-                    +15.2%
+                  <div className={`flex items-center text-xs sm:text-sm font-medium ${pctGrowth.color}`}>
+                    {pctGrowth.icon && <pctGrowth.icon className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />}
+                    {pctGrowth.text}
                   </div>
                   <p className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">من الشهر الماضي</p>
                 </div>
@@ -641,7 +647,7 @@ export default function DashboardPage() {
                    user?.role === 'marketer' ? 'معدل النمو' : 'معدل النمو'}
                 </p>
                 <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-slate-100 mb-1.5 sm:mb-2">
-                  {user?.role === 'supplier' ? (stats?.activeProducts || 0) : '+15%'}
+                  {user?.role === 'supplier' ? (stats?.activeProducts || 0) : (pctGrowth.text !== '—' ? pctGrowth.text : '—')}
                 </p>
                 <div className="flex items-center gap-1.5 sm:gap-2">
                   <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-[#4CAF50] rounded-full"></div>
@@ -690,8 +696,8 @@ export default function DashboardPage() {
                           <ShoppingBag className="w-6 h-6 text-white" />
                         </div>
                         <div>
-                          <p className="font-semibold text-gray-900 dark:text-slate-100 mb-1 p-4">#{order.orderNumber}</p>
-                          <p className="text-sm text-gray-600 dark:text-slate-400 p-4">{order.customerName}</p>
+                          <p className="font-semibold text-gray-900 dark:text-slate-100 mb-1">#{order.orderNumber}</p>
+                          <p className="text-sm text-gray-600 dark:text-slate-400">{order.customerName}</p>
                         </div>
                       </div>
                       <div className="text-left">
@@ -751,8 +757,8 @@ export default function DashboardPage() {
                         />
                       </div>
                       <div>
-                        <p className="font-semibold text-gray-900 dark:text-slate-100 mb-1 p-4">{product.name}</p>
-                        <p className="text-sm text-gray-600 dark:text-slate-400 p-4">{product.supplierName}</p>
+                        <p className="font-semibold text-gray-900 dark:text-slate-100 mb-1">{product.name}</p>
+                        <p className="text-sm text-gray-600 dark:text-slate-400">{product.supplierName}</p>
                       </div>
                     </div>
                     <div className="text-left">
@@ -966,7 +972,7 @@ export default function DashboardPage() {
                     {/* Product Image */}
                     <div className="flex items-center flex-1 ">
                       <div className="relative">
-                        <div className="w-16 h-16 rounded-xl overflow-hidden mr-6 flex-shrink-0 shadow-lg group-hover:shadow-xl transition-shadow duration-300 p-4">
+                        <div className="w-16 h-16 rounded-xl overflow-hidden mr-6 flex-shrink-0 shadow-lg group-hover:shadow-xl transition-shadow duration-300">
                           <MediaThumbnail
                             media={product.images || []}
                             alt={product.name}
@@ -1096,16 +1102,16 @@ export default function DashboardPage() {
                       <DollarSign className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-600 dark:text-slate-400 p-4">إجمالي المبيعات</p>
-                      <p className="text-2xl font-bold text-gray-900 dark:text-slate-100 p-4">
+                      <p className="text-sm font-medium text-gray-600 dark:text-slate-400">إجمالي المبيعات</p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">
                         {formatCurrency(stats?.totalRevenue || 0)}
                       </p>
                     </div>
                   </div>
                   <div className="text-left">
-                    <div className="flex items-center text-sm font-medium text-emerald-600 dark:text-emerald-400">
-                      <ArrowUpRight className="w-4 h-4 ml-1" />
-                      +12.5%
+                    <div className={`flex items-center text-sm font-medium ${pctRevenue.color}`}>
+                      {pctRevenue.icon && <pctRevenue.icon className="w-4 h-4 ml-1" />}
+                      {pctRevenue.text}
                     </div>
                     <p className="text-xs text-gray-500 dark:text-slate-400">من الشهر الماضي</p>
                   </div>
@@ -1117,16 +1123,16 @@ export default function DashboardPage() {
                       <ShoppingBag className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-600 dark:text-slate-400 p-4">عدد الطلبات</p>
-                      <p className="text-2xl font-bold text-gray-900 dark:text-slate-100 p-4">
+                      <p className="text-sm font-medium text-gray-600 dark:text-slate-400">عدد الطلبات</p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">
                         {stats?.totalOrders || 0}
                       </p>
                     </div>
                   </div>
                   <div className="text-left">
-                    <div className="flex items-center text-sm font-medium text-[#4CAF50] dark:text-[#4CAF50]">
-                      <ArrowUpRight className="w-4 h-4 ml-1" />
-                      +8.3%
+                    <div className={`flex items-center text-sm font-medium ${pctOrders.color}`}>
+                      {pctOrders.icon && <pctOrders.icon className="w-4 h-4 ml-1" />}
+                      {pctOrders.text}
                     </div>
                     <p className="text-xs text-gray-500 dark:text-slate-400">من الشهر الماضي</p>
                   </div>
@@ -1139,16 +1145,16 @@ export default function DashboardPage() {
                         <Heart className="w-6 h-6 text-white" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-gray-600 dark:text-slate-400 p-4">المنتجات المفضلة</p>
-                        <p className="text-2xl font-bold text-gray-900 dark:text-slate-100 p-4">
+                        <p className="text-sm font-medium text-gray-600 dark:text-slate-400">المنتجات المفضلة</p>
+                        <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">
                           {stats?.favoritesCount || 0}
                         </p>
                       </div>
                     </div>
                     <div className="text-left">
-                      <div className="flex items-center text-sm font-medium text-purple-600 dark:text-purple-400">
-                        <ArrowUpRight className="w-4 h-4 ml-1" />
-                        +15.2%
+                      <div className={`flex items-center text-sm font-medium ${pctProducts.color}`}>
+                        {pctProducts.icon && <pctProducts.icon className="w-4 h-4 ml-1" />}
+                        {pctProducts.text}
                       </div>
                       <p className="text-xs text-gray-500 dark:text-slate-400">من الشهر الماضي</p>
                     </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, AlertTriangle, CheckCircle, Info, XCircle } from 'lucide-react';
 
 interface ConfirmationModalProps {
@@ -31,15 +31,54 @@ export default function ConfirmationModal({
   customContent
 }: ConfirmationModalProps) {
   const [isVisible, setIsVisible] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const prevFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (isOpen) {
       setIsVisible(true);
+      prevFocusRef.current = document.activeElement as HTMLElement | null;
     } else {
-      const timer = setTimeout(() => setIsVisible(false), 200);
+      const timer = setTimeout(() => {
+        setIsVisible(false);
+        prevFocusRef.current?.focus?.();
+      }, 200);
       return () => clearTimeout(timer);
     }
   }, [isOpen]);
+
+  // Focus trap + Escape handler
+  useEffect(() => {
+    if (!isOpen || !modalRef.current) return;
+    const modal = modalRef.current;
+    const focusables = modal.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    first?.focus();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !loading) {
+        onClose();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          e.preventDefault();
+          last?.focus();
+        }
+      } else {
+        if (document.activeElement === last) {
+          e.preventDefault();
+          first?.focus();
+        }
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, loading, onClose]);
 
   if (!isVisible) return null;
 
@@ -105,10 +144,16 @@ export default function ConfirmationModal({
         onClick={handleClose}
       />
       
-      {/* Modal */}
-      <div className={`relative bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto transform transition-all duration-200 ${
-        isOpen ? 'scale-100' : 'scale-95'
-      }`}>
+      {/* Modal - focus trap container */}
+      <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirmation-modal-title"
+        className={`relative bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto transform transition-all duration-200 ${
+          isOpen ? 'scale-100' : 'scale-95'
+        }`}
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 dark:border-slate-700 sticky top-0 bg-white dark:bg-slate-800 z-10">
           <div className="flex items-center space-x-2 sm:space-x-3 space-x-reverse flex-1 min-w-0">
@@ -117,7 +162,7 @@ export default function ConfirmationModal({
                 {getIcon()}
               </div>
             </div>
-            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-slate-100 truncate">
+            <h3 id="confirmation-modal-title" className="text-base sm:text-lg font-semibold text-gray-900 dark:text-slate-100 truncate">
               {title}
             </h3>
           </div>

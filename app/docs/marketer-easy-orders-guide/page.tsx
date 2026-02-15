@@ -266,7 +266,7 @@ export default function MarketerEasyOrdersGuidePage() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {loading ? (
           <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#FF9800] mb-4"></div>
             <p className="text-gray-600 dark:text-gray-400">جاري تحميل الدليل...</p>
           </div>
         ) : (

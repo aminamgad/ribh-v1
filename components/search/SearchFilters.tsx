@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo, memo, useTransition } from 'react';
 import { Search, Filter, X, ChevronDown, Calendar, Download } from 'lucide-react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import MultiSelect from '@/components/ui/MultiSelect';
 import toast from 'react-hot-toast';
@@ -25,6 +25,7 @@ interface SearchFiltersProps {
 
 function SearchFilters({ onSearch }: SearchFiltersProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
   const [, startTransition] = useTransition();
   
@@ -271,8 +272,14 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
     return () => clearTimeout(timer);
   }, [user?.role]);
 
-  // Note: No useEffect needed to sync with URL - filters apply immediately via onChange handlers
-  // This prevents re-renders and ensures instant response
+  // Sync searchQuery from URL when it changes (e.g. from header search navigation)
+  useEffect(() => {
+    const urlQ = searchParams.get('q') || '';
+    setSearchQuery(prev => {
+      if (prev !== urlQ) return urlQ;
+      return prev;
+    });
+  }, [searchParams]);
 
   // Auto-update function - accepts optional overrides for immediate updates
   const applyFiltersAuto = useCallback((

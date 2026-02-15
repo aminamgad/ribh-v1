@@ -216,7 +216,7 @@ export default function AdminWithdrawalsPage() {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center">
-          <RotateCw className="w-8 h-8 animate-spin text-primary-600 mx-auto mb-4" />
+          <RotateCw className="w-8 h-8 animate-spin text-[#FF9800] mx-auto mb-4" />
           <p className="text-gray-600 dark:text-slate-400">جاري التحميل...</p>
         </div>
       </div>

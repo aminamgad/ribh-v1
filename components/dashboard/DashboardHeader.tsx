@@ -1,17 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useCart } from '@/components/providers/CartProvider';
 import { useNotifications } from '@/components/providers/NotificationProvider';
 import { useChat } from '@/components/providers/ChatProvider';
 import { useSettings } from '@/components/providers/SettingsProvider';
 import { useDataCache } from '@/components/providers/DataCacheProvider';
-import { Bell, ChevronDown, User, ShoppingCart, MessageSquare, Menu, Search, RotateCw } from 'lucide-react';
+import { Bell, ChevronDown, User, ShoppingCart, MessageSquare, Menu, Search, RotateCw, Package } from 'lucide-react';
 import Link from 'next/link';
 import ThemeToggle from '@/components/ui/ThemeToggle';
 import { useRouter, usePathname } from 'next/navigation';
 import { OptimizedImage } from '@/components/ui/LazyImage';
+import MediaThumbnail from '@/components/ui/MediaThumbnail';
 import { toast } from 'react-hot-toast';
 
 export default function DashboardHeader() {
@@ -27,23 +28,94 @@ export default function DashboardHeader() {
   const [mounted, setMounted] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
-
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const searchAbortRef = useRef<AbortController | null>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  // Instant search - debounced fetch
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (!q || q.length < 2) {
+      setSearchResults([]);
+      setShowSearchDropdown(false);
+      return;
+    }
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      if (searchAbortRef.current) searchAbortRef.current.abort();
+      searchAbortRef.current = new AbortController();
+      setSearchLoading(true);
+      setShowSearchDropdown(true);
+
+      fetch(`/api/search?q=${encodeURIComponent(q)}&limit=8`, {
+        signal: searchAbortRef.current.signal
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && Array.isArray(data.products)) {
+            setSearchResults(data.products);
+          } else {
+            setSearchResults([]);
+          }
+        })
+        .catch((err) => {
+          if (err.name !== 'AbortError') setSearchResults([]);
+        })
+        .finally(() => {
+          setSearchLoading(false);
+        });
+    }, 300);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [searchQuery]);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setShowSearchDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const query = searchQuery.trim();
+    setShowSearchDropdown(false);
     if (query) {
-      // Always navigate to products page with search query
       router.push(`/dashboard/products?q=${encodeURIComponent(query)}`);
     } else {
-      // If empty, just go to products page
       router.push('/dashboard/products');
     }
   };
+
+  const handleSelectProduct = useCallback((productId: string) => {
+    setShowSearchDropdown(false);
+    setSearchQuery('');
+    router.push(`/dashboard/products/${productId}`);
+  }, [router]);
+
+  const handleViewAllResults = useCallback(() => {
+    const query = searchQuery.trim();
+    setShowSearchDropdown(false);
+    if (query) {
+      router.push(`/dashboard/products?q=${encodeURIComponent(query)}`);
+    } else {
+      router.push('/dashboard/products');
+    }
+  }, [router, searchQuery]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -152,8 +224,9 @@ export default function DashboardHeader() {
             </Link>
           </div>
 
-          {/* Search Bar - Always for Products Search */}
-          <div className="hidden md:flex flex-1 max-w-md mx-4 lg:mx-8">
+          {/* Search Bar - عرض شرطي: إخفاء في صفحة المنتجات (SearchFilters هناك) */}
+          {!pathname.startsWith('/dashboard/products') && (
+          <div ref={searchContainerRef} className="hidden md:flex flex-1 max-w-md mx-4 lg:mx-8 relative">
             <form onSubmit={handleSearch} className="relative w-full">
               <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-500 dark:text-slate-300 pointer-events-none" />
               <input
@@ -161,11 +234,87 @@ export default function DashboardHeader() {
                 placeholder="البحث عن المنتجات..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => searchQuery.trim().length >= 2 && setShowSearchDropdown(true)}
                 className="w-full pl-4 pr-10 py-2 text-sm sm:text-base bg-gray-100 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#FF9800] focus:border-transparent transition-all duration-300"
                 title="البحث عن المنتجات"
+                autoComplete="off"
               />
+              {searchLoading && (
+                <div className="absolute left-3 top-1/2 -translate-y-1/2">
+                  <RotateCw className="w-4 h-4 text-[#FF9800] animate-spin" />
+                </div>
+              )}
             </form>
+
+            {/* Instant Search Dropdown - مثل أمازون */}
+            {showSearchDropdown && searchQuery.trim().length >= 2 && (
+              <div className="absolute top-full right-0 left-0 mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-xl shadow-2xl z-50 overflow-hidden max-h-[400px] flex flex-col animate-fade-in">
+                <div className="overflow-y-auto flex-1 min-h-0">
+                  {searchLoading && searchResults.length === 0 ? (
+                    <div className="flex items-center justify-center py-8">
+                      <RotateCw className="w-6 h-6 text-[#FF9800] animate-spin" />
+                    </div>
+                  ) : searchResults.length > 0 ? (
+                    <>
+                      {searchResults.map((product: any) => {
+                        const price = user?.role === 'wholesaler' ? product.wholesalerPrice : product.marketerPrice;
+                        return (
+                          <Link
+                            key={product._id}
+                            href={`/dashboard/products/${product._id}`}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              handleSelectProduct(product._id);
+                            }}
+                            className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-slate-700/80 transition-colors border-b border-gray-100 dark:border-slate-700 last:border-b-0"
+                          >
+                            <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 dark:bg-slate-700 flex-shrink-0">
+                              <MediaThumbnail
+                                media={product.images || []}
+                                alt={product.name}
+                                className="w-full h-full object-cover"
+                                showTypeBadge={false}
+                                width={48}
+                                height={48}
+                                fallbackIcon={<Package className="w-6 h-6 text-gray-400" />}
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 dark:text-slate-100 truncate">{product.name}</p>
+                              <p className="text-xs text-[#FF9800] font-semibold mt-0.5">
+                                {(price ?? 0).toFixed(2)} ₪
+                              </p>
+                            </div>
+                          </Link>
+                        );
+                      })}
+                      <button
+                        type="button"
+                        onClick={handleViewAllResults}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-50 dark:bg-slate-700/50 hover:bg-[#FF9800]/10 dark:hover:bg-[#FF9800]/20 text-[#FF9800] font-medium text-sm transition-colors"
+                      >
+                        <Search className="w-4 h-4" />
+                        عرض كل النتائج لـ &quot;{searchQuery.trim()}&quot;
+                      </button>
+                    </>
+                  ) : (
+                    <div className="px-4 py-6 text-center text-sm text-gray-500 dark:text-slate-400">
+                      <Search className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                      <p>لا توجد نتائج</p>
+                      <button
+                        type="button"
+                        onClick={handleViewAllResults}
+                        className="mt-2 text-[#FF9800] hover:underline"
+                      >
+                        عرض صفحة المنتجات
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
+          )}
 
           {/* Right side actions */}
           <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 space-x-reverse">

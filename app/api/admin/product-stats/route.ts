@@ -300,7 +300,7 @@ export const GET = withRole(['admin'])(async (req: NextRequest, user: any) => {
         categoryId: product.categoryId,
         images: product.images,
         price: product.price,
-        wholesalePrice: product.wholesalePrice,
+        wholesalePrice: product.wholesalerPrice,
         costPrice: product.costPrice,
         stockQuantity: product.stockQuantity,
         isActive: product.isActive,

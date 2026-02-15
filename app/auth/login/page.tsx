@@ -14,6 +14,7 @@ export default function LoginPage() {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
+    rememberMe: false,
   });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -24,6 +25,13 @@ export default function LoginPage() {
 
   useEffect(() => {
     setMounted(true);
+    // استعادة البريد المخزن عند "تذكرني"
+    if (typeof window !== 'undefined') {
+      const savedEmail = localStorage.getItem('ribh-remember-email');
+      if (savedEmail) {
+        setFormData(prev => ({ ...prev, email: savedEmail, rememberMe: true }));
+      }
+    }
   }, []);
 
   // Redirect if already authenticated
@@ -51,7 +59,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const result = await login(formData.email, formData.password);
+      const result = await login(formData.email, formData.password, formData.rememberMe);
       
       if (result.success) {
         toast.success('تم تسجيل الدخول بنجاح');
@@ -222,17 +230,17 @@ export default function LoginPage() {
 
             {/* Remember Me & Forgot Password */}
             <div className="flex items-center justify-between flex-wrap gap-2">
-              <div className="flex items-center">
+              <label className="flex items-center cursor-pointer">
                 <input
                   id="remember-me"
-                  name="remember-me"
+                  name="rememberMe"
                   type="checkbox"
-                  className="relative"
+                  checked={formData.rememberMe}
+                  onChange={(e) => setFormData(prev => ({ ...prev, rememberMe: e.target.checked }))}
+                  className="w-4 h-4 rounded border-gray-300 text-[#FF9800] focus:ring-[#FF9800] ml-2"
                 />
-                <label htmlFor="remember-me" className="mr-2 block text-xs sm:text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                  تذكرني
-                </label>
-              </div>
+                <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">تذكرني</span>
+              </label>
 
               <div className="text-sm">
                 <Link 

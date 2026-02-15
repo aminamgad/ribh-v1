@@ -55,15 +55,20 @@ export default function OrderExportModal({ isOpen, onClose, userRole }: OrderExp
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-md">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm">
+      <div 
+        className="modal-container"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="order-export-title"
+      >
         <div className="p-6">
           <div className="flex items-center mb-6">
             <div className="w-10 h-10 rounded-full bg-[#FF9800]/20 dark:bg-[#FF9800]/30 flex items-center justify-center mr-3">
               <Download className="w-5 h-5 text-[#FF9800] dark:text-[#FF9800]" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
+              <h3 id="order-export-title" className="text-lg font-semibold text-gray-900 dark:text-slate-100">
                 تصدير الطلبات
               </h3>
               <p className="text-sm text-gray-600 dark:text-slate-400">

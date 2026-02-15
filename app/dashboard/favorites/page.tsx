@@ -6,6 +6,8 @@ import { useDataCache } from '@/components/hooks/useDataCache';
 import { useCart } from '@/components/providers/CartProvider';
 import { Heart, ShoppingCart, Trash2, Package, Store, Link as LinkIcon, RotateCw } from 'lucide-react';
 import MediaThumbnail from '@/components/ui/MediaThumbnail';
+import EmptyState from '@/components/ui/EmptyState';
+import LoadingState from '@/components/ui/LoadingState';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
@@ -17,7 +19,7 @@ interface Product {
   description: string;
   images: string[];
   marketerPrice: number;
-  wholesalePrice: number;
+  wholesalerPrice: number;
   stockQuantity: number;
   isActive: boolean;
   isApproved: boolean;
@@ -231,25 +233,23 @@ export default function FavoritesPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="loading-spinner w-8 h-8"></div>
-      </div>
-    );
+    return <LoadingState message="جاري تحميل المفضلة..." className="min-h-[60vh]" />;
   }
 
   if (favorites.length === 0) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center px-4">
-        <div className="text-center">
-          <Heart className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 text-gray-300 dark:text-gray-600 mx-auto mb-3 sm:mb-4" />
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">لا توجد منتجات في المفضلة</h2>
-          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-4 sm:mb-6">لم تقم بإضافة أي منتجات إلى قائمة المفضلة بعد</p>
-          <Link href="/dashboard/products" className="btn-primary min-h-[44px] text-sm sm:text-base px-4 sm:px-6 inline-flex items-center justify-center">
-            <Store className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
-            تصفح المنتجات
-          </Link>
-        </div>
+      <div className="min-h-[60vh]">
+        <EmptyState
+          icon={Heart}
+          title="لا توجد منتجات في المفضلة"
+          description="لم تقم بإضافة أي منتجات إلى قائمة المفضلة بعد"
+          action={
+            <Link href="/dashboard/products" className="btn-primary min-h-[44px] text-sm sm:text-base px-4 sm:px-6 inline-flex items-center justify-center">
+              <Store className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
+              تصفح المنتجات
+            </Link>
+          }
+        />
       </div>
     );
   }
@@ -310,7 +310,7 @@ export default function FavoritesPage() {
                         ? 'text-orange-600 dark:text-orange-400'
                         : 'text-[#FF9800] dark:text-[#FF9800]'
                     }`}>
-                      {user?.role === 'wholesaler' ? product.wholesalePrice : product.marketerPrice} ₪
+                      {user?.role === 'wholesaler' ? product.wholesalerPrice : product.marketerPrice} ₪
                     </p>
                     {user?.role !== 'wholesaler' && product.isMinimumPriceMandatory && product.minimumSellingPrice && (
                       <span className="text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 px-1.5 py-0.5 rounded-full">

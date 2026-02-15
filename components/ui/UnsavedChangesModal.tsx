@@ -139,7 +139,7 @@ export default function UnsavedChangesModal({
                   onClose();
                 }}
                 disabled={loading}
-                className="w-full px-4 py-3 text-sm font-medium text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 min-h-[44px]"
+                className="w-full px-4 py-3 text-sm font-medium text-[#E65100] dark:text-[#FFB74D] bg-[#FF9800]/10 dark:bg-[#FF9800]/20 border border-[#FF9800]/30 dark:border-[#FF9800]/40 rounded-lg hover:bg-[#FF9800]/20 dark:hover:bg-[#FF9800]/30 focus:outline-none focus:ring-2 focus:ring-[#FF9800] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 min-h-[44px]"
               >
                 <Save className="w-4 h-4" />
                 <span>حفظ المسودة والمتابعة</span>

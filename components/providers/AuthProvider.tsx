@@ -8,7 +8,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string; maintenance?: boolean; user?: User }>;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<{ success: boolean; error?: string; maintenance?: boolean; user?: User }>;
   register: (userData: any) => Promise<{ success: boolean; error?: string; user?: User }>;
   logout: () => Promise<void>;
   updateUser: (userData: Partial<User>) => void;
@@ -85,14 +85,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, rememberMe = true) => {
     try {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, rememberMe }),
       });
 
       const data = await response.json();
@@ -102,6 +102,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Save user to localStorage for persistence
         if (typeof window !== 'undefined') {
           localStorage.setItem('ribh-user', JSON.stringify(data.user));
+          if (rememberMe) {
+            localStorage.setItem('ribh-remember-email', email);
+          } else {
+            localStorage.removeItem('ribh-remember-email');
+          }
         }
         // Clear cache when user logs in to ensure fresh data based on user role
         try {

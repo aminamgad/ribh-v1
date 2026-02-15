@@ -399,11 +399,46 @@ const AdminProductsTableView = memo(function AdminProductsTableView({
         </div>
       )}
 
-      {/* Table View - Google Sheets style؛ على الجوال: اسحب أفقياً لعرض كل الأعمدة */}
-      <div className="card overflow-hidden p-0 shadow-sm">
-        <p className="sm:hidden text-xs text-gray-500 dark:text-slate-400 px-3 py-2 border-b border-gray-200 dark:border-slate-700">
-          اسحب لليسار لعرض كل الأعمدة
-        </p>
+      {/* Mobile Cards - عرض بطاقات على الجوال بدل الجدول الأفقي */}
+      <div className="md:hidden space-y-3">
+        {products.map((product) => {
+          const marketerProfit = calculateMarketerProfit(userRole === 'wholesaler' ? product.wholesalerPrice : product.marketerPrice, product.minimumSellingPrice);
+          return (
+            <Link
+              key={product._id}
+              href={`/dashboard/products/${product._id}`}
+              className="mobile-table-card block"
+            >
+              <div className="flex gap-3">
+                <div className="w-16 h-16 rounded-lg border border-gray-200 dark:border-slate-600 overflow-hidden bg-white dark:bg-slate-800 flex-shrink-0">
+                  <MediaThumbnail
+                    media={product.images || []}
+                    alt={product.name}
+                    className="w-full h-full object-cover"
+                    showTypeBadge={false}
+                    width={64}
+                    height={64}
+                    fallbackIcon={<Package className="w-8 h-8 text-gray-400 dark:text-slate-500" />}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-gray-900 dark:text-slate-100 truncate">{product.name}</h3>
+                  <div className="text-sm text-gray-600 dark:text-slate-400 mt-1">
+                    {((userRole === 'wholesaler' ? product.wholesalerPrice : product.marketerPrice) ?? 0).toFixed(2)} ₪
+                  </div>
+                  <div className="flex items-center gap-2 mt-2 flex-wrap">
+                    {getStatusBadge(product)}
+                    {getStockStatus(product)}
+                  </div>
+                </div>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+
+      {/* Table View - سطح المكتب */}
+      <div className="hidden md:block card overflow-hidden p-0 shadow-sm">
         <div className="overflow-x-auto -webkit-overflow-scrolling-touch">
           <table className="w-full border-collapse min-w-[640px]">
             <thead>
@@ -458,7 +493,7 @@ const AdminProductsTableView = memo(function AdminProductsTableView({
                 return (
                   <tr
                     key={product._id}
-                    className={`hover:bg-blue-50 dark:hover:bg-slate-800/70 transition-colors border-b border-gray-200 dark:border-slate-700 ${
+                    className={`hover:bg-slate-50 dark:hover:bg-slate-800/70 transition-colors border-b border-gray-200 dark:border-slate-700 ${
                       index % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-gray-50/30 dark:bg-slate-800/30'
                     }`}
                   >
@@ -537,7 +572,7 @@ const AdminProductsTableView = memo(function AdminProductsTableView({
                         </div>
                       )}
                       {isAdmin && (
-                        <div className={`text-xs font-semibold mt-1 pt-1 border-t-2 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-600`}>
+                        <div className={`text-xs font-semibold mt-1 pt-1 border-t-2 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600`}>
                           ربح المسوق: {marketerProfit.toFixed(2)} ₪
                         </div>
                       )}

@@ -129,7 +129,7 @@ async function createOrderHandler(req: NextRequest, user: any) {
         marketerProfitTotal += itemMarketerProfit;
         
         // decide price type
-        const priceType = unitPrice === (product as any).wholesalePrice ? 'wholesale' : 'marketer';
+        const priceType = unitPrice === (product as any).wholesalerPrice ? 'wholesale' : 'marketer';
         
         orderItems.push({
           productId: item.productId,
@@ -172,7 +172,7 @@ async function createOrderHandler(req: NextRequest, user: any) {
         marketerProfitTotal += itemMarketerProfit;
 
         // decide price type
-        const priceType = unitPrice === (product as any).wholesalePrice ? 'wholesale' : 'marketer';
+        const priceType = unitPrice === (product as any).wholesalerPrice ? 'wholesale' : 'marketer';
         
         orderItems.push({
           productId: item.productId,

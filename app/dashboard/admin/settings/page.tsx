@@ -548,7 +548,7 @@ export default function SettingsPage() {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center">
-          <RotateCw className="w-8 h-8 animate-spin text-blue-600 dark:text-blue-400 mx-auto mb-4" />
+          <RotateCw className="w-8 h-8 animate-spin text-[#FF9800] dark:text-[#FFB74D] mx-auto mb-4" />
           <p className="text-gray-600 dark:text-gray-300">جاري تحميل الإعدادات...</p>
         </div>
       </div>
@@ -613,7 +613,7 @@ export default function SettingsPage() {
           <Card className="border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
             <CardHeader>
               <CardTitle className="flex items-center text-gray-900 dark:text-white">
-                <Settings className="w-5 h-5 ml-2 text-blue-600 dark:text-blue-400" />
+                <Settings className="w-5 h-5 ml-2 text-slate-600 dark:text-slate-400" />
                 الإعدادات العامة
               </CardTitle>
             </CardHeader>
@@ -678,7 +678,7 @@ export default function SettingsPage() {
           <Card className="border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
             <CardHeader>
               <CardTitle className="flex items-center text-gray-900 dark:text-white">
-                <DollarSign className="w-5 h-5 ml-2 text-blue-600 dark:text-blue-400" />
+                <DollarSign className="w-5 h-5 ml-2 text-slate-600 dark:text-slate-400" />
                 الإعدادات المالية
               </CardTitle>
             </CardHeader>
@@ -749,8 +749,8 @@ export default function SettingsPage() {
 
               {/* Admin Profit Margins - النظام الوحيد المستخدم */}
               <div className="space-y-4">
-                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
-                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-4 mb-4">
+                  <p className="text-sm text-slate-800 dark:text-slate-200">
                     <strong>ملاحظة:</strong> هامش ربح الإدارة يُحسب بناءً على <strong>سعر المنتج الفردي</strong> وليس إجمالي الطلب. 
                     على سبيل المثال: إذا كان سعر المنتج 50 وهامش الربح 10%، فستكون عمولة الإدارة 5 لكل منتج.
                     يمكنك استخدام أي نسبة مئوية (0% أو أكثر)، بما فيها 100% أو 200% وما فوق.
@@ -779,14 +779,14 @@ export default function SettingsPage() {
                 
                 {/* Preview Section */}
                 {financialData?.adminProfitMargins && financialData.adminProfitMargins.length > 0 && (
-                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                    <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-2">معاينة الهوامش:</h4>
-                    <div className="space-y-1 text-xs text-blue-800 dark:text-blue-200">
+                  <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-4">
+                    <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-2">معاينة الهوامش:</h4>
+                    <div className="space-y-1 text-xs text-slate-800 dark:text-slate-200">
                       {financialData.adminProfitMargins.map((margin, idx) => (
                         <div key={idx} className="flex items-center justify-between">
                           <span>من {margin.minPrice}₪ إلى {margin.maxPrice}₪:</span>
                           <span className="font-semibold">{margin.margin}%</span>
-                          <span className="text-blue-600 dark:text-blue-300">
+                          <span className="text-slate-600 dark:text-slate-300">
                             (مثال: منتج بسعر {Math.floor((margin.minPrice + margin.maxPrice) / 2)}₪ = {new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format((Math.floor((margin.minPrice + margin.maxPrice) / 2)) * margin.margin / 100)}₪ ربح)
                           </span>
                         </div>
@@ -927,7 +927,7 @@ export default function SettingsPage() {
           <Card className="border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
             <CardHeader>
               <CardTitle className="flex items-center text-gray-900 dark:text-white">
-                <CreditCard className="w-5 h-5 ml-2 text-blue-600 dark:text-blue-400" />
+                <CreditCard className="w-5 h-5 ml-2 text-slate-600 dark:text-slate-400" />
                 إعدادات الطلبات
               </CardTitle>
             </CardHeader>
@@ -961,8 +961,8 @@ export default function SettingsPage() {
                 </div>
               </div>
               
-              <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
-                <p className="text-sm text-blue-700 dark:text-blue-300">
+              <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg">
+                <p className="text-sm text-slate-700 dark:text-slate-300">
                   <strong>ملاحظة:</strong> هذه الإعدادات تحكم الحد الأدنى والأقصى لقيم الطلبات التي يمكن للمسوقين إنشاؤها. 
                   سيتم تطبيق هذه القيود تلقائياً عند إنشاء الطلبات.
                 </p>
@@ -984,9 +984,9 @@ export default function SettingsPage() {
         {activeTab === 'shipping' && (
           <div className="space-y-6">
             {/* Important Notice */}
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-              <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-2">ملاحظة مهمة:</h4>
-              <p className="text-sm text-blue-800 dark:text-blue-200">
+            <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-4">
+              <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-2">ملاحظة مهمة:</h4>
+              <p className="text-sm text-slate-800 dark:text-slate-200">
                 النظام يستخدم <strong>نموذج القرى (Village Model)</strong> و<strong>مناطق الشحن (Shipping Regions)</strong> لتحديد تكاليف الشحن.
                 للتحديث الفعلي لتكاليف الشحن، يرجى استخدام <code>node scripts/import-villages.js</code> لاستيراد/تحديث القرى من ملف villages.json.
                 يمكن إدارة مناطق الشحن من قسم "مناطق الشحن" أدناه.
@@ -1050,7 +1050,7 @@ export default function SettingsPage() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center text-gray-900 dark:text-white">
-                    <Truck className="w-5 h-5 ml-2 text-blue-600 dark:text-blue-400" />
+                    <Truck className="w-5 h-5 ml-2 text-slate-600 dark:text-slate-400" />
                     مناطق التوصيل للمسوقين
                   </CardTitle>
                   <Button
@@ -1282,7 +1282,7 @@ export default function SettingsPage() {
           <Card className="border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
             <CardHeader>
               <CardTitle className="flex items-center text-gray-900 dark:text-white">
-                <Package className="w-5 h-5 ml-2 text-blue-600 dark:text-blue-400" />
+                <Package className="w-5 h-5 ml-2 text-slate-600 dark:text-slate-400" />
                 إعدادات المنتجات
               </CardTitle>
             </CardHeader>
@@ -1335,7 +1335,7 @@ export default function SettingsPage() {
           <Card className="border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
             <CardHeader>
               <CardTitle className="flex items-center text-gray-900 dark:text-white">
-                <Bell className="w-5 h-5 ml-2 text-blue-600 dark:text-blue-400" />
+                <Bell className="w-5 h-5 ml-2 text-slate-600 dark:text-slate-400" />
                 إعدادات الإشعارات
               </CardTitle>
             </CardHeader>

@@ -205,8 +205,8 @@ export default function CountrySelect({
             w-full px-4 py-2 pr-10 text-right border rounded-lg
             ${disabled ? 'bg-gray-100 dark:bg-gray-700 cursor-not-allowed' : 'bg-white dark:bg-slate-800'}
             ${error ? 'border-red-500' : 'border-gray-300 dark:border-slate-600'}
-            ${isOpen ? 'border-blue-500 ring-2 ring-blue-200 dark:ring-blue-800' : ''}
-            focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+            ${isOpen ? 'border-[#FF9800] ring-2 ring-[#FF9800]/20 dark:ring-[#FF9800]/30' : ''}
+            focus:outline-none focus:ring-2 focus:ring-[#FF9800] focus:border-[#FF9800]
             transition-colors duration-200
             text-sm text-gray-900 dark:text-slate-100
           `}

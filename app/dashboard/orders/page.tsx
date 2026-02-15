@@ -600,14 +600,14 @@ export default function OrdersPage() {
                       key={order._id} 
                       className={`group transition-all duration-200 cursor-pointer ${
                         isSelected 
-                          ? 'bg-blue-50 dark:bg-blue-900/30 border-r-4 border-blue-500 dark:border-blue-400' 
+                          ? 'bg-amber-50/80 dark:bg-amber-900/20 border-r-4 border-[#FF9800] dark:border-[#FF9800]' 
                           : 'bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700/50'
                       }`}
                       onClick={() => router.push(`/dashboard/orders/${order._id}`)}
                     >
                       {user?.role === 'admin' && (
                         <td className={`px-3 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-slate-100 sticky right-0 z-10 border-r-2 border-gray-300 dark:border-slate-600 shadow-[2px_0_4px_rgba(0,0,0,0.08)] ${
-                          isSelected ? 'bg-blue-50 dark:bg-blue-900/30' : 'bg-white dark:bg-slate-800'
+                          isSelected ? 'bg-amber-50/80 dark:bg-amber-900/20' : 'bg-white dark:bg-slate-800'
                         }`}
                             onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-center">

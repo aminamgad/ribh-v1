@@ -347,7 +347,7 @@ export default function NewFulfillmentPage() {
                           setShowCategoryDropdown(false);
                         }}
                         className={`w-full text-right px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm text-gray-900 dark:text-gray-100 ${
-                          selectedCategory === 'all' ? 'bg-blue-50 dark:bg-blue-900/20 font-medium' : ''
+                          selectedCategory === 'all' ? 'bg-slate-100 dark:bg-slate-700/50 font-medium' : ''
                         }`}
                       >
                         جميع الفئات
@@ -364,7 +364,7 @@ export default function NewFulfillmentPage() {
                               setShowCategoryDropdown(false);
                             }}
                             className={`w-full text-right px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm text-gray-900 dark:text-gray-100 ${
-                              selectedCategory === category._id ? 'bg-blue-50 dark:bg-blue-900/20 font-medium' : ''
+                              selectedCategory === category._id ? 'bg-slate-100 dark:bg-slate-700/50 font-medium' : ''
                             }`}
                           >
                             {category.name}
@@ -387,7 +387,7 @@ export default function NewFulfillmentPage() {
           <div className="p-6">
             {productsLoading ? (
               <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#FF9800] mx-auto"></div>
                 <p className="text-gray-600 dark:text-slate-400 mt-2">جاري تحميل المنتجات...</p>
               </div>
             ) : products.length === 0 ? (

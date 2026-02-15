@@ -2234,12 +2234,12 @@ export default function OrderDetailPage() {
                   </div>
                 )}
                 {activeNotesTab === 'delivery' && (order as any).deliveryNotes && (
-                  <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
                     <div className="flex items-center gap-2 mb-2">
-                      <Truck className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                      <span className="text-xs font-medium text-blue-700 dark:text-blue-300">من المسوق</span>
+                      <Truck className="w-4 h-4 text-slate-600 dark:text-slate-400" />
+                      <span className="text-xs font-medium text-slate-700 dark:text-slate-300">من المسوق</span>
                     </div>
-                    <p className="text-sm sm:text-base text-blue-900 dark:text-blue-100 whitespace-pre-wrap leading-relaxed">
+                    <p className="text-sm sm:text-base text-slate-900 dark:text-slate-100 whitespace-pre-wrap leading-relaxed">
                       {(order as any).deliveryNotes}
                     </p>
                   </div>
@@ -2279,7 +2279,7 @@ export default function OrderDetailPage() {
                     </button>
                   ) : (
                     <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                      <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                         <Truck className="w-3.5 h-3.5 ml-1.5" />
                         الطلب عند شركة الشحن
                       </span>
@@ -2324,7 +2324,7 @@ export default function OrderDetailPage() {
               <div className="space-y-3">
                 <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">معلومات الشحن</h4>
                 {order.shippingCompany ? (
-                  <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-blue-700 dark:text-blue-300">شركة الشحن</span>
                       <span className="text-sm font-semibold text-blue-900 dark:text-blue-100">{order.shippingCompany}</span>
@@ -2439,7 +2439,7 @@ export default function OrderDetailPage() {
                   </div>
                   
                   {packageInfo?.externalPackageId && (
-                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-blue-600 dark:text-blue-400">Package ID</span>
                         <div className="flex items-center gap-2">
@@ -2559,7 +2559,7 @@ export default function OrderDetailPage() {
                   {/* Shipping Actions Group */}
                   {(order.status === 'ready_for_shipping' || order.status === 'processing' || order.status === 'confirmed') && 
                    (order.shippingCompany && (order.shippingAddress?.city || order.shippingAddress?.villageId)) && (
-                    <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border-2 border-blue-200 dark:border-blue-800">
+                    <div className="p-4 bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-800 rounded-xl border-2 border-slate-200 dark:border-slate-700">
                       <div className="flex items-center gap-2 mb-3">
                         <Truck className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                         <h5 className="text-sm font-semibold text-gray-900 dark:text-white">إجراءات الشحن</h5>
@@ -2693,7 +2693,7 @@ export default function OrderDetailPage() {
             </div>
             
             {/* Complete Address */}
-            <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+            <div className="mb-4 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
               <div className="flex items-start justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
@@ -3384,7 +3384,7 @@ export default function OrderDetailPage() {
                                     selectedVillageIndex === index && villageSearchQuery
                                     ? 'bg-[#FF9800] text-white hover:bg-[#F57C00]'
                                     : selectedVillageId === village.villageId || order.shippingAddress?.villageId === village.villageId
-                                    ? 'bg-blue-50 dark:bg-blue-900/20 font-medium'
+                                    ? 'bg-slate-100 dark:bg-slate-700/50 font-medium'
                                     : ''
                                 }`}
                                 onMouseEnter={() => setSelectedVillageIndex(index)}
@@ -3563,7 +3563,7 @@ export default function OrderDetailPage() {
                       ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
                       : shippingStatus.type === 'error'
                       ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
-                      : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
+                      : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700'
                   }`}>
                     <p className={`text-sm ${
                       shippingStatus.type === 'success'
@@ -3662,7 +3662,7 @@ export default function OrderDetailPage() {
               </div>
 
               <div className="mb-6">
-                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+                <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-4 mb-4">
                   <div className="flex items-start">
                     <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 ml-2 mt-0.5 flex-shrink-0" />
                     <div className="flex-1">

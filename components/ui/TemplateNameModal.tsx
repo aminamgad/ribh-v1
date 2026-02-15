@@ -102,10 +102,10 @@ export default function TemplateNameModal({
         }`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 dark:border-slate-700 bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-slate-800 dark:to-slate-800">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 dark:border-slate-700 bg-gradient-to-r from-[#FF9800]/10 to-[#F57C00]/10 dark:from-slate-800 dark:to-slate-800">
           <div className="flex items-center gap-3 flex-1">
-            <div className="flex-shrink-0 w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-              <FileText className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+            <div className="flex-shrink-0 w-12 h-12 rounded-full bg-[#FF9800]/20 dark:bg-[#FF9800]/30 flex items-center justify-center">
+              <FileText className="w-6 h-6 text-[#FF9800] dark:text-[#FFB74D]" />
             </div>
             <div className="flex-1 min-w-0">
               <h3 
@@ -160,7 +160,7 @@ export default function TemplateNameModal({
                       ? 'border-red-500 focus:ring-red-500 dark:border-red-500'
                       : isValid
                       ? 'border-green-500 focus:ring-green-500 dark:border-green-500'
-                      : 'border-gray-300 dark:border-slate-600 focus:ring-purple-500 dark:bg-slate-700 dark:text-slate-100'
+                      : 'border-gray-300 dark:border-slate-600 focus:ring-[#FF9800] dark:bg-slate-700 dark:text-slate-100'
                   } disabled:opacity-50 disabled:cursor-not-allowed`}
                 />
                 {isValid && (
@@ -182,8 +182,8 @@ export default function TemplateNameModal({
               </p>
             </div>
 
-            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 border border-blue-200 dark:border-blue-800">
-              <p className="text-sm text-blue-800 dark:text-blue-300">
+            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 border border-slate-200 dark:border-slate-700">
+              <p className="text-sm text-slate-800 dark:text-slate-300">
                 💡 <strong>نصيحة:</strong> اختر اسماً واضحاً ووصفياً للقالب لتسهيل العثور عليه لاحقاً.
               </p>
             </div>
@@ -202,7 +202,7 @@ export default function TemplateNameModal({
           <button
             onClick={handleConfirm}
             disabled={loading || !isValid}
-            className="px-6 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 min-h-[44px] shadow-lg hover:shadow-xl w-full sm:w-auto"
+            className="px-6 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-[#FF9800] to-[#F57C00] hover:from-[#F57C00] hover:to-[#E65100] rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#FF9800] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 min-h-[44px] shadow-lg hover:shadow-xl w-full sm:w-auto"
           >
             {loading ? (
               <>

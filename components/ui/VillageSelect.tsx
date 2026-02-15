@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { MapPin, Loader2, Search } from 'lucide-react';
+import ErrorMessage from './ErrorMessage';
 
 interface Village {
   _id: string;
@@ -247,7 +248,7 @@ export default function VillageSelect({
                       : ''
                   } ${
                     selectedVillage === village.villageId && highlightedIndex !== index
-                      ? 'bg-blue-50 dark:bg-blue-900/20 font-medium'
+                      ? 'bg-slate-100 dark:bg-slate-700/50 font-medium'
                       : ''
                   }`}
                   onMouseEnter={() => setHighlightedIndex(index)}
@@ -256,7 +257,7 @@ export default function VillageSelect({
                     <span className="text-sm text-gray-900 dark:text-white">
                       {village.villageName}
                     </span>
-                    <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
                       {village.deliveryCost} ₪
                     </span>
                   </div>
@@ -267,14 +268,8 @@ export default function VillageSelect({
         </div>
 
         {error ? (
-          <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg mt-2">
-            <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
-            <button
-              onClick={fetchAllVillages}
-              className="mt-2 text-sm text-red-600 dark:text-red-400 hover:underline"
-            >
-              إعادة المحاولة
-            </button>
+          <div className="mt-2">
+            <ErrorMessage message={error} onRetry={fetchAllVillages} />
           </div>
         ) : (
           villages.length > 0 && !loading && (
@@ -311,9 +306,9 @@ export default function VillageSelect({
       </div>
 
       {selectedVillageData && (
-        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+        <div className="p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg">
           <div className="flex items-center gap-2 text-sm mb-1">
-            <MapPin className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+            <MapPin className="w-4 h-4 text-slate-600 dark:text-slate-400" />
             <span className="text-gray-700 dark:text-gray-300">
               <strong>القرية المختارة:</strong> {selectedVillageData.villageName}
             </span>

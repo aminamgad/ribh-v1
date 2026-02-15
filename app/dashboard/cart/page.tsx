@@ -16,7 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import MediaThumbnail from '@/components/ui/MediaThumbnail';
 import GovernorateVillageSelect from '@/components/ui/GovernorateVillageSelect';
-import { Trash2, ShoppingCart, Truck, MapPin, Package, Calculator } from 'lucide-react';
+import { Trash2, ShoppingCart, Truck, MapPin, Package, Calculator, Check } from 'lucide-react';
 import { ProductVariant, ProductVariantOption } from '@/types';
 
 interface CartItem {
@@ -303,8 +303,47 @@ export default function CartPage() {
     );
   }
 
+  // خطوات إتمام الطلب
+  const step1Complete = items.length > 0;
+  const step2Complete = !!(
+    shippingAddress.fullName?.trim() &&
+    shippingAddress.phone?.trim() &&
+    shippingAddress.street?.trim() &&
+    shippingAddress.governorate?.trim()
+  );
+
   return (
     <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 md:py-8">
+      {/* مؤشر الخطوات */}
+      <div className="mb-6 sm:mb-8">
+        <div className="flex items-center justify-between max-w-2xl mx-auto" role="list" aria-label="خطوات إتمام الطلب">
+          <div className="flex flex-col items-center flex-1">
+            <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${
+              step1Complete ? 'bg-[#4CAF50] text-white' : 'bg-[#FF9800] text-white'
+            }`}>
+              {step1Complete ? <Check className="w-5 h-5 sm:w-6 sm:h-6" /> : '1'}
+            </div>
+            <span className="mt-2 text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300">المنتجات</span>
+          </div>
+          <div className={`flex-1 h-0.5 sm:h-1 mx-1 sm:mx-2 ${step1Complete ? 'bg-[#4CAF50]' : 'bg-gray-200 dark:bg-slate-600'}`} aria-hidden />
+          <div className="flex flex-col items-center flex-1">
+            <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${
+              step2Complete ? 'bg-[#4CAF50] text-white' : step1Complete ? 'bg-[#FF9800] text-white' : 'bg-gray-200 dark:bg-slate-600 text-gray-500 dark:text-slate-400'
+            }`}>
+              {step2Complete ? <Check className="w-5 h-5 sm:w-6 sm:h-6" /> : '2'}
+            </div>
+            <span className="mt-2 text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300">العناوين</span>
+          </div>
+          <div className={`flex-1 h-0.5 sm:h-1 mx-1 sm:mx-2 ${step2Complete ? 'bg-[#4CAF50]' : 'bg-gray-200 dark:bg-slate-600'}`} aria-hidden />
+          <div className="flex flex-col items-center flex-1">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-sm font-bold bg-gray-200 dark:bg-slate-600 text-gray-500 dark:text-slate-400">
+              3
+            </div>
+            <span className="mt-2 text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300">التأكيد</span>
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
         {/* Cart Items */}
         <div className="lg:col-span-2 space-y-4 sm:space-y-6">
@@ -551,8 +590,8 @@ export default function CartPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
-                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-2.5 sm:p-3">
-                  <p className="text-xs sm:text-sm text-blue-800 dark:text-blue-200">
+                <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-2.5 sm:p-3">
+                  <p className="text-xs sm:text-sm text-slate-800 dark:text-slate-200">
                     {(shippingAddress.deliveryCost && shippingAddress.deliveryCost > 0)
                       ? `ⓘ تكلفة الشحن: ${shippingAddress.deliveryCost}₪`
                       : 'ⓘ يرجى اختيار المحافظة والقرية لحساب تكلفة الشحن'

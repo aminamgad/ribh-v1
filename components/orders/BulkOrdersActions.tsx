@@ -57,7 +57,7 @@ function OrderVillageDropdownList({
             key={village.villageId}
             onClick={() => onSelectVillage(village)}
             className={`px-4 py-3 min-h-[44px] cursor-pointer text-sm transition-colors flex flex-col justify-center ${
-              isSelected ? 'bg-[#FF9800] text-white hover:bg-[#F57C00]' : isCurrentVillage ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300' : 'text-gray-900 dark:text-slate-100 hover:bg-gray-100 dark:hover:bg-slate-600'
+              isSelected ? 'bg-[#FF9800] text-white hover:bg-[#F57C00]' : isCurrentVillage ? 'bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-300' : 'text-gray-900 dark:text-slate-100 hover:bg-gray-100 dark:hover:bg-slate-600'
             }`}
           >
             <div className="font-medium">{village.villageName}</div>
@@ -971,7 +971,7 @@ export default function BulkOrdersActions({
                 <button
                   onClick={() => handleBulkAction('update-shipping')}
                   disabled={processing || isLoading}
-                  className="btn-secondary text-sm px-3 py-1.5 flex items-center border-blue-500 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                  className="btn-secondary text-sm px-3 py-1.5 flex items-center border-slate-400 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"
                 >
                   <Truck className="w-4 h-4 ml-1" />
                   تحديث الشحن ({selectedCount})
@@ -1373,12 +1373,12 @@ export default function BulkOrdersActions({
                                           )}
                                           
                                           {order.shippingAddress?.villageId && (
-                                            <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                                            <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
                                               ℹ️ القرية الحالية محددة من قبل المسوق. يمكنك تغييرها إذا لزم الأمر.
                                             </p>
                                           )}
                                           {orderVillageSearch[order._id] && (
-                                            <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                                            <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
                                               🔍 عرض {(() => {
                                                 const searchQuery = orderVillageSearch[order._id] || '';
                                                 const orderFiltered = searchQuery.trim() 

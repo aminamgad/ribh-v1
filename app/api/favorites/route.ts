@@ -29,7 +29,7 @@ async function getFavorites(req: NextRequest, user: any) {
         description: fav.productId.description,
         images: fav.productId.images,
         marketerPrice: fav.productId.marketerPrice,
-        wholesalePrice: fav.productId.wholesalePrice,
+        wholesalerPrice: fav.productId.wholesalerPrice,
         stockQuantity: fav.productId.stockQuantity,
         categoryId: fav.productId.categoryId,
         supplierId: fav.productId.supplierId,

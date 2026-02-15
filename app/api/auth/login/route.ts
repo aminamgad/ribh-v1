@@ -10,6 +10,7 @@ import { settingsManager } from '@/lib/settings-manager';
 const loginSchema = z.object({
   email: z.string().email('البريد الإلكتروني غير صحيح'),
   password: z.string().min(1, 'كلمة المرور مطلوبة'),
+  rememberMe: z.boolean().optional().default(true),
 });
 
 async function loginHandler(req: NextRequest) {
@@ -157,11 +158,12 @@ async function loginHandler(req: NextRequest) {
       },
     });
 
+    const rememberMe = validatedData.rememberMe !== false;
     response.cookies.set('ribh-token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60, // 7 days
+      maxAge: rememberMe ? 30 * 24 * 60 * 60 : 24 * 60 * 60, // 30 days أو 24 ساعة
       path: '/'
     });
 

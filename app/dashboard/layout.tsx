@@ -12,6 +12,7 @@ import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import BottomNavBar from '@/components/dashboard/BottomNavBar';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import ThemeToggle from '@/components/ui/ThemeToggle';
+import Breadcrumbs from '@/components/ui/Breadcrumbs';
 import { Menu, X, RotateCw, Bell, ShoppingCart, MessageSquare, User, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -33,6 +34,39 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       router.push('/auth/login');
     }
   }, [user, loading, router]);
+
+  // عناوين الصفحات الديناميكية
+  useEffect(() => {
+    const routeTitles: { pattern: RegExp | string; title: string }[] = [
+      { pattern: /^\/dashboard\/admin\/settings/, title: 'إعدادات النظام | ربح' },
+      { pattern: /^\/dashboard\/admin\/messages/, title: 'رسائل الإدارة | ربح' },
+      { pattern: /^\/dashboard\/admin\/withdrawals/, title: 'سحوبات الإدارة | ربح' },
+      { pattern: /^\/dashboard\/admin\/categories/, title: 'الفئات | ربح' },
+      { pattern: /^\/dashboard\/admin\/earnings/, title: 'الأرباح | ربح' },
+      { pattern: /^\/dashboard\/admin\/product-stats/, title: 'إحصائيات المنتج | ربح' },
+      { pattern: /^\/dashboard\/admin\/users/, title: 'مستخدمي الإدارة | ربح' },
+      { pattern: '/dashboard/products', title: 'المنتجات | ربح' },
+      { pattern: '/dashboard/orders', title: 'الطلبات | ربح' },
+      { pattern: '/dashboard/cart', title: 'السلة | ربح' },
+      { pattern: '/dashboard/favorites', title: 'المفضلة | ربح' },
+      { pattern: '/dashboard/users', title: 'المستخدمين | ربح' },
+      { pattern: '/dashboard/analytics', title: 'التحليلات | ربح' },
+      { pattern: '/dashboard/integrations', title: 'التكاملات | ربح' },
+      { pattern: '/dashboard/messages', title: 'الرسائل | ربح' },
+      { pattern: '/dashboard/chat', title: 'المحادثة | ربح' },
+      { pattern: '/dashboard/notifications', title: 'الإشعارات | ربح' },
+      { pattern: '/dashboard/wallet', title: 'المحفظة | ربح' },
+      { pattern: '/dashboard/withdrawals', title: 'السحوبات | ربح' },
+      { pattern: '/dashboard/settings', title: 'الإعدادات | ربح' },
+      { pattern: '/dashboard/fulfillment', title: 'التنفيذ | ربح' },
+      { pattern: '/dashboard', title: 'لوحة التحكم | ربح' },
+    ];
+    const p = pathname.replace(/\/$/, '') || '/dashboard';
+    const match = routeTitles.find(({ pattern }) =>
+      typeof pattern === 'string' ? p.startsWith(pattern) : pattern.test(p)
+    );
+    document.title = match?.title ?? 'ربح';
+  }, [pathname]);
 
   // Close sidebar when clicking outside on mobile
   useEffect(() => {
@@ -611,6 +645,9 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         {/* Main Content */}
         <main className="flex-1 min-w-0 pb-16 lg:pb-0">
           <div className="mobile-container">
+            <div className="pt-4 pb-2">
+              <Breadcrumbs />
+            </div>
             <div className="mobile-section">
               <ErrorBoundary>
                 {children}

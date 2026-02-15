@@ -145,15 +145,20 @@ export default function OrderImportModal({ isOpen, onClose, onImportSuccess }: O
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm">
+      <div 
+        className="modal-container w-full max-w-2xl"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="order-import-title"
+      >
         <div className="p-6">
           <div className="flex items-center mb-6">
             <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mr-3">
               <Upload className="w-5 h-5 text-green-600 dark:text-green-400" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
+              <h3 id="order-import-title" className="text-lg font-semibold text-gray-900 dark:text-slate-100">
                 استيراد الطلبات
               </h3>
               <p className="text-sm text-gray-600 dark:text-slate-400">
@@ -163,16 +168,16 @@ export default function OrderImportModal({ isOpen, onClose, onImportSuccess }: O
           </div>
 
           {/* Template Download */}
-          <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+          <div className="mb-6 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg">
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
               <div className="flex-1">
-                <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-1">
+                <h4 className="font-medium text-slate-900 dark:text-slate-100 mb-1">
                   قالب الاستيراد
                 </h4>
-                <p className="text-sm text-blue-700 dark:text-blue-300">
+                <p className="text-sm text-slate-700 dark:text-slate-300">
                   قم بتحميل القالب وملئه بالبيانات المطلوبة. تأكد من أن أسماء المنتجات موجودة في النظام.
                 </p>
-                <div className="mt-2 text-xs text-blue-600 dark:text-blue-400">
+                <div className="mt-2 text-xs text-slate-600 dark:text-slate-400">
                   <strong>الأعمدة المطلوبة:</strong> اسم العميل، بريد العميل، هاتف العميل، رمز المنتج، اسم المنتج، الكمية، العنوان، المدينة، المحافظة، الرمز البريدي، طريقة الدفع، ملاحظات
                 </div>
               </div>

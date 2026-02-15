@@ -6,6 +6,7 @@ import { useAuth } from '@/components/providers/AuthProvider';
 import {
   Home,
   ShoppingBag,
+  ShoppingCart,
   Package,
   Users,
   BarChart3,
@@ -92,6 +93,11 @@ export default function BottomNavBar() {
             icon: ShoppingBag,
           },
           {
+            href: '/dashboard/cart',
+            label: 'السلة',
+            icon: ShoppingCart,
+          },
+          {
             href: '/dashboard/messages',
             label: 'الرسائل',
             icon: MessageSquare,
@@ -118,7 +124,7 @@ export default function BottomNavBar() {
           {
             href: '/dashboard/cart',
             label: 'السلة',
-            icon: ShoppingBag,
+            icon: ShoppingCart,
           },
           {
             href: '/dashboard/settings',
