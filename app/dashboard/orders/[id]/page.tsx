@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
-import { ArrowLeft, Phone, Mail, MapPin, Package, Truck, CheckCircle, Clock, AlertCircle, MessageSquare, ExternalLink, MessageCircle, Edit, CheckCircle2, DollarSign, User, Calendar, Printer, X, Save, Copy, Check, Search, Trash2 } from 'lucide-react';
+import { useCart } from '@/components/providers/CartProvider';
+import { ArrowLeft, Phone, Mail, MapPin, Package, Truck, CheckCircle, Clock, AlertCircle, MessageSquare, ExternalLink, MessageCircle, Edit, CheckCircle2, DollarSign, User, Calendar, Printer, X, Save, Copy, Check, Search, Trash2, ShoppingCart, Plus } from 'lucide-react';
 import MediaThumbnail from '@/components/ui/MediaThumbnail';
 import OrderInvoice from '@/components/ui/OrderInvoice';
 import CommentsSection from '@/components/ui/CommentsSection';
@@ -209,6 +210,12 @@ export default function OrderDetailPage() {
   const villagesLoadedRef = useRef(false);
   const villageInputContainerRef = useRef<HTMLDivElement>(null);
   const [villageDropdownPos, setVillageDropdownPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [recommendedProducts, setRecommendedProducts] = useState<any[]>([]);
+  const [loadingRecommended, setLoadingRecommended] = useState(false);
+
+  const searchParams = useSearchParams();
+  const showRecommended = searchParams.get('showRecommended') === '1';
+  const { addToCart } = useCart();
 
   // Check for print parameter in URL
   useEffect(() => {
@@ -577,6 +584,26 @@ export default function OrderDetailPage() {
       fetchOrder(params.id as string);
     }
   }, [params.id, fetchOrder]);
+
+  // Fetch recommended products when showRecommended=1 (after checkout success)
+  useEffect(() => {
+    if (!showRecommended || !order?._id || !user) return;
+    const fetchRecommended = async () => {
+      setLoadingRecommended(true);
+      try {
+        const res = await fetch(`/api/orders/${order._id}/recommended-products`);
+        const data = await res.json();
+        if (data.success && Array.isArray(data.products)) {
+          setRecommendedProducts(data.products);
+        }
+      } catch {
+        setRecommendedProducts([]);
+      } finally {
+        setLoadingRecommended(false);
+      }
+    };
+    fetchRecommended();
+  }, [showRecommended, order?._id, user]);
 
   useEffect(() => {
     if (showShippingModal && user?.role === 'admin') {
@@ -2961,6 +2988,85 @@ export default function OrderDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Recommended Products - Cross-sell بعد إتمام الطلب (Easy Orders Sync) */}
+      {showRecommended && (user?.role === 'marketer' || user?.role === 'wholesaler') && (
+        <div className="card mt-6 print:hidden">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <Package className="w-5 h-5 text-[#FF9800]" />
+              منتجات مقترحة - أكمل طلبك
+            </h3>
+            <Link
+              href="/dashboard/cart"
+              className="btn-primary text-sm py-2 px-4 flex items-center gap-1"
+            >
+              <ShoppingCart className="w-4 h-4" />
+              عرض السلة
+            </Link>
+          </div>
+          {loadingRecommended ? (
+            <div className="flex justify-center py-12">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#FF9800]"></div>
+            </div>
+          ) : recommendedProducts.length === 0 ? (
+            <p className="text-center py-8 text-gray-500 dark:text-gray-400">
+              لا توجد منتجات مقترحة حالياً
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {recommendedProducts.map((product: any) => (
+                <div
+                  key={product._id}
+                  className="group rounded-xl border-2 border-gray-200 dark:border-slate-600 overflow-hidden bg-white dark:bg-slate-800 hover:border-[#FF9800]/50 transition-all"
+                >
+                  <Link href={`/dashboard/products/${product._id}`} className="block">
+                    <div className="aspect-square relative bg-gray-100 dark:bg-slate-700">
+                      <MediaThumbnail
+                        media={product.images || []}
+                        alt={product.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                        width={200}
+                        height={200}
+                      />
+                    </div>
+                    <div className="p-3">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white line-clamp-2 mb-1">
+                        {product.name}
+                      </p>
+                      <p className="text-[#FF9800] font-bold">
+                        {(product.marketerPrice || product.wholesalerPrice || 0)} ₪
+                      </p>
+                    </div>
+                  </Link>
+                  <div className="p-3 pt-0">
+                    {product.hasVariants ? (
+                      <Link
+                        href={`/dashboard/products/${product._id}`}
+                        className="block w-full btn-secondary text-sm py-2 flex items-center justify-center gap-1 text-center"
+                      >
+                        اختر المتغير
+                      </Link>
+                    ) : (
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          addToCart(product as any, 1);
+                          toast.success(`تم إضافة ${product.name} إلى السلة`);
+                        }}
+                        className="w-full btn-primary text-sm py-2 flex items-center justify-center gap-1"
+                      >
+                        <Plus className="w-4 h-4" />
+                        أضف للسلة
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Status Update Modal - Enhanced */}
       {showStatusModal && (

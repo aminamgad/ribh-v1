@@ -277,7 +277,8 @@ export default function CartPage() {
       if (data.success) {
         toast.success('تم إنشاء الطلب بنجاح');
         clearCart();
-        router.push('/dashboard/orders');
+        const orderId = data.order?._id;
+        router.push(orderId ? `/dashboard/orders/${orderId}?showRecommended=1` : '/dashboard/orders');
       } else {
         toast.error(data.message || 'حدث خطأ في إنشاء الطلب');
       }
