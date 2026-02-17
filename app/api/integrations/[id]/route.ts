@@ -3,7 +3,9 @@ import { z } from 'zod';
 import mongoose from 'mongoose';
 import { withAuth } from '@/lib/auth';
 import connectDB from '@/lib/database';
-import StoreIntegration, { IntegrationStatus } from '@/models/StoreIntegration';
+import StoreIntegration, { IntegrationStatus, IntegrationType } from '@/models/StoreIntegration';
+import EasyOrdersCallback from '@/models/EasyOrdersCallback';
+import Product from '@/models/Product';
 import { UserRole } from '@/types';
 import { logger } from '@/lib/logger';
 import { handleApiError } from '@/lib/error-handler';
@@ -263,6 +265,58 @@ export const DELETE = withAuth(async (req: NextRequest, user: any, ...args: unkn
         { error: 'غير مصرح لك بحذف هذا التكامل' },
         { status: 403 }
       );
+    }
+
+    // عند حذف تكامل Easy Orders: حذف البيانات المرتبطة (callbacks، تصديرات المنتجات) لمنع تكرار البيانات
+    if ((integration as any).type === IntegrationType.EASY_ORDERS) {
+      const storeId = (integration as any).storeId;
+      const userId = (integration as any).userId;
+      const integrationIdStr = params.id;
+
+      if (storeId) {
+        const deleted = await EasyOrdersCallback.deleteMany({
+          storeId,
+          ...(userId ? { userId } : {})
+        });
+        if (deleted.deletedCount > 0) {
+          logger.business('EasyOrders callbacks cleaned up on integration delete', {
+            integrationId: params.id,
+            storeId,
+            deletedCount: deleted.deletedCount
+          });
+        }
+      }
+
+      const products = await Product.find({
+        'metadata.easyOrdersExports.integrationId': integrationIdStr
+      });
+      for (const product of products) {
+        const meta = (product as any).metadata || {};
+        const exportsArray = Array.isArray(meta.easyOrdersExports) ? meta.easyOrdersExports : [];
+        const newExports = exportsArray.filter((e: any) => String(e?.integrationId) !== integrationIdStr);
+        if (newExports.length > 0) {
+          meta.easyOrdersExports = newExports;
+          const primary = newExports[0];
+          meta.easyOrdersProductId = primary.easyOrdersProductId;
+          meta.easyOrdersStoreId = primary.storeId;
+          meta.easyOrdersIntegrationId = primary.integrationId;
+          meta.easyOrdersSlug = primary.slug;
+        } else {
+          delete meta.easyOrdersProductId;
+          delete meta.easyOrdersStoreId;
+          delete meta.easyOrdersIntegrationId;
+          delete meta.easyOrdersSlug;
+          delete meta.easyOrdersExports;
+          if (Object.keys(meta).length === 0) (product as any).metadata = undefined;
+        }
+        await product.save();
+      }
+      if (products.length > 0) {
+        logger.business('Product EasyOrders exports cleaned up on integration delete', {
+          integrationId: params.id,
+          productsUpdated: products.length
+        });
+      }
     }
 
     await integration.deleteOne();

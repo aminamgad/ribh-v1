@@ -8,6 +8,48 @@ import { logger } from '@/lib/logger';
 import { handleApiError } from '@/lib/error-handler';
 import { settingsManager } from '@/lib/settings-manager';
 
+/** دمج بنود الطلب دون تكرار: إذا وُجد نفس المنتج والمتغير يُضاف للكمية بدلاً من إنشاء بند جديد */
+function mergeOrderItemsWithoutDuplicates(
+  existingItems: any[],
+  newItems: any[]
+): any[] {
+  const result = existingItems.map((i) => ({
+    ...i,
+    productId: i.productId?._id ?? i.productId,
+    totalPrice: (i.unitPrice || 0) * (i.quantity || 1)
+  }));
+
+  for (const newItem of newItems) {
+    const productId = (newItem.productId?._id ?? newItem.productId)?.toString?.() ?? '';
+    const variantKey = newItem.variantOption?.variantId
+      ? `${newItem.variantOption.variantId}:${newItem.variantOption.value || ''}`
+      : '';
+
+    const existing = result.find((r) => {
+      const rPid = (r.productId?._id ?? r.productId)?.toString?.() ?? '';
+      const rVariant = r.variantOption?.variantId
+        ? `${r.variantOption.variantId}:${r.variantOption.value || ''}`
+        : '';
+      return rPid === productId && rVariant === variantKey;
+    });
+
+    if (existing) {
+      const newQty = (existing.quantity || 0) + (newItem.quantity || 0);
+      const newTotal = (existing.totalPrice || 0) + (newItem.totalPrice || 0);
+      existing.quantity = newQty;
+      existing.totalPrice = newTotal;
+      existing.unitPrice = newQty > 0 ? newTotal / newQty : existing.unitPrice;
+    } else {
+      result.push({
+        ...newItem,
+        productId: newItem.productId?._id ?? newItem.productId
+      });
+    }
+  }
+
+  return result;
+}
+
 // Handle CORS preflight requests
 export const OPTIONS = async (req: NextRequest) => {
   return new NextResponse(null, {
@@ -534,12 +576,19 @@ export const POST = async (req: NextRequest) => {
       if (!existingOrder) throw new Error('Order not found for merge');
 
       const existingItems = (existingOrder as any).items || [];
-      const mergedItems = [...existingItems, ...orderItems];
-      const mergedSubtotal = (existingOrder as any).subtotal + orderSubtotal;
+      const mergedItems = mergeOrderItemsWithoutDuplicates(existingItems, orderItems);
+      const mergedSubtotal = mergedItems.reduce((sum: number, i: any) => sum + (i.totalPrice || 0), 0);
       const existingShipping = (existingOrder as any).shippingCost || 0;
       const mergedTotal = mergedSubtotal + existingShipping;
-      const mergedCommission = ((existingOrder as any).commission || 0) + commission;
-      const mergedMarketerProfit = ((existingOrder as any).marketerProfit || 0) + marketerProfit;
+
+      let mergedCommission = 0;
+      let mergedMarketerProfit = 0;
+      for (const item of mergedItems) {
+        const product = await Product.findById(item.productId).catch(() => null);
+        const supplierPrice = product?.supplierPrice ?? (item.unitPrice * 0.7);
+        mergedCommission += await settingsManager.calculateAdminProfitForProduct(supplierPrice, item.quantity);
+        mergedMarketerProfit += Math.max(0, (item.unitPrice - supplierPrice) * item.quantity);
+      }
 
       const mergedIds = Array.isArray((existingOrder as any).metadata?.mergedEasyOrdersOrderIds)
         ? [...(existingOrder as any).metadata.mergedEasyOrdersOrderIds, easyOrdersOrderId]
