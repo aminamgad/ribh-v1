@@ -475,6 +475,37 @@ export const POST = async (req: NextRequest) => {
 
     const orderStatus = statusMap[easyOrdersStatus] || 'pending';
 
+    // طلب cross-sell: إذا كانت بيانات العميل ناقصة، استخدم بيانات آخر طلب من نفس المتجر
+    let finalFullName = fullName?.trim?.() || '';
+    let finalPhone = phone?.trim?.() || '';
+    let finalAddress = address?.trim?.() || '';
+    let finalGovernment = government?.trim?.() || 'المملكة العربية السعودية';
+
+    const needsFallback = !finalFullName || !finalPhone;
+    if (needsFallback) {
+      const recentOrder = await Order.findOne({
+        'metadata.easyOrdersStoreId': storeId,
+        'metadata.source': 'easy_orders',
+        customerId: marketerId
+      })
+        .sort({ createdAt: -1 })
+        .lean() as any;
+
+      if (recentOrder?.shippingAddress) {
+        const sa = recentOrder.shippingAddress;
+        if (!finalFullName && sa?.fullName) finalFullName = String(sa.fullName);
+        if (!finalPhone && sa?.phone) finalPhone = String(sa.phone);
+        if (!finalAddress && sa?.street) finalAddress = String(sa.street);
+        if (!finalGovernment && sa?.governorate) finalGovernment = String(sa.governorate);
+        logger.info('EasyOrders webhook: Using customer data from previous order (cross-sell fallback)', {
+          requestId,
+          easyOrdersOrderId,
+          previousOrderId: recentOrder._id,
+          previousOrderNumber: recentOrder.orderNumber
+        });
+      }
+    }
+
     // Create order
     const order = await Order.create({
       customerId: marketerId, // The marketer is the customer in this case
@@ -494,12 +525,12 @@ export const POST = async (req: NextRequest) => {
       paymentMethod: paymentMethod === 'cod' ? 'cod' : 'cod',
       paymentStatus: easyOrdersStatus === 'paid' ? 'paid' : 'pending',
       shippingAddress: {
-        fullName: fullName,
-        phone: phone,
-        street: address,
-        governorate: government,
-        city: government, // Use government as city
-        villageName: government,
+        fullName: finalFullName || fullName || 'عميل Easy Orders',
+        phone: finalPhone || phone || '',
+        street: finalAddress || address || '',
+        governorate: finalGovernment || government || 'المملكة العربية السعودية',
+        city: finalGovernment || government || 'المملكة العربية السعودية',
+        villageName: finalGovernment || government || 'المملكة العربية السعودية',
         deliveryCost: finalShippingCost
       },
       // Store EasyOrders metadata
