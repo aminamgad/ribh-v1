@@ -154,8 +154,8 @@ export async function convertProductToEasyOrders(
     is_quantity_hidden: false,
     is_header_hidden: false,
     is_free_shipping: false,
-    taager_code: product.sku || `RIBH-${product._id}`,
-    drop_shipping_provider: 'ribh'
+    taager_code: product.sku || `RIBH-${product._id}`
+    // لا نرسل drop_shipping_provider: يُسبّب "record not found" إن لم يكن مسجّلاً كمزود دروب شيبنج في Easy Orders
   };
 
   // Handle variations and variants if product has them

@@ -39,12 +39,9 @@ export const GET = withAuth(async (req: NextRequest, user: any) => {
     // EasyOrders will send POST to this URL, and we need userId to complete integration
     const callbackUrl = `${baseUrl}/api/integrations/easy-orders/callback?user_id=${user._id}`;
     
-    // Build webhook URL for orders
-    const ordersWebhookUrl = `${baseUrl}/api/integrations/easy-orders/webhook`;
-    
-    // Order status webhook: we receive updates from EasyOrders to update our order only.
-    // We never PATCH order status on Easy Orders from Ribh.
-    const orderStatusWebhookUrl = `${baseUrl}/api/integrations/easy-orders/webhook`;
+    // Webhook واحد فقط: يستقبل طلبات جديدة + تحديثات الحالة (event_type: order-status-update)
+    // عدم تمرير order_status_webhook يمنع إنشاء webhook مكرر في Easy Orders
+    const webhookUrl = `${baseUrl}/api/integrations/easy-orders/webhook`;
 
     // Build redirect URL after authorization (same as callback but GET request)
     const redirectUrl = `${baseUrl}/api/integrations/easy-orders/callback?user_id=${user._id}`;
@@ -63,29 +60,27 @@ export const GET = withAuth(async (req: NextRequest, user: any) => {
     const appDescription = encodeURIComponent('منصة ربح للتجارة الإلكترونية - ربط متجرك مع EasyOrders');
     const appIcon = `${baseUrl}/logo.png`; // You can customize this
 
-    // Build the authorized app link
+    // Build the authorized app link (orders_webhook فقط — يمنع ظهور 2 webhooks)
     const authorizedAppLink = `https://app.easy-orders.net/#/install-app?` +
       `app_name=${appName}&` +
       `app_description=${appDescription}&` +
       `permissions=${encodeURIComponent(permissions)}&` +
       `app_icon=${encodeURIComponent(appIcon)}&` +
       `callback_url=${encodeURIComponent(callbackUrl)}&` +
-      `orders_webhook=${encodeURIComponent(ordersWebhookUrl)}&` +
-      `order_status_webhook=${encodeURIComponent(orderStatusWebhookUrl)}&` +
+      `orders_webhook=${encodeURIComponent(webhookUrl)}&` +
       `redirect_url=${encodeURIComponent(redirectUrl)}`;
 
     logger.business('Authorized App Link generated', {
       userId: user._id,
       callbackUrl,
-      ordersWebhookUrl
+      webhookUrl
     });
 
     return NextResponse.json({
       success: true,
       authorizedAppLink,
       callbackUrl,
-      ordersWebhookUrl,
-      orderStatusWebhookUrl,
+      ordersWebhookUrl: webhookUrl,
       redirectUrl
     });
   } catch (error) {
