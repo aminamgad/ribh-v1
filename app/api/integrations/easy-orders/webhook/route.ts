@@ -506,6 +506,82 @@ export const POST = async (req: NextRequest) => {
       }
     }
 
+    // دمج طلب cross-sell في الطلب الأول: منع ظهور طلبين منفصلين لنفس العميل
+    const mergeWindowMinutes = 15;
+    const mergeCutoff = new Date(Date.now() - mergeWindowMinutes * 60 * 1000);
+    const customerPhone = (finalPhone || phone?.trim?.() || '').replace(/\s+/g, '');
+
+    const mergeQuery: Record<string, unknown> = {
+      'metadata.easyOrdersStoreId': storeId,
+      'metadata.source': 'easy_orders',
+      customerId: marketerId,
+      createdAt: { $gte: mergeCutoff }
+    };
+    const phoneDigits = customerPhone?.replace(/\D/g, '').slice(-9) || '';
+    if (phoneDigits && phoneDigits.length >= 5) {
+      (mergeQuery as any)['shippingAddress.phone'] = { $regex: phoneDigits };
+    }
+
+    const existingOrderToMerge = phoneDigits.length >= 5
+      ? (await Order.findOne(mergeQuery).sort({ createdAt: -1 }).limit(1).lean()) as any
+      : null;
+
+    const shouldMerge = existingOrderToMerge &&
+      !existingOrderToMerge?.metadata?.mergedEasyOrdersOrderIds?.includes(easyOrdersOrderId);
+
+    if (shouldMerge && existingOrderToMerge) {
+      const existingOrder = await Order.findById(existingOrderToMerge._id);
+      if (!existingOrder) throw new Error('Order not found for merge');
+
+      const existingItems = (existingOrder as any).items || [];
+      const mergedItems = [...existingItems, ...orderItems];
+      const mergedSubtotal = (existingOrder as any).subtotal + orderSubtotal;
+      const existingShipping = (existingOrder as any).shippingCost || 0;
+      const mergedTotal = mergedSubtotal + existingShipping;
+      const mergedCommission = ((existingOrder as any).commission || 0) + commission;
+      const mergedMarketerProfit = ((existingOrder as any).marketerProfit || 0) + marketerProfit;
+
+      const mergedIds = Array.isArray((existingOrder as any).metadata?.mergedEasyOrdersOrderIds)
+        ? [...(existingOrder as any).metadata.mergedEasyOrdersOrderIds, easyOrdersOrderId]
+        : [easyOrdersOrderId];
+
+      (existingOrder as any).items = mergedItems;
+      (existingOrder as any).subtotal = mergedSubtotal;
+      (existingOrder as any).total = mergedTotal;
+      (existingOrder as any).commission = mergedCommission;
+      (existingOrder as any).marketerProfit = mergedMarketerProfit;
+      (existingOrder as any).metadata = {
+        ...(existingOrder as any).metadata,
+        mergedEasyOrdersOrderIds: mergedIds
+      };
+      (existingOrder as any).updatedAt = new Date();
+      await existingOrder.save();
+
+      logger.business('EasyOrders cross-sell order merged into existing order', {
+        requestId,
+        existingOrderId: existingOrder._id,
+        orderNumber: (existingOrder as any).orderNumber,
+        easyOrdersCrossSellOrderId: easyOrdersOrderId,
+        mergedItemsCount: orderItems.length,
+        newTotal: mergedTotal
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: 'Cross-sell order merged successfully',
+        orderId: existingOrder._id,
+        orderNumber: (existingOrder as any).orderNumber,
+        merged: true
+      }, {
+        status: 200,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, secret',
+        }
+      });
+    }
+
     // Create order
     const order = await Order.create({
       customerId: marketerId, // The marketer is the customer in this case

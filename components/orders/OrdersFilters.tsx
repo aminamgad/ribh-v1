@@ -84,7 +84,8 @@ export default function OrdersFilters({ onFiltersChange }: OrdersFiltersProps) {
     const productFromUrl = params.get('productSearch') || '';
     const startDateFromUrl = params.get('startDate') || '';
     const endDateFromUrl = params.get('endDate') || '';
-    
+    const sourceFromUrl = params.get('source') || 'all';
+
     // Only update if different to avoid loops
     // Parse status as array (comma-separated)
     const statusArray = statusFromUrl && statusFromUrl !== 'all' 
@@ -107,6 +108,9 @@ export default function OrdersFilters({ onFiltersChange }: OrdersFiltersProps) {
     }
     if (endDateFromUrl !== endDate) {
       setEndDate(endDateFromUrl);
+    }
+    if (sourceFromUrl !== sourceFilter) {
+      setSourceFilter(sourceFromUrl);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount - URL changes will be handled by the filters themselves
@@ -489,6 +493,7 @@ export default function OrdersFilters({ onFiltersChange }: OrdersFiltersProps) {
             </label>
             <select
               value={sourceFilter}
+              title={sourceFilter === 'ribh' ? 'لرؤية طلبات Easy Orders اختر "جميع المصادر"' : undefined}
               onChange={(e) => {
                 const newValue = e.target.value;
                 setSourceFilter(newValue);

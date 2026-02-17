@@ -6,6 +6,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ShoppingBag, Shield, ArrowLeft, CheckCircle, DollarSign, Truck, Box, X, ArrowUp, Menu, Megaphone, Store, Users, Package, MapPin, UserPlus, ShoppingCart, TrendingUp, Shirt, Smartphone, Sparkles, Baby, Headphones, Monitor, Footprints, PawPrint } from 'lucide-react';
+import { HeroAnimation } from '@/components/landing/HeroAnimation';
 
 const TOPBAR_STORAGE_KEY = 'ribh-landing-topbar-dismissed';
 
@@ -199,17 +200,17 @@ export default function HomePage() {
               <div className="flex-shrink-0 flex items-center">
                 <Image src="/logo.png" alt="شعار منصة ربح للتجارة الإلكترونية" width={48} height={48} sizes="40px" className="w-10 h-10 sm:w-12 sm:h-12 mr-3" priority />
                 <div>
-                  <h1 className={`text-2xl sm:text-3xl font-bold transition-colors duration-300 ${headerScrolled ? 'text-[#FF9800] dark:text-[#FF9800]' : 'text-white dark:text-white'}`}>
+                  <h1 className={`text-2xl sm:text-3xl font-bold transition-colors duration-300 ${headerScrolled ? 'text-[#FF9800] dark:text-[#FF9800]' : 'text-slate-800 dark:text-white'}`}>
                     ربح
                   </h1>
-                  <p className={`text-xs sm:text-sm transition-colors duration-300 ${headerScrolled ? 'text-stone-600 dark:text-gray-300' : 'text-white/90 dark:text-gray-200'}`}>
+                  <p className={`text-xs sm:text-sm transition-colors duration-300 ${headerScrolled ? 'text-stone-600 dark:text-gray-300' : 'text-slate-700 dark:text-gray-200'}`}>
                     منصة التجارة الإلكترونية الفلسطينية
                   </p>
                 </div>
               </div>
             </div>
             <nav className="hidden md:flex space-x-8 space-x-reverse">
-              <Link href="/auth/login" onClick={() => trackLandingCTA('click', 'header_login')} className={`transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF9800] focus-visible:ring-offset-2 rounded px-1 py-0.5 ${headerScrolled ? 'text-gray-700 dark:text-gray-300 hover:text-[#FF9800]' : 'text-white/95 hover:text-white'}`}>
+              <Link href="/auth/login" onClick={() => trackLandingCTA('click', 'header_login')} className={`transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF9800] focus-visible:ring-offset-2 rounded px-1 py-0.5 ${headerScrolled ? 'text-gray-700 dark:text-gray-300 hover:text-[#FF9800]' : 'text-slate-800 dark:text-white/95 hover:text-[#FF9800] dark:hover:text-white'}`}>
                 تسجيل الدخول
               </Link>
               <Link href="/auth/register" onClick={() => trackLandingCTA('click', 'header_register')} className="bg-[#FF9800] dark:bg-[#FF9800] text-white px-6 py-2 rounded-lg hover:bg-[#F57C00] dark:hover:bg-[#F57C00] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF9800] focus-visible:ring-offset-2 focus-visible:ring-white">
@@ -221,7 +222,7 @@ export default function HomePage() {
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen((v) => !v)}
-                className={`p-2 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF9800] min-h-[44px] min-w-[44px] flex items-center justify-center ${headerScrolled ? 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' : 'text-white/95 hover:bg-white/10'}`}
+                className={`p-2 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF9800] min-h-[44px] min-w-[44px] flex items-center justify-center ${headerScrolled ? 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' : 'text-slate-800 dark:text-white/95 hover:bg-slate-200/60 dark:hover:bg-white/10'}`}
                 aria-label={mobileMenuOpen ? 'إغلاق القائمة' : 'فتح القائمة'}
                 aria-expanded={mobileMenuOpen}
               >
@@ -254,19 +255,19 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* Hero - تدرج هوية ربح: برتقالي/سلايت/كريمي */}
-      <section id="main" className="relative py-12 sm:py-16 lg:py-20 overflow-hidden bg-[linear-gradient(135deg,_#1e293b_0%,_#334155_30%,_#c2410c_70%,_#ea580c_85%,_#fef3c7_100%)] dark:bg-[linear-gradient(135deg,_#0f172a_0%,_#1e293b_40%,_#c2410c_75%,_#ea580c_90%,_#1e293b_100%)]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-2 gap-8 lg:gap-16 items-center">
-            {/* جانب المحتوى - خلفية داكنة */}
-            <div className="text-right text-white order-2 lg:order-1">
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold text-white mb-4 sm:mb-6 leading-tight">
+      {/* Hero - تدرج هوية ربح: برتقالي/سلايت/كريمي — محسّن للوضع الفاتح والداكن */}
+      <section id="main" className="relative py-8 sm:py-12 lg:py-20 overflow-hidden bg-[linear-gradient(135deg,_#f8fafc_0%,_#fef3c7_30%,_#fed7aa_60%,_#fdba74_85%,_#fb923c_100%)] dark:bg-[linear-gradient(135deg,_#0f172a_0%,_#1e293b_40%,_#c2410c_75%,_#ea580c_90%,_#1e293b_100%)]">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="grid lg:grid-cols-[1fr_1.3fr] gap-6 sm:gap-8 lg:gap-12 items-center">
+            {/* جانب المحتوى */}
+            <div className="text-right order-2 lg:order-1">
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold text-slate-800 dark:text-white mb-4 sm:mb-6 leading-tight">
                 {LANDING_COPY.heroTitle}
               </h1>
-              <p className="text-base sm:text-lg lg:text-xl text-gray-100 dark:text-gray-200 mb-4 leading-relaxed">
+              <p className="text-base sm:text-lg lg:text-xl text-slate-700 dark:text-gray-200 mb-4 leading-relaxed">
                 {LANDING_COPY.heroSubline}
               </p>
-              <p className="text-sm sm:text-base text-gray-200 dark:text-gray-300 mb-6 sm:mb-8 hidden sm:block">
+              <p className="text-sm sm:text-base text-slate-600 dark:text-gray-300 mb-6 sm:mb-8 hidden sm:block">
                 متاح في جميع محافظات فلسطين. سجّل واختر من آلاف المنتجات وابدأ البيع خلال دقائق.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
@@ -277,52 +278,31 @@ export default function HomePage() {
                   {LANDING_COPY.ctaSecondary}
                 </Link>
               </div>
-              <p className="mt-4 text-sm text-amber-100/90 dark:text-gray-400 leading-relaxed">
-                <Link href="#how-it-works" onClick={() => trackLandingCTA('click', 'hero_how_it_works')} className="underline hover:text-amber-50 transition-colors">شاهد كيف تعمل المنصة</Link>
+              <p className="mt-4 text-sm text-amber-800/90 dark:text-gray-400 leading-relaxed">
+                <Link href="#how-it-works" onClick={() => trackLandingCTA('click', 'hero_how_it_works')} className="underline hover:text-amber-600 dark:hover:text-amber-50 transition-colors">شاهد كيف تعمل المنصة</Link>
               </p>
               {/* Palestine Focus - مؤشرات مرئية في الوضعين */}
               <div className="mt-6 sm:mt-8">
-                <p className="text-gray-100 dark:text-gray-300 mb-3 text-sm sm:text-base">متاح في جميع محافظات فلسطين:</p>
+                <p className="text-slate-700 dark:text-gray-300 mb-3 text-sm sm:text-base">متاح في جميع محافظات فلسطين:</p>
                 <div className="flex flex-wrap gap-4">
                   <div className="flex items-center space-x-2 space-x-reverse">
                     <div className="w-4 h-3 sm:w-6 sm:h-4 bg-[#FF9800] rounded shadow-sm" aria-hidden></div>
-                    <span className="text-xs sm:text-sm text-white dark:text-gray-200">القدس</span>
+                    <span className="text-xs sm:text-sm text-slate-800 dark:text-gray-200">القدس</span>
                   </div>
                   <div className="flex items-center space-x-2 space-x-reverse">
                     <div className="w-4 h-3 sm:w-6 sm:h-4 bg-[#4CAF50] rounded shadow-sm" aria-hidden></div>
-                    <span className="text-xs sm:text-sm text-white dark:text-gray-200">رام الله</span>
+                    <span className="text-xs sm:text-sm text-slate-800 dark:text-gray-200">رام الله</span>
                   </div>
                   <div className="flex items-center space-x-2 space-x-reverse">
-                    <div className="w-4 h-3 sm:w-6 sm:h-4 bg-amber-400/90 dark:bg-amber-400 rounded shadow-sm" aria-hidden></div>
-                    <span className="text-xs sm:text-sm text-white dark:text-gray-200">غزة</span>
+                    <div className="w-4 h-3 sm:w-6 sm:h-4 bg-amber-500 dark:bg-amber-400 rounded shadow-sm" aria-hidden></div>
+                    <span className="text-xs sm:text-sm text-slate-800 dark:text-gray-200">غزة</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* جانب البطاقة - عمق وظل احترافي */}
-            <div className="relative order-1 lg:order-2 landing-hero-card-wrapper">
-              <div className="relative z-10">
-                <div className="w-64 h-80 sm:w-80 sm:h-96 bg-gradient-to-br from-amber-400 to-[#F57C00] rounded-2xl sm:rounded-3xl shadow-2xl shadow-black/20 dark:from-[#FF9800] dark:to-[#EA580C] dark:shadow-[#FF9800]/25 transform rotate-3 transition-transform duration-500 hover:rotate-6" aria-hidden></div>
-                <div className="absolute inset-0 bg-gradient-to-br from-amber-400 to-[#F57C00] rounded-2xl sm:rounded-3xl shadow-2xl shadow-black/15 dark:from-[#FF9800] dark:to-[#EA580C] transform -rotate-3 transition-transform duration-500 hover:-rotate-6" aria-hidden></div>
-                <div className="absolute inset-0 bg-white/98 dark:bg-slate-800/98 rounded-2xl sm:rounded-3xl shadow-2xl shadow-black/10 dark:shadow-xl border border-amber-200/60 dark:border-[#FF9800]/40 flex items-center justify-center backdrop-blur-sm ring-1 ring-white/50 dark:ring-white/10 transition-all duration-300 hover:shadow-xl hover:scale-[1.02]">
-                  <div className="text-center px-4">
-                    <Image
-                      src="/logo.png"
-                      alt="شعار منصة ربح للتجارة الإلكترونية"
-                      width={96}
-                      height={96}
-                      sizes="(max-width: 640px) 64px, (max-width: 1024px) 80px, 96px"
-                      className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 mx-auto mb-4 drop-shadow-sm"
-                      priority
-                    />
-                    <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-800 dark:text-white">منصة ربح</h3>
-                    <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">التجارة الإلكترونية الفلسطينية</p>
-                  </div>
-                </div>
-              </div>
-              <div className="absolute -bottom-8 -inset-inline-end-8 sm:-bottom-10 sm:-inset-inline-end-10 w-24 h-24 sm:w-32 sm:h-32 border-inline-start-4 border-b-4 border-amber-400 dark:border-[#FFB74D] rounded-bl-full rounded-s-none transform rotate-45 opacity-90 [direction:ltr]" aria-hidden></div>
-            </div>
+            {/* جانب الانيميشن - يعبّر عن الربط والتدفق */}
+            <HeroAnimation />
           </div>
         </div>
       </section>

@@ -476,7 +476,7 @@ async function getOrdersHandler(req: NextRequest, user: any) {
     } else if (user.role === 'supplier') {
       query.supplierId = user._id;
     } else {
-      // marketer or wholesaler
+      // marketer or wholesaler - طلباته (من ربح و Easy Orders)
       query.customerId = user._id;
     }
     
@@ -696,4 +696,4 @@ async function getOrdersHandler(req: NextRequest, user: any) {
 
 // Apply rate limiting and authentication to orders endpoints
 export const POST = apiRateLimit(withRole(['marketer', 'supplier', 'admin'])(createOrderHandler));
-export const GET = apiRateLimit(withRole(['marketer', 'supplier', 'admin'])(getOrdersHandler)); 
+export const GET = apiRateLimit(withRole(['marketer', 'wholesaler', 'supplier', 'admin'])(getOrdersHandler)); 
