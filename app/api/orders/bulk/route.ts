@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import Order from '@/models/Order';
+import StoreIntegration, { IntegrationType } from '@/models/StoreIntegration';
 import { logger } from '@/lib/logger';
 import { handleApiError } from '@/lib/error-handler';
 
@@ -57,6 +58,17 @@ export const GET = withAuth(async (req: NextRequest, user: any) => {
       .sort({ createdAt: -1 })
       .lean();
 
+    // Pre-fetch marketer integrations for Easy Orders access check
+    let userIntegrationIds: Set<string> = new Set();
+    if (user.role === 'marketer' || user.role === 'wholesaler') {
+      const integrations = await StoreIntegration.find({
+        userId: user._id,
+        type: IntegrationType.EASY_ORDERS,
+        isActive: true
+      }).select('_id').lean();
+      userIntegrationIds = new Set(integrations.map((i: any) => i._id.toString()));
+    }
+
     // Check permissions for each order
     const accessibleOrders = orders.filter((order: any) => {
       const actualSupplierId = order.supplierId?._id || order.supplierId;
@@ -72,9 +84,14 @@ export const GET = withAuth(async (req: NextRequest, user: any) => {
         return actualSupplierId?.toString() === user._id.toString();
       }
       
-      // Marketer/Wholesaler can only access their own orders
+      // Marketer/Wholesaler: طلباته أو طلبات Easy Orders من تكاملاته
       if (user.role === 'marketer' || user.role === 'wholesaler') {
-        return actualCustomerId?.toString() === user._id.toString();
+        const isCustomer = actualCustomerId?.toString() === user._id.toString();
+        const isEasyOrdersFromMyIntegration =
+          order.metadata?.source === 'easy_orders' &&
+          order.metadata?.integrationId &&
+          userIntegrationIds.has(String(order.metadata.integrationId));
+        return !!isCustomer || !!isEasyOrdersFromMyIntegration;
       }
       
       return false;

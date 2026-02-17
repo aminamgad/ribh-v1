@@ -3,6 +3,7 @@ import { withRole } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import Order from '@/models/Order';
 import Product from '@/models/Product';
+import StoreIntegration, { IntegrationType } from '@/models/StoreIntegration';
 import Village from '@/models/Village';
 import { z } from 'zod';
 import { settingsManager } from '@/lib/settings-manager';
@@ -477,18 +478,39 @@ async function getOrdersHandler(req: NextRequest, user: any) {
       query.supplierId = user._id;
     } else {
       // marketer or wholesaler - طلباته (من ربح و Easy Orders)
-      query.customerId = user._id;
+      // تضمين: طلبات customerId = user، أو طلبات Easy Orders المرتبطة بتكاملاته (metadata.integrationId)
+      const userIntegrations = await StoreIntegration.find({
+        userId: user._id,
+        type: IntegrationType.EASY_ORDERS,
+        isActive: true
+      }).select('_id').lean();
+      const userIntegrationIds = userIntegrations.map((i: any) => i._id.toString());
+
+      if (userIntegrationIds.length > 0) {
+        query.$or = [
+          { customerId: user._id },
+          {
+            'metadata.source': 'easy_orders',
+            'metadata.integrationId': { $in: userIntegrationIds }
+          }
+        ];
+      } else {
+        query.customerId = user._id;
+      }
     }
     
-    // Filter by source (EasyOrders)
+    // Filter by source (EasyOrders) — يُطبَّق مع شرط الدور (لا يستبدل query.$or للمسوق)
     if (source === 'easy_orders') {
-      query['metadata.source'] = 'easy_orders';
+      query.$and = query.$and || [];
+      query.$and.push({ 'metadata.source': 'easy_orders' });
     } else if (source === 'ribh') {
-      // Only Ribh orders (not from EasyOrders)
-      query.$or = [
-        { 'metadata.source': { $ne: 'easy_orders' } },
-        { 'metadata.source': { $exists: false } }
-      ];
+      query.$and = query.$and || [];
+      query.$and.push({
+        $or: [
+          { 'metadata.source': { $ne: 'easy_orders' } },
+          { 'metadata.source': { $exists: false } }
+        ]
+      });
     }
     // Status filter - support multiple statuses using $in operator
     if (Array.isArray(status) && status.length > 0) {

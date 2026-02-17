@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import Order from '@/models/Order';
+import StoreIntegration, { IntegrationType } from '@/models/StoreIntegration';
 import Product from '@/models/Product';
 import Wallet from '@/models/Wallet';
 import SystemSettings from '@/models/SystemSettings';
@@ -766,19 +767,32 @@ export const GET = withAuth(async (req: NextRequest, user: any, ...args: unknown
     
     // Admin can access all orders
     if (user.role !== 'admin') {
-      if (
-        (user.role === 'supplier' && actualSupplierId && actualSupplierId !== user._id.toString())
-        || ((user.role === 'marketer' || user.role === 'wholesaler') && actualCustomerId && actualCustomerId !== user._id.toString())
-      ) {
-      logger.warn('Unauthorized order access attempt', {
-        userId: user._id.toString(),
-        userRole: user.role,
-        orderId: params.id
-      });
-      return NextResponse.json(
-        { error: 'غير مصرح لك بعرض هذا الطلب' },
-        { status: 403 }
-      );
+      let hasAccess = false;
+      if (user.role === 'supplier') {
+        hasAccess = !actualSupplierId || actualSupplierId === user._id.toString();
+      } else if (user.role === 'marketer' || user.role === 'wholesaler') {
+        const isCustomer = actualCustomerId && actualCustomerId === user._id.toString();
+        const isEasyOrdersFromMyIntegration =
+          order.metadata?.source === 'easy_orders' &&
+          order.metadata?.integrationId &&
+          (await StoreIntegration.findOne({
+            _id: order.metadata.integrationId,
+            userId: user._id,
+            type: IntegrationType.EASY_ORDERS,
+            isActive: true
+          }));
+        hasAccess = !!isCustomer || !!isEasyOrdersFromMyIntegration;
+      }
+      if (!hasAccess) {
+        logger.warn('Unauthorized order access attempt', {
+          userId: user._id.toString(),
+          userRole: user.role,
+          orderId: params.id
+        });
+        return NextResponse.json(
+          { error: 'غير مصرح لك بعرض هذا الطلب' },
+          { status: 403 }
+        );
       }
     }
 
