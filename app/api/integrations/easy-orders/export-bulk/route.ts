@@ -142,7 +142,12 @@ export const POST = withAuth(async (req: NextRequest, user: any) => {
           existingEasyOrdersProductId
         );
 
-        if (!result.success && result.statusCode === 404 && existingEasyOrdersProductId) {
+        const productDeletedOnEO =
+          existingEasyOrdersProductId &&
+          !result.success &&
+          (result.statusCode === 404 ||
+            (typeof result.error === 'string' && result.error.toLowerCase().includes('record not found')));
+        if (productDeletedOnEO) {
           (product as any).metadata = (product as any).metadata || {};
           const meta = (product as any).metadata;
           const exportsArray = Array.isArray(meta.easyOrdersExports) ? meta.easyOrdersExports : [];

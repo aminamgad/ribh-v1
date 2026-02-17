@@ -772,15 +772,25 @@ export const GET = withAuth(async (req: NextRequest, user: any, ...args: unknown
         hasAccess = !actualSupplierId || actualSupplierId === user._id.toString();
       } else if (user.role === 'marketer' || user.role === 'wholesaler') {
         const isCustomer = actualCustomerId && actualCustomerId === user._id.toString();
-        const isEasyOrdersFromMyIntegration =
-          order.metadata?.source === 'easy_orders' &&
-          order.metadata?.integrationId &&
-          (await StoreIntegration.findOne({
-            _id: order.metadata.integrationId,
-            userId: user._id,
-            type: IntegrationType.EASY_ORDERS,
-            isActive: true
-          }));
+        let isEasyOrdersFromMyIntegration = false;
+        if (order.metadata?.source === 'easy_orders') {
+          if (order.metadata?.integrationId) {
+            isEasyOrdersFromMyIntegration = !!(await StoreIntegration.findOne({
+              _id: order.metadata.integrationId,
+              userId: user._id,
+              type: IntegrationType.EASY_ORDERS,
+              isActive: true
+            }));
+          }
+          if (!isEasyOrdersFromMyIntegration && order.metadata?.easyOrdersStoreId) {
+            isEasyOrdersFromMyIntegration = !!(await StoreIntegration.findOne({
+              storeId: order.metadata.easyOrdersStoreId,
+              userId: user._id,
+              type: IntegrationType.EASY_ORDERS,
+              isActive: true
+            }));
+          }
+        }
         hasAccess = !!isCustomer || !!isEasyOrdersFromMyIntegration;
       }
       if (!hasAccess) {

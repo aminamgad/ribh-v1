@@ -478,20 +478,27 @@ async function getOrdersHandler(req: NextRequest, user: any) {
       query.supplierId = user._id;
     } else {
       // marketer or wholesaler - طلباته (من ربح و Easy Orders)
-      // تضمين: طلبات customerId = user، أو طلبات Easy Orders المرتبطة بتكاملاته (metadata.integrationId)
+      // تضمين: customerId، أو metadata.integrationId، أو easyOrdersStoreId للطلبات القديمة
       const userIntegrations = await StoreIntegration.find({
         userId: user._id,
         type: IntegrationType.EASY_ORDERS,
         isActive: true
-      }).select('_id').lean();
+      }).select('_id storeId').lean();
       const userIntegrationIds = userIntegrations.map((i: any) => i._id.toString());
+      const userStoreIds = userIntegrations.map((i: any) => i.storeId).filter(Boolean);
 
-      if (userIntegrationIds.length > 0) {
+      if (userIntegrations.length > 0) {
+        const easyOrdersConditions: any[] = [
+          { 'metadata.integrationId': { $in: userIntegrationIds } }
+        ];
+        if (userStoreIds.length > 0) {
+          easyOrdersConditions.push({ 'metadata.easyOrdersStoreId': { $in: userStoreIds } });
+        }
         query.$or = [
           { customerId: user._id },
           {
             'metadata.source': 'easy_orders',
-            'metadata.integrationId': { $in: userIntegrationIds }
+            $or: easyOrdersConditions
           }
         ];
       } else {

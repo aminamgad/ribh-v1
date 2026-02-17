@@ -153,10 +153,17 @@ export const POST = withAuth(async (req: NextRequest, user: any) => {
       existingEasyOrdersProductId
     );
 
-    if (!result.success && result.statusCode === 404 && existingEasyOrdersProductId) {
+    // المنتج محذوف من Easy Orders: إلغاء الربط وإعادة التصدير كمنتج جديد
+    const productDeletedOnEO =
+      existingEasyOrdersProductId &&
+      !result.success &&
+      (result.statusCode === 404 ||
+        (typeof result.error === 'string' && result.error.toLowerCase().includes('record not found')));
+    if (productDeletedOnEO) {
       logger.info('Product no longer exists on EasyOrders, unlinking and re-exporting as new', {
         productId,
-        previousEasyOrdersId: existingEasyOrdersProductId
+        previousEasyOrdersId: existingEasyOrdersProductId,
+        error: result.error
       });
       (product as any).metadata = (product as any).metadata || {};
       const meta = (product as any).metadata;

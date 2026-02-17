@@ -131,7 +131,12 @@ export const POST = withAuth(async (req: NextRequest, user: any, ...args: unknow
                 existingEasyOrdersProductId
               );
 
-              if (!result.success && result.statusCode === 404 && existingEasyOrdersProductId) {
+              const productDeletedOnEO =
+                existingEasyOrdersProductId &&
+                !result.success &&
+                (result.statusCode === 404 ||
+                  (typeof result.error === 'string' && result.error.toLowerCase().includes('record not found')));
+              if (productDeletedOnEO) {
                 (product as any).metadata = (product as any).metadata || {};
                 const meta = (product as any).metadata;
                 const exportsArray = Array.isArray(meta.easyOrdersExports) ? meta.easyOrdersExports : [];
@@ -152,6 +157,7 @@ export const POST = withAuth(async (req: NextRequest, user: any, ...args: unknow
                   if (Object.keys(meta).length === 0) (product as any).metadata = undefined;
                 }
                 await product.save();
+                existingEasyOrdersProductId = undefined;
                 result = await sendProductToEasyOrders(
                   easyOrdersProduct,
                   integration.apiKey,

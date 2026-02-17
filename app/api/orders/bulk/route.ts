@@ -60,13 +60,15 @@ export const GET = withAuth(async (req: NextRequest, user: any) => {
 
     // Pre-fetch marketer integrations for Easy Orders access check
     let userIntegrationIds: Set<string> = new Set();
+    let userStoreIds: Set<string> = new Set();
     if (user.role === 'marketer' || user.role === 'wholesaler') {
       const integrations = await StoreIntegration.find({
         userId: user._id,
         type: IntegrationType.EASY_ORDERS,
         isActive: true
-      }).select('_id').lean();
+      }).select('_id storeId').lean();
       userIntegrationIds = new Set(integrations.map((i: any) => i._id.toString()));
+      userStoreIds = new Set(integrations.map((i: any) => i.storeId).filter(Boolean));
     }
 
     // Check permissions for each order
@@ -84,13 +86,13 @@ export const GET = withAuth(async (req: NextRequest, user: any) => {
         return actualSupplierId?.toString() === user._id.toString();
       }
       
-      // Marketer/Wholesaler: طلباته أو طلبات Easy Orders من تكاملاته
+      // Marketer/Wholesaler: طلباته أو طلبات Easy Orders من تكاملاته (integrationId أو easyOrdersStoreId)
       if (user.role === 'marketer' || user.role === 'wholesaler') {
         const isCustomer = actualCustomerId?.toString() === user._id.toString();
         const isEasyOrdersFromMyIntegration =
           order.metadata?.source === 'easy_orders' &&
-          order.metadata?.integrationId &&
-          userIntegrationIds.has(String(order.metadata.integrationId));
+          (userIntegrationIds.has(String(order.metadata?.integrationId || '')) ||
+            userStoreIds.has(String(order.metadata?.easyOrdersStoreId || '')));
         return !!isCustomer || !!isEasyOrdersFromMyIntegration;
       }
       

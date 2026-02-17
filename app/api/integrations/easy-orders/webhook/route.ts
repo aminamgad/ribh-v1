@@ -162,32 +162,47 @@ export const POST = async (req: NextRequest) => {
 
       // If we have store_id, try to find integration by storeId
       if (body.store_id) {
-        const integrationByStoreId = await StoreIntegration.findOne({
+        const integrationsByStoreId = await StoreIntegration.find({
           type: IntegrationType.EASY_ORDERS,
           storeId: body.store_id,
           isActive: true
-        });
+        }).populate('userId', 'role').lean();
+
+        // تفضيل تكامل المسوق/تاجر الجملة عند وجود عدة تكاملات لنفس المتجر
+        let integrationByStoreId = integrationsByStoreId[0];
+        if (integrationsByStoreId.length > 1) {
+          const marketerIntegration = integrationsByStoreId.find(
+            (i: any) => i.userId && ['marketer', 'wholesaler'].includes((i.userId as any).role)
+          );
+          if (marketerIntegration) {
+            integrationByStoreId = marketerIntegration;
+            logger.info('EasyOrders webhook: Preferring marketer/wholesaler integration', {
+              requestId,
+              storeId: body.store_id,
+              chosenUserId: (integrationByStoreId as any).userId?._id
+            });
+          }
+        }
 
         if (integrationByStoreId) {
-          logger.info('EasyOrders webhook: Found integration by storeId, saving webhookSecret', {
-            requestId,
-            integrationId: integrationByStoreId._id,
-            storeId: body.store_id
-          });
-          
-          // Save webhook secret to integration
-          integrationByStoreId.webhookSecret = webhookSecret;
-          await integrationByStoreId.save();
-          
-          // Use this integration
-          finalIntegration = integrationByStoreId;
-          
-          logger.business('EasyOrders webhook: Integration found and webhookSecret saved', {
-            requestId,
-            integrationId: finalIntegration._id,
-            storeId: body.store_id
-          });
-        } else {
+          const integrationDoc = await StoreIntegration.findById((integrationByStoreId as any)._id);
+          if (integrationDoc) {
+            logger.info('EasyOrders webhook: Found integration by storeId, saving webhookSecret', {
+              requestId,
+              integrationId: integrationDoc._id,
+              storeId: body.store_id
+            });
+            integrationDoc.webhookSecret = webhookSecret;
+            await integrationDoc.save();
+            finalIntegration = integrationDoc;
+            logger.business('EasyOrders webhook: Integration found and webhookSecret saved', {
+              requestId,
+              integrationId: finalIntegration._id,
+              storeId: body.store_id
+            });
+          }
+        }
+        if (!finalIntegration) {
           logger.error('EasyOrders webhook: Integration not found by storeId either', {
             requestId,
             storeId: body.store_id
@@ -525,10 +540,10 @@ export const POST = async (req: NextRequest) => {
 
     const needsFallback = !finalFullName || !finalPhone;
     if (needsFallback) {
+      // لا نشترط customerId — الطلب السابق قد يكون سُجّل بتكامل مختلف
       const recentOrder = await Order.findOne({
         'metadata.easyOrdersStoreId': storeId,
-        'metadata.source': 'easy_orders',
-        customerId: marketerId
+        'metadata.source': 'easy_orders'
       })
         .sort({ createdAt: -1 })
         .lean() as any;
@@ -549,6 +564,7 @@ export const POST = async (req: NextRequest) => {
     }
 
     // دمج طلب cross-sell في الطلب الأول: منع ظهور طلبين منفصلين لنفس العميل
+    // لا نشترط customerId لأن الطلب الأول قد يكون سُجّل بتكامل خاطئ (مثلاً تكامل الأدمن)
     const mergeWindowMinutes = 15;
     const mergeCutoff = new Date(Date.now() - mergeWindowMinutes * 60 * 1000);
     const customerPhone = (finalPhone || phone?.trim?.() || '').replace(/\s+/g, '');
@@ -556,7 +572,6 @@ export const POST = async (req: NextRequest) => {
     const mergeQuery: Record<string, unknown> = {
       'metadata.easyOrdersStoreId': storeId,
       'metadata.source': 'easy_orders',
-      customerId: marketerId,
       createdAt: { $gte: mergeCutoff }
     };
     const phoneDigits = customerPhone?.replace(/\D/g, '').slice(-9) || '';
@@ -599,9 +614,11 @@ export const POST = async (req: NextRequest) => {
       (existingOrder as any).total = mergedTotal;
       (existingOrder as any).commission = mergedCommission;
       (existingOrder as any).marketerProfit = mergedMarketerProfit;
+      (existingOrder as any).customerId = marketerId; // ضمان ظهور الطلب للمسوق صاحب التكامل
       (existingOrder as any).metadata = {
         ...(existingOrder as any).metadata,
-        mergedEasyOrdersOrderIds: mergedIds
+        mergedEasyOrdersOrderIds: mergedIds,
+        integrationId: String(finalIntegration._id) // لحالة كانت الطلبات قديمة بدون integrationId
       };
       (existingOrder as any).updatedAt = new Date();
       await existingOrder.save();
