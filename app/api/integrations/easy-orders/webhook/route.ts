@@ -312,20 +312,26 @@ export const POST = async (req: NextRequest) => {
     const existingByOrderId = await Order.findOne({
       'metadata.easyOrdersOrderId': easyOrdersOrderId,
       'metadata.easyOrdersStoreId': storeId
-    });
+    }).lean();
     const existingMerged = existingByOrderId
       ? null
       : await Order.findOne({
           'metadata.easyOrdersStoreId': storeId,
           'metadata.mergedEasyOrdersOrderIds': easyOrdersOrderId
-        });
+        }).lean();
 
     const existingOrder = existingByOrderId || existingMerged;
-    if (existingOrder) {
+    const incomingCartCount = cartItems?.length || 0;
+    const existingItemsCount = (existingOrder?.items as any[])?.length || 0;
+
+    // تخطي التكرار إلا إذا كان الطلب محدّثاً بمنتجات إضافية (cross-sell)
+    const isCrossSellUpdate = !!existingByOrderId && incomingCartCount > existingItemsCount;
+
+    if (existingOrder && !isCrossSellUpdate) {
       logger.info('EasyOrders webhook: Order already exists or was merged, skipping duplicate', {
         requestId,
         orderId: existingOrder._id,
-        orderNumber: existingOrder.orderNumber,
+        orderNumber: (existingOrder as any).orderNumber,
         easyOrdersOrderId,
         storeId,
         wasMerged: !!existingMerged
@@ -334,7 +340,7 @@ export const POST = async (req: NextRequest) => {
         success: true,
         message: 'Order already exists',
         orderId: existingOrder._id,
-        orderNumber: existingOrder.orderNumber
+        orderNumber: (existingOrder as any).orderNumber
       }, {
         status: 200,
         headers: {
@@ -342,6 +348,15 @@ export const POST = async (req: NextRequest) => {
           'Access-Control-Allow-Methods': 'POST, OPTIONS',
           'Access-Control-Allow-Headers': 'Content-Type, secret',
         }
+      });
+    }
+
+    if (isCrossSellUpdate) {
+      logger.info('EasyOrders webhook: Same order with more items (cross-sell update), will merge', {
+        requestId,
+        easyOrdersOrderId,
+        existingItemsCount,
+        incomingCartCount
       });
     }
 
