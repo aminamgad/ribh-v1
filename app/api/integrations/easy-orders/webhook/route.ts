@@ -322,16 +322,18 @@ export const POST = async (req: NextRequest) => {
 
     const existingOrder = existingByOrderId || existingMerged;
     const incomingCartCount = cartItems?.length || 0;
-    const existingItemsCount = (existingOrder?.items as any[])?.length || 0;
+    const orderDoc = existingOrder as unknown as { items?: unknown[] } | null;
+    const existingItemsCount = Array.isArray(orderDoc?.items) ? orderDoc.items.length : 0;
 
     // تخطي التكرار إلا إذا كان الطلب محدّثاً بمنتجات إضافية (cross-sell)
     const isCrossSellUpdate = !!existingByOrderId && incomingCartCount > existingItemsCount;
 
     if (existingOrder && !isCrossSellUpdate) {
+      const doc = existingOrder as unknown as { _id: unknown; orderNumber?: string };
       logger.info('EasyOrders webhook: Order already exists or was merged, skipping duplicate', {
         requestId,
-        orderId: existingOrder._id,
-        orderNumber: (existingOrder as any).orderNumber,
+        orderId: doc._id,
+        orderNumber: doc.orderNumber,
         easyOrdersOrderId,
         storeId,
         wasMerged: !!existingMerged
@@ -339,8 +341,8 @@ export const POST = async (req: NextRequest) => {
       return NextResponse.json({
         success: true,
         message: 'Order already exists',
-        orderId: existingOrder._id,
-        orderNumber: (existingOrder as any).orderNumber
+        orderId: doc._id,
+        orderNumber: doc.orderNumber
       }, {
         status: 200,
         headers: {
