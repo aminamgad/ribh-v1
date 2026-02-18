@@ -308,19 +308,27 @@ export const POST = async (req: NextRequest) => {
       cartItemsCount: cartItems?.length || 0
     });
 
-    // منع التكرار: التحقق من وجود طلب بنفس معرف الطلب من Easy Orders ونفس المتجر
-    const existingOrder = await Order.findOne({
+    // منع التكرار: طلب بنفس easyOrdersOrderId، أو مدمج مسبقاً (يحصل عند وجود 2 webhooks)
+    const existingByOrderId = await Order.findOne({
       'metadata.easyOrdersOrderId': easyOrdersOrderId,
       'metadata.easyOrdersStoreId': storeId
     });
+    const existingMerged = existingByOrderId
+      ? null
+      : await Order.findOne({
+          'metadata.easyOrdersStoreId': storeId,
+          'metadata.mergedEasyOrdersOrderIds': easyOrdersOrderId
+        });
 
+    const existingOrder = existingByOrderId || existingMerged;
     if (existingOrder) {
-      logger.info('EasyOrders webhook: Order already exists, skipping duplicate', {
+      logger.info('EasyOrders webhook: Order already exists or was merged, skipping duplicate', {
         requestId,
         orderId: existingOrder._id,
         orderNumber: existingOrder.orderNumber,
         easyOrdersOrderId,
-        storeId
+        storeId,
+        wasMerged: !!existingMerged
       });
       return NextResponse.json({
         success: true,
@@ -564,24 +572,39 @@ export const POST = async (req: NextRequest) => {
     }
 
     // دمج طلب cross-sell في الطلب الأول: منع ظهور طلبين منفصلين لنفس العميل
-    // لا نشترط customerId لأن الطلب الأول قد يكون سُجّل بتكامل خاطئ (مثلاً تكامل الأدمن)
-    const mergeWindowMinutes = 15;
+    const mergeWindowMinutes = 30;
     const mergeCutoff = new Date(Date.now() - mergeWindowMinutes * 60 * 1000);
     const customerPhone = (finalPhone || phone?.trim?.() || '').replace(/\s+/g, '');
+    const phoneDigits = customerPhone?.replace(/\D/g, '') || '';
+    const phoneLast9 = phoneDigits.slice(-9);
+    const phoneLast10 = phoneDigits.slice(-10);
 
     const mergeQuery: Record<string, unknown> = {
       'metadata.easyOrdersStoreId': storeId,
       'metadata.source': 'easy_orders',
       createdAt: { $gte: mergeCutoff }
     };
-    const phoneDigits = customerPhone?.replace(/\D/g, '').slice(-9) || '';
-    if (phoneDigits && phoneDigits.length >= 5) {
-      (mergeQuery as any)['shippingAddress.phone'] = { $regex: phoneDigits };
+    // مطابقة مرنة للهاتف: آخر 9 أو 10 أرقام (للتعامل مع 0599 أو 599)
+    if (phoneLast9.length >= 5) {
+      (mergeQuery as any).$or = [
+        { 'shippingAddress.phone': { $regex: phoneLast9 } },
+        ...(phoneLast10.length >= 9 ? [{ 'shippingAddress.phone': { $regex: phoneLast10 } }] : [])
+      ];
     }
 
-    const existingOrderToMerge = phoneDigits.length >= 5
-      ? (await Order.findOne(mergeQuery).sort({ createdAt: -1 }).limit(1).lean()) as any
+    let existingOrderToMerge = phoneLast9.length >= 5
+      ? (await Order.findOne(mergeQuery).sort({ createdAt: 1 }).limit(1).lean()) as any
       : null;
+    // Fallback: مطابقة بالاسم إن لم يكن الهاتف كافياً
+    if (!existingOrderToMerge && finalFullName && finalFullName.length >= 2) {
+      const nameRegex = finalFullName.slice(0, 15).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      existingOrderToMerge = (await Order.findOne({
+        'metadata.easyOrdersStoreId': storeId,
+        'metadata.source': 'easy_orders',
+        createdAt: { $gte: mergeCutoff },
+        'shippingAddress.fullName': { $regex: nameRegex, $options: 'i' }
+      }).sort({ createdAt: 1 }).limit(1).lean()) as any;
+    }
 
     const shouldMerge = existingOrderToMerge &&
       !existingOrderToMerge?.metadata?.mergedEasyOrdersOrderIds?.includes(easyOrdersOrderId);
@@ -591,7 +614,17 @@ export const POST = async (req: NextRequest) => {
       if (!existingOrder) throw new Error('Order not found for merge');
 
       const existingItems = (existingOrder as any).items || [];
-      const mergedItems = mergeOrderItemsWithoutDuplicates(existingItems, orderItems);
+      // الطلب الجديد أكثر = استبدال بالمحتوى الكامل. الطلب الحالي أكثر = إبقاءه (الويب هوك المتأخر قد يكون مكرراً). وإلا دمج
+      const newHasMoreItems = orderItems.length > existingItems.length;
+      const existingHasMoreItems = existingItems.length > orderItems.length;
+      let mergedItems: any[];
+      if (newHasMoreItems) {
+        mergedItems = orderItems.map((i: any) => ({ ...i, productId: i.productId?._id ?? i.productId }));
+      } else if (existingHasMoreItems) {
+        mergedItems = existingItems;
+      } else {
+        mergedItems = mergeOrderItemsWithoutDuplicates(existingItems, orderItems);
+      }
       const mergedSubtotal = mergedItems.reduce((sum: number, i: any) => sum + (i.totalPrice || 0), 0);
       const existingShipping = (existingOrder as any).shippingCost || 0;
       const mergedTotal = mergedSubtotal + existingShipping;
