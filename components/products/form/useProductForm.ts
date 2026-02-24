@@ -89,6 +89,8 @@ export function useProductForm({ mode, productId, user, onSuccess }: UseProductF
   const fetchProductAbortRef = useRef<AbortController | null>(null);
   const productIdRef = useRef<string | undefined>(productId);
   productIdRef.current = productId;
+  // تتبع معرف الطلب الحالي لتجاهل استجابات قديمة عند التنقل السريع بين صفحات تعديل المنتجات
+  const fetchForIdRef = useRef<string | null>(null);
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -126,22 +128,24 @@ export function useProductForm({ mode, productId, user, onSuccess }: UseProductF
     if (fetchProductAbortRef.current) fetchProductAbortRef.current.abort();
     const abort = new AbortController();
     fetchProductAbortRef.current = abort;
+    fetchForIdRef.current = productId;
     setLoading(true);
     try {
       const res = await fetch(`/api/products/${productId}`, { signal: abort.signal, cache: 'no-store' });
       if (abort.signal.aborted) return;
+      if (fetchForIdRef.current !== productId) return;
       if (!res.ok) {
         // إعادة محاولة مرة واحدة عند 404 أو 5xx (تجنب فشل مؤقت بسبب كاش أو توقيت)
         const isRetryable = (res.status === 404 || res.status >= 500) && !isRetry;
         if (isRetryable) {
           await new Promise(r => setTimeout(r, 400));
           if (abort.signal.aborted) return;
-          if (productIdRef.current !== productId) return;
+          if (fetchForIdRef.current !== productId) return;
           fetchProductAbortRef.current = null;
           await fetchProduct(true);
           return;
         }
-        if (productIdRef.current !== productId) return;
+        if (fetchForIdRef.current !== productId) return;
         if (res.status === 403) {
           toast.error('غير مصرح لك بالوصول لهذا المنتج');
         } else {
@@ -152,7 +156,7 @@ export function useProductForm({ mode, productId, user, onSuccess }: UseProductF
       }
       const data = await res.json();
       if (abort.signal.aborted) return;
-      if (productIdRef.current !== productId) return;
+      if (fetchForIdRef.current !== productId) return;
       const p = data.product;
       if (!p || p._id !== productId) return; // تجاهل استجابة لمنتج آخر (كاش أو تنقل سريع)
       setProduct(p);
@@ -185,18 +189,18 @@ export function useProductForm({ mode, productId, user, onSuccess }: UseProductF
     } catch (err: any) {
       if (err?.name === 'AbortError') return;
       // إعادة محاولة مرة واحدة عند فشل الشبكة (تنقل سريع بين المنتجات قد يسبب إلغاء أو فشل مؤقت)
-      if (!isRetry && productIdRef.current === productId) {
+      if (!isRetry && fetchForIdRef.current === productId) {
         fetchProductAbortRef.current = null;
         await new Promise(r => setTimeout(r, 400));
-        if (productIdRef.current !== productId) return;
+        if (fetchForIdRef.current !== productId) return;
         await fetchProduct(true);
         return;
       }
-      if (productIdRef.current !== productId) return;
+      if (fetchForIdRef.current !== productId) return;
       toast.error('حدث خطأ أثناء جلب المنتج');
       router.push('/dashboard/products');
     } finally {
-      if (!abort.signal.aborted) {
+      if (!abort.signal.aborted && fetchForIdRef.current === productId) {
         setLoading(false);
         fetchProductAbortRef.current = null;
       }
@@ -210,10 +214,12 @@ export function useProductForm({ mode, productId, user, onSuccess }: UseProductF
 
   useEffect(() => {
     if (mode !== 'edit' || !productId) return;
+    fetchForIdRef.current = productId;
     setProduct(null);
     setLoading(true);
     fetchProduct();
     return () => {
+      fetchForIdRef.current = null;
       if (fetchProductAbortRef.current) fetchProductAbortRef.current.abort();
     };
   }, [mode, productId, fetchProduct]);
