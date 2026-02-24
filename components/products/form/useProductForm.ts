@@ -119,16 +119,23 @@ export function useProductForm({ mode, productId, user, onSuccess }: UseProductF
     }
   }, [isAdmin, user]);
 
-  const fetchProduct = useCallback(async () => {
+  const fetchProduct = useCallback(async (isRetry = false) => {
     if (mode !== 'edit' || !productId) return;
     if (fetchProductAbortRef.current) fetchProductAbortRef.current.abort();
     const abort = new AbortController();
     fetchProductAbortRef.current = abort;
     setLoading(true);
     try {
-      const res = await fetch(`/api/products/${productId}`, { signal: abort.signal });
+      const res = await fetch(`/api/products/${productId}`, { signal: abort.signal, cache: 'no-store' });
       if (abort.signal.aborted) return;
       if (!res.ok) {
+        if (res.status === 404 && !isRetry) {
+          await new Promise(r => setTimeout(r, 400));
+          if (abort.signal.aborted) return;
+          fetchProductAbortRef.current = null;
+          await fetchProduct(true);
+          return;
+        }
         if (res.status === 403) {
           toast.error('غير مصرح لك بالوصول لهذا المنتج');
         } else {
