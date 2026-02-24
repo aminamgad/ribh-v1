@@ -4,11 +4,19 @@ import connectDB from '@/lib/database';
 import Order from '@/models/Order';
 import Product from '@/models/Product';
 import User from '@/models/User';
+import { hasPermission, PERMISSIONS } from '@/lib/permissions';
 
 // GET /api/analytics/export - Export analytics report as CSV
 export const GET = withAuth(async (req: NextRequest, user: any) => {
   try {
     await connectDB();
+
+    if (user.role === 'admin' && !hasPermission(user, PERMISSIONS.ANALYTICS_VIEW)) {
+      return NextResponse.json({ message: 'غير مصرح لك بتصدير التحليلات' }, { status: 403 });
+    }
+    const canOrders = user.role !== 'admin' || hasPermission(user, PERMISSIONS.ORDERS_VIEW) || hasPermission(user, PERMISSIONS.ORDERS_MANAGE);
+    const canProducts = user.role !== 'admin' || hasPermission(user, PERMISSIONS.PRODUCTS_VIEW) || hasPermission(user, PERMISSIONS.PRODUCTS_MANAGE);
+    const canUsers = user.role === 'admin' && hasPermission(user, PERMISSIONS.USERS_VIEW);
     
     const { searchParams } = new URL(req.url);
     const range = searchParams.get('range') || 'month';
@@ -57,89 +65,55 @@ export const GET = withAuth(async (req: NextRequest, user: any) => {
       orderFilter.customerId = user._id;
     }
     
-    // Get orders data
-    const orders = await Order.find(orderFilter).populate('customerId', 'name role');
-    
-    // Get products data
-    const products = await Product.find({
-      ...productFilter,
-      isActive: true,
-      createdAt: { $gte: startDate, $lte: endDate }
-    });
-    
-    // Get users data (admin only)
-    let usersData: any = { total: 0, byRole: [] };
-    if (user.role === 'admin') {
-      const users = await User.find({
+    // Get orders data (فقط بصلاحية الطلبات)
+    let orders: any[] = [];
+    let totalRevenue = 0;
+    let totalOrders = 0;
+    let topSellingProducts: any[] = [];
+    let ordersByStatus: any[] = [];
+    if (canOrders) {
+      orders = await Order.find(orderFilter).populate('customerId', 'name role');
+      totalRevenue = orders.reduce((sum: number, order: any) => sum + order.total, 0);
+      totalOrders = orders.length;
+      topSellingProducts = await Order.aggregate([
+        { $match: orderFilter },
+        { $unwind: '$items' },
+        { $group: { _id: '$items.productId', sales: { $sum: '$items.quantity' }, revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } } } },
+        { $sort: { sales: -1 } },
+        { $limit: 10 },
+        { $lookup: { from: 'products', localField: '_id', foreignField: '_id', as: 'product' } },
+        { $unwind: '$product' },
+        { $project: { name: '$product.name', sales: 1, revenue: 1 } }
+      ]);
+      ordersByStatus = await Order.aggregate([
+        { $match: orderFilter },
+        { $group: { _id: '$status', count: { $sum: 1 } } }
+      ]);
+    }
+
+    // Get products data (فقط بصلاحية المنتجات)
+    let products: any[] = [];
+    if (canProducts) {
+      products = await Product.find({
+        ...productFilter,
+        isActive: true,
         createdAt: { $gte: startDate, $lte: endDate }
       });
-      usersData.total = users.length;
-      
-      const usersByRole = await User.aggregate([
-        {
-          $group: {
-            _id: '$role',
-            count: { $sum: 1 }
-          }
-        }
-      ]);
-      usersData.byRole = usersByRole;
     }
-    
-    // Calculate statistics
-    const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
-    const totalOrders = orders.length;
     const totalProducts = products.length;
     
-    // Get top selling products
-    const topSellingProducts = await Order.aggregate([
-      { $match: orderFilter },
-      { $unwind: '$items' },
-      {
-        $group: {
-          _id: '$items.productId',
-          sales: { $sum: '$items.quantity' },
-          revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } }
-        }
-      },
-      { $sort: { sales: -1 } },
-      { $limit: 10 },
-      {
-        $lookup: {
-          from: 'products',
-          localField: '_id',
-          foreignField: '_id',
-          as: 'product'
-        }
-      },
-      { $unwind: '$product' },
-      {
-        $project: {
-          name: '$product.name',
-          sales: 1,
-          revenue: 1
-        }
-      }
-    ]);
+    // Get users data (فقط بصلاحية المستخدمين)
+    let usersData: any = { total: 0, byRole: [] };
+    if (canUsers) {
+      const users = await User.find({ createdAt: { $gte: startDate, $lte: endDate } });
+      usersData.total = users.length;
+      usersData.byRole = await User.aggregate([{ $group: { _id: '$role', count: { $sum: 1 } } }]);
+    }
     
-    // Get orders by status
-    const ordersByStatus = await Order.aggregate([
-      { $match: orderFilter },
-      {
-        $group: {
-          _id: '$status',
-          count: { $sum: 1 }
-        }
-      }
-    ]);
-    
-    // Generate CSV content
+    // Generate CSV content (يضم فقط البيانات المسموح بها)
     const csvContent = generateCSV({
       range,
-      dateRange: {
-        start: startDate,
-        end: endDate
-      },
+      dateRange: { start: startDate, end: endDate },
       userRole: user.role,
       statistics: {
         totalRevenue,

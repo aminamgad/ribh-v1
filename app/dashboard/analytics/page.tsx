@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useDataCache } from '@/components/hooks/useDataCache';
+import { hasPermission, PERMISSIONS } from '@/lib/permissions';
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -50,6 +51,11 @@ export default function AnalyticsPage() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
+  const canSeeAnalytics = !user || user.role !== 'admin' || hasPermission(user, PERMISSIONS.ANALYTICS_VIEW);
+  const canSeeOrders = !user || user.role !== 'admin' || hasPermission(user, PERMISSIONS.ORDERS_VIEW) || hasPermission(user, PERMISSIONS.ORDERS_MANAGE);
+  const canSeeProducts = !user || user.role !== 'admin' || hasPermission(user, PERMISSIONS.PRODUCTS_VIEW) || hasPermission(user, PERMISSIONS.PRODUCTS_MANAGE);
+  const canSeeUsers = !!user && user.role === 'admin' && hasPermission(user, PERMISSIONS.USERS_VIEW);
+
   // Generate cache key based on date range
   const cacheKey = useMemo(() => {
     if (customDateRange && startDate && endDate) {
@@ -79,7 +85,7 @@ export default function AnalyticsPage() {
       }
       return response.json();
     },
-    enabled: !!user,
+    enabled: !!user && canSeeAnalytics,
     forceRefresh: false,
     onError: (error) => {
       toast.error(error.message || 'حدث خطأ أثناء جلب البيانات التحليلية');
@@ -141,6 +147,14 @@ export default function AnalyticsPage() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="loading-spinner w-8 h-8"></div>
+      </div>
+    );
+  }
+
+  if (!canSeeAnalytics) {
+    return (
+      <div className="card p-8 text-center">
+        <p className="text-gray-600 dark:text-gray-400">غير مصرح لك بعرض التحليلات.</p>
       </div>
     );
   }
@@ -245,6 +259,7 @@ export default function AnalyticsPage() {
             )}
           </div>
           
+          {canSeeOrders && (
           <button
             onClick={exportReport}
             className="px-3 sm:px-4 py-2 bg-[#FF9800] hover:bg-[#F57C00] text-white rounded-md flex items-center justify-center space-x-2 space-x-reverse transition-colors min-h-[44px] text-xs sm:text-sm"
@@ -253,11 +268,13 @@ export default function AnalyticsPage() {
             <span className="hidden sm:inline">تصدير التقرير</span>
             <span className="sm:hidden">تصدير</span>
           </button>
+        )}
         </div>
       </div>
 
-      {/* Key Metrics */}
+      {/* Key Metrics - حسب الصلاحيات */}
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {canSeeOrders && (
         <div className="card p-3 sm:p-4">
           <div className="flex items-center justify-between">
             <div className="flex-1 min-w-0">
@@ -275,7 +292,9 @@ export default function AnalyticsPage() {
             </div>
           </div>
         </div>
+        )}
 
+        {canSeeOrders && (
         <div className="card p-3 sm:p-4">
           <div className="flex items-center justify-between">
             <div className="flex-1 min-w-0">
@@ -293,7 +312,9 @@ export default function AnalyticsPage() {
             </div>
           </div>
         </div>
+        )}
 
+        {canSeeProducts && (
         <div className="card p-3 sm:p-4">
           <div className="flex items-center justify-between">
             <div className="flex-1 min-w-0">
@@ -311,7 +332,9 @@ export default function AnalyticsPage() {
             </div>
           </div>
         </div>
+        )}
 
+        {canSeeUsers && (
         <div className="card p-3 sm:p-4">
           <div className="flex items-center justify-between">
             <div className="flex-1 min-w-0">
@@ -329,11 +352,12 @@ export default function AnalyticsPage() {
             </div>
           </div>
         </div>
+        )}
       </div>
 
-      {/* Charts */}
+      {/* Charts - حسب الصلاحيات */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-        {/* Revenue Chart */}
+        {canSeeOrders && (
         <div className="card p-3 sm:p-4 md:p-6">
           <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3 sm:mb-4">الإيرادات</h3>
           <ResponsiveContainer width="100%" height={250} className="sm:h-[300px]">
@@ -359,8 +383,9 @@ export default function AnalyticsPage() {
             </LineChart>
           </ResponsiveContainer>
         </div>
+        )}
 
-        {/* Orders by Status */}
+        {canSeeOrders && (
         <div className="card">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">الطلبات حسب الحالة</h3>
           <ResponsiveContainer width="100%" height={300}>
@@ -375,7 +400,7 @@ export default function AnalyticsPage() {
                 fill="#8884d8"
                 dataKey="count"
               >
-                {analytics?.orders.byStatus.map((entry, index) => (
+                {analytics?.orders.byStatus?.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
@@ -383,8 +408,9 @@ export default function AnalyticsPage() {
             </PieChart>
           </ResponsiveContainer>
         </div>
+        )}
 
-        {/* Top Selling Products */}
+        {canSeeOrders && (
         <div className="card">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">المنتجات الأكثر مبيعاً</h3>
           <ResponsiveContainer width="100%" height={300}>
@@ -404,8 +430,9 @@ export default function AnalyticsPage() {
             </BarChart>
           </ResponsiveContainer>
         </div>
+        )}
 
-        {/* Users by Role */}
+        {canSeeUsers && (
         <div className="card">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">المستخدمون حسب الدور</h3>
           <ResponsiveContainer width="100%" height={300}>
@@ -420,7 +447,7 @@ export default function AnalyticsPage() {
                 fill="#8884d8"
                 dataKey="count"
               >
-                {analytics?.users.byRole.map((entry, index) => (
+                {analytics?.users.byRole?.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
@@ -428,9 +455,10 @@ export default function AnalyticsPage() {
             </PieChart>
           </ResponsiveContainer>
         </div>
+        )}
       </div>
 
-      {/* Detailed Table */}
+      {canSeeOrders && (
       <div className="card">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">المنتجات الأكثر مبيعاً - تفصيلي</h3>
         <div className="overflow-x-auto">
@@ -449,7 +477,7 @@ export default function AnalyticsPage() {
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-              {analytics?.products.topSelling.map((product, index) => (
+              {analytics?.products?.topSelling?.map((product, index) => (
                 <tr key={index}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                     {product.name}
@@ -466,6 +494,7 @@ export default function AnalyticsPage() {
           </table>
         </div>
       </div>
+      )}
     </div>
   );
 } 

@@ -230,7 +230,7 @@ export default function ProductDetailPage() {
   const productId = typeof params?.id === 'string' ? params.id : Array.isArray(params?.id) ? params.id[0] : undefined;
   const fetchAbortRef = useRef<AbortController | null>(null);
 
-  const fetchProduct = useCallback(async () => {
+  const fetchProduct = useCallback(async (isRetry = false) => {
     const id = typeof params?.id === 'string' ? params.id : Array.isArray(params?.id) ? params.id[0] : undefined;
     if (!id || typeof id !== 'string' || !id.trim()) {
       setLoading(false);
@@ -243,7 +243,7 @@ export default function ProductDetailPage() {
     const abort = new AbortController();
     fetchAbortRef.current = abort;
     try {
-      const response = await fetch(`/api/products/${id}`, { signal: abort.signal });
+      const response = await fetch(`/api/products/${id}`, { signal: abort.signal, cache: 'no-store' });
       // تجاهل الاستجابة إذا تم إلغاء الطلب (مثلاً بسبب الانتقال لمنتج آخر)
       if (abort.signal.aborted) return;
 
@@ -254,10 +254,17 @@ export default function ProductDetailPage() {
         }
       } else {
         const errorData = await response.json().catch(() => ({}));
+        // عند 404: إعادة محاولة مرة واحدة بعد تحديث الكاش (تجنب رسالة "المنتج غير موجود" بسبب توقيت التحديث)
+        if (response.status === 404 && !isRetry && !abort.signal.aborted) {
+          await new Promise(r => setTimeout(r, 400));
+          if (abort.signal.aborted) return;
+          fetchAbortRef.current = null;
+          await fetchProduct(true);
+          return;
+        }
         const message = errorData.message || 'المنتج غير موجود';
         toast.error(message);
         setProduct(null);
-        // إعادة التوجيه فقط بعد تأخير بسيط حتى يرى المستخدم الرسالة، أو عدم إعادة التوجيه وعرض إعادة المحاولة
         router.push('/dashboard/products');
       }
     } catch (error: any) {
