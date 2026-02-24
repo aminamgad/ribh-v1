@@ -87,6 +87,8 @@ export function useProductForm({ mode, productId, user, onSuccess }: UseProductF
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
   const supplierDropdownRef = useRef<HTMLDivElement>(null);
   const fetchProductAbortRef = useRef<AbortController | null>(null);
+  const productIdRef = useRef<string | undefined>(productId);
+  productIdRef.current = productId;
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -132,10 +134,12 @@ export function useProductForm({ mode, productId, user, onSuccess }: UseProductF
         if (res.status === 404 && !isRetry) {
           await new Promise(r => setTimeout(r, 400));
           if (abort.signal.aborted) return;
+          if (productIdRef.current !== productId) return;
           fetchProductAbortRef.current = null;
           await fetchProduct(true);
           return;
         }
+        if (productIdRef.current !== productId) return;
         if (res.status === 403) {
           toast.error('غير مصرح لك بالوصول لهذا المنتج');
         } else {
@@ -146,6 +150,7 @@ export function useProductForm({ mode, productId, user, onSuccess }: UseProductF
       }
       const data = await res.json();
       if (abort.signal.aborted) return;
+      if (productIdRef.current !== productId) return;
       const p = data.product;
       setProduct(p);
       setImages(p.images || []);
@@ -176,6 +181,7 @@ export function useProductForm({ mode, productId, user, onSuccess }: UseProductF
       }
     } catch (err: any) {
       if (err?.name === 'AbortError') return;
+      if (productIdRef.current !== productId) return;
       toast.error('حدث خطأ أثناء جلب المنتج');
       router.push('/dashboard/products');
     } finally {
@@ -193,7 +199,6 @@ export function useProductForm({ mode, productId, user, onSuccess }: UseProductF
 
   useEffect(() => {
     if (mode !== 'edit' || !productId) return;
-    // إعادة تهيئة الحالة فور تغيير productId لتفادي عرض بيانات منتج سابق أو طلب بمعرف قديم
     setProduct(null);
     setLoading(true);
     fetchProduct();
