@@ -11,6 +11,9 @@ interface RouteParams {
   params: { id: string };
 }
 
+// منع تخزين المتصفح لاستجابة المنتج لتجنب عرض بيانات منتج خاطئ عند التنقل السريع
+const PRODUCT_GET_HEADERS = { 'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0' };
+
 // GET /api/products/[id] - Get single product
 async function getProduct(req: NextRequest, user: any, ...args: unknown[]) {
   const routeParams = args[0] as RouteParams;
@@ -36,7 +39,7 @@ async function getProduct(req: NextRequest, user: any, ...args: unknown[]) {
           { status: 403 }
         );
       }
-      return NextResponse.json({ success: true, product: cached });
+      return NextResponse.json({ success: true, product: cached }, { headers: PRODUCT_GET_HEADERS });
     }
     
     // Fetch from database with optimized query
@@ -189,10 +192,10 @@ async function getProduct(req: NextRequest, user: any, ...args: unknown[]) {
     // Cache the result
     productCache.set(cacheKey, transformedProduct);
     
-    return NextResponse.json({
-      success: true,
-      product: transformedProduct
-    });
+    return NextResponse.json(
+      { success: true, product: transformedProduct },
+      { headers: PRODUCT_GET_HEADERS }
+    );
     
     logger.apiResponse('GET', `/api/products/${productIdParam}`, 200);
   } catch (error) {

@@ -229,6 +229,8 @@ export default function ProductDetailPage() {
   // استخراج معرف المنتج بشكل آمن (يدعم [id] كسلسلة أو مصفوفة في Next.js)
   const productId = typeof params?.id === 'string' ? params.id : Array.isArray(params?.id) ? params.id[0] : undefined;
   const fetchAbortRef = useRef<AbortController | null>(null);
+  // تتبع معرف الطلب الحالي لتجاهل استجابات قديمة عند التنقل السريع بين المنتجات
+  const fetchForIdRef = useRef<string | null>(null);
 
   const fetchProduct = useCallback(async (isRetry = false) => {
     const id = typeof params?.id === 'string' ? params.id : Array.isArray(params?.id) ? params.id[0] : undefined;
@@ -242,26 +244,33 @@ export default function ProductDetailPage() {
     }
     const abort = new AbortController();
     fetchAbortRef.current = abort;
+    fetchForIdRef.current = id;
     try {
       const response = await fetch(`/api/products/${id}`, { signal: abort.signal, cache: 'no-store' });
       // تجاهل الاستجابة إذا تم إلغاء الطلب (مثلاً بسبب الانتقال لمنتج آخر)
       if (abort.signal.aborted) return;
+      // تجاهل الاستجابة إذا لم تعد هذه الصفحة تعرض نفس المنتج (تنقل سريع)
+      if (fetchForIdRef.current !== id) return;
 
       if (response.ok) {
         const data = await response.json();
-        if (data.product && !abort.signal.aborted) {
+        if (abort.signal.aborted || fetchForIdRef.current !== id) return;
+        // التأكد من أن الاستجابة للمنتج المطلوب فقط (تجنب كاش المتصفح أو استجابة قديمة)
+        if (data.product && data.product._id === id) {
           setProduct(data.product);
         }
       } else {
         const errorData = await response.json().catch(() => ({}));
-        // عند 404: إعادة محاولة مرة واحدة بعد تحديث الكاش (تجنب رسالة "المنتج غير موجود" بسبب توقيت التحديث)
-        if (response.status === 404 && !isRetry && !abort.signal.aborted) {
+        // عند 404 أو 5xx: إعادة محاولة مرة واحدة (تجنب فشل مؤقت بسبب كاش أو توقيت)
+        const isRetryable = (response.status === 404 || response.status >= 500) && !isRetry && !abort.signal.aborted;
+        if (isRetryable) {
           await new Promise(r => setTimeout(r, 400));
-          if (abort.signal.aborted) return;
+          if (abort.signal.aborted || fetchForIdRef.current !== id) return;
           fetchAbortRef.current = null;
           await fetchProduct(true);
           return;
         }
+        if (fetchForIdRef.current !== id) return;
         const message = errorData.message || 'المنتج غير موجود';
         toast.error(message);
         setProduct(null);
@@ -269,11 +278,20 @@ export default function ProductDetailPage() {
       }
     } catch (error: any) {
       if (error?.name === 'AbortError') return;
+      // إعادة محاولة مرة واحدة عند فشل الشبكة أو خطأ مؤقت
+      if (!isRetry && !abort.signal.aborted && fetchForIdRef.current === id) {
+        fetchAbortRef.current = null;
+        await new Promise(r => setTimeout(r, 400));
+        if (fetchForIdRef.current !== id) return;
+        await fetchProduct(true);
+        return;
+      }
+      if (fetchForIdRef.current !== id) return;
       toast.error('حدث خطأ أثناء جلب تفاصيل المنتج');
       setProduct(null);
       router.push('/dashboard/products');
     } finally {
-      if (!abort.signal.aborted) {
+      if (!abort.signal.aborted && fetchForIdRef.current === id) {
         setLoading(false);
         fetchAbortRef.current = null;
       }
@@ -282,13 +300,16 @@ export default function ProductDetailPage() {
 
   useEffect(() => {
     if (productId) {
+      fetchForIdRef.current = productId;
       setLoading(true);
       setProduct(null);
       fetchProduct();
     } else {
       setLoading(false);
+      fetchForIdRef.current = null;
     }
     return () => {
+      fetchForIdRef.current = null;
       if (fetchAbortRef.current) {
         fetchAbortRef.current.abort();
       }

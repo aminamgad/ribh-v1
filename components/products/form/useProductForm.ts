@@ -131,7 +131,9 @@ export function useProductForm({ mode, productId, user, onSuccess }: UseProductF
       const res = await fetch(`/api/products/${productId}`, { signal: abort.signal, cache: 'no-store' });
       if (abort.signal.aborted) return;
       if (!res.ok) {
-        if (res.status === 404 && !isRetry) {
+        // إعادة محاولة مرة واحدة عند 404 أو 5xx (تجنب فشل مؤقت بسبب كاش أو توقيت)
+        const isRetryable = (res.status === 404 || res.status >= 500) && !isRetry;
+        if (isRetryable) {
           await new Promise(r => setTimeout(r, 400));
           if (abort.signal.aborted) return;
           if (productIdRef.current !== productId) return;
@@ -152,6 +154,7 @@ export function useProductForm({ mode, productId, user, onSuccess }: UseProductF
       if (abort.signal.aborted) return;
       if (productIdRef.current !== productId) return;
       const p = data.product;
+      if (!p || p._id !== productId) return; // تجاهل استجابة لمنتج آخر (كاش أو تنقل سريع)
       setProduct(p);
       setImages(p.images || []);
       setPrimaryImageIndex(0);
@@ -181,6 +184,14 @@ export function useProductForm({ mode, productId, user, onSuccess }: UseProductF
       }
     } catch (err: any) {
       if (err?.name === 'AbortError') return;
+      // إعادة محاولة مرة واحدة عند فشل الشبكة (تنقل سريع بين المنتجات قد يسبب إلغاء أو فشل مؤقت)
+      if (!isRetry && productIdRef.current === productId) {
+        fetchProductAbortRef.current = null;
+        await new Promise(r => setTimeout(r, 400));
+        if (productIdRef.current !== productId) return;
+        await fetchProduct(true);
+        return;
+      }
       if (productIdRef.current !== productId) return;
       toast.error('حدث خطأ أثناء جلب المنتج');
       router.push('/dashboard/products');
