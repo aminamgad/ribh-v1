@@ -511,7 +511,7 @@ export default function OrdersFilters({ onFiltersChange }: OrdersFiltersProps) {
                   window.dispatchEvent(new CustomEvent('urlchange', { detail: { query: queryString } }));
                 }
               }}
-              className="w-full px-3 sm:px-4 py-2.5 text-sm sm:text-base border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-[#FF9800] focus:border-transparent dark:bg-slate-700 dark:text-slate-100 min-h-[44px]"
+              className="w-full pl-9 pr-3 sm:pl-10 sm:pr-4 py-2.5 text-sm sm:text-base border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-[#FF9800] focus:border-transparent dark:bg-slate-700 dark:text-slate-100 min-h-[44px] text-end"
             >
               <option value="all">جميع المصادر</option>
               <option value="easy_orders">EasyOrders</option>
