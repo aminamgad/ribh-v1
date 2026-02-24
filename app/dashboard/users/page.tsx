@@ -9,6 +9,7 @@ import { Search, Filter, Eye, Edit, Shield, UserCheck, UserX, Mail, Phone, User 
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useRouter, usePathname } from 'next/navigation';
+import { getRoleDisplayLabel, getRoleDisplayColor, hasPermission, PERMISSIONS } from '@/lib/permissions';
 
 interface User {
   _id: string;
@@ -23,21 +24,10 @@ interface User {
   lastLogin?: string;
   productCount?: number;
   orderCount?: number;
+  isStaff?: boolean;
+  staffRole?: 'full_admin' | 'custom';
+  permissions?: string[];
 }
-
-const roleLabels = {
-  admin: 'الإدارة',
-  supplier: 'المورد',
-  marketer: 'المسوق',
-  wholesaler: 'تاجر الجملة'
-};
-
-const roleColors = {
-  admin: 'bg-red-100 text-red-800',
-  supplier: 'bg-[#4CAF50]/20 text-[#4CAF50]',
-  marketer: 'bg-green-100 text-green-800',
-  wholesaler: 'bg-purple-100 text-purple-800'
-};
 
 // Memoized Stats Card Component to prevent unnecessary re-renders
 const StatsCard = memo(({ 
@@ -422,7 +412,11 @@ export default function AdminUsersPage() {
         user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.phone.includes(searchTerm);
-      const matchesRole = filterRole === 'all' || user.role === filterRole;
+      const matchesRole = filterRole === 'all' 
+        ? true 
+        : filterRole === 'staff_admin' 
+          ? (user.role === 'admin' && !!user.isStaff && user.staffRole === 'custom')
+          : user.role === filterRole;
       const matchesStatus = filterStatus === 'all' || 
         (filterStatus === 'active' && user.isActive) ||
         (filterStatus === 'inactive' && !user.isActive);
@@ -478,6 +472,7 @@ export default function AdminUsersPage() {
           <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-slate-100">إدارة المستخدمين</h1>
           <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-400 mt-1 sm:mt-2">إدارة جميع المستخدمين في المنصة</p>
         </div>
+        {hasPermission(user, PERMISSIONS.USERS_CREATE) && (
         <Link
           href="/dashboard/users/new"
           className="btn-primary w-full sm:w-auto min-h-[44px] text-xs sm:text-sm px-3 sm:px-4"
@@ -486,6 +481,7 @@ export default function AdminUsersPage() {
           <span className="hidden sm:inline">إضافة مستخدم جديد</span>
           <span className="sm:hidden">إضافة مستخدم</span>
         </Link>
+        )}
       </div>
 
       {/* Stats - Using memoized components to prevent unnecessary re-renders */}
@@ -576,6 +572,7 @@ export default function AdminUsersPage() {
             >
               <option value="all">جميع الأدوار</option>
               <option value="admin">الإدارة</option>
+              <option value="staff_admin">موظف إدارة</option>
               <option value="supplier">المورد</option>
               <option value="marketer">المسوق</option>
               <option value="wholesaler">تاجر الجملة</option>
@@ -662,8 +659,8 @@ export default function AdminUsersPage() {
                         </div>
                       </td>
                       <td className="table-cell">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${roleColors[userItem.role as keyof typeof roleColors]}`}>
-                          {roleLabels[userItem.role as keyof typeof roleLabels]}
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleDisplayColor(userItem)}`}>
+                          {getRoleDisplayLabel(userItem)}
                         </span>
                       </td>
                       <td className="table-cell">
@@ -689,6 +686,7 @@ export default function AdminUsersPage() {
                             <Eye className="w-4 h-4" />
                           </div>
                           
+                          {hasPermission(user, PERMISSIONS.USERS_UPDATE) && (
                           <Link
                             href={`/dashboard/users/${userItem._id}/edit`}
                             className="text-gray-600 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200"
@@ -697,7 +695,9 @@ export default function AdminUsersPage() {
                           >
                             <Edit className="w-4 h-4" />
                           </Link>
+                          )}
                           
+                          {hasPermission(user, PERMISSIONS.USERS_TOGGLE_STATUS) && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -708,6 +708,7 @@ export default function AdminUsersPage() {
                           >
                             {userItem.isActive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
                           </button>
+                          )}
                           
                           {!userItem.isVerified && (
                             <button
@@ -758,8 +759,8 @@ export default function AdminUsersPage() {
                       </p>
                     )}
                     <div className="flex flex-wrap gap-2 mb-2">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium ${roleColors[userItem.role as keyof typeof roleColors]}`}>
-                        {roleLabels[userItem.role as keyof typeof roleLabels]}
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium ${getRoleDisplayColor(userItem)}`}>
+                        {getRoleDisplayLabel(userItem)}
                       </span>
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium ${userItem.isActive ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'}`}>
                         {userItem.isActive ? 'نشط' : 'غير نشط'}
@@ -798,6 +799,7 @@ export default function AdminUsersPage() {
                     <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4 ml-1.5" />
                     عرض التفاصيل
                   </button>
+                  {hasPermission(user, PERMISSIONS.USERS_UPDATE) && (
                   <Link
                     href={`/dashboard/users/${userItem._id}/edit`}
                     onClick={(e) => e.stopPropagation()}
@@ -806,6 +808,8 @@ export default function AdminUsersPage() {
                   >
                     <Edit className="w-4 h-4" />
                   </Link>
+                  )}
+                  {hasPermission(user, PERMISSIONS.USERS_TOGGLE_STATUS) && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -820,6 +824,7 @@ export default function AdminUsersPage() {
                   >
                     {userItem.isActive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
                   </button>
+                  )}
                   {!userItem.isVerified && (
                     <button
                       onClick={(e) => {

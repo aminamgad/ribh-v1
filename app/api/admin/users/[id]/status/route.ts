@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withRole } from '@/lib/auth';
+import { withPermission } from '@/lib/auth';
+import { PERMISSIONS } from '@/lib/permissions';
 import connectDB from '@/lib/database';
 import User from '@/models/User';
 import { z } from 'zod';
@@ -74,4 +75,4 @@ async function updateUserStatus(req: NextRequest, user: any, ...args: unknown[])
   }
 }
 
-export const PUT = withRole(['admin'])(updateUserStatus); 
+export const PUT = withPermission(PERMISSIONS.USERS_TOGGLE_STATUS)(updateUserStatus); 

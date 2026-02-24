@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withRole } from '@/lib/auth';
+import { withRole, userHasAnyPermission } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import Order from '@/models/Order';
 import Product from '@/models/Product';
@@ -441,6 +441,18 @@ async function getOrdersHandler(req: NextRequest, user: any) {
     await connectDB();
     
     logger.apiRequest('GET', '/api/orders', { userId: user._id, role: user.role });
+
+    // صلاحيات دقيقة: الأدمن يحتاج orders.view أو orders.manage لعرض قائمة الطلبات
+    if (user.role === 'admin' && !userHasAnyPermission(user, ['orders.view', 'orders.manage'])) {
+      const { searchParams } = new URL(req.url);
+      const page = parseInt(searchParams.get('page') || '1');
+      const limit = parseInt(searchParams.get('limit') || '100');
+      return NextResponse.json({
+        success: true,
+        orders: [],
+        pagination: { page, limit, total: 0, pages: 0 },
+      });
+    }
     
     const { searchParams } = new URL(req.url);
     const statusParam = searchParams.get('status');

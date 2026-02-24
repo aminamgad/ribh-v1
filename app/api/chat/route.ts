@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { withAuth } from '@/lib/auth';
+import { withAuth, userHasAnyPermission } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import Chat, { ChatStatus } from '@/models/Chat';
 import User from '@/models/User';
@@ -20,6 +20,15 @@ const createChatSchema = z.object({
 // GET /api/chat - Get user's chats
 export const GET = withAuth(async (req: NextRequest, user: any) => {
   try {
+    // صلاحيات دقيقة: الأدمن يحتاج messages.view أو messages.reply أو messages.moderate لعرض المحادثات
+    if (user.role === 'admin' && !userHasAnyPermission(user, ['messages.view', 'messages.reply', 'messages.moderate'])) {
+      return NextResponse.json({
+        success: true,
+        chats: [],
+        pagination: { page: 1, limit: 20, total: 0, pages: 0 }
+      });
+    }
+
     await connectDB();
 
     const { searchParams } = new URL(req.url);
@@ -107,6 +116,12 @@ export const POST = withAuth(async (req: NextRequest, user: any) => {
     let recipientId: string;
 
     if (user.role === 'admin') {
+      if (!userHasAnyPermission(user, ['messages.reply', 'messages.moderate'])) {
+        return NextResponse.json(
+          { success: false, message: 'غير مصرح لك بإنشاء محادثات مع المستخدمين' },
+          { status: 403 }
+        );
+      }
       // Admin must specify recipient
       if (!validatedData.recipientId) {
         return NextResponse.json(

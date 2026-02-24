@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/lib/auth';
+import { withAuth, userHasAnyPermission } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import Message from '@/models/Message';
 import User from '@/models/User'; // Import User model for population
@@ -15,41 +15,51 @@ async function markMessagesAsRead(req: NextRequest, user: any, ...args: unknown[
     
     const conversationId = params.id;
     
-    // Parse conversation ID to get the two user IDs
-    const [userId1, userId2] = conversationId.split('-');
+    const parts = conversationId.split('-');
+    const userId1 = parts[0];
+    const userId2 = parts.slice(1).join('-');
+    const isNullReceiver = userId2 === 'null' || !userId2;
     
-    if (!userId1 || !userId2) {
+    if (!userId1) {
       return NextResponse.json(
         { success: false, message: 'معرف المحادثة غير صحيح' },
         { status: 400 }
       );
     }
     
-    // Verify that the current user is part of this conversation
-    if (userId1 !== user._id.toString() && userId2 !== user._id.toString()) {
+    const isParticipant = isNullReceiver ? userId1 === user._id.toString() : (userId1 === user._id.toString() || userId2 === user._id.toString());
+    const isAdminWithPermission = user.role === 'admin' && userHasAnyPermission(user, ['messages.view', 'messages.moderate']);
+    
+    if (!isParticipant && !isAdminWithPermission) {
       return NextResponse.json(
         { success: false, message: 'غير مصرح لك بالوصول لهذه المحادثة' },
         { status: 403 }
       );
     }
     
-    // Mark all unread messages in this conversation as read
-    const result = await Message.updateMany(
-      {
-        $or: [
-          { senderId: userId1, receiverId: userId2 },
-          { senderId: userId2, receiverId: userId1 }
-        ],
-        receiverId: user._id,
-        isRead: false
-      },
-      {
-        $set: {
-          isRead: true,
-          readAt: new Date()
+    // Mark all unread messages in this conversation as read (حيث المستخدم الحالي هو المستلم)
+    let result: { modifiedCount: number };
+    if (isNullReceiver) {
+      // رسائل بدون مستلم: لا يمكن للمستخدم الحالي أن يكون مستلماً، لا نحدّث شيئاً
+      result = { modifiedCount: 0 };
+    } else {
+      result = await Message.updateMany(
+        {
+          $or: [
+            { senderId: userId1, receiverId: userId2 },
+            { senderId: userId2, receiverId: userId1 }
+          ],
+          receiverId: user._id,
+          isRead: false
+        },
+        {
+          $set: {
+            isRead: true,
+            readAt: new Date()
+          }
         }
-      }
-    );
+      );
+    }
     
     logger.debug('Messages marked as read', {
       conversationId,

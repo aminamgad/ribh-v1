@@ -35,23 +35,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const checkAuth = async () => {
     try {
-      // First, try to load user from localStorage for faster initial render
+      // للمستخدمين غير الإدارة: تحميل من localStorage لسرعة العرض. للإدارة: عدم الاعتماد على الكاش لضمان ظهور الصلاحيات الصحيحة
       if (typeof window !== 'undefined') {
         const savedUser = localStorage.getItem('ribh-user');
         if (savedUser) {
           try {
             const parsedUser = JSON.parse(savedUser);
-            setUser(parsedUser);
-            // Don't set loading to false yet, we still need to verify with server
+            if (parsedUser.role !== 'admin') {
+              setUser(parsedUser);
+            }
+            // لا نعرض مستخدم إدارة من الكاش حتى نستلم البيانات الحالية من الخادم
           } catch (error) {
-            // Invalid saved user, clear it
             localStorage.removeItem('ribh-user');
           }
         }
       }
 
-      // Verify with server
-      const response = await fetch('/api/auth/me');
+      // التحقق من الخادم دائماً بدون استخدام الكاش (لظهور الصلاحيات بشكل صحيح)
+      const response = await fetch('/api/auth/me', {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' },
+      });
       if (response.ok) {
         const data = await response.json();
         setUser(data.user);
@@ -59,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (typeof window !== 'undefined') {
           localStorage.setItem('ribh-user', JSON.stringify(data.user));
         }
-        // Clear cache when user is authenticated to ensure fresh data based on user role
+        // مسح كاش البيانات عند كل تحقق لضمان تطابق الصلاحيات مع الخادم
         try {
           if (typeof window !== 'undefined') {
             sessionStorage.removeItem('ribh_data_cache');
@@ -93,6 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ email, password, rememberMe }),
+        cache: 'no-store',
       });
 
       const data = await response.json();

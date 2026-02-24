@@ -1,5 +1,8 @@
 export type UserRole = 'admin' | 'supplier' | 'marketer' | 'wholesaler';
 
+/** نوع صلاحيات الموظف: كامل = كل الصلاحيات، مخصص = قائمة permissions فقط */
+export type StaffRoleType = 'full_admin' | 'custom';
+
 export interface User {
   _id: string;
   name: string;
@@ -8,6 +11,12 @@ export interface User {
   role: UserRole;
   isActive: boolean;
   isVerified: boolean;
+  /** موظف إدارة (له صلاحيات إدارية محددة أو كاملة) */
+  isStaff?: boolean;
+  /** نوع صلاحيات الموظف - فقط عندما isStaff === true */
+  staffRole?: StaffRoleType;
+  /** قائمة صلاحيات مخصصة - فقط عندما isStaff === true و staffRole === 'custom' */
+  permissions?: string[];
   avatar?: string;
   // Marketing account fields
   country?: string;

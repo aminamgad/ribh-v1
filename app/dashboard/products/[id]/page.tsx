@@ -39,6 +39,7 @@ import CommentsSection from '@/components/ui/CommentsSection';
 import { ProductVariant, ProductVariantOption } from '@/types';
 import { getCloudinaryThumbnailUrl, isCloudinaryUrl } from '@/lib/mediaUtils';
 import { getStockDisplayText, calculateVariantStockQuantity } from '@/lib/product-helpers';
+import { hasPermission, hasAnyOfPermissions, PERMISSIONS } from '@/lib/permissions';
 
 interface Product {
   _id: string;
@@ -355,10 +356,18 @@ export default function ProductDetailPage() {
 
   const canLockProduct = () => {
     if (!product || !user) return false;
-    return user.role === 'admin' || 
-           (user.role === 'supplier' && 
-            (typeof product.supplierId === 'string' ? product.supplierId === user._id : product.supplierId?._id === user._id));
+    if (user.role === 'supplier' && (typeof product.supplierId === 'string' ? product.supplierId === user._id : product.supplierId?._id === user._id))
+      return true;
+    if (user.role === 'admin' && hasPermission(user, PERMISSIONS.PRODUCTS_MANAGE)) return true;
+    return false;
   };
+
+  const canManageProducts = user && (user.role === 'supplier' || (user.role === 'admin' && hasPermission(user, PERMISSIONS.PRODUCTS_MANAGE)));
+  const canApproveProducts = user?.role === 'admin' && hasPermission(user, PERMISSIONS.PRODUCTS_APPROVE);
+  const canViewProductStats =
+    user?.role === 'admin' &&
+    hasAnyOfPermissions(user, [PERMISSIONS.PRODUCTS_VIEW, PERMISSIONS.PRODUCTS_APPROVE, PERMISSIONS.PRODUCTS_MANAGE]) &&
+    hasPermission(user, PERMISSIONS.PRODUCT_STATS_VIEW);
 
   const handleToggleFavorite = async () => {
     if (!product) return;
@@ -706,7 +715,7 @@ export default function ProductDetailPage() {
               </button>
             )}
 
-            {(user?.role === 'supplier' || user?.role === 'admin') && (
+            {canManageProducts && (
               <>
                 <Link
                   href={`/dashboard/products/${product._id}/edit`}
@@ -786,7 +795,7 @@ export default function ProductDetailPage() {
 
             {/* Admin Approval Actions */}
             {(() => {
-              return user?.role === 'admin' && !product.isApproved && !product.isRejected ? (
+              return canApproveProducts && !product.isApproved && !product.isRejected ? (
                 <>
                   <button
                     onClick={handleApproveProduct}
@@ -813,7 +822,7 @@ export default function ProductDetailPage() {
 
                         {/* Admin can reverse decisions */}
             {(() => {
-              return user?.role === 'admin' && (product.isApproved || product.isRejected) ? (
+              return canApproveProducts && (product.isApproved || product.isRejected) ? (
                 <button
                   onClick={() => {
                     setReviewAction(product.isApproved ? 'approve' : 'reject');
@@ -827,10 +836,10 @@ export default function ProductDetailPage() {
               ) : null;
             })()}
 
-            {/* View Statistics Button - Only for admins */}
-            {user?.role === 'admin' && (
+            {/* View Statistics Button - Only for admins with product_stats.view */}
+            {canViewProductStats && (
               <Link
-                href={`/dashboard/products/${product._id}/statistics`}
+                href={`/dashboard/admin/product-stats?productId=${product._id}`}
                 className="btn-info"
               >
                 <BarChart3 className="w-4 h-4 ml-2" />
@@ -996,8 +1005,8 @@ export default function ProductDetailPage() {
                       )}
                     </div>
                   </div>
-                  {/* Admin Profit Display - Only for Admin */}
-                  {user?.role === 'admin' && product.supplierPrice && product.marketerPrice && (
+                  {/* Admin Profit Display - Only for Admin with products.view */}
+                  {user?.role === 'admin' && hasPermission(user, PERMISSIONS.PRODUCTS_VIEW) && product.supplierPrice && product.marketerPrice && (
                     <div className={`mt-4 p-4 rounded-lg border-2 ${
                       product.isMarketerPriceManuallyAdjusted
                         ? 'bg-orange-50 dark:bg-orange-900/20 border-orange-300 dark:border-orange-700'
@@ -1076,8 +1085,8 @@ export default function ProductDetailPage() {
                     <p className="text-yellow-600 dark:text-yellow-400">⚠️ المتغيرات مفعلة ولكن لا توجد متغيرات محددة</p>
                   )}
                   
-                  {/* Test button for admins to enable variants */}
-                  {user?.role === 'admin' && !product.hasVariants && (
+                  {/* Test button for admins with products.manage to enable variants */}
+                  {user?.role === 'admin' && hasPermission(user, PERMISSIONS.PRODUCTS_MANAGE) && !product.hasVariants && (
                     <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
                       <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">اختبار: إضافة متغيرات تجريبية</p>
                       <button

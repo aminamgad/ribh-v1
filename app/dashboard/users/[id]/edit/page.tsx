@@ -18,6 +18,8 @@ import {
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import CountrySelect from '@/components/ui/CountrySelect';
+import PermissionSelector from '@/components/admin/PermissionSelector';
+import { getRoleDisplayLabel, getRoleDisplayColor } from '@/lib/permissions';
 
 const userSchema = z.object({
   name: z.string().min(2, 'الاسم يجب أن يكون حرفين على الأقل'),
@@ -50,7 +52,10 @@ const userSchema = z.object({
   // Legacy field
   taxId: z.string().optional(),
   isActive: z.boolean(),
-  isVerified: z.boolean()
+  isVerified: z.boolean(),
+  isStaff: z.boolean().optional(),
+  staffRole: z.enum(['full_admin', 'custom']).optional(),
+  permissions: z.array(z.string()).optional()
 }).refine((data) => {
   // Marketing account validation
   if (data.role === 'marketer') {
@@ -97,6 +102,9 @@ interface UserData {
   taxId?: string;
   isActive: boolean;
   isVerified: boolean;
+  isStaff?: boolean;
+  staffRole?: string;
+  permissions?: string[];
 }
 
 export default function EditUserPage() {
@@ -107,6 +115,7 @@ export default function EditUserPage() {
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [customPermissions, setCustomPermissions] = useState<string[]>([]);
 
   const {
     register,
@@ -132,7 +141,10 @@ export default function EditUserPage() {
       businessType: '',
       taxId: '',
       isActive: true,
-      isVerified: false
+      isVerified: false,
+      isStaff: false,
+      staffRole: 'full_admin',
+      permissions: []
     }
   });
 
@@ -166,6 +178,10 @@ export default function EditUserPage() {
         setValue('taxId', data.user.taxId || '');
         setValue('isActive', data.user.isActive);
         setValue('isVerified', data.user.isVerified);
+        setValue('isStaff', !!data.user.isStaff);
+        setValue('staffRole', data.user.staffRole === 'custom' ? 'custom' : 'full_admin');
+        setValue('permissions', Array.isArray(data.user.permissions) ? data.user.permissions : []);
+        setCustomPermissions(Array.isArray(data.user.permissions) ? data.user.permissions : []);
       } else {
         toast.error('المستخدم غير موجود');
         router.push('/dashboard/users');
@@ -209,10 +225,19 @@ export default function EditUserPage() {
 
     try {
       // Normalize website URL before submission
-      const normalizedData = {
+      const normalizedData: any = {
         ...data,
         websiteLink: data.websiteLink ? normalizeUrl(data.websiteLink) : ''
       };
+      if (data.role === 'admin') {
+        normalizedData.isStaff = !!data.isStaff;
+        normalizedData.staffRole = data.staffRole === 'custom' ? 'custom' : 'full_admin';
+        normalizedData.permissions = data.staffRole === 'custom' ? customPermissions : undefined;
+      } else {
+        normalizedData.isStaff = false;
+        normalizedData.staffRole = undefined;
+        normalizedData.permissions = undefined;
+      }
 
       const response = await fetch(`/api/admin/users/${params.id}`, {
         method: 'PUT',
@@ -356,6 +381,77 @@ export default function EditUserPage() {
               </div>
             </div>
           </div>
+
+          {/* صلاحيات الموظف - عند اختيار دور الإدارة */}
+          {(watchedValues.role as string) === 'admin' && (
+            <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-gray-200 dark:border-slate-700">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-2">صلاحيات الموظف</h2>
+              <p className="text-sm text-gray-500 dark:text-slate-400 mb-6">
+                اختر إن كان حساب إدارة كامل أو موظف بصلاحيات محددة.
+              </p>
+              <div className="space-y-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    {...register('isStaff')}
+                    className="rounded border-gray-300 dark:border-slate-500 text-[#FF9800] focus:ring-[#FF9800]"
+                    disabled={isOwnAccount}
+                  />
+                  <span className="text-sm text-gray-700 dark:text-slate-300">موظف إدارة (صلاحيات محددة أو كاملة)</span>
+                </label>
+                {watchedValues.isStaff && (
+                  <>
+                    <div className="p-1 rounded-xl bg-gray-100 dark:bg-slate-700/60 inline-flex gap-0.5 border border-gray-200/80 dark:border-slate-600">
+                      <input
+                        type="radio"
+                        id="staffRole-full_admin"
+                        value="full_admin"
+                        {...register('staffRole')}
+                        className="sr-only"
+                      />
+                      <input
+                        type="radio"
+                        id="staffRole-custom"
+                        value="custom"
+                        {...register('staffRole')}
+                        className="sr-only"
+                      />
+                      <label
+                        htmlFor="staffRole-full_admin"
+                        className={`px-5 py-2.5 rounded-lg text-sm font-medium cursor-pointer transition-all duration-200 ${
+                          watchedValues.staffRole !== 'custom'
+                            ? 'bg-gradient-to-l from-[#FF9800] to-[#F57C00] text-white shadow-md'
+                            : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'
+                        }`}
+                      >
+                        صلاحيات كاملة
+                      </label>
+                      <label
+                        htmlFor="staffRole-custom"
+                        className={`px-5 py-2.5 rounded-lg text-sm font-medium cursor-pointer transition-all duration-200 ${
+                          watchedValues.staffRole === 'custom'
+                            ? 'bg-gradient-to-l from-[#FF9800] to-[#F57C00] text-white shadow-md'
+                            : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'
+                        }`}
+                      >
+                        صلاحيات مخصصة
+                      </label>
+                    </div>
+                    {watchedValues.staffRole === 'custom' && (
+                      <div className="mt-4">
+                        <p className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">حدد الصلاحيات (أو اختر دوراً مختصراً):</p>
+                        <PermissionSelector
+                          value={customPermissions}
+                          onChange={setCustomPermissions}
+                          disabled={isOwnAccount}
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Marketing Account Fields */}
           {(watchedValues.role as string) === 'marketer' && (
@@ -607,16 +703,18 @@ export default function EditUserPage() {
                     قيد التحقق
                   </span>
                 )}
-                <span className={`badge ${
-                  (watchedValues.role as string) === 'admin' ? 'badge-danger' :
-                  (watchedValues.role as string) === 'supplier' ? 'badge-blue' :
-                  (watchedValues.role as string) === 'wholesaler' ? 'badge-purple' :
-                  'badge-success'
-                }`}>
-                  {(watchedValues.role as string) === 'admin' ? 'الإدارة' :
-                   (watchedValues.role as string) === 'supplier' ? 'المورد' :
-                   (watchedValues.role as string) === 'wholesaler' ? 'تاجر الجملة' :
-                   'المسوق'}
+                <span className={`badge ${getRoleDisplayColor({
+                  role: watchedValues.role as string,
+                  isStaff: watchedValues.isStaff,
+                  staffRole: watchedValues.staffRole,
+                  permissions: watchedValues.staffRole === 'custom' ? customPermissions : undefined
+                })}`}>
+                  {getRoleDisplayLabel({
+                    role: watchedValues.role as string,
+                    isStaff: watchedValues.isStaff,
+                    staffRole: watchedValues.staffRole,
+                    permissions: watchedValues.staffRole === 'custom' ? customPermissions : undefined
+                  })}
                 </span>
               </div>
             </div>

@@ -136,26 +136,15 @@ async function loginHandler(req: NextRequest) {
       name: user.name,
     });
 
-    // Set cookie
+    // إرجاع بيانات المستخدم كاملة (بما فيها isStaff, staffRole, permissions) لضمان ظهور الصلاحيات فوراً
+    const userDoc = user.toObject ? user.toObject() : { ...user };
+    delete userDoc.password;
+    const userForClient = { ...userDoc, _id: user._id?.toString?.() ?? user._id };
+
     const response = NextResponse.json({
       success: true,
       message: 'تم تسجيل الدخول بنجاح',
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        role: user.role,
-        isActive: user.isActive,
-        isVerified: user.isVerified,
-        companyName: user.companyName,
-        address: user.address,
-        wholesaleLicense: user.wholesaleLicense,
-        businessType: user.businessType,
-        taxId: user.taxId,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-      },
+      user: userForClient,
     });
 
     const rememberMe = validatedData.rememberMe !== false;

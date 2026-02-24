@@ -14,6 +14,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { OptimizedImage } from '@/components/ui/LazyImage';
 import MediaThumbnail from '@/components/ui/MediaThumbnail';
 import { toast } from 'react-hot-toast';
+import { getRoleDisplayLabel, hasPermission, hasAnyOfPermissions, PERMISSIONS } from '@/lib/permissions';
 
 export default function DashboardHeader() {
   const { user } = useAuth();
@@ -168,19 +169,12 @@ export default function DashboardHeader() {
     }
   };
 
-  const roleLabels = {
-    admin: 'الإدارة',
-    supplier: 'المورد',
-    marketer: 'المسوق',
-    wholesaler: 'تاجر الجملة'
-  };
-
-  const roleColors = {
-    admin: 'bg-gradient-to-r from-[#FF9800]/20 to-[#F57C00]/20 dark:from-[#FF9800]/30 dark:to-[#F57C00]/30 text-[#FF9800] dark:text-[#FF9800] border-[#FF9800]/30 dark:border-[#FF9800]/40',
-    supplier: 'bg-gradient-to-r from-[#4CAF50]/20 to-[#388E3C]/20 dark:from-[#4CAF50]/30 dark:to-[#388E3C]/30 text-[#4CAF50] dark:text-[#4CAF50] border-[#4CAF50]/30 dark:border-[#4CAF50]/40',
-    marketer: 'bg-gradient-to-r from-[#FF9800]/20 to-[#F57C00]/20 dark:from-[#FF9800]/30 dark:to-[#F57C00]/30 text-[#FF9800] dark:text-[#FF9800] border-[#FF9800]/30 dark:border-[#FF9800]/40',
-    wholesaler: 'bg-gradient-to-r from-[#4CAF50]/20 to-[#388E3C]/20 dark:from-[#4CAF50]/30 dark:to-[#388E3C]/30 text-[#4CAF50] dark:text-[#4CAF50] border-[#4CAF50]/30 dark:border-[#4CAF50]/40'
-  };
+  const roleDisplayLabel = getRoleDisplayLabel(user);
+  const roleDisplayColor = user?.role === 'admin'
+    ? (user?.isStaff && user?.staffRole === 'custom'
+        ? 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 dark:from-amber-500/30 dark:to-orange-500/30 text-amber-600 dark:text-amber-400 border-amber-500/30 dark:border-amber-500/40'
+        : 'bg-gradient-to-r from-[#FF9800]/20 to-[#F57C00]/20 dark:from-[#FF9800]/30 dark:to-[#F57C00]/30 text-[#FF9800] dark:text-[#FF9800] border-[#FF9800]/30 dark:border-[#FF9800]/40')
+    : (user?.role === 'supplier' ? 'bg-gradient-to-r from-[#4CAF50]/20 to-[#388E3C]/20 dark:from-[#4CAF50]/30 dark:to-[#388E3C]/30 text-[#4CAF50] dark:text-[#4CAF50] border-[#4CAF50]/30 dark:border-[#4CAF50]/40' : user?.role === 'wholesaler' ? 'bg-gradient-to-r from-[#4CAF50]/20 to-[#388E3C]/20 dark:from-[#4CAF50]/30 dark:to-[#388E3C]/30 text-[#4CAF50] dark:text-[#4CAF50] border-[#4CAF50]/30 dark:border-[#4CAF50]/40' : 'bg-gradient-to-r from-[#FF9800]/20 to-[#F57C00]/20 dark:from-[#FF9800]/30 dark:to-[#F57C00]/30 text-[#FF9800] dark:text-[#FF9800] border-[#FF9800]/30 dark:border-[#FF9800]/40');
 
   if (!mounted) {
     return (
@@ -224,8 +218,8 @@ export default function DashboardHeader() {
             </Link>
           </div>
 
-          {/* Search Bar - عرض شرطي: إخفاء في صفحة المنتجات (SearchFilters هناك) */}
-          {!pathname.startsWith('/dashboard/products') && (
+          {/* Search Bar - عرض شرطي: إخفاء في صفحة المنتجات + حسب الصلاحية (products.view للأدمن) */}
+          {!pathname.startsWith('/dashboard/products') && (user?.role === 'marketer' || user?.role === 'wholesaler' || user?.role === 'supplier' || (user?.role === 'admin' && hasPermission(user, PERMISSIONS.PRODUCTS_VIEW))) && (
           <div ref={searchContainerRef} className="hidden md:flex flex-1 max-w-md mx-4 lg:mx-8 relative">
             <form onSubmit={handleSearch} className="relative w-full">
               <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-500 dark:text-slate-300 pointer-events-none" />
@@ -338,7 +332,8 @@ export default function DashboardHeader() {
               </Link>
             )}
 
-            {/* Chat Icon */}
+            {/* Chat/Messages Icon - للمسوق دائماً، وللإدارة مع أي صلاحية رسائل */}
+            {((user?.role === 'marketer') || (user?.role === 'admin' && hasAnyOfPermissions(user, [PERMISSIONS.MESSAGES_VIEW, PERMISSIONS.MESSAGES_REPLY, PERMISSIONS.MESSAGES_MODERATE]))) && (
             <Link 
               href="/dashboard/chat" 
               className="relative min-w-[44px] min-h-[44px] p-2 sm:p-2.5 md:p-3 rounded-lg sm:rounded-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 shadow-lg hover:shadow-xl dark:hover:shadow-slate-900/30 transition-all duration-300 group hover:scale-105 flex items-center justify-center"
@@ -350,6 +345,7 @@ export default function DashboardHeader() {
                 </span>
               )}
             </Link>
+            )}
 
             {/* Notifications */}
             <Link 
@@ -368,22 +364,22 @@ export default function DashboardHeader() {
             <div className="relative">
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
-                className="flex items-center min-w-[44px] min-h-[44px] p-1.5 sm:p-2 md:p-3 rounded-lg sm:rounded-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 shadow-lg hover:shadow-xl dark:hover:shadow-slate-900/30 transition-all duration-300 group hover:scale-105"
+                className="flex items-center gap-2 sm:gap-2.5 min-w-[44px] min-h-[44px] px-2 sm:px-2.5 md:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 shadow-lg hover:shadow-xl dark:hover:shadow-slate-900/30 transition-all duration-300 group hover:scale-105"
               >
-                <div className="ml-2 sm:ml-3 text-right hidden md:block">
-                  <p className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-slate-200 group-hover:text-[#FF9800] dark:group-hover:text-[#FF9800] transition-colors duration-300 truncate max-w-[120px]">
+                <div className="text-right hidden md:block min-w-0">
+                  <p className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-slate-200 group-hover:text-[#FF9800] dark:group-hover:text-[#FF9800] transition-colors duration-300 truncate max-w-[100px]">
                     {user?.name}
                   </p>
-                  {user?.role !== 'marketer' && (
-                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] sm:text-xs font-medium border ${roleColors[user?.role || 'marketer']}`}>
-                      {roleLabels[user?.role || 'marketer']}
+                  {user?.role !== 'marketer' && roleDisplayLabel && (
+                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] sm:text-xs font-medium border mt-0.5 ${roleDisplayColor}`}>
+                      {roleDisplayLabel}
                     </span>
                   )}
                 </div>
-                <div className="h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 rounded-full bg-gradient-to-br from-[#FF9800] via-[#F57C00] to-[#E65100] flex items-center justify-center mr-1 sm:mr-2 md:mr-3 group-hover:scale-110 transition-transform duration-300 shadow-lg flex-shrink-0">
+                <div className="h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 rounded-full bg-gradient-to-br from-[#FF9800] via-[#F57C00] to-[#E65100] flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg flex-shrink-0">
                   <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5 text-white" />
                 </div>
-                <ChevronDown className={`h-3.5 w-3.5 sm:h-4 sm:w-4 text-gray-500 dark:text-slate-300 transition-transform duration-300 ${showUserMenu ? 'rotate-180' : ''} hidden md:block`} />
+                <ChevronDown className={`h-3.5 w-3.5 sm:h-4 sm:w-4 text-gray-500 dark:text-slate-300 transition-transform duration-300 flex-shrink-0 ${showUserMenu ? 'rotate-180' : ''} hidden md:block`} />
               </button>
 
               {/* Dropdown Menu */}
@@ -392,10 +388,10 @@ export default function DashboardHeader() {
                   <div className="px-3 sm:px-4 py-2 sm:py-3 border-b border-gray-100 dark:border-slate-700">
                     <p className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-slate-100 truncate">{user?.name}</p>
                     <p className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-300 truncate">{user?.email}</p>
-                    {user?.role !== 'marketer' && (
+                    {user?.role !== 'marketer' && roleDisplayLabel && (
                       <div className="mt-1.5 sm:mt-2">
-                        <span className={`inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium border ${roleColors[user?.role || 'marketer']}`}>
-                          {roleLabels[user?.role || 'marketer']}
+                        <span className={`inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium border ${roleDisplayColor}`}>
+                          {roleDisplayLabel}
                         </span>
                       </div>
                     )}

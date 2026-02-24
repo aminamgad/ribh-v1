@@ -33,7 +33,7 @@ import {
   ArrowLeft,
   Clock,
   Inbox,
-  Link as LinkIcon,
+  Share2,
   List,
   LayoutGrid
 } from 'lucide-react';
@@ -41,10 +41,12 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import SearchFilters from '@/components/search/SearchFilters';
 import MediaThumbnail from '@/components/ui/MediaThumbnail';
+import ButtonLoader from '@/components/ui/ButtonLoader';
 import { useRouter } from 'next/navigation';
 import ProductSection from '@/components/products/ProductSection';
 import AdminProductsTableView from '@/components/products/AdminProductsTableView';
 import { getStockBadgeText, calculateVariantStockQuantity } from '@/lib/product-helpers';
+import { hasPermission, hasAnyOfPermissions, PERMISSIONS } from '@/lib/permissions';
 
 interface Product {
   _id: string;
@@ -162,7 +164,17 @@ export default function ProductsPage() {
   
   // Use URL query string directly - no need for searchParams which causes re-renders
   const queryString = urlQueryString || '';
-  
+
+  // إخفاء الأقسام فقط عند وجود فلاتر فعلية (بحث، قسم، سعر، إلخ) وليس عند الترتيب أو الصفحة
+  const hasSectionFilters = useMemo(() => {
+    if (!queryString) return false;
+    const params = new URLSearchParams(queryString);
+    const filterKeys = ['q', 'category', 'minPrice', 'maxPrice', 'status', 'minStock', 'maxStock', 'suppliers', 'startDate', 'endDate', 'manuallyModified'];
+    return filterKeys.some((k) => params.has(k));
+  }, [queryString]);
+
+  const showProductSections = !hasSectionFilters;
+
   // استعلام الفلاتر فقط (بدون page)
   const baseQueryString = useMemo(() => {
     const params = new URLSearchParams(queryString);
@@ -241,6 +253,19 @@ export default function ProductsPage() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const router = useRouter();
+
+  // حارس الوصول: الأدمن يحتاج products.view أو products.approve أو products.manage (إحصائية المنتج مرتبطة بها)
+  useEffect(() => {
+    if (!user || user.role !== 'admin') return;
+    const canAccess = hasAnyOfPermissions(user, [
+      PERMISSIONS.PRODUCTS_VIEW,
+      PERMISSIONS.PRODUCTS_APPROVE,
+      PERMISSIONS.PRODUCTS_MANAGE,
+    ]);
+    if (!canAccess) {
+      router.replace('/dashboard');
+    }
+  }, [user, router]);
 
   // Use cache hook for product sections (only for marketer when no filters)
   const { data: sectionsData, loading: sectionsLoading, refresh: refreshSections } = useDataCache<{
@@ -346,7 +371,7 @@ export default function ProductsPage() {
         games: filterApproved(gamesData.products || [])
       };
     },
-    enabled: !!user && user.role === 'marketer' && !queryString,
+    enabled: !!user && (user.role === 'marketer' || user.role === 'wholesaler') && showProductSections,
     forceRefresh: false
   });
 
@@ -373,11 +398,14 @@ export default function ProductsPage() {
     return data;
   }, [baseQueryString, currentPage]);
 
+  // صلاحيات دقيقة: الأدمن يحتاج products.view لجلب قائمة المنتجات
+  const canViewProducts = !user || user.role !== 'admin' || hasPermission(user, PERMISSIONS.PRODUCTS_VIEW);
+
   // Use cache hook for products
   const { data: productsData, loading, refresh } = useDataCache<{ products: Product[]; pagination?: any }>({
     key: cacheKey,
     fetchFn: fetchProducts,
-    enabled: !!user,
+    enabled: !!user && canViewProducts,
     forceRefresh: false
   });
 
@@ -434,16 +462,6 @@ export default function ProductsPage() {
     }
     return p.stockQuantity ?? 0;
   }, []);
-
-  const summaryCounts = useMemo(() => {
-    const total = pagination.total || products.length;
-    const available = products.filter(p => getEffectiveStock(p) > 0).length;
-    const unavailable = products.filter(p => getEffectiveStock(p) <= 0).length;
-    const favorites = (user?.role === 'marketer' || user?.role === 'wholesaler')
-      ? products.filter(p => isFavorite(p._id)).length
-      : 0;
-    return { total, available, unavailable, favorites };
-  }, [products, pagination.total, getEffectiveStock, user?.role, isFavorite]);
 
   // ترتيب المنتجات محلياً حسب الاختيار (اسم، سعر، مخزون، تاريخ)
   const sortedProducts = useMemo(() => {
@@ -586,9 +604,15 @@ export default function ProductsPage() {
         refresh();
       } else {
         toast.error(data.error || 'فشل في تصدير المنتج');
+        setExportingProductId(null);
+        setShowExportModal(false);
+        setSelectedIntegrationId('');
       }
     } catch (error) {
       toast.error('حدث خطأ أثناء تصدير المنتج');
+      setExportingProductId(null);
+      setShowExportModal(false);
+      setSelectedIntegrationId('');
     } finally {
       setExporting(false);
       exportLockRef.current = false;
@@ -800,9 +824,17 @@ export default function ProductsPage() {
 
   const canLockProduct = (product: Product) => {
     if (!user) return false;
-    return user.role === 'admin' || 
-           (user.role === 'supplier' && product.supplierId === user._id);
+    if (user.role === 'supplier' && product.supplierId === user._id) return true;
+    if (user.role === 'admin' && hasPermission(user, PERMISSIONS.PRODUCTS_MANAGE)) return true;
+    return false;
   };
+
+  const canManageProducts = user && (user.role === 'supplier' || (user.role === 'admin' && hasPermission(user, PERMISSIONS.PRODUCTS_MANAGE)));
+  const canApproveProducts = user?.role === 'admin' && hasPermission(user, PERMISSIONS.PRODUCTS_APPROVE);
+  const canViewProductStats =
+    user?.role === 'admin' &&
+    hasAnyOfPermissions(user, [PERMISSIONS.PRODUCTS_VIEW, PERMISSIONS.PRODUCTS_APPROVE, PERMISSIONS.PRODUCTS_MANAGE]) &&
+    hasPermission(user, PERMISSIONS.PRODUCT_STATS_VIEW);
 
   const handleAddToCart = (product: Product) => {
     if (!user) {
@@ -1082,7 +1114,7 @@ export default function ProductsPage() {
             </p>
           </div>
 
-          {(user?.role === 'supplier' || user?.role === 'admin') && (
+          {canManageProducts && (
             <Link href="/dashboard/products/new" className="btn-primary">
               <Plus className="w-5 h-5 ml-2" />
               إضافة منتج جديد
@@ -1104,136 +1136,179 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      {/* Search and Filters */}
-      <SearchFilters onSearch={handleSearch} />
+      {/* Search and Filters - لا تظهر للأدمن الذي لديه products.manage فقط (بدون products.view) */}
+      {canViewProducts && <SearchFilters onSearch={handleSearch} />}
 
-      {/* Product Sections for Marketer - Only show when no filters/search */}
-      {user?.role === 'marketer' && !queryString && (
-        <div className="space-y-8">
+      {/* Product Sections for Marketer - تظهر عند عدم وجود فلاتر (بحث، قسم، سعر...) */}
+      {(user?.role === 'marketer' || user?.role === 'wholesaler') && showProductSections && (
+        <div className="space-y-10 sm:space-y-12">
           {sectionsLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="loading-spinner w-8 h-8"></div>
-              <span className="mr-3 text-gray-600 dark:text-slate-400">جاري تحميل الأقسام...</span>
-            </div>
+            /* Skeleton لأقسام المنتجات - أول تحميل للمسوق */
+            <>
+              {[1, 2, 3].map((sectionIdx) => (
+                <div key={sectionIdx} className="animate-pulse">
+                  <div className="flex items-center justify-between mb-5 sm:mb-6">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-xl bg-gray-200 dark:bg-slate-700" />
+                      <div className="space-y-2">
+                        <div className="h-6 w-32 rounded bg-gray-200 dark:bg-slate-700" />
+                        <div className="h-4 w-20 rounded bg-gray-100 dark:bg-slate-600" />
+                      </div>
+                    </div>
+                    <div className="h-10 w-24 rounded-xl bg-gray-200 dark:bg-slate-700" />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5 md:gap-6">
+                    {[1, 2, 3, 4].map((cardIdx) => (
+                      <div key={cardIdx} className="rounded-2xl overflow-hidden bg-white dark:bg-slate-800/80 border border-gray-200 dark:border-slate-600/80">
+                        <div className="aspect-square sm:aspect-[4/3] bg-gray-200 dark:bg-slate-700" />
+                        <div className="p-4 space-y-3">
+                          <div className="h-4 w-full rounded bg-gray-200 dark:bg-slate-700" />
+                          <div className="h-4 w-2/3 rounded bg-gray-100 dark:bg-slate-600" />
+                          <div className="h-6 w-1/4 rounded bg-gray-200 dark:bg-slate-700 mt-2" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </>
           ) : (
             <>
-              {/* New Arrivals Section */}
-              <ProductSection
-                title="المضافة حديثاً"
-                icon={<Sparkles className="w-6 h-6" />}
-                products={productSections.newArrivals}
-                onViewAll={() => router.push('/dashboard/products?sortBy=createdAt&sortOrder=desc')}
-                onProductClick={(product) => router.push(`/dashboard/products/${product._id}`)}
-                onAddToCart={(product: any) => handleAddToCart(product)}
-                onToggleFavorite={(product: any) => handleToggleFavorite(product)}
-                isFavorite={isFavorite}
-                showExport={integrations.length > 0}
-                onExport={(p) => handleExportProduct(p._id)}
-                exportingProductId={exportingProductId}
-                onUnlinkExport={handleUnlinkExport}
-                unlinkingProductId={unlinkingProductId}
-              />
+              {/* New Arrivals Section - يظهر فقط إذا وجدت منتجات */}
+              {productSections.newArrivals.length > 0 && (
+                <ProductSection
+                  title="المضافة حديثاً"
+                  icon={<Sparkles className="w-6 h-6" />}
+                  products={productSections.newArrivals}
+                  userRole={user?.role === 'wholesaler' ? 'wholesaler' : 'marketer'}
+                  onViewAll={() => router.push('/dashboard/products?sortBy=createdAt&sortOrder=desc')}
+                  onProductClick={(product) => router.push(`/dashboard/products/${product._id}`)}
+                  onAddToCart={(product: any) => handleAddToCart(product)}
+                  onToggleFavorite={(product: any) => handleToggleFavorite(product)}
+                  isFavorite={isFavorite}
+                  showExport={integrations.length > 0}
+                  onExport={(p) => handleExportProduct(p._id)}
+                  exportingProductId={exportingProductId}
+                  onUnlinkExport={handleUnlinkExport}
+                  unlinkingProductId={unlinkingProductId}
+                />
+              )}
 
-              {/* Best Sellers Section */}
-              <ProductSection
-                title="الأكثر مبيعاً"
-                icon={<TrendingUp className="w-6 h-6" />}
-                products={productSections.bestSellers}
-                onViewAll={() => router.push('/dashboard/products?sortBy=sales&sortOrder=desc')}
-                onProductClick={(product) => router.push(`/dashboard/products/${product._id}`)}
-                onAddToCart={(product: any) => handleAddToCart(product)}
-                onToggleFavorite={(product: any) => handleToggleFavorite(product)}
-                isFavorite={isFavorite}
-                showExport={integrations.length > 0}
-                onExport={(p) => handleExportProduct(p._id)}
-                exportingProductId={exportingProductId}
-                onUnlinkExport={handleUnlinkExport}
-                unlinkingProductId={unlinkingProductId}
-              />
+              {/* Best Sellers Section - يظهر فقط إذا وجدت منتجات */}
+              {productSections.bestSellers.length > 0 && (
+                <ProductSection
+                  title="الأكثر مبيعاً"
+                  icon={<TrendingUp className="w-6 h-6" />}
+                  products={productSections.bestSellers}
+                  userRole={user?.role === 'wholesaler' ? 'wholesaler' : 'marketer'}
+                  onViewAll={() => router.push('/dashboard/products?sortBy=sales&sortOrder=desc')}
+                  onProductClick={(product) => router.push(`/dashboard/products/${product._id}`)}
+                  onAddToCart={(product: any) => handleAddToCart(product)}
+                  onToggleFavorite={(product: any) => handleToggleFavorite(product)}
+                  isFavorite={isFavorite}
+                  showExport={integrations.length > 0}
+                  onExport={(p) => handleExportProduct(p._id)}
+                  exportingProductId={exportingProductId}
+                  onUnlinkExport={handleUnlinkExport}
+                  unlinkingProductId={unlinkingProductId}
+                />
+              )}
 
-              {/* Garden & Home Section */}
-              <ProductSection
-                title="الحديقة والمنزل"
-                icon={<Home className="w-6 h-6" />}
-                products={productSections.gardenHome}
-                onViewAll={() => {
-                  const cat = productSections.gardenHome[0]?.categoryId;
-                  if (cat) router.push(`/dashboard/products?category=${cat}`);
-                  else router.push('/dashboard/products');
-                }}
-                onProductClick={(product) => router.push(`/dashboard/products/${product._id}`)}
-                onAddToCart={(product: any) => handleAddToCart(product)}
-                onToggleFavorite={(product: any) => handleToggleFavorite(product)}
-                isFavorite={isFavorite}
-                showExport={integrations.length > 0}
-                onExport={(p) => handleExportProduct(p._id)}
-                exportingProductId={exportingProductId}
-                onUnlinkExport={handleUnlinkExport}
-                unlinkingProductId={unlinkingProductId}
-              />
+              {/* Garden & Home Section - يظهر فقط إذا وجدت منتجات */}
+              {productSections.gardenHome.length > 0 && (
+                <ProductSection
+                  title="الحديقة والمنزل"
+                  icon={<Home className="w-6 h-6" />}
+                  products={productSections.gardenHome}
+                  userRole={user?.role === 'wholesaler' ? 'wholesaler' : 'marketer'}
+                  onViewAll={() => {
+                    const cat = productSections.gardenHome[0]?.categoryId;
+                    if (cat) router.push(`/dashboard/products?category=${cat}`);
+                    else router.push('/dashboard/products');
+                  }}
+                  onProductClick={(product) => router.push(`/dashboard/products/${product._id}`)}
+                  onAddToCart={(product: any) => handleAddToCart(product)}
+                  onToggleFavorite={(product: any) => handleToggleFavorite(product)}
+                  isFavorite={isFavorite}
+                  showExport={integrations.length > 0}
+                  onExport={(p) => handleExportProduct(p._id)}
+                  exportingProductId={exportingProductId}
+                  onUnlinkExport={handleUnlinkExport}
+                  unlinkingProductId={unlinkingProductId}
+                />
+              )}
 
-              {/* Health & Beauty Section */}
-              <ProductSection
-                title="الصحة والجمال"
-                icon={<HeartIcon className="w-6 h-6" />}
-                products={productSections.healthBeauty}
-                onViewAll={() => {
-                  const cat = productSections.healthBeauty[0]?.categoryId;
-                  if (cat) router.push(`/dashboard/products?category=${cat}`);
-                  else router.push('/dashboard/products');
-                }}
-                onProductClick={(product) => router.push(`/dashboard/products/${product._id}`)}
-                onAddToCart={(product: any) => handleAddToCart(product)}
-                onToggleFavorite={(product: any) => handleToggleFavorite(product)}
-                isFavorite={isFavorite}
-                showExport={integrations.length > 0}
-                onExport={(p) => handleExportProduct(p._id)}
-                exportingProductId={exportingProductId}
-                onUnlinkExport={handleUnlinkExport}
-                unlinkingProductId={unlinkingProductId}
-              />
+              {/* Health & Beauty Section - يظهر فقط إذا وجدت منتجات */}
+              {productSections.healthBeauty.length > 0 && (
+                <ProductSection
+                  title="الصحة والجمال"
+                  icon={<HeartIcon className="w-6 h-6" />}
+                  products={productSections.healthBeauty}
+                  userRole={user?.role === 'wholesaler' ? 'wholesaler' : 'marketer'}
+                  onViewAll={() => {
+                    const cat = productSections.healthBeauty[0]?.categoryId;
+                    if (cat) router.push(`/dashboard/products?category=${cat}`);
+                    else router.push('/dashboard/products');
+                  }}
+                  onProductClick={(product) => router.push(`/dashboard/products/${product._id}`)}
+                  onAddToCart={(product: any) => handleAddToCart(product)}
+                  onToggleFavorite={(product: any) => handleToggleFavorite(product)}
+                  isFavorite={isFavorite}
+                  showExport={integrations.length > 0}
+                  onExport={(p) => handleExportProduct(p._id)}
+                  exportingProductId={exportingProductId}
+                  onUnlinkExport={handleUnlinkExport}
+                  unlinkingProductId={unlinkingProductId}
+                />
+              )}
 
-              {/* Electronics Section */}
-              <ProductSection
-                title="إلكترونيات"
-                icon={<Zap className="w-6 h-6" />}
-                products={productSections.electronics}
-                onViewAll={() => {
-                  const cat = productSections.electronics[0]?.categoryId;
-                  if (cat) router.push(`/dashboard/products?category=${cat}`);
-                  else router.push('/dashboard/products');
-                }}
-                onProductClick={(product) => router.push(`/dashboard/products/${product._id}`)}
-                onAddToCart={(product: any) => handleAddToCart(product)}
-                onToggleFavorite={(product: any) => handleToggleFavorite(product)}
-                isFavorite={isFavorite}
-                showExport={integrations.length > 0}
-                onExport={(p) => handleExportProduct(p._id)}
-                exportingProductId={exportingProductId}
-                onUnlinkExport={handleUnlinkExport}
-                unlinkingProductId={unlinkingProductId}
-              />
+              {/* Electronics Section - يظهر فقط إذا وجدت منتجات */}
+              {productSections.electronics.length > 0 && (
+                <ProductSection
+                  title="إلكترونيات"
+                  icon={<Zap className="w-6 h-6" />}
+                  products={productSections.electronics}
+                  userRole={user?.role === 'wholesaler' ? 'wholesaler' : 'marketer'}
+                  onViewAll={() => {
+                    const cat = productSections.electronics[0]?.categoryId;
+                    if (cat) router.push(`/dashboard/products?category=${cat}`);
+                    else router.push('/dashboard/products');
+                  }}
+                  onProductClick={(product) => router.push(`/dashboard/products/${product._id}`)}
+                  onAddToCart={(product: any) => handleAddToCart(product)}
+                  onToggleFavorite={(product: any) => handleToggleFavorite(product)}
+                  isFavorite={isFavorite}
+                  showExport={integrations.length > 0}
+                  onExport={(p) => handleExportProduct(p._id)}
+                  exportingProductId={exportingProductId}
+                  onUnlinkExport={handleUnlinkExport}
+                  unlinkingProductId={unlinkingProductId}
+                />
+              )}
 
-              {/* Games Section */}
-              <ProductSection
-                title="ألعاب"
-                icon={<Gamepad2 className="w-6 h-6" />}
-                products={productSections.games}
-                onViewAll={() => {
-                  const cat = productSections.games[0]?.categoryId;
-                  if (cat) router.push(`/dashboard/products?category=${cat}`);
-                  else router.push('/dashboard/products');
-                }}
-                onProductClick={(product) => router.push(`/dashboard/products/${product._id}`)}
-                onAddToCart={(product: any) => handleAddToCart(product)}
-                onToggleFavorite={(product: any) => handleToggleFavorite(product)}
-                isFavorite={isFavorite}
-                showExport={integrations.length > 0}
-                onExport={(p) => handleExportProduct(p._id)}
-                exportingProductId={exportingProductId}
-                onUnlinkExport={handleUnlinkExport}
-                unlinkingProductId={unlinkingProductId}
-              />
+              {/* Games Section - يظهر فقط إذا وجدت منتجات */}
+              {productSections.games.length > 0 && (
+                <ProductSection
+                  title="ألعاب"
+                  icon={<Gamepad2 className="w-6 h-6" />}
+                  products={productSections.games}
+                  userRole={user?.role === 'wholesaler' ? 'wholesaler' : 'marketer'}
+                  onViewAll={() => {
+                    const cat = productSections.games[0]?.categoryId;
+                    if (cat) router.push(`/dashboard/products?category=${cat}`);
+                    else router.push('/dashboard/products');
+                  }}
+                  onProductClick={(product) => router.push(`/dashboard/products/${product._id}`)}
+                  onAddToCart={(product: any) => handleAddToCart(product)}
+                  onToggleFavorite={(product: any) => handleToggleFavorite(product)}
+                  isFavorite={isFavorite}
+                  showExport={integrations.length > 0}
+                  onExport={(p) => handleExportProduct(p._id)}
+                  exportingProductId={exportingProductId}
+                  onUnlinkExport={handleUnlinkExport}
+                  unlinkingProductId={unlinkingProductId}
+                />
+              )}
             </>
           )}
         </div>
@@ -1301,6 +1376,8 @@ export default function ProductsPage() {
               ? 'لا توجد نتائج مطابقة لبحثك أو الفلاتر المحددة. جرّب تغيير الكلمات أو الفلاتر.'
               : user?.role === 'supplier'
                 ? 'لم تقم بإضافة أي منتجات بعد. ابدأ بإضافة منتجك الأول!'
+                : user?.role === 'admin' && !hasPermission(user, PERMISSIONS.PRODUCTS_VIEW) && hasPermission(user, PERMISSIONS.PRODUCTS_MANAGE)
+                ? 'لديك صلاحية إضافة المنتجات فقط. لا يمكنك عرض قائمة المنتجات.'
                 : user?.role === 'admin'
                 ? 'لا توجد منتجات في النظام. يمكن للموردين إضافة منتجات من حساباتهم.'
                 : user?.role === 'marketer'
@@ -1309,7 +1386,7 @@ export default function ProductsPage() {
                 ? 'لا توجد منتجات معتمدة للجملة متاحة حالياً. جرّب تغيير الفلاتر أو لاحقاً.'
                 : 'لا توجد منتجات متاحة حالياً.'}
           </p>
-          {user?.role === 'supplier' && !queryString && (
+          {((user?.role === 'supplier' || (user?.role === 'admin' && canManageProducts)) && !queryString) && (
             <Link href="/dashboard/products/new" className="btn-primary mt-6 inline-flex items-center min-h-[44px]">
               <Plus className="w-5 h-5 ml-2" />
               إضافة منتج جديد
@@ -1327,7 +1404,7 @@ export default function ProductsPage() {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as 'name' | 'price' | 'stock' | 'date')}
-              className="text-sm border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2.5 sm:py-2 min-h-[44px] sm:min-h-0 flex-1 sm:flex-initial min-w-0 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-primary-500"
+              className="input-field text-sm flex-1 sm:flex-initial min-w-0"
             >
               <option value="name">الاسم</option>
               <option value="price">{user?.role === 'wholesaler' ? 'سعر الجملة' : 'السعر'}</option>
@@ -1337,7 +1414,7 @@ export default function ProductsPage() {
             <select
               value={sortOrder}
               onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
-              className="text-sm border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2.5 sm:py-2 min-h-[44px] sm:min-h-0 flex-1 sm:flex-initial min-w-0 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-primary-500"
+              className="input-field text-sm flex-1 sm:flex-initial min-w-0"
             >
               <option value="asc">تصاعدي</option>
               <option value="desc">تنازلي</option>
@@ -1345,88 +1422,111 @@ export default function ProductsPage() {
           </div>
 
           {user?.role === 'admin' ? (
-        // Admin Table/List View - show loading indicator when loading new data
+        // Admin Table/List View - overlay loader لمنع تغيّر حجم الجدول عند تحميل صفحة جديدة
         <>
-          {loading && productsData && (
-            <div className="mb-4 flex items-center justify-center py-4">
-              <div className="loading-spinner w-6 h-6"></div>
-              <span className="mr-2 text-sm text-gray-600 dark:text-slate-400">جاري تحديث القائمة...</span>
-            </div>
-          )}
-          <AdminProductsTableView
-            products={sortedProducts}
-            onApprove={handleApproveProduct}
-            onReject={handleRejectProduct}
-            onResubmit={handleResubmitProduct}
-            onReview={handleReviewProduct}
+          <div className="relative">
+            <AdminProductsTableView
+              products={sortedProducts}
+            onApprove={canApproveProducts ? handleApproveProduct : undefined}
+            onReject={canApproveProducts ? handleRejectProduct : undefined}
+            onResubmit={canApproveProducts ? handleResubmitProduct : undefined}
+            onReview={canApproveProducts ? handleReviewProduct : undefined}
             viewMode={adminViewMode}
             onViewModeChange={setAdminViewMode}
             userRole="admin"
+            showEditLink={!!canManageProducts}
+            showStatsLink={!!canViewProductStats}
           />
+            {loading && productsData && (
+              <div className="absolute inset-0 flex items-center justify-center bg-white/70 dark:bg-slate-900/70 backdrop-blur-[2px] z-10 rounded-lg">
+                <div className="flex items-center gap-2 px-4 py-3 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-gray-200 dark:border-slate-600">
+                  <div className="loading-spinner w-6 h-6"></div>
+                  <span className="text-sm text-gray-600 dark:text-slate-400">جاري تحديث القائمة...</span>
+                </div>
+              </div>
+            )}
+          </div>
           {pagination.pages > 1 && (
             <div className="flex justify-center items-center gap-3 sm:gap-4 mt-8 mb-4 flex-wrap">
-              <button type="button" onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1} className="btn-secondary min-h-[44px] px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed">السابق</button>
-              <span className="text-sm text-gray-700 dark:text-slate-300 font-medium">صفحة {currentPage} من {pagination.pages}</span>
-              <button type="button" onClick={() => goToPage(currentPage + 1)} disabled={currentPage >= pagination.pages} className="btn-secondary min-h-[44px] px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed">التالي</button>
+              <button type="button" onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1 || loading} className="btn-secondary min-h-[44px] px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                السابق
+              </button>
+              <span className="text-sm text-gray-700 dark:text-slate-300 font-medium flex items-center gap-2">
+                صفحة {currentPage} من {pagination.pages}
+                {loading && <ButtonLoader variant="dark" size="sm" />}
+              </span>
+              <button type="button" onClick={() => goToPage(currentPage + 1)} disabled={currentPage >= pagination.pages || loading} className="btn-secondary min-h-[44px] px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                التالي
+              </button>
             </div>
           )}
         </>
           ) : (user?.role === 'marketer' || user?.role === 'wholesaler') && marketerViewMode === 'list' ? (
-        // Marketer/Wholesaler List View - table with add to cart & favorite
+        // Marketer/Wholesaler List View - overlay loader لمنع تغيّر حجم الجدول
         <>
-          {loading && productsData && (
-            <div className="mb-4 flex items-center justify-center py-4">
-              <div className="loading-spinner w-6 h-6"></div>
-              <span className="mr-2 text-sm text-gray-600 dark:text-slate-400">جاري تحديث القائمة...</span>
-            </div>
-          )}
-          <AdminProductsTableView
-            products={sortedProducts}
-            userRole={user?.role === 'wholesaler' ? 'wholesaler' : 'marketer'}
-            viewMode={marketerViewMode}
-            onViewModeChange={setMarketerViewMode}
-            onAddToCart={(p) => handleAddToCart(p as Product)}
-            isFavorite={isFavorite}
-            onToggleFavorite={(p) => handleToggleFavorite(p as Product)}
-          />
+          <div className="relative">
+            <AdminProductsTableView
+              products={sortedProducts}
+              userRole={user?.role === 'wholesaler' ? 'wholesaler' : 'marketer'}
+              viewMode={marketerViewMode}
+              onViewModeChange={setMarketerViewMode}
+              onAddToCart={(p) => handleAddToCart(p as Product)}
+              isFavorite={isFavorite}
+              onToggleFavorite={(p) => handleToggleFavorite(p as Product)}
+              showExport={integrations.length > 0}
+              onExport={(p) => handleExportProduct((p as Product)._id)}
+              onUnlinkExport={handleUnlinkExport}
+              exportingProductId={exportingProductId}
+              unlinkingProductId={unlinkingProductId}
+            />
+            {loading && productsData && (
+              <div className="absolute inset-0 flex items-center justify-center bg-white/70 dark:bg-slate-900/70 backdrop-blur-[2px] z-10 rounded-lg">
+                <div className="flex items-center gap-2 px-4 py-3 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-gray-200 dark:border-slate-600">
+                  <div className="loading-spinner w-6 h-6"></div>
+                  <span className="text-sm text-gray-600 dark:text-slate-400">جاري تحديث القائمة...</span>
+                </div>
+              </div>
+            )}
+          </div>
           {pagination.pages > 1 && (
             <div className="flex justify-center items-center gap-3 sm:gap-4 mt-8 mb-4 flex-wrap">
-              <button type="button" onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1} className="btn-secondary min-h-[44px] px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed">السابق</button>
-              <span className="text-sm text-gray-700 dark:text-slate-300 font-medium">صفحة {currentPage} من {pagination.pages}</span>
-              <button type="button" onClick={() => goToPage(currentPage + 1)} disabled={currentPage >= pagination.pages} className="btn-secondary min-h-[44px] px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed">التالي</button>
+              <button type="button" onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1 || loading} className="btn-secondary min-h-[44px] px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                السابق
+              </button>
+              <span className="text-sm text-gray-700 dark:text-slate-300 font-medium flex items-center gap-2">
+                صفحة {currentPage} من {pagination.pages}
+                {loading && <ButtonLoader variant="dark" size="sm" />}
+              </span>
+              <button type="button" onClick={() => goToPage(currentPage + 1)} disabled={currentPage >= pagination.pages || loading} className="btn-secondary min-h-[44px] px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                التالي
+              </button>
             </div>
           )}
         </>
           ) : (
         <>
-          {/* Show loading indicator when loading new data but keep previous data visible */}
-          {loading && productsData && (
-            <div className="mb-4 flex items-center justify-center py-4">
-              <div className="loading-spinner w-6 h-6"></div>
-              <span className="mr-2 text-sm text-gray-600 dark:text-slate-400">جاري تحديث القائمة...</span>
-            </div>
-          )}
           {/* View toggle for Marketer/Wholesaler */}
           {(user?.role === 'marketer' || user?.role === 'wholesaler') && (
-            <div className="flex justify-end mb-4">
-              <div className="flex bg-gray-100 dark:bg-slate-700 rounded-lg p-1 gap-0.5">
-                <button
-                  onClick={() => setMarketerViewMode('list')}
-                  className={`px-4 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 rounded-md transition-colors flex items-center justify-center ${marketerViewMode === 'list' ? 'bg-white dark:bg-slate-600 text-primary-600 dark:text-primary-400 shadow-sm' : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'}`}
-                >
-                  <List className="w-4 h-4 ml-1" />
-                  قائمة
-                </button>
-                <button
-                  onClick={() => setMarketerViewMode('grid')}
-                  className={`px-4 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 rounded-md transition-colors flex items-center justify-center ${marketerViewMode === 'grid' ? 'bg-white dark:bg-slate-600 text-primary-600 dark:text-primary-400 shadow-sm' : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'}`}
-                >
-                  <LayoutGrid className="w-4 h-4 ml-1" />
-                  شبكة
-                </button>
+              <div className="flex justify-end mb-4">
+                <div className="flex bg-gray-100 dark:bg-slate-700 rounded-lg p-1 gap-0.5">
+                  <button
+                    onClick={() => setMarketerViewMode('list')}
+                    className={`px-4 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 rounded-md transition-colors flex items-center justify-center ${marketerViewMode === 'list' ? 'bg-white dark:bg-slate-600 text-primary-600 dark:text-primary-400 shadow-sm' : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'}`}
+                  >
+                    <List className="w-4 h-4 ml-1" />
+                    قائمة
+                  </button>
+                  <button
+                    onClick={() => setMarketerViewMode('grid')}
+                    className={`px-4 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 rounded-md transition-colors flex items-center justify-center ${marketerViewMode === 'grid' ? 'bg-white dark:bg-slate-600 text-primary-600 dark:text-primary-400 shadow-sm' : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'}`}
+                  >
+                    <LayoutGrid className="w-4 h-4 ml-1" />
+                    شبكة
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          <div className="relative">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
             {sortedProducts.map((product) => (
               <div 
@@ -1457,17 +1557,17 @@ export default function ProductsPage() {
                   </button>
                 )}
 
-                                 {/* Product Media */}
-                 <div className="relative mb-3 sm:mb-4 md:mb-6">
+                                 {/* Product Media - مضغوط */}
+                 <div className="relative mb-2">
                    <MediaThumbnail
                      media={product.images || []}
                      alt={product.name}
-                     className="w-full aspect-square"
+                     className="w-full aspect-square object-cover"
                      showTypeBadge={true}
-                     priority={products.indexOf(product) < 8} // Priority for first 8 visible products
-                     width={300}
-                     height={300}
-                     fallbackIcon={<Package className="w-12 h-12 text-gray-400 dark:text-slate-500" />}
+                     priority={products.indexOf(product) < 8}
+                     width={240}
+                     height={240}
+                     fallbackIcon={<Package className="w-10 h-10 text-gray-400 dark:text-slate-500" />}
                    />
                    
                    {/* Quick Edit Overlay for Suppliers */}
@@ -1487,280 +1587,140 @@ export default function ProductsPage() {
                    )}
                  </div>
 
-                {/* Product Info */}
-                <div className="space-y-2 sm:space-y-3">
-                  <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-slate-100 line-clamp-2 min-h-[2.5rem] sm:min-h-[3rem]">{product.name}</h3>
-                  <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-300 line-clamp-2 hidden sm:block text-wrap-long">{product.description}</p>
+                {/* Product Info - مضغوط */}
+                <div className="space-y-1.5">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-100 line-clamp-2 leading-snug" title={product.name}>{product.name}</h3>
 
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <p className={`text-base sm:text-lg md:text-xl font-bold ${
-                          user?.role !== 'wholesaler' && product.isMarketerPriceManuallyAdjusted
-                            ? 'text-orange-600 dark:text-orange-400'
-                            : 'text-primary-600 dark:text-primary-400'
-                        }`}>
-                          {user?.role === 'wholesaler' ? product.wholesalerPrice : product.marketerPrice} ₪
-                        </p>
-                      </div>
+                  <div className="flex items-center justify-between gap-1.5 flex-wrap">
+                    <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                      <span className={`text-sm font-bold ${
+                        user?.role !== 'wholesaler' && product.isMarketerPriceManuallyAdjusted ? 'text-orange-600 dark:text-orange-400' : 'text-primary-600 dark:text-primary-400'
+                      }`}>
+                        {user?.role === 'wholesaler' ? product.wholesalerPrice : product.marketerPrice} ₪
+                      </span>
                       {user?.role !== 'wholesaler' && product.minimumSellingPrice && (
-                        <p className={`text-[10px] sm:text-xs mt-1 ${
-                          product.isMinimumPriceMandatory && product.minimumSellingPrice
-                            ? 'text-orange-600 dark:text-orange-400'
-                            : 'text-gray-500 dark:text-gray-400'
-                        }`}>
-                          السعر الأدنى: {product.minimumSellingPrice} ₪
-                        </p>
+                        <span className={`text-[10px] ${
+                          product.isMinimumPriceMandatory ? 'text-orange-600 dark:text-orange-400' : 'text-gray-500 dark:text-gray-400'
+                        }`} title="السعر الأدنى">
+                          أدنى {product.minimumSellingPrice} ₪
+                        </span>
                       )}
                       {(user?.role === 'marketer' || user?.role === 'wholesaler') && (
-                        <p className="text-xs font-semibold mt-1 text-[#FF9800] dark:text-[#FF9800]">
-                          ربح المسوق: {(() => {
+                        <span className="text-[10px] font-medium text-[#FF9800] dark:text-[#FF9800]" title="ربح المسوق">
+                          ربح {(() => {
                             const base = user?.role === 'wholesaler' ? (product.wholesalerPrice ?? 0) : (product.marketerPrice ?? 0);
                             const minP = product.minimumSellingPrice ?? 0;
-                            const profit = minP > base ? minP - base : 0;
-                            return `${profit.toFixed(2)} ₪`;
-                          })()}
-                        </p>
-                      )}
-                      <div className="flex items-center flex-wrap gap-1.5 sm:gap-2 space-x-reverse mt-1.5 sm:mt-2">
-                        <span className={`text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full ${
-                          (product.hasVariants && product.variantOptions && product.variantOptions.length > 0
-                            ? product.variantOptions.reduce((sum: number, opt: any) => sum + (opt.stockQuantity || 0), 0)
-                            : product.stockQuantity) > 10 
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                            : (product.hasVariants && product.variantOptions && product.variantOptions.length > 0
-                              ? product.variantOptions.reduce((sum: number, opt: any) => sum + (opt.stockQuantity || 0), 0)
-                              : product.stockQuantity) > 0 
-                            ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                            : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                        }`}>
-                          {getStockBadgeText(
-                            product.stockQuantity,
-                            product.hasVariants,
-                            product.variantOptions
-                          )}
+                            return (minP > base ? minP - base : 0).toFixed(2);
+                          })()} ₪
                         </span>
-                         
-                         {/* Quick Edit Indicator for Suppliers */}
-                         {user?.role === 'supplier' && (
-                           <button
-                             onClick={(e) => {
-                               e.stopPropagation();
-                               handleQuickEdit(product);
-                             }}
-                             className="text-[10px] sm:text-xs text-[#FF9800] dark:text-[#FF9800] hover:text-[#F57C00] dark:hover:text-[#F57C00] font-medium px-1.5 py-0.5 min-h-[28px]"
-                             title="تعديل سريع"
-                           >
-                             ✏️ تعديل
-                           </button>
-                         )}
-                       </div>
-                     </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {user?.role !== 'marketer' && (
+                        <>
+                          {product.isApproved && <span className="badge badge-success text-[10px] px-1.5 py-0">معتمد</span>}
+                          {product.isRejected && <span className="badge badge-danger text-[10px] px-1.5 py-0">مرفوض</span>}
+                          {!product.isApproved && !product.isRejected && <span className="badge badge-warning text-[10px] px-1.5 py-0">مراجعة</span>}
+                          {product.isLocked && <span title="مقفل"><Lock className="w-3 h-3 text-danger-500" /></span>}
+                        </>
+                      )}
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                        (() => {
+                          const total = product.hasVariants && product.variantOptions?.length
+                            ? product.variantOptions!.reduce((s: number, o: any) => s + (o.stockQuantity || 0), 0)
+                            : (product.stockQuantity ?? 0);
+                          return total > 10 ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                            : total > 0 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                            : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
+                        })()
+                      }`} title="المخزون">
+                        {getStockBadgeText(product.stockQuantity, product.hasVariants, product.variantOptions)}
+                      </span>
+                    </div>
+                  </div>
+                  {user?.role === 'supplier' && (
+                    <button onClick={(e) => { e.stopPropagation(); handleQuickEdit(product); }} className="text-[10px] text-[#FF9800] dark:text-[#FF9800] hover:underline" title="تعديل سريع">✏️ تعديل</button>
+                  )}
 
-                     <div className="flex items-center space-x-1 space-x-reverse">
-                       {(() => {
-                         // لا تظهر شارة "معتمد" للمسوق
-                         if (user?.role === 'marketer') {
-                           return null;
-                         }
-                         
-                         if (product.isApproved) {
-                           return <span className="badge badge-success">معتمد</span>;
-                         } else if (product.isRejected) {
-                           return <span className="badge badge-danger">مرفوض</span>;
-                         } else {
-                           return <span className="badge badge-warning">قيد المراجعة</span>;
-                         }
-                       })()}
-                       {product.isLocked && (
-                         <span className="badge badge-danger">
-                           <Lock className="w-3 h-3 ml-1" />
-                           مقفل
-                         </span>
-                       )}
-                     </div>
-                   </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center justify-between pt-2 sm:pt-3 border-t border-gray-100 dark:border-slate-700 gap-2">
+                  {/* Actions - مضغوط */}
+                  <div className="flex items-center justify-between pt-1.5 border-t border-gray-100 dark:border-slate-700 gap-1">
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        router.push(`/dashboard/products/${product._id}`);
-                      }}
-                      className="text-primary-600 dark:text-primary-400 text-xs sm:text-sm font-medium flex items-center min-h-[36px] sm:min-h-[40px] px-2 sm:px-3 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg transition-colors"
+                      onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/products/${product._id}`); }}
+                      className="text-primary-600 dark:text-primary-400 text-xs font-medium flex items-center gap-1 py-1.5 px-2 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-md"
                     >
-                      <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4 ml-1" />
-                      <span className="hidden sm:inline">عرض</span>
+                      <Eye className="w-3.5 h-3.5" /> عرض
                     </button>
-
-                    {/* Actions for Marketer/Wholesaler */}
                     {(user?.role === 'marketer' || user?.role === 'wholesaler') && product.isApproved && !product.isLocked && (
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleAddToCart(product);
-                        }}
-                        className={`text-xs sm:text-sm font-medium px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg transition-colors flex items-center justify-center min-h-[36px] sm:min-h-[44px] flex-1 ${
-                          product.stockQuantity > 0 
-                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white dark:bg-emerald-500 dark:hover:bg-emerald-600 shadow-md hover:shadow-lg active:scale-95' 
-                            : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                        onClick={(e) => { e.stopPropagation(); handleAddToCart(product); }}
+                        className={`text-xs font-medium px-2 py-1.5 rounded-md flex items-center gap-1 flex-1 justify-center ${
+                          product.stockQuantity > 0 ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-gray-300 dark:bg-gray-600 text-gray-500 cursor-not-allowed'
                         }`}
-                        title={product.stockQuantity > 0 ? 'إضافة للسلة' : 'غير متوفر في المخزون'}
+                        title={product.stockQuantity > 0 ? 'إضافة للسلة' : 'غير متوفر'}
                         disabled={product.stockQuantity <= 0}
                       >
-                        <ShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4 ml-1 flex-shrink-0" />
-                        <span className="truncate">{product.stockQuantity > 0 ? 'إضافة للسلة' : 'غير متوفر'}</span>
+                        <ShoppingCart className="w-3.5 h-3.5" />
+                        <span className="truncate">{product.stockQuantity > 0 ? 'سلة' : '—'}</span>
                       </button>
                     )}
-
-                                         {/* Actions for Supplier/Admin */}
-                     {(user?.role === 'supplier' || user?.role === 'admin') && (
-                       <div className="flex items-center space-x-1.5 sm:space-x-2 space-x-reverse">
-                         <Link
-                           href={`/dashboard/products/${product._id}/edit`}
-                           className="text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 p-2 sm:p-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
-                           title="تعديل كامل"
-                           onClick={(e) => e.stopPropagation()}
-                         >
-                           <Edit className="w-4 h-4 sm:w-5 sm:h-5" />
-                         </Link>
-                        
-                        {user?.role === 'admin' && !product.isApproved && !product.isRejected && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleApproveProduct(product._id);
-                            }}
-                            className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 p-2 sm:p-2.5 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
-                            title="اعتماد المنتج"
-                          >
-                            <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
-                          </button>
-                        )}
-                        
-                        {user?.role === 'admin' && !product.isApproved && !product.isRejected && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRejectProduct(product._id);
-                            }}
-                            className="text-danger-600 dark:text-danger-400 hover:text-danger-700 dark:hover:text-danger-300 p-2 sm:p-2.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
-                            title="رفض المنتج"
-                          >
-                            <XCircle className="w-4 h-4 sm:w-5 sm:h-5" />
-                          </button>
-                        )}
-                        
-                        {user?.role === 'admin' && product.isRejected && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleResubmitProduct(product._id);
-                            }}
-                            className="text-[#FF9800] dark:text-[#FF9800] hover:text-[#F57C00] dark:hover:text-[#F57C00] p-2 sm:p-2.5 rounded-lg hover:bg-[#FF9800]/10 dark:hover:bg-[#FF9800]/20 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
-                            title="إعادة تقديم"
-                          >
-                            <RotateCw className="w-4 h-4 sm:w-5 sm:h-5" />
-                          </button>
-                        )}
-                        
-                        {user?.role === 'admin' && (
-                          <Link
-                            href={`/dashboard/admin/product-stats?productId=${product._id}`}
-                            className="text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 p-2 sm:p-2.5 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
-                            title="عرض الإحصائيات"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" />
-                          </Link>
-                        )}
-                        
-                        {/* Lock/Unlock Product Button */}
-                        {canLockProduct(product) && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleLockProduct(product, product.isLocked ? 'unlock' : 'lock');
-                            }}
-                            className={`${
-                              product.isLocked 
-                                ? 'text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300' 
-                                : 'text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300'
-                            }`}
-                            title={product.isLocked ? 'إلغاء قفل المنتج' : 'قفل المنتج'}
-                          >
-                            {product.isLocked ? (
-                              <Unlock className="w-4 h-4" />
-                            ) : (
-                              <Lock className="w-4 h-4" />
-                            )}
-                          </button>
-                        )}
-                        
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteProduct(product._id);
-                          }}
-                          className="text-danger-600 dark:text-danger-400 hover:text-danger-700 dark:hover:text-danger-300"
-                          title="حذف المنتج"
+                    {canManageProducts && (
+                      <div className="flex items-center gap-0.5">
+                        <Link
+                          href={`/dashboard/products/${product._id}/edit`}
+                          className="text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 p-1.5 rounded hover:bg-gray-100 dark:hover:bg-slate-700"
+                          title="تعديل"
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                          <Edit className="w-4 h-4" />
+                        </Link>
+                        
+                        {canApproveProducts && !product.isApproved && !product.isRejected && (
+                          <button onClick={(e) => { e.stopPropagation(); handleApproveProduct(product._id); }} className="text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 p-1.5 rounded" title="اعتماد"><CheckCircle className="w-4 h-4" /></button>
+                        )}
+                        {canApproveProducts && !product.isApproved && !product.isRejected && (
+                          <button onClick={(e) => { e.stopPropagation(); handleRejectProduct(product._id); }} className="text-danger-600 dark:text-danger-400 hover:bg-red-50 dark:hover:bg-red-900/20 p-1.5 rounded" title="رفض"><XCircle className="w-4 h-4" /></button>
+                        )}
+                        {canApproveProducts && product.isRejected && (
+                          <button onClick={(e) => { e.stopPropagation(); handleResubmitProduct(product._id); }} className="text-[#FF9800] hover:bg-[#FF9800]/10 p-1.5 rounded" title="إعادة تقديم"><RotateCw className="w-4 h-4" /></button>
+                        )}
+                        {canViewProductStats && (
+                          <Link href={`/dashboard/admin/product-stats?productId=${product._id}`} className="text-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 p-1.5 rounded" title="إحصائيات" onClick={(e) => e.stopPropagation()}><BarChart3 className="w-4 h-4" /></Link>
+                        )}
+                        {canLockProduct(product) && (
+                          <button onClick={(e) => { e.stopPropagation(); handleLockProduct(product, product.isLocked ? 'unlock' : 'lock'); }} className={`p-1.5 rounded ${product.isLocked ? 'text-green-600 dark:text-green-400' : 'text-orange-500 dark:text-orange-400'}`} title={product.isLocked ? 'إلغاء قفل' : 'قفل'}>
+                            {product.isLocked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                          </button>
+                        )}
+                        <button onClick={(e) => { e.stopPropagation(); handleDeleteProduct(product._id); }} className="text-danger-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-1.5 rounded" title="حذف"><Trash2 className="w-4 h-4" /></button>
                       </div>
                     )}
                   </div>
 
-                  {/* Stock Status and Export for Marketer/Wholesaler */}
-                  {(user?.role === 'marketer' || user?.role === 'wholesaler') && (
-                    <div className="mt-2 flex items-center justify-between gap-2">
-                      <div>
-                        {product.stockQuantity > 0 ? (
-                          <div className="flex items-center text-sm text-emerald-600 dark:text-emerald-400">
-                            <CheckCircle className="w-4 h-4 ml-1" />
-                            متوفر ({product.stockQuantity} قطعة)
-                          </div>
-                        ) : (
-                          <div className="flex items-center text-sm text-red-600 dark:text-red-400">
-                            <AlertCircle className="w-4 h-4 ml-1" />
-                            نفذ المخزون
-                          </div>
-                        )}
-                      </div>
-                      {/* Export to Easy Orders: يظهر فقط إذا لم يكن المنتج مُصدَّراً */}
-                      {product.isApproved && product.isActive && integrations.length > 0 && !product.metadata?.easyOrdersProductId && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleExportProduct(product._id);
-                          }}
-                          className="text-xs px-2 py-1 bg-[#4CAF50] hover:bg-[#388E3C] text-white rounded-lg transition-colors flex items-center gap-1"
-                          title="تصدير إلى Easy Orders"
-                        >
-                          <LinkIcon className="w-3 h-3" />
-                          <span className="hidden sm:inline">تصدير</span>
+                  {/* تصدير Easy Orders للمسوق/الجملة - سطر واحد */}
+                  {(user?.role === 'marketer' || user?.role === 'wholesaler') && product.isApproved && product.isActive && integrations.length > 0 && (
+                    <div className="mt-1 flex items-center justify-end gap-1">
+                      {!product.metadata?.easyOrdersProductId ? (
+                        <button onClick={(e) => { e.stopPropagation(); handleExportProduct(product._id); }} disabled={exportingProductId === product._id} className="text-[10px] px-1.5 py-1 rounded bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 hover:bg-primary-200 dark:hover:bg-primary-900/50 disabled:opacity-60 flex items-center gap-1" title="تصدير Easy Orders">
+                          {exportingProductId === product._id ? <ButtonLoader variant="dark" size="sm" /> : <Share2 className="w-3 h-3" />}
+                          <span className="hidden sm:inline">{exportingProductId === product._id ? '...' : 'تصدير'}</span>
                         </button>
-                      )}
-                      {/* مُصدّر: زر إلغاء الربط إذا حذفه من Easy Orders */}
-                      {product.isApproved && product.isActive && integrations.length > 0 && product.metadata?.easyOrdersProductId && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleUnlinkExport(product);
-                          }}
-                          disabled={!!unlinkingProductId}
-                          className="text-xs px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors flex items-center gap-1 disabled:opacity-60"
-                          title="حذفته من Easy Orders - إلغاء الربط لتمكين التصدير مرة أخرى"
-                        >
-                          مُصدّر
-                        </button>
+                      ) : (
+                        <button onClick={(e) => { e.stopPropagation(); handleUnlinkExport(product); }} disabled={!!unlinkingProductId} className="text-[10px] px-1.5 py-1 rounded bg-amber-500/20 text-amber-700 dark:text-amber-400 disabled:opacity-60" title="مُصدّر - إلغاء الربط">مُصدّر</button>
                       )}
                     </div>
                   )}
                 </div>
               </div>
             ))}
+          </div>
+            {loading && productsData && (
+              <div className="absolute inset-0 flex items-center justify-center bg-white/70 dark:bg-slate-900/70 backdrop-blur-[2px] z-10 rounded-lg">
+                <div className="flex items-center gap-2 px-4 py-3 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-gray-200 dark:border-slate-600">
+                  <div className="loading-spinner w-6 h-6"></div>
+                  <span className="text-sm text-gray-600 dark:text-slate-400">جاري تحديث القائمة...</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* ترقيم الصفحات: السابق | صفحة X من Y | التالي - للإدارة والمسوق */}
@@ -1769,19 +1729,20 @@ export default function ProductsPage() {
               <button
                 type="button"
                 onClick={() => goToPage(currentPage - 1)}
-                disabled={currentPage <= 1}
-                className="btn-secondary min-h-[44px] px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={currentPage <= 1 || loading}
+                className="btn-secondary min-h-[44px] px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 السابق
               </button>
-              <span className="text-sm text-gray-700 dark:text-slate-300 font-medium">
+              <span className="text-sm text-gray-700 dark:text-slate-300 font-medium flex items-center gap-2">
                 صفحة {currentPage} من {pagination.pages}
+                {loading && <ButtonLoader variant="dark" size="sm" />}
               </span>
               <button
                 type="button"
                 onClick={() => goToPage(currentPage + 1)}
-                disabled={currentPage >= pagination.pages}
-                className="btn-secondary min-h-[44px] px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={currentPage >= pagination.pages || loading}
+                className="btn-secondary min-h-[44px] px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 التالي
               </button>
@@ -1791,140 +1752,6 @@ export default function ProductsPage() {
           )}
         </>
       )}
-
-          {/* شريط الملخص السفلي: إجمالي · متوفر · غير متوفر (لجميع الأدوار) */}
-          {products.length > 0 && (
-            <div className="card py-3 px-3 sm:px-4 mb-4 sm:mb-6 border border-gray-200 dark:border-slate-600">
-              <div className="flex flex-wrap items-center justify-center sm:justify-between gap-3 sm:gap-4 text-sm">
-                <span className="font-medium text-gray-700 dark:text-slate-300">
-                  <span className="text-gray-500 dark:text-slate-400 ml-1">إجمالي المنتجات:</span>
-                  <span className="text-lg font-bold text-gray-900 dark:text-slate-100 mr-2">{summaryCounts.total}</span>
-                </span>
-                <span className="hidden sm:inline text-gray-300 dark:text-slate-600">|</span>
-                <span className="font-medium">
-                  <span className="text-gray-500 dark:text-slate-400 ml-1">متوفر:</span>
-                  <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400 mr-2">{summaryCounts.available}</span>
-                </span>
-                <span className="hidden sm:inline text-gray-300 dark:text-slate-600">|</span>
-                <span className="font-medium">
-                  <span className="text-gray-500 dark:text-slate-400 ml-1">غير متوفر:</span>
-                  <span className="text-lg font-bold text-amber-600 dark:text-amber-400 mr-2">{summaryCounts.unavailable}</span>
-                </span>
-                {(user?.role === 'marketer' || user?.role === 'wholesaler') && (
-                  <>
-                    <span className="hidden sm:inline text-gray-300 dark:text-slate-600">|</span>
-                    <span className="font-medium">
-                      <span className="text-gray-500 dark:text-slate-400 ml-1">المفضلة:</span>
-                      <span className="text-lg font-bold text-red-600 dark:text-red-400">{summaryCounts.favorites}</span>
-                    </span>
-                  </>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* بطاقات الملخص (إجمالي، متوفر، غير متوفر، المفضلة للمسوق/تاجر الجملة) */}
-          {products.length > 0 && (
-            <div className={`grid grid-cols-1 gap-4 sm:gap-6 ${(user?.role === 'marketer' || user?.role === 'wholesaler') ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
-              <div className="card p-6">
-                <div className="flex items-center gap-5">
-                  <div className="bg-primary-100 dark:bg-primary-900/30 p-4 rounded-2xl shrink-0">
-                    <Package className="w-7 h-7 text-primary-600 dark:text-primary-400" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-3">إجمالي المنتجات</p>
-                    <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">{summaryCounts.total}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="card p-6">
-                <div className="flex items-center gap-5">
-                  <div className="bg-success-100 dark:bg-success-900/30 p-4 rounded-2xl shrink-0">
-                    <Package className="w-7 h-7 text-success-600 dark:text-success-400" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-3">متوفر</p>
-                    <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">{summaryCounts.available}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="card p-6">
-                <div className="flex items-center gap-5">
-                  <div className="bg-warning-100 dark:bg-warning-900/30 p-4 rounded-2xl shrink-0">
-                    <Package className="w-7 h-7 text-warning-600 dark:text-warning-400" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-3">غير متوفر</p>
-                    <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">{summaryCounts.unavailable}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* المفضلة للمسوق وتاجر الجملة */}
-              {(user?.role === 'marketer' || user?.role === 'wholesaler') && (
-                <div className="card p-6">
-                  <div className="flex items-center gap-5">
-                    <div className="bg-red-100 dark:bg-red-900/30 p-4 rounded-2xl shrink-0">
-                      <Heart className="w-7 h-7 text-red-600 dark:text-red-400" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-3">المفضلة</p>
-                      <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">{summaryCounts.favorites}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* إحصائيات للمورد والإدارة فقط */}
-          {(user?.role === 'supplier' || user?.role === 'admin') && (
-            <>
-              <div className="card p-6">
-                <div className="flex items-center gap-5">
-                  <div className="bg-success-100 dark:bg-success-900/30 p-4 rounded-2xl shrink-0">
-                    <Package className="w-7 h-7 text-success-600 dark:text-success-400" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-3">معتمد</p>
-                    <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">
-                      {products.filter(p => p.isApproved).length}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="card p-6">
-                <div className="flex items-center gap-5">
-                  <div className="bg-warning-100 dark:bg-warning-900/30 p-4 rounded-2xl shrink-0">
-                    <Package className="w-7 h-7 text-warning-600 dark:text-warning-400" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-3">قيد المراجعة</p>
-                    <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">
-                      {products.filter(p => !p.isApproved && !p.isRejected).length}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="card p-6">
-                <div className="flex items-center gap-5">
-                  <div className="bg-danger-100 dark:bg-danger-900/30 p-4 rounded-2xl shrink-0">
-                    <Package className="w-7 h-7 text-danger-600 dark:text-danger-400" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-3">مرفوض</p>
-                    <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">
-                      {products.filter(p => p.isRejected).length}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
 
       {/* Resubmit Modal */}
       {showResubmitModal && selectedProduct && (
@@ -1959,7 +1786,7 @@ export default function ProductsPage() {
               >
                 {processing ? (
                   <>
-                    <div className="loading-spinner w-4 h-4 ml-2"></div>
+                    <ButtonLoader variant="light" size="sm" className="ml-2" />
                     جاري المعالجة...
                   </>
                 ) : (
@@ -2007,7 +1834,7 @@ export default function ProductsPage() {
               >
                 {processing ? (
                   <>
-                    <div className="loading-spinner w-4 h-4 ml-2"></div>
+                    <ButtonLoader variant="light" size="sm" className="ml-2" />
                     جاري المعالجة...
                   </>
                 ) : (
@@ -2055,7 +1882,7 @@ export default function ProductsPage() {
               >
                 {processing ? (
                   <>
-                    <div className="loading-spinner w-4 h-4 ml-2"></div>
+                    <ButtonLoader variant="light" size="sm" className="ml-2" />
                     جاري المعالجة...
                   </>
                 ) : (
@@ -2104,7 +1931,7 @@ export default function ProductsPage() {
               >
                 {processing ? (
                   <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white ml-2"></div>
+                    <ButtonLoader variant="light" size="sm" className="ml-2" />
                     جاري المعالجة...
                   </>
                 ) : (
@@ -2167,7 +1994,7 @@ export default function ProductsPage() {
               >
                 {processing ? (
                   <>
-                    <div className="loading-spinner w-4 h-4 ml-2"></div>
+                    <ButtonLoader variant="light" size="sm" className="ml-2" />
                     جاري المعالجة...
                   </>
                 ) : (
@@ -2217,7 +2044,7 @@ export default function ProductsPage() {
               >
                 {processing ? (
                   <>
-                    <div className="loading-spinner w-4 h-4 ml-2"></div>
+                    <ButtonLoader variant="light" size="sm" className="ml-2" />
                     جاري الحذف...
                   </>
                 ) : (
@@ -2392,7 +2219,7 @@ export default function ProductsPage() {
               >
                 {processing ? (
                   <>
-                    <div className="loading-spinner w-4 h-4 ml-2"></div>
+                    <ButtonLoader variant="light" size="sm" className="ml-2" />
                     جاري الحفظ...
                   </>
                 ) : (
@@ -2474,7 +2301,7 @@ export default function ProductsPage() {
                 >
                   {locking ? (
                     <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white ml-2"></div>
+                      <ButtonLoader variant="light" size="sm" className="ml-2" />
                       جاري {lockAction === 'lock' ? 'القفل' : 'إلغاء القفل'}...
                     </>
                   ) : (
@@ -2555,16 +2382,16 @@ export default function ProductsPage() {
               <button
                 onClick={handleExportFromModal}
                 disabled={exporting || !selectedIntegrationId}
-                className="btn-primary flex-1 flex items-center justify-center"
+                className="btn-export flex-1 flex items-center justify-center px-4 py-2.5 text-sm"
               >
                 {exporting ? (
                   <>
-                    <RotateCw className="w-4 h-4 ml-2 animate-spin" />
+                    <ButtonLoader variant="light" size="sm" className="ml-2" />
                     جاري التصدير...
                   </>
                 ) : (
                   <>
-                    <LinkIcon className="w-4 h-4 ml-2" />
+                    <Share2 className="w-4 h-4 ml-2" />
                     تصدير
                   </>
                 )}

@@ -8,6 +8,7 @@ import { Plus, Edit, Trash2, FolderOpen, Upload, X, Package, ChevronLeft } from 
 import toast from 'react-hot-toast';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import { OptimizedImage } from '@/components/ui/LazyImage';
+import { hasPermission, PERMISSIONS } from '@/lib/permissions';
 
 interface Category {
   _id: string;
@@ -107,7 +108,7 @@ export default function AdminCategoriesPage() {
       }
       throw new Error('Failed to fetch categories');
     },
-    enabled: !!user && user.role === 'admin',
+    enabled: !!user && user.role === 'admin' && hasPermission(user, PERMISSIONS.CATEGORIES_MANAGE),
     forceRefresh: false,
     onError: () => {
       toast.error('حدث خطأ أثناء جلب الفئات');
@@ -117,7 +118,7 @@ export default function AdminCategoriesPage() {
   const categories = categoriesData?.categories || [];
 
   useEffect(() => {
-    if (user?.role !== 'admin') {
+    if (!user || user.role !== 'admin' || !hasPermission(user, PERMISSIONS.CATEGORIES_MANAGE)) {
       toast.error('غير مصرح لك بالوصول لهذه الصفحة');
       return;
     }

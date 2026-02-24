@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/lib/auth';
+import { withAuth, userHasAnyPermission } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import Order from '@/models/Order';
 import StoreIntegration, { IntegrationType } from '@/models/StoreIntegration';
@@ -723,6 +723,18 @@ export const GET = withAuth(async (req: NextRequest, user: any, ...args: unknown
   const routeParams = args[0] as { params: { id: string } };
   const params = routeParams.params;
   try {
+    // صلاحيات دقيقة: الأدمن يحتاج orders.view أو orders.manage لعرض تفاصيل الطلب
+    if (user.role === 'admin' && !userHasAnyPermission(user, ['orders.view', 'orders.manage'])) {
+      logger.warn('Admin without orders permission attempted to access order', {
+        userId: user._id.toString(),
+        orderId: params.id
+      });
+      return NextResponse.json(
+        { error: 'غير مصرح لك بعرض تفاصيل الطلبات' },
+        { status: 403 }
+      );
+    }
+    
     await connectDB();
     logger.apiRequest('GET', `/api/orders/${params.id}`, { userId: user._id, role: user.role });
     
@@ -765,7 +777,6 @@ export const GET = withAuth(async (req: NextRequest, user: any, ...args: unknown
       orderCustomerId: actualCustomerId || 'null'
     });
     
-    // Admin can access all orders
     if (user.role !== 'admin') {
       let hasAccess = false;
       if (user.role === 'supplier') {

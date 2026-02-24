@@ -18,6 +18,8 @@ import {
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import CountrySelect from '@/components/ui/CountrySelect';
+import PermissionSelector from '@/components/admin/PermissionSelector';
+import { hasPermission } from '@/lib/permissions';
 
 const userSchema = z.object({
   name: z.string().min(2, 'الاسم يجب أن يكون حرفين على الأقل'),
@@ -26,6 +28,9 @@ const userSchema = z.object({
   password: z.string().min(6, 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'),
   confirmPassword: z.string(),
   role: z.enum(['admin', 'supplier', 'marketer', 'wholesaler']),
+  isStaff: z.boolean().optional(),
+  staffRole: z.enum(['full_admin', 'custom']).optional(),
+  permissions: z.array(z.string()).optional(),
   // Marketing account fields
   country: z.string().optional(),
   dateOfBirth: z.string().optional(),
@@ -97,6 +102,7 @@ export default function CreateUserPage() {
   const { user: currentUser } = useAuth();
   
   const [saving, setSaving] = useState(false);
+  const [customPermissions, setCustomPermissions] = useState<string[]>([]);
 
   const {
     register,
@@ -124,14 +130,17 @@ export default function CreateUserPage() {
       businessType: '',
       taxId: '',
       isActive: true,
-      isVerified: false
+      isVerified: false,
+      isStaff: false,
+      staffRole: 'full_admin',
+      permissions: []
     }
   });
 
   const watchedValues = watch();
 
   useEffect(() => {
-    if (currentUser?.role !== 'admin') {
+    if (!currentUser || !hasPermission(currentUser, 'users.create')) {
       toast.error('غير مصرح لك بالوصول لهذه الصفحة');
       router.push('/dashboard');
       return;
@@ -162,6 +171,16 @@ export default function CreateUserPage() {
         websiteLink: data.websiteLink ? normalizeUrl(data.websiteLink) : ''
       };
 
+      if (data.role === 'admin' && data.isStaff) {
+        (normalizedData as any).isStaff = true;
+        (normalizedData as any).staffRole = data.staffRole === 'custom' ? 'custom' : 'full_admin';
+        (normalizedData as any).permissions = data.staffRole === 'custom' ? customPermissions : undefined;
+      } else if (data.role === 'admin') {
+        (normalizedData as any).isStaff = false;
+        (normalizedData as any).staffRole = undefined;
+        (normalizedData as any).permissions = undefined;
+      }
+
       const response = await fetch('/api/admin/users', {
         method: 'POST',
         headers: {
@@ -184,7 +203,7 @@ export default function CreateUserPage() {
     }
   };
 
-  if (currentUser?.role !== 'admin') {
+  if (!currentUser || !hasPermission(currentUser, 'users.create')) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -269,14 +288,14 @@ export default function CreateUserPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                   الدور *
                 </label>
                 <select {...register('role')} className="input-field">
                   <option value="marketer">المسوق</option>
                   <option value="supplier">المورد</option>
                   <option value="wholesaler">تاجر الجملة</option>
-                  <option value="admin">الإدارة</option>
+                  <option value="admin">الإدارة / موظف</option>
                 </select>
                 {errors.role && (
                   <p className="text-red-500 text-sm mt-1">{errors.role.message}</p>
@@ -314,6 +333,75 @@ export default function CreateUserPage() {
               </div>
             </div>
           </div>
+
+          {/* صلاحيات الموظف - عند اختيار دور الإدارة */}
+          {(watchedValues.role as string) === 'admin' && (
+            <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-gray-200 dark:border-slate-700">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-2">صلاحيات الموظف</h2>
+              <p className="text-sm text-gray-500 dark:text-slate-400 mb-6">
+                اختر إن كان حساب إدارة كامل أو موظف بصلاحيات محددة.
+              </p>
+              <div className="space-y-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    {...register('isStaff')}
+                    className="rounded border-gray-300 dark:border-slate-500 text-[#FF9800] focus:ring-[#FF9800]"
+                  />
+                  <span className="text-gray-700 dark:text-slate-300">موظف إدارة (صلاحيات محددة أو كاملة)</span>
+                </label>
+                {watchedValues.isStaff && (
+                  <>
+                    <div className="p-1 rounded-xl bg-gray-100 dark:bg-slate-700/60 inline-flex gap-0.5 border border-gray-200/80 dark:border-slate-600">
+                      <input
+                        type="radio"
+                        id="staffRole-full_admin"
+                        value="full_admin"
+                        {...register('staffRole')}
+                        className="sr-only"
+                      />
+                      <input
+                        type="radio"
+                        id="staffRole-custom"
+                        value="custom"
+                        {...register('staffRole')}
+                        className="sr-only"
+                      />
+                      <label
+                        htmlFor="staffRole-full_admin"
+                        className={`px-5 py-2.5 rounded-lg text-sm font-medium cursor-pointer transition-all duration-200 ${
+                          watchedValues.staffRole !== 'custom'
+                            ? 'bg-gradient-to-l from-[#FF9800] to-[#F57C00] text-white shadow-md'
+                            : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'
+                        }`}
+                      >
+                        صلاحيات كاملة
+                      </label>
+                      <label
+                        htmlFor="staffRole-custom"
+                        className={`px-5 py-2.5 rounded-lg text-sm font-medium cursor-pointer transition-all duration-200 ${
+                          watchedValues.staffRole === 'custom'
+                            ? 'bg-gradient-to-l from-[#FF9800] to-[#F57C00] text-white shadow-md'
+                            : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'
+                        }`}
+                      >
+                        صلاحيات مخصصة
+                      </label>
+                    </div>
+                    {watchedValues.staffRole === 'custom' && (
+                      <div className="mt-4">
+                        <p className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">حدد الصلاحيات:</p>
+                        <PermissionSelector
+                          value={customPermissions}
+                          onChange={setCustomPermissions}
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Marketing Account Fields */}
                       {(watchedValues.role as string) === 'marketer' && (

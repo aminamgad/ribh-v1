@@ -33,11 +33,15 @@ import {
   Save,
   Trash2,
   RotateCw,
-  Link as LinkIcon
+  Share2,
+  Link as LinkIcon,
+  Zap
 } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import MediaThumbnail from '@/components/ui/MediaThumbnail';
+import ButtonLoader from '@/components/ui/ButtonLoader';
+import { hasPermission, hasAnyOfPermissions, PERMISSIONS } from '@/lib/permissions';
 
 interface DashboardStats {
   totalOrders: number;
@@ -58,6 +62,11 @@ interface DashboardStats {
   usersPercentage: number;
   favoritesCount?: number;
   favoritesPercentage?: number;
+  ordersPreviousMonth?: number;
+  revenuePreviousMonth?: number;
+  favoritesPreviousMonth?: number;
+  productsPreviousMonth?: number;
+  usersPreviousMonth?: number;
 }
 
 export default function DashboardPage() {
@@ -177,9 +186,15 @@ export default function DashboardPage() {
         setSelectedIntegrationId('');
       } else {
         toast.error(data.error || 'فشل في تصدير المنتج');
+        setExportingProductId(null);
+        setShowExportModal(false);
+        setSelectedIntegrationId('');
       }
     } catch {
       toast.error('حدث خطأ أثناء تصدير المنتج');
+      setExportingProductId(null);
+      setShowExportModal(false);
+      setSelectedIntegrationId('');
     } finally {
       setExporting(false);
       exportLockRef.current = false;
@@ -293,18 +308,32 @@ export default function DashboardPage() {
     return { label: config.label, class: config.class };
   };
 
-  const getPercentageDisplay = (percentage: number | undefined) => {
+  const getPercentageDisplay = (
+    percentage: number | undefined,
+    previousValue?: number
+  ) => {
     if (percentage === undefined || percentage === null) return { text: '—', color: 'text-gray-500 dark:text-slate-400', icon: null };
+    if (previousValue === 0 && (percentage === 100 || percentage === 0)) {
+      return { text: percentage > 0 ? 'جديد' : '—', color: 'text-[#4CAF50] dark:text-[#4CAF50]', icon: percentage > 0 ? ArrowUpRight : null };
+    }
     if (percentage === 0) return { text: '0%', color: 'text-gray-500 dark:text-slate-400', icon: null };
     if (percentage > 0) return { text: `+${percentage}%`, color: 'text-[#4CAF50] dark:text-[#4CAF50]', icon: ArrowUpRight };
     return { text: `${percentage}%`, color: 'text-red-600 dark:text-red-400', icon: ArrowDownRight };
   };
 
-  const pctOrders = getPercentageDisplay(stats?.ordersPercentage);
-  const pctRevenue = getPercentageDisplay(stats?.revenuePercentage);
-  const pctProducts = getPercentageDisplay(user?.role === 'marketer' ? stats?.favoritesPercentage : stats?.productsPercentage);
-  const pctUsers = getPercentageDisplay(stats?.usersPercentage);
-  const pctGrowth = getPercentageDisplay(user?.role === 'supplier' ? stats?.productsPercentage : stats?.revenuePercentage);
+  const pctOrders = getPercentageDisplay(stats?.ordersPercentage, stats?.ordersPreviousMonth);
+  const pctRevenue = getPercentageDisplay(stats?.revenuePercentage, stats?.revenuePreviousMonth);
+  const pctProducts = getPercentageDisplay(
+    user?.role === 'marketer' ? stats?.favoritesPercentage : stats?.productsPercentage,
+    user?.role === 'marketer' ? stats?.favoritesPreviousMonth : stats?.productsPreviousMonth
+  );
+  const pctUsers = getPercentageDisplay(stats?.usersPercentage, stats?.usersPreviousMonth);
+  const pctGrowth = getPercentageDisplay(
+    user?.role === 'supplier' ? stats?.productsPercentage : 
+    (user?.role === 'marketer' || user?.role === 'wholesaler') 
+      ? Math.round(((stats?.ordersPercentage ?? 0) + (stats?.revenuePercentage ?? 0) + (stats?.favoritesPercentage ?? stats?.productsPercentage ?? 0)) / 3)
+      : stats?.revenuePercentage
+  );
 
   // Quick edit functions for supplier
   const handleQuickEdit = (product: any) => {
@@ -402,73 +431,163 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-12">
-      {/* Enhanced Header */}
-      <div className="card-glass p-8">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-          <div className="flex-1">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="w-16 h-16 bg-gradient-to-br from-[#FF9800] to-[#F57C00] rounded-2xl flex items-center justify-center shadow-lg">
-                <span className="text-white text-xl font-bold">
-                  {user?.name?.charAt(0)?.toUpperCase() || 'U'}
-                </span>
+      {/* Admin Hero - لوحة تحكم الإدارة */}
+      {user?.role === 'admin' ? (
+        <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-800 p-6 sm:p-8 md:p-10 shadow-xl">
+          <div className="absolute top-0 left-0 w-64 h-64 sm:w-80 sm:h-80 bg-white/10 rounded-full -translate-x-1/2 -translate-y-1/2" />
+          <div className="absolute bottom-0 right-0 w-48 h-48 sm:w-64 sm:h-64 bg-white/5 rounded-full translate-x-1/2 translate-y-1/2" />
+          <div className="relative z-10">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 sm:gap-8">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 sm:gap-4 mb-4">
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg">
+                    <BarChart3 className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
+                  </div>
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-1">
+                      مرحباً {user?.name?.split(' ')[0] || 'بك'}
+                    </h1>
+                    <p className="text-white/90 text-sm sm:text-base">
+                      إدارة جميع جوانب المنصة من مكان واحد
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 sm:gap-3 mt-6">
+                  {hasPermission(user, 'users.view') && (
+                    <Link href="/dashboard/users" className="inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 bg-white text-indigo-700 font-semibold rounded-xl hover:bg-white/95 transition-all shadow-lg min-h-[44px]">
+                      <Users className="w-4 h-4 sm:w-5 sm:h-5" />
+                      إدارة المستخدمين
+                    </Link>
+                  )}
+                  {hasPermission(user, 'products.view') && (
+                    <Link href="/dashboard/products" className="inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 bg-white/20 backdrop-blur-sm text-white font-semibold rounded-xl hover:bg-white/30 border border-white/30 transition-all min-h-[44px]">
+                      <Package className="w-4 h-4 sm:w-5 sm:h-5" />
+                      إدارة المنتجات
+                    </Link>
+                  )}
+                  {hasPermission(user, 'orders.view') && (
+                    <Link href="/dashboard/orders" className="inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 bg-white/20 backdrop-blur-sm text-white font-semibold rounded-xl hover:bg-white/30 border border-white/30 transition-all min-h-[44px]">
+                      <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5" />
+                      إدارة الطلبات
+                    </Link>
+                  )}
+                  {hasPermission(user, 'settings.manage') && (
+                    <Link href="/dashboard/admin/settings" className="inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 bg-white/20 backdrop-blur-sm text-white font-semibold rounded-xl hover:bg-white/30 border border-white/30 transition-all min-h-[44px]">
+                      <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
+                      إعدادات النظام
+                    </Link>
+                  )}
+                </div>
               </div>
-              <div>
-                <h1 className="text-5xl font-bold gradient-text mb-2">{getRoleTitle()}</h1>
-                <p className="text-gray-600 dark:text-slate-400 text-xl leading-relaxed">{getWelcomeMessage()}</p>
-              </div>
-            </div>
-            
-            {/* Quick Status Indicators */}
-            <div className="flex flex-wrap gap-4 mt-6">
-              <div className="flex items-center gap-2 px-4 py-2 bg-green-100 dark:bg-green-900/30 rounded-full">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-sm font-medium text-green-700 dark:text-green-400">
-                  البيانات محفوظة في الذاكرة المؤقتة
-                </span>
-              </div>
-              {lastUpdate && (
-                <div className="flex items-center gap-2 px-4 py-2 bg-[#FF9800]/20 dark:bg-[#FF9800]/30 rounded-full">
-                  <Clock className="w-4 h-4 text-[#FF9800] dark:text-[#FF9800]" />
-                  <span className="text-sm font-medium text-[#F57C00] dark:text-[#F57C00]">
-                    آخر تحديث: {lastUpdate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              <div className="hidden lg:flex flex-col items-end gap-4">
+                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-xl border border-white/30">
+                  <span className="text-4xl sm:text-5xl font-bold text-white">
+                    {user?.name?.charAt(0)?.toUpperCase() || 'U'}
                   </span>
                 </div>
-              )}
-              <button
-                onClick={handleManualRefresh}
-                disabled={loading}
-                className="flex items-center gap-2 px-4 py-2 bg-[#FF9800]/10 dark:bg-[#FF9800]/20 hover:bg-[#FF9800]/20 dark:hover:bg-[#FF9800]/30 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title="تحديث الإحصائيات يدوياً"
-              >
-                <RotateCw className={`w-4 h-4 text-[#FF9800] dark:text-[#FFB74D] ${loading ? 'animate-spin' : ''}`} />
-                <span className="text-sm font-medium text-[#E65100] dark:text-[#FFB74D]">
-                  {loading ? 'جاري التحديث...' : 'تحديث الآن'}
-                </span>
-              </button>
-            </div>
-          </div>
-          
-          <div className="lg:text-right">
-            <div className="flex items-center gap-3">
-              <div className="text-right">
-                <p className="text-lg font-semibold text-gray-900 dark:text-slate-100">{user?.name}</p>
-                {user?.role !== 'marketer' && (
-                  <p className="text-sm text-gray-500 dark:text-slate-400">{getRoleLabel()}</p>
-                )}
-              </div>
-              <div className="w-12 h-12 bg-gradient-to-br from-[#FF9800] to-[#F57C00] rounded-xl flex items-center justify-center shadow-lg">
-                <span className="text-white text-lg font-bold">
-                  {user?.name?.charAt(0)?.toUpperCase() || 'U'}
-                </span>
+                <p className="text-white/90 font-medium">{user?.name}</p>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      ) : (user?.role === 'marketer' || user?.role === 'wholesaler') ? (
+        <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-[#FF9800] via-[#F57C00] to-[#E65100] p-6 sm:p-8 md:p-10 shadow-xl">
+          <div className="absolute top-0 left-0 w-64 h-64 sm:w-80 sm:h-80 bg-white/10 rounded-full -translate-x-1/2 -translate-y-1/2" />
+          <div className="absolute bottom-0 right-0 w-48 h-48 sm:w-64 sm:h-64 bg-white/5 rounded-full translate-x-1/2 translate-y-1/2" />
+          <div className="relative z-10">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 sm:gap-8">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 sm:gap-4 mb-4">
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg">
+                    <Store className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
+                  </div>
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-1">
+                      مرحباً {user?.name?.split(' ')[0] || 'بك'}
+                    </h1>
+                    <p className="text-white/90 text-sm sm:text-base">
+                      ابدأ البيع وزد أرباحك من خلال تصفح أفضل المنتجات
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 sm:gap-3 mt-6">
+                  <Link href="/dashboard/products" className="inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 bg-white text-[#E65100] font-semibold rounded-xl hover:bg-white/95 transition-all shadow-lg min-h-[44px]">
+                    <Store className="w-4 h-4 sm:w-5 sm:h-5" />
+                    تصفح المنتجات
+                  </Link>
+                  <Link href="/dashboard/cart" className="inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 bg-white/20 backdrop-blur-sm text-white font-semibold rounded-xl hover:bg-white/30 border border-white/30 transition-all min-h-[44px]">
+                    <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5" />
+                    سلة المشتريات
+                  </Link>
+                  <Link href="/dashboard/favorites" className="inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 bg-white/20 backdrop-blur-sm text-white font-semibold rounded-xl hover:bg-white/30 border border-white/30 transition-all min-h-[44px]">
+                    <Heart className="w-4 h-4 sm:w-5 sm:h-5" />
+                    المفضلة
+                  </Link>
+                </div>
+              </div>
+              <div className="hidden lg:flex flex-col items-end gap-4">
+                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-xl border border-white/30">
+                  <span className="text-4xl sm:text-5xl font-bold text-white">
+                    {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                  </span>
+                </div>
+                <p className="text-white/90 font-medium">{user?.name}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* Header للأدوار الأخرى */
+        <div className="card-glass p-4 sm:p-6 lg:p-8">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 sm:gap-4 mb-4">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-[#FF9800] to-[#F57C00] rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
+                  <span className="text-white text-lg sm:text-xl font-bold">
+                    {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                  </span>
+                </div>
+                <div>
+                  <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold gradient-text mb-2">{getRoleTitle()}</h1>
+                  <p className="text-gray-600 dark:text-slate-400 text-sm sm:text-base lg:text-lg leading-relaxed">{getWelcomeMessage()}</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-4">
+                {lastUpdate && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-[#FF9800]/10 dark:bg-[#FF9800]/20 rounded-full">
+                    <Clock className="w-3.5 h-3.5 text-[#FF9800]" />
+                    <span className="text-xs sm:text-sm text-[#F57C00] dark:text-[#FFB74D]">
+                      آخر تحديث: {lastUpdate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                    </span>
+                  </div>
+                )}
+                <button
+                  onClick={handleManualRefresh}
+                  disabled={loading}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-[#FF9800]/10 hover:bg-[#FF9800]/20 rounded-full transition-colors disabled:opacity-50"
+                >
+                  <RotateCw className={`w-3.5 h-3.5 text-[#FF9800] ${loading ? 'animate-spin' : ''}`} />
+                  <span className="text-xs sm:text-sm text-[#E65100] dark:text-[#FFB74D]">{loading ? 'جاري...' : 'تحديث'}</span>
+                </button>
+              </div>
+            </div>
+            <div className="lg:text-right flex items-center gap-3">
+              <div className="text-right">
+                <p className="text-base sm:text-lg font-semibold text-gray-900 dark:text-slate-100">{user?.name}</p>
+                <p className="text-sm text-gray-500 dark:text-slate-400">{getRoleLabel()}</p>
+              </div>
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-[#FF9800] to-[#F57C00] rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
+                <span className="text-white text-base sm:text-lg font-bold">{user?.name?.charAt(0)?.toUpperCase() || 'U'}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Enhanced Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 md:gap-8">
-        {/* Orders Card */}
+        {/* Orders Card - حسب الصلاحية للإدارة */}
+        {(user?.role !== 'admin' || hasPermission(user, 'orders.view')) && (
         <div className="card-hover group p-4 sm:p-6 md:p-8 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-br from-[#4CAF50]/10 to-[#388E3C]/10 rounded-full -translate-y-12 translate-x-12 sm:-translate-y-16 sm:translate-x-16"></div>
           <div className="relative z-10">
@@ -492,14 +611,20 @@ export default function DashboardPage() {
                 {stats?.totalOrders || 0}
               </p>
               <div className="flex items-center gap-1.5 sm:gap-2">
-                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-[#4CAF50] rounded-full"></div>
-                <span className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">نشط</span>
+                <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${
+                  (stats?.ordersPercentage ?? 0) > 0 ? 'bg-[#4CAF50]' : (stats?.ordersPercentage ?? 0) < 0 ? 'bg-red-500' : 'bg-gray-400'
+                }`}></div>
+                <span className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">
+                  {(stats?.ordersPercentage ?? 0) > 0 ? 'متنامي' : (stats?.ordersPercentage ?? 0) < 0 ? 'انخفاض' : 'ثابت'}
+                </span>
               </div>
             </div>
           </div>
         </div>
+        )}
 
-        {/* Revenue Card */}
+        {/* Revenue Card - حسب الصلاحية للإدارة */}
+        {(user?.role !== 'admin' || hasPermission(user, 'earnings.view')) && (
         <div className="card-hover group p-4 sm:p-6 md:p-8 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-br from-[#FF9800]/10 to-[#F57C00]/10 rounded-full -translate-y-12 translate-x-12 sm:-translate-y-16 sm:translate-x-16"></div>
           <div className="relative z-10">
@@ -523,20 +648,32 @@ export default function DashboardPage() {
                 {formatCurrency(stats?.totalRevenue || 0)}
               </p>
               <div className="flex items-center gap-1.5 sm:gap-2">
-                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-[#FF9800] rounded-full"></div>
-                <span className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">متنامي</span>
+                <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${
+                  (stats?.revenuePercentage ?? 0) > 0 ? 'bg-[#4CAF50]' : (stats?.revenuePercentage ?? 0) < 0 ? 'bg-red-500' : 'bg-gray-400'
+                }`}></div>
+                <span className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">
+                  {(stats?.revenuePercentage ?? 0) > 0 ? 'متنامي' : (stats?.revenuePercentage ?? 0) < 0 ? 'انخفاض' : 'ثابت'}
+                </span>
               </div>
             </div>
           </div>
         </div>
+        )}
 
-        {/* Products Card */}
+        {/* Products Card - حسب الصلاحية للإدارة (المفضلة للمسوق) */}
+        {(user?.role !== 'admin' || hasPermission(user, 'products.view')) && (
         <div className="card-hover group p-4 sm:p-6 md:p-8 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-br from-[#FF9800]/10 to-[#F57C00]/10 rounded-full -translate-y-12 translate-x-12 sm:-translate-y-16 sm:translate-x-16"></div>
+          <div className="absolute top-0 right-0 w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-br from-purple-500/10 to-pink-600/10 rounded-full -translate-y-12 translate-x-12 sm:-translate-y-16 sm:translate-x-16"></div>
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-4 sm:mb-6">
-              <div className="bg-gradient-to-br from-[#FF9800] to-[#F57C00] p-2.5 sm:p-3 md:p-4 rounded-xl sm:rounded-2xl shadow-lg group-hover:scale-110 transition-all duration-300">
-                <Package className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 text-white" />
+              <div className={`p-2.5 sm:p-3 md:p-4 rounded-xl sm:rounded-2xl shadow-lg group-hover:scale-110 transition-all duration-300 ${
+                user?.role === 'marketer' ? 'bg-gradient-to-br from-purple-500 to-pink-600' : 'bg-gradient-to-br from-[#FF9800] to-[#F57C00]'
+              }`}>
+                {user?.role === 'marketer' ? (
+                  <Heart className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 text-white" />
+                ) : (
+                  <Package className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 text-white" />
+                )}
               </div>
               <div className="text-left">
                 <div className={`flex items-center text-xs sm:text-sm font-medium ${pctProducts.color}`}>
@@ -556,16 +693,27 @@ export default function DashboardPage() {
                  user?.role === 'marketer' ? (stats?.favoritesCount || 0) : (stats?.totalProducts || 0)}
               </p>
               <div className="flex items-center gap-1.5 sm:gap-2">
-                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-[#FF9800] rounded-full"></div>
-                <span className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">متوفر</span>
+                {(() => {
+                  const pct = user?.role === 'marketer' ? (stats?.favoritesPercentage ?? 0) : (stats?.productsPercentage ?? 0);
+                  return (
+                    <>
+                      <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${
+                        pct > 0 ? 'bg-[#4CAF50]' : pct < 0 ? 'bg-red-500' : 'bg-gray-400'
+                      }`}></div>
+                      <span className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">
+                        {user?.role === 'marketer' ? (pct > 0 ? 'زيادة' : pct < 0 ? 'انخفاض' : 'ثابت') : (pct > 0 ? 'متنامي' : pct < 0 ? 'انخفاض' : 'ثابت')}
+                      </span>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           </div>
         </div>
+        )}
 
-        {/* Users Card - Only for Admin */}
-        {user?.role === 'admin' ? (
-          <>
+        {/* Users Card - للإدارة حسب صلاحية users.view */}
+        {user?.role === 'admin' && hasPermission(user, 'users.view') && (
             <div className="card-hover group p-4 sm:p-6 md:p-8 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-br from-[#4CAF50]/10 to-[#388E3C]/10 rounded-full -translate-y-12 translate-x-12 sm:-translate-y-16 sm:translate-x-16"></div>
               <div className="relative z-10">
@@ -587,15 +735,21 @@ export default function DashboardPage() {
                     {stats?.totalUsers || 0}
                   </p>
                   <div className="flex items-center gap-1.5 sm:gap-2">
-                    <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-[#4CAF50] rounded-full"></div>
-                    <span className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">مسجلين</span>
+                    <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${
+                      (stats?.usersPercentage ?? 0) > 0 ? 'bg-[#4CAF50]' : (stats?.usersPercentage ?? 0) < 0 ? 'bg-red-500' : 'bg-gray-400'
+                    }`}></div>
+                    <span className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">
+                      {(stats?.usersPercentage ?? 0) > 0 ? 'متنامي' : (stats?.usersPercentage ?? 0) < 0 ? 'انخفاض' : 'مسجلين'}
+                    </span>
                   </div>
-                </div>
               </div>
             </div>
+            </div>
+        )}
 
-            {/* Messages Card - Only for Admin */}
-            <Link href="/dashboard/admin/messages" className="card-hover group p-4 sm:p-6 md:p-8 relative overflow-hidden cursor-pointer active:scale-[0.98] transition-transform">
+        {/* Messages Card - للإدارة مع أي صلاحية رسائل */}
+        {user?.role === 'admin' && hasAnyOfPermissions(user, [PERMISSIONS.MESSAGES_VIEW, PERMISSIONS.MESSAGES_REPLY, PERMISSIONS.MESSAGES_MODERATE]) && (
+            <Link href="/dashboard/messages" className="card-hover group p-4 sm:p-6 md:p-8 relative overflow-hidden cursor-pointer active:scale-[0.98] transition-transform">
               <div className="absolute top-0 right-0 w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-br from-[#FF9800]/10 to-[#F57C00]/10 rounded-full -translate-y-12 translate-x-12 sm:-translate-y-16 sm:translate-x-16"></div>
               <div className="relative z-10">
                 <div className="flex items-center justify-between mb-4 sm:mb-6">
@@ -610,13 +764,13 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 <div>
-                  <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-slate-400 mb-2 sm:mb-3">الرسائل</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-slate-400 mb-2 sm:mb-3">رسائل المنتجات</p>
                   <div className="flex items-center gap-2 sm:gap-3 mb-1.5 sm:mb-2 flex-wrap">
                     <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-slate-100">
                       {stats?.totalMessages || 0}
                     </p>
                     {stats?.pendingMessages && stats.pendingMessages > 0 && (
-                      <span className="badge badge-warning text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 sm:py-1">
+                      <span className="inline-flex items-center px-2.5 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs font-medium bg-gradient-to-r from-[#FF9800] to-[#F57C00] text-white shadow-sm">
                         {stats.pendingMessages} قيد المراجعة
                       </span>
                     )}
@@ -628,9 +782,10 @@ export default function DashboardPage() {
                 </div>
               </div>
             </Link>
-           </>
-         ) : (
-          // Additional stats for non-admin users
+        )}
+
+        {/* بطاقة إضافية لغير الإدارة (منتجات نشطة / معدل نمو) */}
+        {user?.role !== 'admin' && (
           <div className="card-hover group p-4 sm:p-6 md:p-8 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-br from-[#4CAF50]/10 to-[#388E3C]/10 rounded-full -translate-y-12 translate-x-12 sm:-translate-y-16 sm:translate-x-16"></div>
             <div className="relative z-10">
@@ -655,59 +810,66 @@ export default function DashboardPage() {
                   {user?.role === 'supplier' ? (stats?.activeProducts || 0) : (pctGrowth.text !== '—' ? pctGrowth.text : '—')}
                 </p>
                 <div className="flex items-center gap-1.5 sm:gap-2">
-                  <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-[#4CAF50] rounded-full"></div>
+                  <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${
+                    user?.role === 'supplier' ? 'bg-[#4CAF50]' : 
+                    (pctGrowth.text === 'جديد' || pctGrowth.text.startsWith('+')) ? 'bg-[#4CAF50]' : 
+                    pctGrowth.text.startsWith('-') ? 'bg-red-500' : 'bg-gray-400'
+                  }`}></div>
                   <span className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">
-                    {user?.role === 'supplier' ? 'نشط' : 'متنامي'}
+                    {user?.role === 'supplier' ? 'نشط' : 
+                     pctGrowth.text === 'جديد' || pctGrowth.text.startsWith('+') ? 'متنامي' : 
+                     pctGrowth.text.startsWith('-') ? 'انخفاض' : 'ثابت'}
                   </span>
                 </div>
               </div>
             </div>
           </div>
-         )}
+        )}
       </div>
 
-      {/* Role-specific Content */}
-      {user?.role === 'admin' && (
-        <div className="grid lg:grid-cols-2 gap-8">
-          {/* Recent Orders */}
-          <div className="card p-8">
-            <div className="flex items-center justify-between mb-8">
+      {/* Role-specific Content - حسب الصلاحيات للإدارة */}
+      {user?.role === 'admin' && (hasPermission(user, 'orders.view') || hasPermission(user, 'products.view')) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
+          {/* Recent Orders - حسب orders.view */}
+          {hasPermission(user, 'orders.view') && (
+          <div className="card p-4 sm:p-6 lg:p-8">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-[#4CAF50] to-[#388E3C] rounded-xl flex items-center justify-center shadow-lg">
-                  <ShoppingBag className="w-6 h-6 text-white" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-[#4CAF50] to-[#388E3C] rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
+                  <ShoppingBag className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
-                <div>
-                  <h3 className="text-2xl font-bold text-gray-900 dark:text-slate-100">آخر الطلبات</h3>
-                  <p className="text-sm text-gray-600 dark:text-slate-400">أحدث الطلبات المقدمة</p>
+                <div className="min-w-0">
+                  <h3 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-slate-100">آخر الطلبات</h3>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-400">أحدث الطلبات المقدمة</p>
                 </div>
               </div>
-              <Link href="/dashboard/orders" className="btn-ghost text-sm hover:bg-[#4CAF50]/10 dark:hover:bg-[#4CAF50]/20 transition-colors">
+              <Link href="/dashboard/orders" className="btn-ghost text-sm hover:bg-[#4CAF50]/10 dark:hover:bg-[#4CAF50]/20 transition-colors flex items-center gap-1 self-start sm:self-auto">
                 عرض الكل
-                <ArrowUpRight className="w-4 h-4 mr-1" />
+                <ArrowUpRight className="w-4 h-4" />
               </Link>
             </div>
-            <div className="space-y-5">
+            <div className="space-y-4 sm:space-y-5">
               {stats?.recentOrders && stats.recentOrders.length > 0 ? (
                 stats.recentOrders.slice(0, 5).map((order: any) => {
                   const statusBadge = getStatusBadge(order.status);
                   return (
                     <div 
                       key={order._id} 
-                      className="flex items-center justify-between p-5 bg-gray-50 dark:bg-slate-800 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors duration-200 cursor-pointer"
+                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-0 p-4 sm:p-5 bg-gray-50 dark:bg-slate-800 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-700/80 transition-all duration-200 cursor-pointer active:scale-[0.99] border border-transparent hover:border-[#4CAF50]/20 dark:hover:border-[#4CAF50]/30"
                       onClick={() => handleOrderClick(order._id)}
                     >
-                      <div className="flex items-center">
-                        <div className="w-12 h-12 bg-gradient-to-br from-[#4CAF50] to-[#388E3C] rounded-lg flex items-center justify-center mr-5">
-                          <ShoppingBag className="w-6 h-6 text-white" />
+                      <div className="flex items-center gap-3 sm:gap-5 flex-1 min-w-0">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-[#4CAF50] to-[#388E3C] rounded-xl flex items-center justify-center flex-shrink-0">
+                          <ShoppingBag className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                         </div>
-                        <div>
-                          <p className="font-semibold text-gray-900 dark:text-slate-100 mb-1">#{order.orderNumber}</p>
-                          <p className="text-sm text-gray-600 dark:text-slate-400">{order.customerName}</p>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-gray-900 dark:text-slate-100 text-sm sm:text-base truncate">#{order.orderNumber}</p>
+                          <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-400 truncate">{order.customerName}</p>
                         </div>
                       </div>
-                      <div className="text-left">
-                        <p className="font-semibold text-gray-900 dark:text-slate-100 mb-1">{formatCurrency(order.total)}</p>
-                        <span className={`badge ${statusBadge.class}`}>
+                      <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 sm:text-left">
+                        <p className="font-semibold text-gray-900 dark:text-slate-100 text-sm sm:text-base">{formatCurrency(order.total)}</p>
+                        <span className={`badge text-xs min-h-[28px] flex items-center ${statusBadge.class}`}>
                           {statusBadge.label}
                         </span>
                       </div>
@@ -715,78 +877,98 @@ export default function DashboardPage() {
                   );
                 })
               ) : (
-                <div className="text-center py-12">
-                  <ShoppingBag className="w-16 h-16 text-gray-400 dark:text-slate-400 mx-auto mb-6" />
-                  <p className="text-gray-600 dark:text-slate-400 text-lg">لا توجد طلبات حديثة</p>
+                <div className="text-center py-12 sm:py-16 px-4">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-[#4CAF50]/20 to-[#388E3C]/20 dark:from-[#4CAF50]/30 dark:to-[#388E3C]/30 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
+                    <ShoppingBag className="w-8 h-8 sm:w-10 sm:h-10 text-[#4CAF50] dark:text-[#4CAF50]" />
+                  </div>
+                  <p className="text-gray-600 dark:text-slate-400 text-base sm:text-lg">لا توجد طلبات حديثة</p>
                 </div>
               )}
             </div>
           </div>
+          )}
 
-          {/* Top Products */}
-          <div className="card p-8">
-            <div className="flex items-center justify-between mb-8">
+          {/* Top Products - حسب products.view */}
+          {hasPermission(user, 'products.view') && (
+          <div className="card p-4 sm:p-6 lg:p-8">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-[#FF9800] to-[#F57C00] rounded-xl flex items-center justify-center shadow-lg">
-                  <Package className="w-6 h-6 text-white" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-[#FF9800] to-[#F57C00] rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
+                  <Package className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
-                <div>
-                  <h3 className="text-2xl font-bold text-gray-900 dark:text-slate-100">أفضل المنتجات</h3>
-                  <p className="text-sm text-gray-600 dark:text-slate-400">المنتجات الأكثر مبيعاً</p>
+                <div className="min-w-0">
+                  <h3 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-slate-100">أفضل المنتجات</h3>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-400">المنتجات الأكثر مبيعاً</p>
                 </div>
               </div>
-              <Link href="/dashboard/products" className="btn-ghost text-sm hover:bg-[#FF9800]/10 dark:hover:bg-[#FF9800]/20 transition-colors">
+              <Link href="/dashboard/products" className="btn-ghost text-sm hover:bg-[#FF9800]/10 dark:hover:bg-[#FF9800]/20 transition-colors flex items-center gap-1 self-start sm:self-auto">
                 عرض الكل
-                <ArrowUpRight className="w-4 h-4 mr-1" />
+                <ArrowUpRight className="w-4 h-4" />
               </Link>
             </div>
-            <div className="space-y-5">
+            <div className="space-y-4 sm:space-y-5">
               {stats?.topProducts && stats.topProducts.length > 0 ? (
-                stats.topProducts.slice(0, 5).map((product: any) => (
+                stats.topProducts.slice(0, 5).map((product: any, index: number) => (
                   <div 
                     key={product._id} 
-                    className="flex items-center justify-between p-5 bg-gray-50 dark:bg-slate-800 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors duration-200 cursor-pointer"
+                    className="group flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6 p-4 sm:p-5 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-slate-800 dark:to-slate-700 rounded-xl hover:from-[#FF9800]/5 hover:to-[#F57C00]/5 dark:hover:from-[#FF9800]/10 dark:hover:to-[#F57C00]/10 transition-all duration-300 cursor-pointer border border-gray-200 dark:border-slate-600 hover:border-[#FF9800]/30 dark:hover:border-[#FF9800]/40 active:scale-[0.99]"
                     onClick={() => handleProductClick(product._id)}
                   >
-                    <div className="flex items-center">
-                      {/* Product Image */}
-                      <div className="w-14 h-14 rounded-lg overflow-hidden mr-5 flex-shrink-0 ">
+                    <div className="flex items-center gap-3 sm:gap-5 flex-1 min-w-0">
+                      <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden shadow-md group-hover:shadow-lg transition-shadow flex-shrink-0">
                         <MediaThumbnail
                           media={product.images || []}
                           alt={product.name}
-                          className="w-full h-full"
+                          className="w-full h-full object-cover"
                           showTypeBadge={false}
                           width={56}
                           height={56}
                           fallbackIcon={<Package className="w-7 h-7 text-white" />}
                         />
+                        {index === 0 && (
+                          <div className="absolute -top-0.5 -right-0.5 w-5 h-5 sm:w-6 sm:h-6 bg-gradient-to-br from-[#FF9800] to-[#F57C00] rounded-bl-lg flex items-center justify-center">
+                            <Star className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white fill-current" />
+                          </div>
+                        )}
                       </div>
-                      <div>
-                        <p className="font-semibold text-gray-900 dark:text-slate-100 mb-1">{product.name}</p>
-                        <p className="text-sm text-gray-600 dark:text-slate-400">{product.supplierName}</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-900 dark:text-slate-100 text-sm sm:text-base line-clamp-2 group-hover:text-[#FF9800] dark:group-hover:text-[#FF9800] transition-colors">{product.name}</p>
+                        <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-400 truncate mt-0.5">{product.supplierName || 'مدير النظام'}</p>
                       </div>
                     </div>
-                    <div className="text-left">
-                      <p className="font-semibold text-gray-900 dark:text-slate-100 mb-1">{product.sales || 0} مبيعات</p>
-                      <div className="flex items-center">
-                        <Star className="w-4 h-4 text-amber-400 fill-current" />
-                        <span className="text-sm text-gray-600 dark:text-slate-400 mr-1">{product.rating ? new Intl.NumberFormat('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(product.rating) : '0.0'}</span>
+                    <div className="flex items-center justify-between sm:justify-end gap-3 sm:flex-col sm:items-end sm:text-left shrink-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs sm:text-sm text-gray-600 dark:text-slate-400">{product.sales || 0} مبيعات</span>
+                        <span className="flex items-center gap-0.5 text-amber-500">
+                          <Star className="w-4 h-4 fill-current" />
+                          <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300">{product.rating ? new Intl.NumberFormat('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(product.rating) : '0.0'}</span>
+                        </span>
                       </div>
+                      {index === 0 && (
+                        <span className="inline-flex items-center px-2 sm:px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-medium bg-gradient-to-r from-[#FF9800] to-[#F57C00] text-white">
+                          الأكثر مبيعاً
+                        </span>
+                      )}
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="text-center py-12">
-                  <Package className="w-16 h-16 text-gray-400 dark:text-slate-400 mx-auto mb-6" />
-                  <p className="text-gray-600 dark:text-slate-400 text-lg">لا توجد منتجات</p>
-                  <Link href="/dashboard/products/new" className="btn-primary mt-6">
-                    <Plus className="w-4 h-4 mr-1" />
-                    إضافة منتج جديد
-                  </Link>
+                <div className="text-center py-12 sm:py-16 px-4">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-[#FF9800]/20 to-[#F57C00]/20 dark:from-[#FF9800]/30 dark:to-[#F57C00]/30 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
+                    <Package className="w-8 h-8 sm:w-10 sm:h-10 text-[#FF9800] dark:text-[#FF9800]" />
+                  </div>
+                  <p className="text-gray-600 dark:text-slate-400 text-base sm:text-lg">لا توجد منتجات</p>
+                  {hasPermission(user, 'products.manage') && (
+                    <Link href="/dashboard/products/new" className="btn-primary mt-6">
+                      <Plus className="w-4 h-4 mr-1" />
+                      إضافة منتج جديد
+                    </Link>
+                  )}
                 </div>
               )}
             </div>
           </div>
+          )}
         </div>
       )}
 
@@ -948,64 +1130,60 @@ export default function DashboardPage() {
       )}
 
       {(user?.role === 'marketer' || user?.role === 'wholesaler') && (
-        <div className="grid lg:grid-cols-2 gap-8">
+        <div className="grid lg:grid-cols-2 gap-6 sm:gap-8">
           {/* Featured Products */}
-          <div className="card p-8">
-            <div className="flex items-center justify-between mb-8">
+          <div className="card p-4 sm:p-6 lg:p-8">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl flex items-center justify-center shadow-lg">
-                  <Store className="w-6 h-6 text-white" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
+                  <Store className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
-                <div>
-                  <h3 className="text-2xl font-bold text-gray-900 dark:text-slate-100">المنتجات المميزة</h3>
-                  <p className="text-sm text-gray-600 dark:text-slate-400">أفضل المنتجات المختارة لك</p>
+                <div className="min-w-0">
+                  <h3 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-slate-100">المنتجات المميزة</h3>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-400 truncate">أفضل المنتجات المختارة لك</p>
                 </div>
               </div>
-              <Link href="/dashboard/products" className="btn-primary hover:shadow-lg transition-all">
+              <Link href="/dashboard/products" className="btn-primary hover:shadow-lg transition-all min-h-[44px] flex items-center justify-center flex-shrink-0 w-full sm:w-auto">
                 <Store className="w-4 h-4 mr-1" />
                 تصفح الكل
               </Link>
             </div>
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-5">
               {stats?.topProducts && stats.topProducts.length > 0 ? (
                 stats.topProducts.slice(0, 4).map((product: any, index: number) => (
                   <div 
                     key={product._id} 
-                    className="group relative flex items-center justify-between p-6 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-slate-800 dark:to-slate-700 rounded-xl hover:from-[#FF9800]/10 hover:to-[#F57C00]/10 dark:hover:from-[#FF9800]/20 dark:hover:to-[#F57C00]/20 transition-all duration-300 cursor-pointer border border-gray-200 dark:border-slate-600 hover:border-[#FF9800]/30 dark:hover:border-[#FF9800]/40"
+                    className="group relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6 p-4 sm:p-5 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-slate-800 dark:to-slate-700 rounded-xl hover:from-[#FF9800]/10 hover:to-[#F57C00]/10 dark:hover:from-[#FF9800]/20 dark:hover:to-[#F57C00]/20 transition-all duration-300 cursor-pointer border border-gray-200 dark:border-slate-600 hover:border-[#FF9800]/30 dark:hover:border-[#FF9800]/40 active:scale-[0.99]"
                     onClick={() => handleProductClick(product._id)}
                   >
-                    {/* Product Image */}
-                    <div className="flex items-center flex-1 ">
-                      <div className="relative">
-                        <div className="w-16 h-16 rounded-xl overflow-hidden mr-6 flex-shrink-0 shadow-lg group-hover:shadow-xl transition-shadow duration-300">
+                    {/* Product Image & Info */}
+                    <div className="flex items-center gap-3 sm:gap-6 flex-1 min-w-0">
+                      <div className="relative flex-shrink-0">
+                        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden shadow-lg group-hover:shadow-xl transition-shadow duration-300">
                           <MediaThumbnail
                             media={product.images || []}
                             alt={product.name}
-                            className="w-full h-full"
+                            className="w-full h-full object-cover"
                             showTypeBadge={false}
                             width={64}
                             height={64}
                             fallbackIcon={<Package className="w-8 h-8 text-white" />}
                           />
                         </div>
-                        {/* Stock indicator */}
-                        <div className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-white dark:border-slate-800 ${
+                        <div className={`absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 w-3 h-3 sm:w-4 sm:h-4 rounded-full border-2 border-white dark:border-slate-800 ${
                           product.stockQuantity > 10 ? 'bg-green-500' : 
                           product.stockQuantity > 0 ? 'bg-yellow-500' : 'bg-red-500'
-                        }`}></div>
+                        }`} />
                       </div>
-                      
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-gray-900 dark:text-slate-100 mb-3 text-lg group-hover:text-[#FF9800] dark:group-hover:text-[#FF9800] transition-colors duration-200 truncate">
+                        <h4 className="font-semibold text-gray-900 dark:text-slate-100 text-base sm:text-lg group-hover:text-[#FF9800] dark:group-hover:text-[#FF9800] transition-colors duration-200 line-clamp-2">
                           {product.name}
                         </h4>
-                        <div className="flex items-center space-x-3 space-x-reverse mb-3">
-                          <span className="text-sm text-gray-600 dark:text-slate-400">
-                            {product.categoryName}
-                          </span>
-                        </div>
-                        <div className="flex items-center space-x-4 space-x-reverse">
-                          <span className={`text-xs px-3 py-1 rounded-full font-medium ${
+                        <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-400 truncate mt-0.5">
+                          {product.categoryName || 'غير محدد'}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2 mt-2">
+                          <span className={`text-xs px-2 py-0.5 sm:px-3 sm:py-1 rounded-full font-medium shrink-0 ${
                             product.stockQuantity > 10 
                               ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
                               : product.stockQuantity > 0 
@@ -1015,15 +1193,16 @@ export default function DashboardPage() {
                             {product.stockQuantity > 10 ? 'متوفر' : product.stockQuantity > 0 ? 'محدود' : 'نفذ'}
                           </span>
                           <span className="text-xs text-gray-500 dark:text-slate-400">
-                            {product.stockQuantity} قطعة متبقية
+                            {product.stockQuantity} قطعة
                           </span>
                         </div>
                       </div>
                     </div>
                     
-                    <div className="text-left ml-6 flex flex-col items-end">
-                      <div className="text-right mb-3">
-                        <p className={`text-2xl font-bold group-hover:text-[#FF9800] dark:group-hover:text-[#FF9800] transition-colors duration-200 ${
+                    {/* Price & Actions */}
+                    <div className="flex flex-row-reverse sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-3 shrink-0 border-t sm:border-t-0 border-gray-200 dark:border-slate-600 pt-4 sm:pt-0">
+                      <div className="text-left sm:text-right">
+                        <p className={`text-xl sm:text-2xl font-bold group-hover:text-[#FF9800] dark:group-hover:text-[#FF9800] transition-colors ${
                           user?.role !== 'wholesaler' && (product as any).isMarketerPriceManuallyAdjusted
                             ? 'text-orange-600 dark:text-orange-400'
                             : 'text-gray-900 dark:text-slate-100'
@@ -1034,34 +1213,37 @@ export default function DashboardPage() {
                           {user?.role === 'wholesaler' ? 'سعر الجملة' : 'سعر المسوق'}
                         </p>
                       </div>
-                      
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center justify-end gap-1.5 sm:gap-2">
                         {(user?.role === 'marketer' || user?.role === 'wholesaler') && integrations.length > 0 && product.isApproved !== false && !(product as any).metadata?.easyOrdersProductId && (
                           <button
                             onClick={(e) => handleExportProduct(e, product._id)}
                             disabled={!!exportingProductId}
-                            className="p-2 rounded-lg bg-[#4CAF50] hover:bg-[#388E3C] text-white disabled:opacity-60 transition-colors flex items-center gap-1 text-xs"
+                            className="btn-export disabled:opacity-60 min-h-[36px] text-xs px-2 py-1.5"
                             title="تصدير إلى Easy Orders"
                           >
-                            <LinkIcon className="w-4 h-4" />
-                            تصدير
+                            {exportingProductId === product._id ? (
+                              <ButtonLoader variant="light" size="sm" />
+                            ) : (
+                              <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                            )}
+                            <span className="hidden sm:inline">{exportingProductId === product._id ? 'جاري...' : 'تصدير'}</span>
                           </button>
                         )}
                         {(user?.role === 'marketer' || user?.role === 'wholesaler') && integrations.length > 0 && product.isApproved !== false && (product as any).metadata?.easyOrdersProductId && (
                           <button
                             onClick={(e) => { e.stopPropagation(); handleUnlinkExport(product._id); }}
                             disabled={!!unlinkingProductId}
-                            className="p-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white disabled:opacity-60 transition-colors text-xs"
-                            title="حذفته من Easy Orders - إلغاء الربط لتمكين التصدير مرة أخرى"
+                            className="px-2 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white disabled:opacity-60 transition-colors text-xs min-h-[36px]"
+                            title="إلغاء الربط"
                           >
                             مُصدّر
                           </button>
                         )}
-                        <span className={`badge ${product.inStock ? 'badge-success' : 'badge-danger'}`}>
+                        <span className={`badge text-xs min-h-[28px] flex items-center ${product.inStock ? 'badge-success' : 'badge-danger'}`}>
                           {product.inStock ? 'متوفر' : 'غير متوفر'}
                         </span>
                         {index === 0 && (
-                          <span className="badge badge-primary text-xs">
+                          <span className="badge badge-primary text-xs shrink-0 min-h-[28px] flex items-center">
                             الأكثر طلباً
                           </span>
                         )}
@@ -1070,13 +1252,13 @@ export default function DashboardPage() {
                   </div>
                 ))
               ) : (
-                <div className="text-center py-16">
-                                  <div className="w-20 h-20 bg-gradient-to-br from-[#FF9800]/20 to-[#F57C00]/20 dark:from-[#FF9800]/30 dark:to-[#F57C00]/30 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <Store className="w-10 h-10 text-[#FF9800] dark:text-[#FF9800]" />
-                </div>
-                  <h4 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-3">لا توجد منتجات مميزة</h4>
-                  <p className="text-gray-600 dark:text-slate-400 mb-6 text-sm sm:text-base text-wrap-long">ابدأ بتصفح المنتجات المتاحة وإضافة المفضلة</p>
-                  <Link href="/dashboard/products" className="btn-primary">
+                <div className="text-center py-12 sm:py-16 px-4">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-[#FF9800]/20 to-[#F57C00]/20 dark:from-[#FF9800]/30 dark:to-[#F57C00]/30 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
+                    <Store className="w-8 h-8 sm:w-10 sm:h-10 text-[#FF9800] dark:text-[#FF9800]" />
+                  </div>
+                  <h4 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-slate-100 mb-2 sm:mb-3">لا توجد منتجات مميزة</h4>
+                  <p className="text-gray-600 dark:text-slate-400 mb-4 sm:mb-6 text-sm sm:text-base">ابدأ بتصفح المنتجات المتاحة وإضافة المفضلة</p>
+                  <Link href="/dashboard/products" className="btn-primary min-h-[44px] inline-flex items-center justify-center">
                     <Store className="w-4 h-4 mr-2" />
                     تصفح المنتجات
                   </Link>
@@ -1086,79 +1268,77 @@ export default function DashboardPage() {
           </div>
 
           {/* Performance & Analytics */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {/* Performance Overview */}
-            <div className="card p-8">
-              <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl flex items-center justify-center shadow-lg">
-                    <TrendingUp className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-bold text-gray-900 dark:text-slate-100">أداء المبيعات</h3>
-                    <p className="text-sm text-gray-600 dark:text-slate-400">إحصائيات أدائك</p>
-                  </div>
+            <div className="card p-4 sm:p-6 lg:p-8">
+              <div className="flex items-center gap-3 mb-6 sm:mb-8">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
+                  <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-slate-100">أداء المبيعات</h3>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-400">إحصائيات أدائك</p>
                 </div>
               </div>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 rounded-xl">
-                  <div className="flex items-center">
-                    <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg flex items-center justify-center mr-5">
-                      <DollarSign className="w-6 h-6 text-white" />
+              <div className="space-y-3 sm:space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 p-3 sm:p-4 bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 rounded-xl">
+                  <div className="flex items-center gap-3 sm:gap-5 min-w-0">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-600 dark:text-slate-400">إجمالي المبيعات</p>
-                      <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">
+                    <div className="min-w-0">
+                      <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-slate-400">إجمالي المبيعات</p>
+                      <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-slate-100 truncate">
                         {formatCurrency(stats?.totalRevenue || 0)}
                       </p>
                     </div>
                   </div>
-                  <div className="text-left">
-                    <div className={`flex items-center text-sm font-medium ${pctRevenue.color}`}>
-                      {pctRevenue.icon && <pctRevenue.icon className="w-4 h-4 ml-1" />}
+                  <div className="text-left flex-shrink-0 border-t sm:border-t-0 border-emerald-200/50 dark:border-emerald-800/50 pt-3 sm:pt-0">
+                    <div className={`flex items-center text-xs sm:text-sm font-medium ${pctRevenue.color}`}>
+                      {pctRevenue.icon && <pctRevenue.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 ml-1" />}
                       {pctRevenue.text}
                     </div>
                     <p className="text-xs text-gray-500 dark:text-slate-400">من الشهر الماضي</p>
                   </div>
                 </div>
-                
-                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-[#4CAF50]/10 to-[#388E3C]/10 dark:from-[#4CAF50]/20 dark:to-[#388E3C]/20 rounded-xl">
-                  <div className="flex items-center">
-                    <div className="w-12 h-12 bg-gradient-to-br from-[#4CAF50] to-[#388E3C] rounded-lg flex items-center justify-center mr-5">
-                      <ShoppingBag className="w-6 h-6 text-white" />
+
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 p-3 sm:p-4 bg-gradient-to-r from-[#4CAF50]/10 to-[#388E3C]/10 dark:from-[#4CAF50]/20 dark:to-[#388E3C]/20 rounded-xl">
+                  <div className="flex items-center gap-3 sm:gap-5 min-w-0">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-[#4CAF50] to-[#388E3C] rounded-lg flex items-center justify-center flex-shrink-0">
+                      <ShoppingBag className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-600 dark:text-slate-400">عدد الطلبات</p>
-                      <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">
+                    <div className="min-w-0">
+                      <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-slate-400">عدد الطلبات</p>
+                      <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-slate-100">
                         {stats?.totalOrders || 0}
                       </p>
                     </div>
                   </div>
-                  <div className="text-left">
-                    <div className={`flex items-center text-sm font-medium ${pctOrders.color}`}>
-                      {pctOrders.icon && <pctOrders.icon className="w-4 h-4 ml-1" />}
+                  <div className="text-left flex-shrink-0 border-t sm:border-t-0 border-[#4CAF50]/20 dark:border-[#4CAF50]/30 pt-3 sm:pt-0">
+                    <div className={`flex items-center text-xs sm:text-sm font-medium ${pctOrders.color}`}>
+                      {pctOrders.icon && <pctOrders.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 ml-1" />}
                       {pctOrders.text}
                     </div>
                     <p className="text-xs text-gray-500 dark:text-slate-400">من الشهر الماضي</p>
                   </div>
                 </div>
-                
+
                 {user?.role === 'marketer' && (
-                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl">
-                    <div className="flex items-center">
-                      <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center mr-5">
-                        <Heart className="w-6 h-6 text-white" />
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 p-3 sm:p-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl">
+                    <div className="flex items-center gap-3 sm:gap-5 min-w-0">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Heart className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-600 dark:text-slate-400">المنتجات المفضلة</p>
-                        <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">
+                      <div className="min-w-0">
+                        <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-slate-400">المنتجات المفضلة</p>
+                        <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-slate-100">
                           {stats?.favoritesCount || 0}
                         </p>
                       </div>
                     </div>
-                    <div className="text-left">
-                      <div className={`flex items-center text-sm font-medium ${pctProducts.color}`}>
-                        {pctProducts.icon && <pctProducts.icon className="w-4 h-4 ml-1" />}
+                    <div className="text-left flex-shrink-0 border-t sm:border-t-0 border-purple-200/50 dark:border-purple-800/50 pt-3 sm:pt-0">
+                      <div className={`flex items-center text-xs sm:text-sm font-medium ${pctProducts.color}`}>
+                        {pctProducts.icon && <pctProducts.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 ml-1" />}
                         {pctProducts.text}
                       </div>
                       <p className="text-xs text-gray-500 dark:text-slate-400">من الشهر الماضي</p>
@@ -1169,70 +1349,71 @@ export default function DashboardPage() {
             </div>
 
             {/* Smart Recommendations */}
-            <div className="card p-8">
-              <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg">
-                    <Star className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-bold text-gray-900 dark:text-slate-100">توصيات ذكية</h3>
-                    <p className="text-sm text-gray-600 dark:text-slate-400">نصائح لتحسين أدائك</p>
-                  </div>
+            <div className="card p-4 sm:p-6 lg:p-8">
+              <div className="flex items-center gap-3 mb-6 sm:mb-8">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
+                  <Star className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-slate-100">توصيات ذكية</h3>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-400">نصائح لتحسين أدائك</p>
                 </div>
               </div>
-              <div className="space-y-4">
-                <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-xl border border-amber-200 dark:border-amber-700">
-                  <div className="flex items-start">
-                    <div className="w-8 h-8 bg-gradient-to-br from-amber-500 to-orange-600 rounded-lg flex items-center justify-center mr-4 flex-shrink-0">
+              <div className="space-y-3 sm:space-y-4">
+                <Link href="/dashboard/products" className="block p-3 sm:p-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-xl border border-amber-200 dark:border-amber-700 hover:border-amber-400 dark:hover:border-amber-500 transition-all duration-200 active:scale-[0.99]">
+                  <div className="flex items-start gap-3 sm:gap-4">
+                    <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-br from-amber-500 to-orange-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
                       <TrendingUp className="w-4 h-4 text-white" />
                     </div>
-                    <div>
-                      <h4 className="font-medium text-gray-900 dark:text-slate-100 mb-2">زيادة المبيعات</h4>
-                      <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-400 mb-3 text-wrap-long line-clamp-2">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-semibold text-gray-900 dark:text-slate-100 mb-1 sm:mb-2 text-sm sm:text-base">زيادة المبيعات</h4>
+                      <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-400 mb-2 sm:mb-3 line-clamp-2">
                         ركز على المنتجات عالية الربح في فئة الإلكترونيات
                       </p>
-                      <Link href="/dashboard/products" className="text-sm text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 font-medium">
-                        تصفح المنتجات →
-                      </Link>
+                      <span className="text-sm text-amber-600 dark:text-amber-400 font-medium inline-flex items-center gap-1 min-h-[44px]">
+                        تصفح المنتجات
+                        <span className="rtl:rotate-180">→</span>
+                      </span>
                     </div>
                   </div>
-                </div>
-                
-                <div className="p-4 bg-gradient-to-r from-[#FF9800]/10 to-[#F57C00]/10 dark:from-[#FF9800]/20 dark:to-[#F57C00]/20 rounded-xl border border-[#FF9800]/20 dark:border-[#FF9800]/30">
-                  <div className="flex items-start">
-                    <div className="w-8 h-8 bg-gradient-to-br from-[#FF9800] to-[#F57C00] rounded-lg flex items-center justify-center mr-4 flex-shrink-0">
+                </Link>
+
+                <Link href="/dashboard/cart" className="block p-3 sm:p-4 bg-gradient-to-r from-[#FF9800]/10 to-[#F57C00]/10 dark:from-[#FF9800]/20 dark:to-[#F57C00]/20 rounded-xl border border-[#FF9800]/20 dark:border-[#FF9800]/30 hover:border-[#FF9800]/50 dark:hover:border-[#FF9800]/50 transition-all duration-200 active:scale-[0.99]">
+                  <div className="flex items-start gap-3 sm:gap-4">
+                    <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-br from-[#FF9800] to-[#F57C00] rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
                       <Clock className="w-4 h-4 text-white" />
                     </div>
-                    <div>
-                      <h4 className="font-medium text-gray-900 dark:text-slate-100 mb-2">توقيت مثالي</h4>
-                      <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-400 mb-3 text-wrap-long">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-semibold text-gray-900 dark:text-slate-100 mb-1 sm:mb-2 text-sm sm:text-base">توقيت مثالي</h4>
+                      <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-400 mb-2 sm:mb-3">
                         أفضل وقت للطلب هو بين 9 صباحاً و 2 ظهراً
                       </p>
-                      <Link href="/dashboard/cart" className="text-sm text-[#FF9800] dark:text-[#FF9800] hover:text-[#F57C00] dark:hover:text-[#F57C00] font-medium">
-                        إضافة للسلة →
-                      </Link>
+                      <span className="text-sm text-[#FF9800] dark:text-[#FF9800] font-medium inline-flex items-center gap-1 min-h-[44px]">
+                        إضافة للسلة
+                        <span className="rtl:rotate-180">→</span>
+                      </span>
                     </div>
                   </div>
-                </div>
-                
+                </Link>
+
                 {user?.role === 'marketer' && (
-                  <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl border border-green-200 dark:border-green-700">
-                    <div className="flex items-start">
-                      <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center mr-4 flex-shrink-0">
+                  <Link href="/dashboard/favorites" className="block p-3 sm:p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl border border-green-200 dark:border-green-700 hover:border-green-400 dark:hover:border-green-500 transition-all duration-200 active:scale-[0.99]">
+                    <div className="flex items-start gap-3 sm:gap-4">
+                      <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
                         <Package className="w-4 h-4 text-white" />
                       </div>
-                      <div>
-                        <h4 className="font-medium text-gray-900 dark:text-slate-100 mb-2">مخزون محدود</h4>
-                        <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-400 mb-3 text-wrap-long line-clamp-2">
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-gray-900 dark:text-slate-100 mb-1 sm:mb-2 text-sm sm:text-base">مخزون محدود</h4>
+                        <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-400 mb-2 sm:mb-3 line-clamp-2">
                           3 منتجات في قائمة المفضلة تنفد من المخزون قريباً
                         </p>
-                        <Link href="/dashboard/favorites" className="text-sm text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 font-medium">
-                          مراجعة المفضلة →
-                        </Link>
+                        <span className="text-sm text-green-600 dark:text-green-400 font-medium inline-flex items-center gap-1 min-h-[44px]">
+                          مراجعة المفضلة
+                          <span className="rtl:rotate-180">→</span>
+                        </span>
                       </div>
                     </div>
-                  </div>
+                  </Link>
                 )}
               </div>
             </div>
@@ -1242,102 +1423,98 @@ export default function DashboardPage() {
 
       {/* Quick Actions */}
       <div className="card p-4 sm:p-6 md:p-8">
-        <div className="flex items-center justify-between mb-4 sm:mb-6 md:mb-8">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg">
-              <Settings className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-            </div>
-            <div>
-              <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 dark:text-slate-100">إجراءات سريعة</h3>
-              <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-400 hidden sm:block">الوصول السريع للوظائف الأساسية</p>
-            </div>
+        <div className="flex items-center gap-3 mb-6 sm:mb-8">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
+            <Zap className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+          </div>
+          <div>
+            <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 dark:text-slate-100">إجراءات سريعة</h3>
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-400">الوصول السريع للوظائف الأساسية</p>
           </div>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+          {/* الإدارة: استبعاد الأزرار المكررة (موجودة في الهيرو)، إظهار إجراءات إضافية */}
           {user?.role === 'admin' && (
             <>
-              <Link href="/dashboard/users" className="btn-primary min-h-[44px] text-xs sm:text-sm flex items-center justify-center px-2 sm:px-4 py-2.5 sm:py-3">
-                <Users className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 flex-shrink-0" />
-                <span className="truncate">إدارة المستخدمين</span>
-              </Link>
-              <Link href="/dashboard/products" className="btn-secondary min-h-[44px] text-xs sm:text-sm flex items-center justify-center px-2 sm:px-4 py-2.5 sm:py-3">
-                <Package className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 flex-shrink-0" />
-                <span className="truncate">إدارة المنتجات</span>
-              </Link>
-              <Link href="/dashboard/admin/settings" className="btn-primary bg-gradient-to-r from-[#FF9800] to-[#F57C00] hover:from-[#F57C00] hover:to-[#E65100] text-white border-0 shadow-lg min-h-[44px] text-xs sm:text-sm flex items-center justify-center px-2 sm:px-4 py-2.5 sm:py-3">
-                <Settings className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 flex-shrink-0" />
-                <span className="truncate">إعدادات النظام</span>
-              </Link>
-              <Link href="/dashboard/orders" className="btn-secondary min-h-[44px] text-xs sm:text-sm flex items-center justify-center px-2 sm:px-4 py-2.5 sm:py-3">
-                <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 flex-shrink-0" />
-                <span className="truncate">إدارة الطلبات</span>
-              </Link>
+              {hasPermission(user, PERMISSIONS.EARNINGS_VIEW) && (
+                <Link href="/dashboard/admin/earnings" className="flex flex-col sm:flex-row items-center justify-center gap-2 p-4 rounded-xl border-2 border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 hover:border-emerald-500/50 transition-all min-h-[52px]">
+                  <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                  <span className="text-xs sm:text-sm font-medium text-gray-900 dark:text-slate-100 truncate text-center">تقرير الأرباح</span>
+                </Link>
+              )}
+              {hasPermission(user, PERMISSIONS.WITHDRAWALS_VIEW) && (
+                <Link href="/dashboard/admin/withdrawals" className="flex flex-col sm:flex-row items-center justify-center gap-2 p-4 rounded-xl border-2 border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500/50 transition-all min-h-[52px]">
+                  <Wallet className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                  <span className="text-xs sm:text-sm font-medium text-gray-900 dark:text-slate-100 truncate text-center">طلبات السحب</span>
+                </Link>
+              )}
+              {hasPermission(user, PERMISSIONS.ANALYTICS_VIEW) && (
+                <Link href="/dashboard/analytics" className="flex flex-col sm:flex-row items-center justify-center gap-2 p-4 rounded-xl border-2 border-indigo-500/30 bg-indigo-500/5 hover:bg-indigo-500/10 hover:border-indigo-500/50 transition-all min-h-[52px]">
+                  <BarChart3 className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+                  <span className="text-xs sm:text-sm font-medium text-gray-900 dark:text-slate-100 truncate text-center">التحليلات</span>
+                </Link>
+              )}
+              {hasPermission(user, PERMISSIONS.CATEGORIES_MANAGE) && (
+                <Link href="/dashboard/admin/categories" className="flex flex-col sm:flex-row items-center justify-center gap-2 p-4 rounded-xl border-2 border-[#4CAF50]/30 bg-[#4CAF50]/5 hover:bg-[#4CAF50]/10 hover:border-[#4CAF50]/50 transition-all min-h-[52px]">
+                  <Package className="w-5 h-5 sm:w-6 sm:h-6 text-[#4CAF50] flex-shrink-0" />
+                  <span className="text-xs sm:text-sm font-medium text-gray-900 dark:text-slate-100 truncate text-center">إدارة الفئات</span>
+                </Link>
+              )}
             </>
           )}
           
           {user?.role === 'supplier' && (
             <>
-              <Link href="/dashboard/products/new" className="btn-primary min-h-[44px] text-xs sm:text-sm flex items-center justify-center px-2 sm:px-4 py-2.5 sm:py-3">
-                <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 flex-shrink-0" />
-                <span className="truncate">إضافة منتج جديد</span>
+              <Link href="/dashboard/products/new" className="flex flex-col sm:flex-row items-center justify-center gap-2 p-4 rounded-xl bg-gradient-to-r from-[#FF9800] to-[#F57C00] text-white shadow-md hover:shadow-lg transition-all min-h-[52px]">
+                <Plus className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-semibold truncate text-center">إضافة منتج</span>
               </Link>
-              <Link href="/dashboard/fulfillment" className="btn-secondary min-h-[44px] text-xs sm:text-sm flex items-center justify-center px-2 sm:px-4 py-2.5 sm:py-3">
-                <Truck className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 flex-shrink-0" />
-                <span className="truncate">طلب تخزين</span>
+              <Link href="/dashboard/fulfillment" className="flex flex-col sm:flex-row items-center justify-center gap-2 p-4 rounded-xl border-2 border-[#4CAF50]/30 bg-[#4CAF50]/5 hover:bg-[#4CAF50]/10 transition-all min-h-[52px]">
+                <Truck className="w-5 h-5 sm:w-6 sm:h-6 text-[#4CAF50] flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-medium text-gray-900 dark:text-slate-100 truncate text-center">طلب تخزين</span>
               </Link>
             </>
           )}
           
           {user?.role === 'marketer' && (
             <>
-              <Link href="/dashboard/products" className="btn-primary min-h-[44px] text-xs sm:text-sm flex items-center justify-center px-2 sm:px-4 py-2.5 sm:py-3">
-                <Store className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 flex-shrink-0" />
-                <span className="truncate">تصفح المنتجات</span>
+              <Link href="/dashboard/integrations" className="flex flex-col sm:flex-row items-center justify-center gap-2 p-4 rounded-xl bg-gradient-to-r from-[#4CAF50] to-[#388E3C] text-white shadow-md hover:shadow-lg transition-all min-h-[52px]">
+                <LinkIcon className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-semibold truncate text-center">ربط Easy Orders</span>
               </Link>
-              <Link href="/dashboard/integrations" className="btn-primary bg-gradient-to-r from-[#4CAF50] to-[#388E3C] hover:from-[#388E3C] hover:to-[#2E7D32] text-white border-0 shadow-lg min-h-[44px] text-xs sm:text-sm flex items-center justify-center px-2 sm:px-4 py-2.5 sm:py-3">
-                <LinkIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 flex-shrink-0" />
-                <span className="truncate">ربط Easy Orders</span>
-              </Link>
-              <Link href="/dashboard/favorites" className="btn-secondary min-h-[44px] text-xs sm:text-sm flex items-center justify-center px-2 sm:px-4 py-2.5 sm:py-3">
-                <Heart className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 flex-shrink-0" />
-                <span className="truncate">المفضلة</span>
-              </Link>
-              <Link href="/dashboard/cart" className="btn-secondary min-h-[44px] text-xs sm:text-sm flex items-center justify-center px-2 sm:px-4 py-2.5 sm:py-3">
-                <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 flex-shrink-0" />
-                <span className="truncate">سلة التسوق</span>
-              </Link>
-              <Link href="/dashboard/orders" className="btn-secondary min-h-[44px] text-xs sm:text-sm flex items-center justify-center px-2 sm:px-4 py-2.5 sm:py-3">
-                <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 flex-shrink-0" />
-                <span className="truncate">طلباتي</span>
+              <Link href="/dashboard/orders" className="flex flex-col sm:flex-row items-center justify-center gap-2 p-4 rounded-xl border-2 border-[#4CAF50]/30 bg-[#4CAF50]/5 hover:bg-[#4CAF50]/10 hover:border-[#4CAF50]/50 transition-all min-h-[52px]">
+                <ShoppingBag className="w-5 h-5 sm:w-6 sm:h-6 text-[#4CAF50] flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-medium text-gray-900 dark:text-slate-100 truncate text-center">طلباتي</span>
               </Link>
             </>
           )}
           
           {user?.role === 'wholesaler' && (
             <>
-              <Link href="/dashboard/products" className="btn-primary min-h-[44px] text-xs sm:text-sm flex items-center justify-center px-2 sm:px-4 py-2.5 sm:py-3">
-                <Store className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 flex-shrink-0" />
-                <span className="truncate">تصفح المنتجات</span>
+              <Link href="/dashboard/integrations" className="flex flex-col sm:flex-row items-center justify-center gap-2 p-4 rounded-xl bg-gradient-to-r from-[#4CAF50] to-[#388E3C] text-white shadow-md hover:shadow-lg transition-all min-h-[52px]">
+                <LinkIcon className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-semibold truncate text-center">ربط Easy Orders</span>
               </Link>
-              <Link href="/dashboard/integrations" className="btn-primary bg-gradient-to-r from-[#4CAF50] to-[#388E3C] hover:from-[#388E3C] hover:to-[#2E7D32] text-white border-0 shadow-lg min-h-[44px] text-xs sm:text-sm flex items-center justify-center px-2 sm:px-4 py-2.5 sm:py-3">
-                <LinkIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 flex-shrink-0" />
-                <span className="truncate">ربط Easy Orders</span>
-              </Link>
-              <Link href="/dashboard/favorites" className="btn-secondary min-h-[44px] text-xs sm:text-sm flex items-center justify-center px-2 sm:px-4 py-2.5 sm:py-3">
-                <Heart className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 flex-shrink-0" />
-                <span className="truncate">المفضلة</span>
+              <Link href="/dashboard/orders" className="flex flex-col sm:flex-row items-center justify-center gap-2 p-4 rounded-xl border-2 border-[#4CAF50]/30 bg-[#4CAF50]/5 hover:bg-[#4CAF50]/10 transition-all min-h-[52px]">
+                <ShoppingBag className="w-5 h-5 sm:w-6 sm:h-6 text-[#4CAF50] flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-medium text-gray-900 dark:text-slate-100 truncate text-center">طلباتي</span>
               </Link>
             </>
           )}
-          
-          <Link href="/dashboard/messages" className="btn-secondary min-h-[44px] text-xs sm:text-sm flex items-center justify-center px-2 sm:px-4 py-2.5 sm:py-3">
-            <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 flex-shrink-0" />
-            <span className="truncate">الرسائل</span>
-          </Link>
-          <Link href="/dashboard/wallet" className="btn-secondary min-h-[44px] text-xs sm:text-sm flex items-center justify-center px-2 sm:px-4 py-2.5 sm:py-3">
-            <Wallet className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 flex-shrink-0" />
-            <span className="truncate">المحفظة</span>
-          </Link>
+
+          {/* رسائل المنتجات: للإدارة مع أي صلاحية رسائل، لغير الإدارة متاح دائماً */}
+          {(user?.role !== 'admin' || hasAnyOfPermissions(user, [PERMISSIONS.MESSAGES_VIEW, PERMISSIONS.MESSAGES_REPLY, PERMISSIONS.MESSAGES_MODERATE])) && (
+            <Link href="/dashboard/messages" className="flex flex-col sm:flex-row items-center justify-center gap-2 p-4 rounded-xl border-2 border-indigo-500/30 bg-indigo-500/5 hover:bg-indigo-500/10 hover:border-indigo-500/50 transition-all min-h-[52px]">
+              <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+              <span className="text-xs sm:text-sm font-medium text-gray-900 dark:text-slate-100 truncate text-center">رسائل المنتجات</span>
+            </Link>
+          )}
+          {(user?.role === 'supplier' || user?.role === 'marketer' || user?.role === 'wholesaler') && (
+            <Link href="/dashboard/wallet" className="flex flex-col sm:flex-row items-center justify-center gap-2 p-4 rounded-xl border-2 border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500/50 transition-all min-h-[52px]">
+              <Wallet className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+              <span className="text-xs sm:text-sm font-medium text-gray-900 dark:text-slate-100 truncate text-center">المحفظة</span>
+            </Link>
+          )}
         </div>
       </div>
 
@@ -1593,8 +1770,8 @@ export default function DashboardPage() {
             </div>
             <div className="flex gap-3">
               <button onClick={() => { setShowExportModal(false); setExportingProductId(null); }} className="btn-secondary flex-1" disabled={exporting}>إلغاء</button>
-              <button onClick={handleExportFromModal} disabled={exporting || !selectedIntegrationId} className="btn-primary flex-1 flex items-center justify-center">
-                {exporting ? <><RotateCw className="w-4 h-4 ml-2 animate-spin" /> جاري التصدير...</> : <><LinkIcon className="w-4 h-4 ml-2" /> تصدير</>}
+              <button onClick={handleExportFromModal} disabled={exporting || !selectedIntegrationId} className="btn-export flex-1 flex items-center justify-center px-4 py-2.5 text-sm">
+                {exporting ? <><ButtonLoader variant="light" size="sm" className="ml-2" /> جاري التصدير...</> : <><Share2 className="w-4 h-4 ml-2" /> تصدير</>}
               </button>
             </div>
           </div>

@@ -20,12 +20,16 @@ async function getCurrentUser(req: NextRequest, user: any) {
       );
     }
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       success: true,
       user: currentUser
     });
-    
+    // منع تخزين استجابة المستخدم في الكاش حرصاً على ظهور الصلاحيات دائماً بشكل صحيح
+    res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.headers.set('Pragma', 'no-cache');
+    res.headers.set('Expires', '0');
     logger.apiResponse('GET', '/api/auth/me', 200);
+    return res;
   } catch (error) {
     logger.error('Error getting current user', error, { userId: user?._id });
     return handleApiError(error, 'حدث خطأ أثناء جلب بيانات المستخدم');

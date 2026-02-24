@@ -45,6 +45,20 @@ const userSchema = new Schema<UserDocument>({
     type: Boolean,
     default: false
   },
+  // Staff / موظف إدارة - صلاحيات مخصصة أو كاملة
+  isStaff: {
+    type: Boolean,
+    default: false
+  },
+  staffRole: {
+    type: String,
+    enum: ['full_admin', 'custom'],
+    default: null
+  },
+  permissions: {
+    type: [String],
+    default: undefined
+  },
   avatar: {
     type: String,
     default: null
@@ -197,6 +211,7 @@ userSchema.index({ lastLogin: -1 });
 userSchema.index({ role: 1, isActive: 1 }); // For filtering users by role and status
 userSchema.index({ role: 1, isVerified: 1 }); // For supplier/wholesaler verification
 userSchema.index({ isActive: 1, isVerified: 1 }); // For active verified users
+userSchema.index({ isStaff: 1 }); // For listing admin staff
 
 // Virtual for full name
 userSchema.virtual('fullName').get(function() {

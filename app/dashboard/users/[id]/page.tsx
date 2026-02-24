@@ -28,6 +28,7 @@ import toast from 'react-hot-toast';
 import MediaThumbnail from '@/components/ui/MediaThumbnail';
 import { OptimizedImage } from '@/components/ui/LazyImage';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
+import { getRoleDisplayLabel, getRoleDisplayColor } from '@/lib/permissions';
 
 interface UserDetail {
   _id: string;
@@ -37,6 +38,9 @@ interface UserDetail {
   role: string;
   isActive: boolean;
   isVerified: boolean;
+  isStaff?: boolean;
+  staffRole?: string;
+  permissions?: string[];
   companyName?: string;
   address?: string;
   taxId?: string;
@@ -51,20 +55,6 @@ interface UserDetail {
   recentProducts?: any[];
   recentOrders?: any[];
 }
-
-const roleLabels = {
-  admin: 'الإدارة',
-  supplier: 'المورد',
-  marketer: 'المسوق',
-  wholesaler: 'تاجر الجملة'
-};
-
-const roleColors = {
-  admin: 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200',
-      supplier: 'bg-[#4CAF50]/20 dark:bg-[#4CAF50]/30 text-[#4CAF50] dark:text-[#4CAF50]',
-  marketer: 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200',
-  wholesaler: 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200'
-};
 
 export default function UserDetailPage() {
   const params = useParams();
@@ -258,8 +248,8 @@ export default function UserDetailPage() {
                   </div>
                 </div>
                 <div className="flex items-center space-x-2 space-x-reverse">
-                  <span className={`badge ${roleColors[userDetail.role as keyof typeof roleColors]}`}>
-                    {roleLabels[userDetail.role as keyof typeof roleLabels]}
+                  <span className={`badge ${getRoleDisplayColor(userDetail)}`}>
+                    {getRoleDisplayLabel(userDetail)}
                   </span>
                   {userDetail.isActive ? (
                     <span className="badge badge-success">

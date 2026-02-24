@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/lib/auth';
+import { withAuth, userHasPermission, userHasAnyPermission } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import Order from '@/models/Order';
 import Product from '@/models/Product';
@@ -14,8 +14,11 @@ async function handler(req: NextRequest, user: any) {
   try {
     await connectDB();
 
-    // Generate cache key based on user role and ID
-    const cacheKey = generateCacheKey('stats', user.role, user._id.toString());
+    // Generate cache key based on user role, ID, and permissions (for staff)
+    const permSuffix = user.role === 'admin' && user.isStaff
+      ? (user.staffRole || '') + (Array.isArray(user.permissions) ? '.' + [...user.permissions].sort().join(',') : '')
+      : '';
+    const cacheKey = generateCacheKey('stats', user.role, user._id.toString(), permSuffix);
     
     // Check if cache-busting is requested (for manual refresh)
     const { searchParams } = new URL(req.url);
@@ -139,6 +142,10 @@ async function handler(req: NextRequest, user: any) {
           revenuePercentage,
           productsPercentage,
           usersPercentage,
+          ordersPreviousMonth: previousMonthOrders,
+          revenuePreviousMonth: previousMonthRevenue[0]?.total || 0,
+          productsPreviousMonth: previousMonthProducts,
+          usersPreviousMonth: previousMonthUsers,
           recentOrders: recentOrders.map(order => ({
             _id: order._id,
             orderNumber: order.orderNumber,
@@ -160,6 +167,31 @@ async function handler(req: NextRequest, user: any) {
             images: product.images || []
           }))
         };
+        // تصفية الإحصائيات حسب صلاحيات الموظف (صلاحيات دقيقة)
+        if (user.isStaff && user.staffRole === 'custom') {
+          if (!userHasPermission(user, 'users.view')) {
+            stats.totalUsers = 0;
+            stats.usersPercentage = 0;
+          }
+          if (!userHasPermission(user, 'products.view')) {
+            stats.totalProducts = 0;
+            stats.productsPercentage = 0;
+            stats.topProducts = [];
+          }
+          if (!userHasPermission(user, 'orders.view')) {
+            stats.totalOrders = 0;
+            stats.ordersPercentage = 0;
+            stats.recentOrders = [];
+          }
+          if (!userHasPermission(user, 'earnings.view')) {
+            stats.totalRevenue = 0;
+            stats.revenuePercentage = 0;
+          }
+          if (!userHasAnyPermission(user, ['messages.view', 'messages.reply', 'messages.moderate'])) {
+            stats.totalMessages = 0;
+            stats.pendingMessages = 0;
+          }
+        }
         break;
 
       case 'supplier':
@@ -235,11 +267,14 @@ async function handler(req: NextRequest, user: any) {
           totalRevenue: supplierRevenue[0]?.total || 0,
           totalProducts: supplierProducts,
           activeProducts: supplierActiveProducts,
-          totalUsers: 0, // Not relevant for supplier
+          totalUsers: 0,
           ordersPercentage: supplierOrdersPercentage,
           revenuePercentage: supplierRevenuePercentage,
           productsPercentage: supplierProductsPercentage,
           usersPercentage: 0,
+          ordersPreviousMonth: supplierPreviousMonthOrders,
+          revenuePreviousMonth: supplierPreviousMonthRevenue[0]?.total || 0,
+          productsPreviousMonth: supplierPreviousMonthProducts,
           recentOrders: supplierRecentOrders.map(order => ({
             _id: order._id,
             orderNumber: order.orderNumber,
@@ -337,11 +372,15 @@ async function handler(req: NextRequest, user: any) {
           totalOrders: customerOrders,
           totalRevenue: customerRevenue[0]?.total || 0,
           totalProducts: await Product.countDocuments({ isActive: true, isApproved: true }),
-          totalUsers: 0, // Not relevant for customer
+          totalUsers: 0,
           ordersPercentage: customerOrdersPercentage,
           revenuePercentage: customerRevenuePercentage,
-          productsPercentage: favoritesPercentage, // استخدام نسبة المفضلة للمسوق
+          productsPercentage: favoritesPercentage,
           usersPercentage: 0,
+          // قيم الشهر السابق لعرض "جديد" عند عدم وجود مقارنة حقيقية
+          ordersPreviousMonth: customerPreviousMonthOrders,
+          revenuePreviousMonth: customerPreviousMonthRevenue[0]?.total || 0,
+          favoritesPreviousMonth: user.role === 'marketer' ? previousMonthFavorites : 0,
           recentOrders: customerRecentOrders.map(order => ({
             _id: order._id,
             orderNumber: order.orderNumber,

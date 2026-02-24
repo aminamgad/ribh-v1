@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
-import { MessageSquare, Send, Reply, Edit2, Trash2, MoreVertical, Lock, Unlock } from 'lucide-react';
+import { MessageSquare, Send, Reply, Edit2, Trash2, Lock, Unlock, ChevronDown, ChevronUp } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { enUS } from 'date-fns/locale';
@@ -40,6 +40,7 @@ export default function CommentsSection({ entityType, entityId, className = '' }
   const [isInternal, setIsInternal] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
+  const [collapsed, setCollapsed] = useState(true);
   const commentsEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = useCallback(() => {
@@ -71,6 +72,10 @@ export default function CommentsSection({ entityType, entityId, className = '' }
   useEffect(() => {
     scrollToBottom();
   }, [comments, scrollToBottom]);
+
+  useEffect(() => {
+    if (comments.length > 0) setCollapsed(false);
+  }, [comments.length]);
 
   const handleSubmitComment = async () => {
     if (!newComment.trim()) return;
@@ -208,89 +213,94 @@ export default function CommentsSection({ entityType, entityId, className = '' }
   }
 
   return (
-    <div className={`${className} space-y-4`}>
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-2">
-          <MessageSquare className="w-5 h-5" />
+    <div className={`${className} space-y-3`}>
+      <button
+        type="button"
+        onClick={() => setCollapsed((c) => !c)}
+        className="w-full flex items-center justify-between gap-2 py-1.5 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors text-right"
+        aria-expanded={!collapsed}
+      >
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-1.5">
+          <MessageSquare className="w-4 h-4 text-[#FF9800]" />
           التعليقات والمناقشات ({comments.length})
         </h3>
-      </div>
+        {collapsed ? <ChevronDown className="w-4 h-4 text-gray-500 dark:text-slate-400 flex-shrink-0" /> : <ChevronUp className="w-4 h-4 text-gray-500 dark:text-slate-400 flex-shrink-0" />}
+      </button>
 
-      {/* Add Comment Form */}
-      <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-700">
-        <div className="space-y-3">
-          {(user?.role === 'admin' || user?.role === 'supplier') && (
-            <div className="flex items-center gap-2">
-              <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-slate-300 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={isInternal}
-                  onChange={(e) => setIsInternal(e.target.checked)}
-                  className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
-                />
-                <span className="flex items-center gap-1">
-                  {isInternal ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
-                  {isInternal ? 'تعليق داخلي (فقط للمورد والإدارة)' : 'تعليق عام'}
-                </span>
-              </label>
+      {!collapsed && (
+        <>
+          {/* نموذج إضافة تعليق - مضغوط */}
+          <div className="bg-white dark:bg-slate-800 rounded-lg p-3 border border-gray-200 dark:border-slate-700">
+            <div className="space-y-2">
+              {(user?.role === 'admin' || user?.role === 'supplier') && (
+                <label className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-slate-400 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isInternal}
+                    onChange={(e) => setIsInternal(e.target.checked)}
+                    className="w-3.5 h-3.5 text-primary-600 rounded focus:ring-primary-500"
+                  />
+                  <span className="flex items-center gap-1">
+                    {isInternal ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
+                    {isInternal ? 'داخلي (للمورد والإدارة)' : 'عام'}
+                  </span>
+                </label>
+              )}
+              <textarea
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder="اكتب تعليقك هنا..."
+                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-slate-700 dark:text-slate-100 resize-none"
+                rows={2}
+              />
+              <div className="flex justify-end">
+                <button
+                  onClick={handleSubmitComment}
+                  disabled={!newComment.trim()}
+                  className="px-3 py-1.5 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  إضافة تعليق
+                </button>
+              </div>
             </div>
-          )}
-          
-          <textarea
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-            placeholder="اكتب تعليقك هنا..."
-            className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-slate-700 dark:text-slate-100 resize-none"
-            rows={3}
-          />
-          
-          <div className="flex items-center justify-end gap-2">
-            <button
-              onClick={handleSubmitComment}
-              disabled={!newComment.trim()}
-              className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              <Send className="w-4 h-4" />
-              إضافة تعليق
-            </button>
           </div>
-        </div>
-      </div>
 
-      {/* Comments List */}
-      <div className="space-y-4">
-        {comments.length === 0 ? (
-          <div className="text-center py-8 text-gray-500 dark:text-slate-400">
-            <MessageSquare className="w-12 h-12 mx-auto mb-2 opacity-50" />
-            <p>لا توجد تعليقات بعد. كن أول من يعلق!</p>
+          {/* قائمة التعليقات */}
+          <div className="space-y-2">
+            {comments.length === 0 ? (
+              <div className="text-center py-4 text-gray-500 dark:text-slate-400">
+                <MessageSquare className="w-8 h-8 mx-auto mb-1 opacity-50" />
+                <p className="text-xs">لا توجد تعليقات بعد. كن أول من يعلق!</p>
+              </div>
+            ) : (
+              comments.map((comment) => (
+                <CommentItem
+                  key={comment._id}
+                  comment={comment}
+                  user={user}
+                  replyingTo={replyingTo}
+                  setReplyingTo={setReplyingTo}
+                  replyContent={replyContent}
+                  setReplyContent={setReplyContent}
+                  onReply={handleReply}
+                  editingId={editingId}
+                  setEditingId={setEditingId}
+                  editContent={editContent}
+                  setEditContent={setEditContent}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  canEditDelete={canEditDelete}
+                  getRoleLabel={getRoleLabel}
+                  isInternal={isInternal}
+                  setIsInternal={setIsInternal}
+                />
+              ))
+            )}
           </div>
-        ) : (
-          comments.map((comment) => (
-            <CommentItem
-              key={comment._id}
-              comment={comment}
-              user={user}
-              replyingTo={replyingTo}
-              setReplyingTo={setReplyingTo}
-              replyContent={replyContent}
-              setReplyContent={setReplyContent}
-              onReply={handleReply}
-              editingId={editingId}
-              setEditingId={setEditingId}
-              editContent={editContent}
-              setEditContent={setEditContent}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              canEditDelete={canEditDelete}
-              getRoleLabel={getRoleLabel}
-              isInternal={isInternal}
-              setIsInternal={setIsInternal}
-            />
-          ))
-        )}
-      </div>
-      
-      <div ref={commentsEndRef} />
+          <div ref={commentsEndRef} />
+        </>
+      )}
     </div>
   );
 }
@@ -318,33 +328,31 @@ function CommentItem({
   const isReplying = replyingTo === comment._id;
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-700">
-      <div className="flex items-start gap-3">
-        <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center flex-shrink-0">
-          <span className="text-white font-semibold text-sm">
+    <div className="bg-white dark:bg-slate-800 rounded-lg p-3 border border-gray-200 dark:border-slate-700">
+      <div className="flex items-start gap-2">
+        <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center flex-shrink-0">
+          <span className="text-white font-semibold text-xs">
             {comment.userId.name.charAt(0)}
           </span>
         </div>
-        
         <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between mb-2">
+          <div className="flex items-start justify-between gap-2 mb-1">
             <div>
-              <div className="flex items-center gap-2">
-                <h4 className="font-semibold text-gray-900 dark:text-slate-100">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-slate-100">
                   {comment.userId.name}
                 </h4>
                 {comment.isInternal && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 rounded-full">
-                    <Lock className="w-3 h-3" />
-                    داخلي
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 rounded-full">
+                    <Lock className="w-2.5 h-2.5" /> داخلي
                   </span>
                 )}
-                <span className="text-xs text-gray-500 dark:text-slate-400">
+                <span className="text-[10px] text-gray-500 dark:text-slate-400">
                   {getRoleLabel(comment.userId.role)}
                 </span>
               </div>
-              <p className="text-xs text-gray-500 dark:text-slate-400">
-                {format(new Date(comment.createdAt), 'dd MMMM yyyy HH:mm', { locale: enUS })}
+              <p className="text-[10px] text-gray-500 dark:text-slate-400">
+                {format(new Date(comment.createdAt), 'dd MMM yyyy HH:mm', { locale: enUS })}
               </p>
             </div>
             
@@ -372,40 +380,26 @@ function CommentItem({
           </div>
 
           {isEditing ? (
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <textarea
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-slate-700 dark:text-slate-100 resize-none"
-                rows={3}
+                className="w-full px-2.5 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-slate-700 dark:text-slate-100 resize-none"
+                rows={2}
               />
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => onEdit(comment._id)}
-                  className="px-3 py-1 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm"
-                >
-                  حفظ
-                </button>
-                <button
-                  onClick={() => {
-                    setEditingId(null);
-                    setEditContent('');
-                  }}
-                  className="px-3 py-1 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-300 dark:hover:bg-slate-600 text-sm"
-                >
-                  إلغاء
-                </button>
+              <div className="flex items-center gap-1.5">
+                <button onClick={() => onEdit(comment._id)} className="px-2.5 py-1 text-xs bg-primary-600 text-white rounded-lg hover:bg-primary-700">حفظ</button>
+                <button onClick={() => { setEditingId(null); setEditContent(''); }} className="px-2.5 py-1 text-xs bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-300 dark:hover:bg-slate-600">إلغاء</button>
               </div>
             </div>
           ) : (
-            <p className="text-gray-700 dark:text-slate-300 whitespace-pre-wrap mb-3">
+            <p className="text-sm text-gray-700 dark:text-slate-300 whitespace-pre-wrap mb-2">
               {comment.content}
             </p>
           )}
 
-          {/* Reply Button */}
           {!isEditing && (
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <button
                 onClick={() => {
                   if (isReplying) {
@@ -415,63 +409,41 @@ function CommentItem({
                     setReplyingTo(comment._id);
                   }
                 }}
-                className="flex items-center gap-1 text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
               >
-                <Reply className="w-4 h-4" />
+                <Reply className="w-3.5 h-3.5" />
                 {isReplying ? 'إلغاء الرد' : 'رد'}
               </button>
               
               {comment.repliesCount > 0 && (
-                <span className="text-sm text-gray-500 dark:text-slate-400">
+                <span className="text-xs text-gray-500 dark:text-slate-400">
                   {comment.repliesCount} رد
                 </span>
               )}
             </div>
           )}
 
-          {/* Reply Form */}
           {isReplying && (
-            <div className="mt-4 pl-4 border-r-2 border-primary-200 dark:border-primary-800">
-              <div className="space-y-2">
+            <div className="mt-3 pr-3 border-r-2 border-primary-200 dark:border-primary-800">
+              <div className="space-y-1.5">
                 {(user?.role === 'admin' || user?.role === 'supplier') && (
-                  <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-slate-300 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={isInternal}
-                      onChange={(e) => setIsInternal(e.target.checked)}
-                      className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
-                    />
-                    <span className="flex items-center gap-1">
-                      {isInternal ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
-                      {isInternal ? 'رد داخلي' : 'رد عام'}
-                    </span>
+                  <label className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-slate-400 cursor-pointer">
+                    <input type="checkbox" checked={isInternal} onChange={(e) => setIsInternal(e.target.checked)} className="w-3.5 h-3.5 text-primary-600 rounded focus:ring-primary-500" />
+                    <span className="flex items-center gap-1">{isInternal ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}{isInternal ? 'رد داخلي' : 'رد عام'}</span>
                   </label>
                 )}
-                
                 <textarea
                   value={replyContent}
                   onChange={(e) => setReplyContent(e.target.value)}
                   placeholder="اكتب ردك هنا..."
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-slate-700 dark:text-slate-100 resize-none"
-                  rows={2}
+                  className="w-full px-2.5 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-slate-700 dark:text-slate-100 resize-none"
+                  rows={1}
                 />
-                
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => onReply(comment._id)}
-                    disabled={!replyContent.trim()}
-                    className="px-3 py-1 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center gap-1"
-                  >
-                    <Send className="w-3 h-3" />
-                    إرسال
+                <div className="flex items-center gap-1.5">
+                  <button onClick={() => onReply(comment._id)} disabled={!replyContent.trim()} className="px-2.5 py-1 text-xs bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 flex items-center gap-1">
+                    <Send className="w-3 h-3" /> إرسال
                   </button>
-                  <button
-                    onClick={() => {
-                      setReplyingTo(null);
-                      setReplyContent('');
-                    }}
-                    className="px-3 py-1 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-300 dark:hover:bg-slate-600 text-sm"
-                  >
+                  <button onClick={() => { setReplyingTo(null); setReplyContent(''); }} className="px-2.5 py-1 text-xs bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-300 dark:hover:bg-slate-600">
                     إلغاء
                   </button>
                 </div>
@@ -479,26 +451,19 @@ function CommentItem({
             </div>
           )}
 
-          {/* Replies */}
           {comment.replies && comment.replies.length > 0 && (
-            <div className="mt-4 space-y-3 pl-4 border-r-2 border-gray-200 dark:border-slate-700">
+            <div className="mt-3 space-y-2 pr-3 border-r-2 border-gray-200 dark:border-slate-700">
               {comment.replies.map((reply: Comment) => (
-                <div key={reply._id} className="bg-gray-50 dark:bg-slate-900 rounded-lg p-3">
-                  <div className="flex items-start justify-between mb-2">
+                <div key={reply._id} className="bg-gray-50 dark:bg-slate-900 rounded-lg p-2">
+                  <div className="flex items-start justify-between gap-1 mb-1">
                     <div>
-                      <div className="flex items-center gap-2">
-                        <h5 className="font-medium text-sm text-gray-900 dark:text-slate-100">
-                          {reply.userId.name}
-                        </h5>
+                      <div className="flex items-center gap-1.5">
+                        <h5 className="text-xs font-medium text-gray-900 dark:text-slate-100">{reply.userId.name}</h5>
                         {reply.isInternal && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 rounded-full">
-                            <Lock className="w-3 h-3" />
-                          </span>
+                          <span className="inline-flex px-1 py-0.5 text-[10px] bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 rounded-full"><Lock className="w-2.5 h-2.5" /></span>
                         )}
                       </div>
-                      <p className="text-xs text-gray-500 dark:text-slate-400">
-                        {format(new Date(reply.createdAt), 'dd MMMM yyyy HH:mm', { locale: enUS })}
-                      </p>
+                      <p className="text-[10px] text-gray-500 dark:text-slate-400">{format(new Date(reply.createdAt), 'dd MMM yyyy HH:mm', { locale: enUS })}</p>
                     </div>
                     
                     {canEditDelete(reply) && (
@@ -521,9 +486,7 @@ function CommentItem({
                       </div>
                     )}
                   </div>
-                  <p className="text-sm text-gray-700 dark:text-slate-300 whitespace-pre-wrap">
-                    {reply.content}
-                  </p>
+                  <p className="text-xs text-gray-700 dark:text-slate-300 whitespace-pre-wrap">{reply.content}</p>
                 </div>
               ))}
             </div>

@@ -11,6 +11,7 @@ import OrderInvoice from '@/components/ui/OrderInvoice';
 import CommentsSection from '@/components/ui/CommentsSection';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import { hasPermission, hasAnyOfPermissions, PERMISSIONS } from '@/lib/permissions';
 
 interface OrderItem {
   productId: {
@@ -216,6 +217,15 @@ export default function OrderDetailPage() {
   const searchParams = useSearchParams();
   const showRecommended = searchParams.get('showRecommended') === '1';
   const { addToCart } = useCart();
+
+  // حارس الوصول: الأدمن يحتاج orders.view أو orders.manage لعرض تفاصيل الطلب
+  useEffect(() => {
+    if (!user || user.role !== 'admin') return;
+    const canAccess = hasAnyOfPermissions(user, [PERMISSIONS.ORDERS_VIEW, PERMISSIONS.ORDERS_MANAGE]);
+    if (!canAccess) {
+      router.replace('/dashboard');
+    }
+  }, [user, router]);
 
   // Check for print parameter in URL
   useEffect(() => {
@@ -1424,8 +1434,8 @@ export default function OrderDetailPage() {
   const canUpdateOrder = () => {
     if (!order || !user) return false;
     
-    // Admin can update any order
-    if (user.role === 'admin') return true;
+    // Admin يحتاج orders.manage لتحديث الطلب
+    if (user.role === 'admin') return hasPermission(user, PERMISSIONS.ORDERS_MANAGE);
     
     // Supplier can only update their own orders
     const actualSupplierId = order.supplierId._id || order.supplierId;
@@ -1683,7 +1693,7 @@ export default function OrderDetailPage() {
           <ArrowLeft className="w-4 h-4 ml-1.5 sm:ml-2" aria-hidden="true" />
           العودة للطلبات
         </Link>
-        {user?.role === 'admin' && (
+        {user?.role === 'admin' && hasPermission(user, PERMISSIONS.ORDERS_MANAGE) && (
           <button
             type="button"
             onClick={() => setShowDeleteConfirm(true)}
@@ -1696,179 +1706,119 @@ export default function OrderDetailPage() {
         )}
       </div>
 
-      {/* Quick Stats Card - Enhanced Responsive */}
-      <div className="card p-3 sm:p-4 md:p-6 bg-gradient-to-br from-[#FF9800]/5 via-white to-[#FF9800]/5 dark:from-[#FF9800]/10 dark:via-gray-800 dark:to-[#FF9800]/10 border-2 border-[#FF9800]/20 dark:border-[#FF9800]/30 mb-4 sm:mb-6 shadow-lg">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
-          {/* Order Value - Enhanced */}
-          <div className="p-2.5 sm:p-3 bg-white dark:bg-gray-700 rounded-xl border-2 border-gray-200 dark:border-gray-600 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5">
-              <DollarSign className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#FF9800] flex-shrink-0" />
-              <span className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400 truncate">القيمة الإجمالية</span>
+      {/* بطاقة الطلب الموحدة - رقم، حالة، إجمالي، تواريخ، دفع، إجراءات (بدون تكرار) */}
+      <div className="card p-4 sm:p-5 mb-4 sm:mb-6 bg-gradient-to-br from-[#FF9800]/5 via-white to-[#FF9800]/5 dark:from-[#FF9800]/10 dark:via-gray-800 dark:to-[#FF9800]/10 border-2 border-[#FF9800]/20 dark:border-[#FF9800]/30">
+        {/* صف أول: رقم الطلب + شارات + إجمالي */}
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap min-w-0">
+            <div className={`p-2 rounded-lg flex-shrink-0 ${status.color}`}>
+              <StatusIcon className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
-            <p className="text-base sm:text-lg font-bold text-gray-900 dark:text-white truncate">{formatCurrency(order.total)}</p>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 dark:text-white">الطلب #{order.orderNumber}</h1>
+                <button onClick={() => copyToClipboard(`#${order.orderNumber}`, 'رقم الطلب')} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded" title="نسخ رقم الطلب" aria-label="نسخ رقم الطلب">
+                  {copiedField === 'رقم الطلب' ? <Check className="w-4 h-4 text-green-600 dark:text-green-400" /> : <Copy className="w-4 h-4 text-gray-500 dark:text-gray-400" />}
+                </button>
+                {order.metadata?.source === 'easy_orders' && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-[#FF9800]/10 text-[#FF9800] dark:bg-[#FF9800]/20 dark:text-[#FF9800] border border-[#FF9800]/20">
+                    <span className="w-1 h-1 bg-[#FF9800] rounded-full" /> EasyOrders
+                  </span>
+                )}
+                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${status.color}`}>{status.label}</span>
+              </div>
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-0.5">{status.description}</p>
+              {order.metadata?.easyOrdersOrderId && (
+                <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-500 mt-0.5">
+                  EasyOrders: <code className="font-mono">{order.metadata.easyOrdersOrderId.substring(0, 12)}...</code>
+                  {order.metadata.easyOrdersStatus && <span> ({order.metadata.easyOrdersStatus})</span>}
+                </p>
+              )}
+            </div>
           </div>
-          
-          {/* Order Status - Enhanced with Badge */}
-          <div className="p-2.5 sm:p-3 bg-white dark:bg-gray-700 rounded-xl border-2 border-gray-200 dark:border-gray-600 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5">
-              <StatusIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#FF9800] flex-shrink-0" />
-              <span className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400 truncate">الحالة</span>
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <div className="text-left">
+              <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">الإجمالي</p>
+              <p className="text-base sm:text-lg font-bold text-[#FF9800] dark:text-[#FF9800]">{formatCurrency(order.total)}</p>
             </div>
-            <span className={`inline-flex items-center px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold ${status.color} bg-opacity-10 dark:bg-opacity-20`}>
-              {status.label}
-            </span>
           </div>
-          
-          {/* Creation Date - Enhanced */}
-          <div className="p-2.5 sm:p-3 bg-white dark:bg-gray-700 rounded-xl border-2 border-gray-200 dark:border-gray-600 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5">
-              <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#FF9800] flex-shrink-0" />
-              <span className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400 truncate">تاريخ الإنشاء</span>
-            </div>
-            <p className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">
-              {formatDateWithRelative(order.createdAt).relative}
-            </p>
-            <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-500 mt-0.5 truncate">
-              {formatDateWithRelative(order.createdAt).full.split(',')[0]}
-            </p>
+        </div>
+
+        {/* صف واحد: تاريخ الإنشاء · طريقة الدفع · حالة الدفع · الشحن/التسليم */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4">
+          <div className="p-2 sm:p-2.5 bg-white/80 dark:bg-slate-700/80 rounded-lg border border-gray-200 dark:border-slate-600">
+            <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mb-0.5">تاريخ الإنشاء</p>
+            <p className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">{formatDate(order.createdAt)}</p>
           </div>
-          
-          {/* Expected Delivery - Enhanced */}
-          <div className="p-2.5 sm:p-3 bg-white dark:bg-gray-700 rounded-xl border-2 border-gray-200 dark:border-gray-600 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5">
-              <Truck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#FF9800] flex-shrink-0" />
-              <span className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400 truncate">التسليم</span>
-            </div>
+          <div className="p-2 sm:p-2.5 bg-white/80 dark:bg-slate-700/80 rounded-lg border border-gray-200 dark:border-slate-600">
+            <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mb-0.5">طريقة الدفع</p>
+            <p className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">{order.paymentMethod === 'cod' ? 'الدفع عند الاستلام' : order.paymentMethod}</p>
+          </div>
+          <div className="p-2 sm:p-2.5 bg-white/80 dark:bg-slate-700/80 rounded-lg border border-gray-200 dark:border-slate-600">
+            <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mb-0.5">حالة الدفع</p>
+            <p className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">{order.paymentStatus === 'pending' ? 'معلق' : order.paymentStatus === 'paid' ? 'مدفوع' : order.paymentStatus}</p>
+          </div>
+          <div className={`p-2 sm:p-2.5 rounded-lg border ${
+            order.actualDelivery || order.deliveredAt
+              ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+              : order.shippedAt
+              ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800'
+              : 'bg-white/80 dark:bg-slate-700/80 border-gray-200 dark:border-slate-600'
+          }`}>
+            <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mb-0.5">الشحن / التسليم</p>
             {order.actualDelivery ? (
-              <>
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 mb-1">
-                  ✓ تم التسليم
-                </span>
-                <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-500 truncate">
-                  {formatDateWithRelative(order.actualDelivery).relative}
-                </p>
-              </>
+              <p className="text-xs sm:text-sm font-semibold text-green-800 dark:text-green-200">✓ تم التسليم · {formatDateWithRelative(order.actualDelivery).relative}</p>
             ) : order.deliveredAt ? (
-              <>
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 mb-1">
-                  ✓ تم التسليم
-                </span>
-                <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-500 truncate">
-                  {formatDateWithRelative(order.deliveredAt).relative}
-                </p>
-              </>
+              <p className="text-xs sm:text-sm font-semibold text-green-800 dark:text-green-200">✓ تم التسليم · {formatDateWithRelative(order.deliveredAt).relative}</p>
+            ) : order.shippedAt ? (
+              <p className="text-xs sm:text-sm font-semibold text-indigo-800 dark:text-indigo-200">تم الشحن · {formatDateWithRelative(order.shippedAt).relative}</p>
             ) : (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300">
-                ⏳ قيد الانتظار
-              </span>
+              <p className="text-xs sm:text-sm font-semibold text-yellow-700 dark:text-yellow-300">⏳ قيد الانتظار</p>
             )}
           </div>
         </div>
-      </div>
 
-      {/* Unified Order Information Card */}
-      <div className="card p-4 sm:p-6 mb-4 sm:mb-6 bg-gradient-to-br from-white to-gray-50 dark:from-slate-800 dark:to-slate-900 border-2 border-gray-200 dark:border-slate-700">
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-          {/* Order Basic Info */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className={`p-2.5 rounded-xl flex-shrink-0 ${status.color} shadow-sm`}>
-                    <StatusIcon className="w-6 h-6 sm:w-7 sm:h-7" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
-                        الطلب #{order.orderNumber}
-                      </h1>
-                      {order.metadata?.source === 'easy_orders' && (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-[#FF9800]/10 text-[#FF9800] dark:bg-[#FF9800]/20 dark:text-[#FF9800] border border-[#FF9800]/20">
-                          <span className="w-1.5 h-1.5 bg-[#FF9800] rounded-full"></span>
-                          EasyOrders
-                        </span>
-                      )}
+        {/* إجراءات: أزرار الحالة + طباعة + اتصال + واتساب */}
+        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-200 dark:border-slate-600">
+          {(() => {
+            const steps = getProcessingSteps();
+            const currentStep = steps.find(s => s.isCurrent);
+            const hasStepActions = currentStep && canUpdateOrder() && currentStep.actions.length > 0;
+            return (
+              <>
+                {hasStepActions && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {currentStep!.actions.map(action => (
                       <button
-                        onClick={() => copyToClipboard(`#${order.orderNumber}`, 'رقم الطلب')}
-                        className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
-                        title="نسخ رقم الطلب"
-                        aria-label="نسخ رقم الطلب"
+                        key={action}
+                        onClick={() => openStatusModal(action)}
+                        className={`px-2.5 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
+                          action === 'cancelled' || action === 'returned'
+                            ? 'bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-300 border border-red-200 dark:border-red-800'
+                            : 'bg-[#FF9800]/10 text-[#F57C00] hover:bg-[#FF9800]/20 dark:bg-[#FF9800]/20 dark:text-[#FFB74D] border border-[#FF9800]/30 dark:border-[#FF9800]/40'
+                        }`}
                       >
-                        {copiedField === 'رقم الطلب' ? (
-                          <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
-                        ) : (
-                          <Copy className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                        )}
+                        {statusConfig[action as keyof typeof statusConfig]?.label || action}
                       </button>
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${status.color} shadow-sm`}>
-                        {status.label}
-                      </span>
-                    </div>
-                    {order.metadata?.easyOrdersOrderId && (
-                      <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 mb-2">
-                        <span>EasyOrders Order ID:</span>
-                        <code className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded font-mono">
-                          {order.metadata.easyOrdersOrderId.substring(0, 8)}...
-                        </code>
-                        {order.metadata.easyOrdersStatus && (
-                          <span className="text-gray-500 dark:text-gray-500">
-                            ({order.metadata.easyOrdersStatus})
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    <p className="text-sm text-gray-600 dark:text-gray-400">{status.description}</p>
+                    ))}
                   </div>
-                </div>
-        
-            {/* Order Dates Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
-              <div className="p-2.5 bg-white dark:bg-slate-700 rounded-lg border border-gray-200 dark:border-slate-600">
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">تاريخ الإنشاء</p>
-                <p className="text-sm font-semibold text-gray-900 dark:text-white">{formatDate(order.createdAt)}</p>
-              </div>
-              {order.shippedAt && (
-                <div className="p-2.5 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
-                  <p className="text-xs text-indigo-600 dark:text-indigo-400 mb-1">تاريخ الشحن</p>
-                  <p className="text-sm font-semibold text-indigo-900 dark:text-indigo-100">{formatDate(order.shippedAt)}</p>
-                </div>
-              )}
-              {order.deliveredAt && (
-                <div className="p-2.5 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                  <p className="text-xs text-green-600 dark:text-green-400 mb-1">تاريخ التسليم</p>
-                  <p className="text-sm font-semibold text-green-900 dark:text-green-100">{formatDate(order.deliveredAt)}</p>
-                </div>
-              )}
-              {order.actualDelivery && !order.deliveredAt && (
-                <div className="p-2.5 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
-                  <p className="text-xs text-emerald-600 dark:text-emerald-400 mb-1">التسليم الفعلي</p>
-                  <p className="text-sm font-semibold text-emerald-900 dark:text-emerald-100">{formatDate(order.actualDelivery)}</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto lg:flex-col">
-          {canUpdateOrder() && availableStatuses.length > 0 && (
-            <button
-              onClick={() => openStatusModal('')}
-              className="btn-primary flex items-center justify-center font-medium px-4 py-2.5 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 min-h-[44px] text-sm sm:text-base"
-              aria-label="تحديث حالة الطلب"
-            >
-              <Edit className="w-4 h-4 ml-2" aria-hidden="true" />
-              تحديث الحالة
-            </button>
-          )}
-            <button
-              onClick={() => setShowInvoice(true)}
-              className="btn-secondary-solid flex items-center justify-center font-medium px-4 py-2.5 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 min-h-[44px] text-sm sm:text-base"
-              title="طباعة الفاتورة"
-              aria-label="طباعة فاتورة الطلب"
-            >
-              <Printer className="w-4 h-4 ml-2" aria-hidden="true" />
-              <span className="hidden sm:inline">طباعة الفاتورة</span>
-              <span className="sm:hidden">طباعة</span>
-            </button>
-          </div>
+                )}
+                <button onClick={() => setShowInvoice(true)} className="btn-secondary-solid flex items-center justify-center px-3 py-2 rounded-lg min-h-[36px] text-sm" title="طباعة الفاتورة">
+                  <Printer className="w-4 h-4 ml-1" /> طباعة
+                </button>
+                {order.shippingAddress?.phone && (
+                  <>
+                    <a href={`tel:${order.shippingAddress.phone}`} className="btn-primary flex items-center justify-center px-3 py-2 rounded-lg min-h-[36px] text-sm">
+                      <Phone className="w-4 h-4 ml-1" /> اتصال
+                    </a>
+                    <button onClick={handleWhatsAppConfirmation} className="flex items-center justify-center px-3 py-2 rounded-lg min-h-[36px] text-sm bg-[#25D366] hover:bg-[#20BD5A] text-white">
+                      <MessageCircle className="w-4 h-4 ml-1" /> واتساب
+                    </button>
+                  </>
+                )}
+              </>
+            );
+          })()}
         </div>
       </div>
 
@@ -1876,155 +1826,95 @@ export default function OrderDetailPage() {
         {/* Order Details */}
         <div className="lg:col-span-2 space-y-4 sm:space-y-6">
 
-          {/* Processing Workflow with Progress Bar */}
-          <div className="card p-4 sm:p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white flex items-center">
-                <Package className="w-4 h-4 sm:w-5 sm:h-5 ml-1.5 sm:ml-2" />
-                مراحل معالجة الطلب
+          {/* قائمة المهام + سجل الأحداث - عرض أفقي مضغوط */}
+          <div className="card p-4 sm:p-5">
+            {/* صف واحد: قائمة المهام (أفقي) + التقدم */}
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-1.5 flex-shrink-0">
+                <CheckCircle className="w-4 h-4 text-[#FF9800]" />
+                قائمة المهام
               </h3>
+              {(() => {
+                const steps = getProcessingSteps();
+                const completed = steps.filter(s => s.isCompleted).length;
+                const pct = steps.length ? Math.round((completed / steps.length) * 100) : 0;
+                return <span className="text-xs font-medium text-gray-500 dark:text-gray-400 flex-shrink-0">{completed}/{steps.length} · {pct}%</span>;
+              })()}
             </div>
-
-            {/* Progress Bar */}
+            {/* شريط تقدم + خطوات أفقية */}
             {(() => {
               const steps = getProcessingSteps();
               const completedCount = steps.filter(s => s.isCompleted).length;
               const totalSteps = steps.length;
-              const progressPercentage = (completedCount / totalSteps) * 100;
+              const progressPercentage = totalSteps ? (completedCount / totalSteps) * 100 : 0;
               const currentStepIndex = steps.findIndex(s => s.isCurrent);
-              
+              const stepShortLabels: Record<string, string> = {
+                pending: 'معلق',
+                confirmed: 'تأكيد',
+                processing: 'معالجة',
+                ready_for_shipping: 'جاهز',
+                shipped: 'شحن',
+                out_for_delivery: 'توصيل',
+                delivered: 'تسليم'
+              };
               return (
-                <div className="mb-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                      التقدم: {completedCount} من {totalSteps}
-                    </span>
-                    <span className="text-xs font-semibold text-[#FF9800] dark:text-[#FF9800]">
-                      {Math.round(progressPercentage)}%
-                    </span>
-                  </div>
-                  <div className="w-full h-2.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-gradient-to-r from-[#FF9800] to-[#F57C00] dark:from-[#FF9800] dark:to-[#F57C00] rounded-full transition-all duration-500 ease-out relative"
-                      style={{ width: `${progressPercentage}%` }}
-                    >
-                      {currentStepIndex >= 0 && (
-                        <div className="absolute right-0 top-0 w-3 h-full bg-white dark:bg-slate-800 opacity-50 animate-pulse"></div>
-                      )}
+                <>
+                  <div className="mb-3">
+                    <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-[#FF9800] to-[#F57C00] rounded-full transition-all duration-500 relative" style={{ width: `${progressPercentage}%` }}>
+                        {currentStepIndex >= 0 && <div className="absolute right-0 top-0 w-2 h-full bg-white dark:bg-slate-800 opacity-60 rounded-full animate-pulse" />}
+                      </div>
                     </div>
                   </div>
-                </div>
+                  <div className="flex items-center gap-0 overflow-x-auto pb-1 scrollbar-thin" style={{ scrollbarWidth: 'thin' }}>
+                    {steps.map((step, index) => {
+                      const StepIcon = step.icon;
+                      const isLast = index === steps.length - 1;
+                      const shortLabel = stepShortLabels[step.id] || step.title;
+                      return (
+                        <div key={step.id} className="flex items-center flex-shrink-0">
+                          <div
+                            title={step.title}
+                            className={`flex flex-col items-center gap-1 min-w-[52px] sm:min-w-[56px] ${
+                              step.isCurrent && canUpdateOrder() && step.actions.length > 0 ? 'pb-5' : ''
+                            }`}
+                          >
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all flex-shrink-0 ${
+                              step.isCompleted ? 'bg-green-500 text-white dark:bg-green-600' :
+                              step.isCurrent ? 'bg-[#FF9800] text-white ring-2 ring-[#FF9800]/40 dark:ring-[#FF9800]/50' :
+                              'bg-gray-200 text-gray-400 dark:bg-gray-700 dark:text-gray-500'
+                            }`}>
+                              {step.isCompleted ? <CheckCircle className="w-4 h-4" /> : <StepIcon className="w-4 h-4" />}
+                            </div>
+                            <span className={`text-[10px] sm:text-xs font-medium text-center leading-tight max-w-[64px] truncate ${
+                              step.isCompleted ? 'text-green-600 dark:text-green-400' : step.isCurrent ? 'text-[#F57C00] dark:text-[#FF9800]' : 'text-gray-500 dark:text-gray-400'
+                            }`}>
+                              {step.isCurrent ? 'الحالية' : shortLabel}
+                            </span>
+                          </div>
+                          {!isLast && (
+                            <div className={`flex-shrink-0 w-3 sm:w-4 h-0.5 mx-0.5 rounded ${
+                              step.isCompleted ? 'bg-green-400 dark:bg-green-500' : 'bg-gray-200 dark:bg-gray-600'
+                            }`} />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {(() => {
+                    const currentStep = steps.find(s => s.isCurrent);
+                    if (currentStep && canUpdateOrder() && currentStep.actions.length > 0) {
+                      return <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mt-1 text-center">↑ الإجراءات في الشريط أعلاه</p>;
+                    }
+                    return null;
+                  })()}
+                </>
               );
             })()}
-            
-            {/* Processing Steps with Vertical Timeline */}
-            <div className="relative">
-              {/* Vertical Line */}
-              <div className="absolute right-5 top-0 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-700 hidden sm:block"></div>
-              
-              <div className="space-y-4 sm:space-y-6">
-                {getProcessingSteps().map((step, index) => {
-                  const StepIcon = step.icon;
-                  const steps = getProcessingSteps();
-                  const isLast = index === steps.length - 1;
-                  
-                  return (
-                    <div key={step.id} className="relative flex items-start space-x-3 sm:space-x-4 space-x-reverse">
-                      {/* Step Icon with Connection Line */}
-                      <div className="relative flex-shrink-0 z-10">
-                        <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 ${
-                          step.isCompleted 
-                            ? 'bg-gradient-to-br from-green-500 to-green-600 text-white dark:from-green-600 dark:to-green-700' 
-                            : step.isCurrent 
-                            ? 'bg-gradient-to-br from-[#FF9800] to-[#F57C00] text-white dark:from-[#FF9800] dark:to-[#F57C00] ring-4 ring-[#FF9800]/30 dark:ring-[#FF9800]/40 animate-pulse' 
-                            : 'bg-gray-200 text-gray-400 dark:bg-gray-700 dark:text-gray-500'
-                        }`}>
-                          {step.isCompleted ? (
-                            <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6" />
-                          ) : (
-                            <StepIcon className="w-5 h-5 sm:w-6 sm:h-6" />
-                          )}
-                        </div>
-                        {!isLast && step.isCompleted && (
-                          <div className="absolute top-10 sm:top-12 right-1/2 w-0.5 h-6 sm:h-8 bg-green-500 dark:bg-green-600 transform translate-x-1/2 hidden sm:block"></div>
-                        )}
-                        {!isLast && step.isCurrent && (
-                          <div className="absolute top-10 sm:top-12 right-1/2 w-0.5 h-6 sm:h-8 bg-gradient-to-b from-[#FF9800] to-transparent transform translate-x-1/2 hidden sm:block"></div>
-                        )}
-                      </div>
-                      
-                      {/* Step Content */}
-                      <div className="flex-1 min-w-0 pb-4 sm:pb-6">
-                        <div className={`p-4 sm:p-5 rounded-xl border-2 transition-all duration-300 ${
-                          step.isCompleted 
-                            ? 'bg-gradient-to-br from-green-50 to-green-100/50 border-green-300 dark:from-green-900/20 dark:to-green-900/10 dark:border-green-700 shadow-md' 
-                            : step.isCurrent 
-                            ? 'bg-gradient-to-br from-[#FF9800]/10 to-[#FF9800]/5 border-[#FF9800] dark:from-[#FF9800]/20 dark:to-[#FF9800]/10 dark:border-[#FF9800] shadow-lg ring-2 ring-[#FF9800]/20 dark:ring-[#FF9800]/30' 
-                            : 'bg-gray-50 border-gray-200 dark:bg-gray-800 dark:border-gray-600'
-                        }`}>
-                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-2">
-                            <div className="flex items-center gap-2">
-                              <h4 className={`text-base sm:text-lg font-bold ${
-                                step.isCompleted 
-                                  ? 'text-green-800 dark:text-green-200' 
-                                  : step.isCurrent 
-                                  ? 'text-[#F57C00] dark:text-[#FF9800]' 
-                                  : 'text-gray-600 dark:text-gray-400'
-                              }`}>
-                                {step.title}
-                              </h4>
-                              {step.isCurrent && (
-                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-[#FF9800] text-white dark:bg-[#FF9800] dark:text-white shadow-sm animate-pulse">
-                                  الحالية
-                                </span>
-                              )}
-                            </div>
-                            {step.isCompleted && (
-                              <span className="text-xs font-medium text-green-700 dark:text-green-300 flex items-center gap-1">
-                                <CheckCircle className="w-3.5 h-3.5" />
-                                مكتمل
-                              </span>
-                            )}
-                          </div>
-                          <p className={`text-sm sm:text-base mb-3 ${
-                            step.isCompleted 
-                              ? 'text-green-700 dark:text-green-300' 
-                              : step.isCurrent 
-                              ? 'text-[#F57C00] dark:text-[#FF9800] font-medium' 
-                              : 'text-gray-500 dark:text-gray-400'
-                          }`}>
-                            {step.description}
-                          </p>
-                          
-                          {/* Available Actions */}
-                          {step.isCurrent && canUpdateOrder() && step.actions.length > 0 && (
-                            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
-                              <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">الإجراءات المتاحة:</p>
-                              <div className="flex flex-wrap gap-2">
-                                {step.actions.map(action => (
-                                  <button
-                                    key={action}
-                                    onClick={() => openStatusModal(action)}
-                                    className="px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-[#FF9800] hover:text-white hover:border-[#FF9800] dark:hover:bg-[#FF9800] dark:hover:text-white dark:hover:border-[#FF9800] transition-all duration-200 shadow-sm"
-                                  >
-                                    {statusConfig[action as keyof typeof statusConfig]?.label || action}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
 
-            {/* Unified Timeline - Merged Processing & Shipping Timeline */}
+            {/* سجل الأحداث - عرض أفقي (حبوب/كروت صغيرة) */}
             {(() => {
               const timeline = getProcessingTimeline();
-              // Add order creation to timeline
               if (order?.createdAt) {
                 timeline.push({
                   date: order.createdAt,
@@ -2034,171 +1924,123 @@ export default function OrderDetailPage() {
                   color: 'text-blue-600'
                 });
               }
-              // Sort by date (newest first)
               const sortedTimeline = timeline.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-              
               return sortedTimeline.length > 0 ? (
-                <div className="mt-6 pt-6 border-t-2 border-gray-200 dark:border-gray-700">
-                  <h4 className="text-base font-bold text-gray-900 dark:text-white mb-5 flex items-center">
-                    <Clock className="w-5 h-5 ml-2 text-[#FF9800]" />
-                    Timeline - سجل الأحداث
+                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <h4 className="text-xs font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5 text-[#FF9800]" />
+                    سجل الأحداث
                   </h4>
-                  <div className="relative">
-                    {/* Vertical Timeline Line */}
-                    <div className="absolute right-6 top-0 bottom-0 w-0.5 bg-gradient-to-b from-[#FF9800] via-gray-300 to-gray-200 dark:from-[#FF9800] dark:via-gray-600 dark:to-gray-700 hidden sm:block"></div>
-                    
-                    <div className="space-y-4">
-                      {sortedTimeline.map((event, index) => {
-                        const EventIcon = event.icon;
-                        const isLast = index === sortedTimeline.length - 1;
-                        return (
-                          <div key={index} className="relative flex items-start gap-4">
-                            {/* Timeline Dot */}
-                            <div className={`relative z-10 flex-shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 ${
-                              event.color.includes('green') 
-                                ? 'bg-gradient-to-br from-green-500 to-green-600 text-white dark:from-green-600 dark:to-green-700'
-                                : event.color.includes('blue') || event.color.includes('indigo')
-                                ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white dark:from-blue-600 dark:to-blue-700'
-                                : event.color.includes('orange')
-                                ? 'bg-gradient-to-br from-orange-500 to-orange-600 text-white dark:from-orange-600 dark:to-orange-700'
-                                : event.color.includes('red')
-                                ? 'bg-gradient-to-br from-red-500 to-red-600 text-white dark:from-red-600 dark:to-red-700'
-                                : 'bg-gradient-to-br from-gray-500 to-gray-600 text-white dark:from-gray-600 dark:to-gray-700'
-                            }`}>
-                              <EventIcon className="w-5 h-5 sm:w-6 sm:h-6" />
-                            </div>
-                            
-                            {/* Timeline Content */}
-                            <div className="flex-1 min-w-0 pb-4">
-                              <div className="p-4 bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all duration-200">
-                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-2">
-                                  <h5 className="text-sm sm:text-base font-bold text-gray-900 dark:text-white">
-                                    {event.title}
-                                  </h5>
-                                  <div className="flex flex-col items-end gap-1">
-                                    <div className="flex items-center gap-1.5">
-                                      <Calendar className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
-                                      <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                                        {formatDateWithRelative(event.date).full}
-                                      </span>
-                                    </div>
-                                    <span className="text-xs text-gray-500 dark:text-gray-500 italic">
-                                      {formatDateWithRelative(event.date).relative}
-                                    </span>
-                                  </div>
-                                </div>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">
-                                  {event.description}
-                                </p>
-                              </div>
-                            </div>
+                  <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin flex-wrap">
+                    {sortedTimeline.map((event, index) => {
+                      const EventIcon = event.icon;
+                      const iconBg = event.color?.includes('green') ? 'bg-green-500 dark:bg-green-600' :
+                        event.color?.includes('blue') || event.color?.includes('indigo') ? 'bg-blue-500 dark:bg-blue-600' :
+                        event.color?.includes('orange') ? 'bg-orange-500 dark:bg-orange-600' :
+                        event.color?.includes('red') ? 'bg-red-500 dark:bg-red-600' : 'bg-gray-500 dark:bg-gray-600';
+                      return (
+                        <div
+                          key={index}
+                          title={`${event.title}\n${event.description}\n${formatDateWithRelative(event.date).full}`}
+                          className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/80 flex-shrink-0 min-w-0 max-w-full sm:max-w-[220px]"
+                        >
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white flex-shrink-0 ${iconBg}`}>
+                            <EventIcon className="w-3 h-3" />
                           </div>
-                        );
-                      })}
-                    </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium text-gray-900 dark:text-white truncate">{event.title}</p>
+                            <p className="text-[10px] text-gray-500 dark:text-gray-400" title={formatDateWithRelative(event.date).full}>
+                              {formatDateWithRelative(event.date).relative}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               ) : null;
             })()}
           </div>
 
-          {/* Order Items - Enhanced */}
-          <div className="card">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
-                <Package className="w-5 h-5 ml-2 text-[#FF9800]" />
+          {/* منتجات الطلب - مضغوط مع الحفاظ على المعلومات */}
+          <div className="card p-4 sm:p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white flex items-center gap-1.5">
+                <Package className="w-4 h-4 text-[#FF9800]" />
                 منتجات الطلب ({order.items.length})
               </h3>
               {order.items.length > 0 && (
-                <span className="text-sm text-gray-600 dark:text-gray-400">
+                <span className="text-sm font-medium text-[#FF9800] dark:text-[#FF9800]">
                   إجمالي: {formatCurrency(order.subtotal)}
                 </span>
               )}
             </div>
-            
             {order.items.length === 0 ? (
-              <div className="text-center py-16 px-4">
-                <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gray-100 dark:bg-gray-700 mb-4">
-                  <Package className="w-10 h-10 text-gray-400 dark:text-gray-500" />
+              <div className="text-center py-10 px-4">
+                <div className="inline-flex justify-center w-14 h-14 rounded-full bg-gray-100 dark:bg-gray-700 mb-3">
+                  <Package className="w-7 h-7 text-gray-400 dark:text-gray-500" />
                 </div>
-                <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">لا توجد منتجات</h4>
-                <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
-                  هذا الطلب لا يحتوي على أي منتجات. يرجى التحقق من تفاصيل الطلب.
-                </p>
+                <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">لا توجد منتجات</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">التحقق من تفاصيل الطلب</p>
               </div>
             ) : (
-              <div className="space-y-3">
+              <ul className="space-y-2">
                 {order.items.map((item, index) => (
-                  <div key={index} className="group p-4 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-700 rounded-xl border-2 border-gray-200 dark:border-gray-600 hover:border-[#FF9800] dark:hover:border-[#FF9800] transition-all duration-200 shadow-sm hover:shadow-md">
-                    <div className="flex items-start gap-4">
-                      {/* Product Image - Larger */}
-                      <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden flex-shrink-0 bg-gray-100 dark:bg-gray-600 border-2 border-gray-200 dark:border-gray-500">
-                        {item.productId?.images && item.productId.images.length > 0 ? (
-                          <MediaThumbnail
-                            media={item.productId.images}
-                            alt={item.productId.name || item.productName}
-                            className="w-full h-full object-cover"
-                            showTypeBadge={false}
-                            width={96}
-                            height={96}
-                            fallbackIcon={<Package className="w-10 h-10 text-gray-400" />}
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Package className="w-10 h-10 text-gray-400" />
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Product Details */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-semibold text-gray-900 dark:text-white text-base mb-1 line-clamp-2">
-                              {item.productId?.name || item.productName}
-                            </h4>
-                            {item.productId?._id && (
-                              <Link 
-                                href={`/dashboard/products/${item.productId._id}`}
-                                className="text-xs text-[#FF9800] hover:text-[#F57C00] dark:text-[#FF9800] dark:hover:text-[#F57C00] flex items-center gap-1 w-fit"
-                              >
-                                <ExternalLink className="w-3 h-3" />
-                                عرض المنتج
-                              </Link>
-                            )}
-                          </div>
-                          <div className="text-left flex-shrink-0">
-                            <p className="text-lg font-bold text-[#FF9800] dark:text-[#FF9800]">
-                              {formatCurrency(item.totalPrice)}
-                            </p>
-                          </div>
+                  <li key={index} className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-800/50 hover:border-[#FF9800]/50 dark:hover:border-[#FF9800]/50 transition-colors">
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg overflow-hidden flex-shrink-0 bg-gray-200 dark:bg-gray-600">
+                      {item.productId?.images?.length > 0 ? (
+                        <MediaThumbnail
+                          media={item.productId.images}
+                          alt={item.productId.name || item.productName}
+                          className="w-full h-full object-cover"
+                          showTypeBadge={false}
+                          width={56}
+                          height={56}
+                          fallbackIcon={<Package className="w-6 h-6 text-gray-400" />}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Package className="w-6 h-6 text-gray-400" />
                         </div>
-                        
-                        <div className="grid grid-cols-2 gap-2 mt-3">
-                          <div className="p-2 bg-white dark:bg-gray-600 rounded-lg">
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">الكمية</p>
-                            <p className="text-sm font-semibold text-gray-900 dark:text-white">{item.quantity}</p>
-                          </div>
-                          <div className="p-2 bg-white dark:bg-gray-600 rounded-lg">
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">سعر الوحدة</p>
-                            <p className="text-sm font-semibold text-gray-900 dark:text-white">{formatCurrency(item.unitPrice)}</p>
-                          </div>
-                        </div>
-                        
-                        <div className="mt-2">
-                          <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${
-                            item.priceType === 'wholesale'
-                              ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                              : 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
-                          }`}>
-                            {item.priceType === 'wholesale' ? '💰 جملة' : '👤 مسوق'}
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
+                        <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                          <span className="text-sm font-medium text-gray-900 dark:text-white line-clamp-1">
+                            {item.productId?.name || item.productName}
                           </span>
+                          {item.productId?._id && (
+                            <Link
+                              href={`/dashboard/products/${item.productId._id}`}
+                              className="text-xs text-[#FF9800] hover:text-[#F57C00] dark:text-[#FF9800] dark:hover:text-[#F57C00] flex items-center gap-0.5 flex-shrink-0"
+                              title="عرض المنتج"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              عرض
+                            </Link>
+                          )}
                         </div>
+                        <span className="text-sm font-bold text-[#FF9800] dark:text-[#FF9800] flex-shrink-0">
+                          {formatCurrency(item.totalPrice)}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs text-gray-600 dark:text-gray-400">
+                        <span title="الكمية">الكمية: {item.quantity}</span>
+                        <span className="text-gray-400 dark:text-gray-500">·</span>
+                        <span title="سعر الوحدة">الوحدة: {formatCurrency(item.unitPrice)}</span>
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium mr-1 ${
+                          item.priceType === 'wholesale'
+                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                            : 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
+                        }`}>
+                          {item.priceType === 'wholesale' ? 'جملة' : 'مسوق'}
+                        </span>
                       </div>
                     </div>
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
           </div>
 
@@ -2286,310 +2128,152 @@ export default function OrderDetailPage() {
             </div>
           )}
 
-          {/* Unified Shipping & Delivery Information */}
-            <div className="card">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
-                <Truck className="w-5 h-5 ml-2 text-[#FF9800]" />
+          {/* معلومات الشحن والتوصيل - مضغوط مع الحفاظ على كافة المعلومات */}
+            <div className="card p-4 sm:p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white flex items-center gap-1.5">
+                <Truck className="w-4 h-4 text-[#FF9800]" />
                 معلومات الشحن والتوصيل
               </h3>
-              {user?.role === 'admin' && (
+              {user?.role === 'admin' && hasPermission(user, PERMISSIONS.ORDERS_MANAGE) && (
                 <>
                   {canEditShipping() ? (
-                    <button
-                      onClick={() => setShowShippingModal(true)}
-                      className="btn-secondary text-sm px-3 py-1.5 flex items-center"
-                      aria-label="تعديل معلومات الشحن"
-                    >
-                      <Edit className="w-4 h-4 ml-1.5" />
-                      تعديل
+                    <button onClick={() => setShowShippingModal(true)} className="btn-secondary text-sm px-2.5 py-1 flex items-center" aria-label="تعديل معلومات الشحن">
+                      <Edit className="w-3.5 h-3.5 ml-1" /> تعديل
                     </button>
                   ) : (
-                    <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                        <Truck className="w-3.5 h-3.5 ml-1.5" />
-                        الطلب عند شركة الشحن
+                    <div className="flex items-center gap-1.5">
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300" title="الطلب مُرسل لشركة الشحن">
+                        <Truck className="w-3 h-3 ml-1" /> عند شركة الشحن
                       </span>
-                      <button
-                        onClick={() => {
-                          toast.error('لا يمكن تعديل معلومات الشحن بعد أن تم شحن الطلب إلى شركة الشحن');
-                        }}
-                        className="btn-secondary text-sm px-3 py-1.5 flex items-center opacity-50 cursor-not-allowed"
-                        disabled
-                        aria-label="تعديل معلومات الشحن غير متاح - الطلب عند شركة الشحن"
-                        title="لا يمكن تعديل معلومات الشحن بعد أن تم شحن الطلب"
-                      >
-                        <Edit className="w-4 h-4 ml-1.5" />
-                        تعديل
+                      <button disabled className="btn-secondary text-sm px-2.5 py-1 flex items-center opacity-50 cursor-not-allowed" aria-label="تعديل مقفل"
+                        title="لا يمكن تعديل معلومات الشحن بعد الشحن إلى شركة الشحن. للتعديل تواصل مع الشركة مباشرة.">
+                        <Edit className="w-3.5 h-3.5 ml-1" /> تعديل
                       </button>
                     </div>
                   )}
                 </>
               )}
             </div>
-
-            {/* Warning Message if Shipping is Locked */}
             {!canEditShipping() && (
-              <div className="mb-4 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border-2 border-amber-200 dark:border-amber-800">
-                <div className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <h4 className="text-sm font-semibold text-amber-900 dark:text-amber-200 mb-1">
-                      معلومات الشحن مقفلة
-                    </h4>
-                    <p className="text-sm text-amber-800 dark:text-amber-300">
-                      لا يمكن تعديل معلومات الشحن لأن الطلب قد تم شحنه إلى شركة الشحن. إذا كنت بحاجة إلى تعديل معلومات الشحن، يرجى التواصل مع شركة الشحن مباشرة.
-                    </p>
-                  </div>
-                </div>
-              </div>
+              <p className="text-xs text-amber-700 dark:text-amber-300 mb-3 flex items-center gap-1.5 px-2 py-1.5 bg-amber-50 dark:bg-amber-900/15 rounded-lg border border-amber-200 dark:border-amber-800">
+                <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                معلومات الشحن مقفلة. للتعديل تواصل مع شركة الشحن مباشرة.
+              </p>
             )}
 
-            {/* Shipping Details Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              {/* Shipping Company & Location */}
-              <div className="space-y-3">
-                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">معلومات الشحن</h4>
-                {order.shippingCompany ? (
-                  <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-blue-700 dark:text-blue-300">شركة الشحن</span>
-                      <span className="text-sm font-semibold text-blue-900 dark:text-blue-100">{order.shippingCompany}</span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                    <span className="text-sm text-gray-500 dark:text-gray-400">لم يتم تحديد شركة الشحن</span>
-                    </div>
-                  )}
-                
+            {/* معلومات الشحن + التواريخ في كتلة واحدة مضغوطة */}
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                {order.shippingCompany && (
+                  <span className="text-blue-700 dark:text-blue-300">شركة الشحن: <strong className="text-blue-900 dark:text-blue-100">{order.shippingCompany}</strong></span>
+                )}
                 {(order.shippingAddress?.governorate || order.shippingAddress?.villageName) && (
-                  <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg space-y-2">
-                  {order.shippingAddress?.governorate && (
-                    <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-600 dark:text-gray-400">المحافظة</span>
-                        <span className="text-sm font-medium text-gray-900 dark:text-white">{order.shippingAddress.governorate}</span>
-                    </div>
-                  )}
-                  {order.shippingAddress?.villageName && (
-                    <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-600 dark:text-gray-400">القرية</span>
-                        <span className="text-sm font-medium text-gray-900 dark:text-white">
-                        {order.shippingAddress.villageName}
-                        {order.shippingAddress?.villageId && (
-                            <span className="text-xs text-gray-500 dark:text-gray-400 mr-1">(ID: {order.shippingAddress.villageId})</span>
-                        )}
-                      </span>
-                    </div>
-                  )}
-                  {order.shippingAddress?.manualVillageName && !order.shippingAddress?.villageName && (
-                    <div className="flex items-center justify-between">
-                        <span className="text-xs text-yellow-600 dark:text-yellow-400">القرية (يدوي)</span>
-                        <span className="text-sm font-medium text-yellow-700 dark:text-yellow-300">{order.shippingAddress.manualVillageName}</span>
-                    </div>
-                  )}
-                </div>
-              )}
+                  <span className="text-gray-600 dark:text-gray-400">
+                    {[order.shippingAddress?.governorate, order.shippingAddress?.villageName].filter(Boolean).join(' · ')}
+                    {order.shippingAddress?.villageId && <span className="text-gray-500 dark:text-gray-500 mr-1">(ID: {order.shippingAddress.villageId})</span>}
+                  </span>
+                )}
+                {order.shippingAddress?.manualVillageName && !order.shippingAddress?.villageName && (
+                  <span className="text-yellow-700 dark:text-yellow-300">القرية (يدوي): {order.shippingAddress.manualVillageName}</span>
+                )}
+                {!order.shippingCompany && !order.shippingAddress?.governorate && !order.shippingAddress?.villageName && (
+                  <span className="text-gray-500 dark:text-gray-400">لم يتم تحديد معلومات الشحن</span>
+                )}
               </div>
-
-              {/* Delivery Timeline */}
-              <div className="space-y-3">
-                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">التواريخ المهمة</h4>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between p-2.5 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                    <div className="flex items-center space-x-2 space-x-reverse">
-                      <Calendar className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                      <span className="text-xs text-gray-600 dark:text-gray-400">تاريخ الطلب</span>
-                    </div>
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">{formatDate(order.createdAt)}</span>
-                  </div>
-                  
-                  {order.shippedAt && (
-                    <div className="flex items-center justify-between p-2.5 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
-                      <div className="flex items-center space-x-2 space-x-reverse">
-                        <Truck className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                        <span className="text-xs text-indigo-700 dark:text-indigo-300">تاريخ الشحن</span>
-              </div>
-                      <span className="text-sm font-semibold text-indigo-900 dark:text-indigo-100">{formatDate(order.shippedAt)}</span>
+              <ul className="space-y-1 text-xs">
+                <li className="flex items-center justify-between py-1">
+                  <span className="text-gray-500 dark:text-gray-400 flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> تاريخ الطلب</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{formatDate(order.createdAt)}</span>
+                </li>
+                {order.shippedAt && (
+                  <li className="flex items-center justify-between py-1 text-indigo-700 dark:text-indigo-300">
+                    <span className="flex items-center gap-1"><Truck className="w-3.5 h-3.5" /> تاريخ الشحن</span>
+                    <span className="font-medium">{formatDate(order.shippedAt)}</span>
+                  </li>
+                )}
+                {order.deliveredAt && (
+                  <li className="flex items-center justify-between py-1 text-green-700 dark:text-green-300">
+                    <span className="flex items-center gap-1"><CheckCircle className="w-3.5 h-3.5" /> تاريخ التسليم</span>
+                    <span className="font-medium">{formatDate(order.deliveredAt)}</span>
+                  </li>
+                )}
+                {order.actualDelivery && (
+                  <li className="flex items-center justify-between py-1 text-emerald-700 dark:text-emerald-300">
+                    <span className="flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> التسليم الفعلي</span>
+                    <span className="font-medium">{formatDate(order.actualDelivery)}</span>
+                  </li>
+                )}
+              </ul>
             </div>
-          )}
 
-                  {order.deliveredAt && (
-                    <div className="flex items-center justify-between p-2.5 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                      <div className="flex items-center space-x-2 space-x-reverse">
-                        <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
-                        <span className="text-xs text-green-700 dark:text-green-300">تاريخ التسليم</span>
-                </div>
-                      <span className="text-sm font-semibold text-green-900 dark:text-green-100">{formatDate(order.deliveredAt)}</span>
-            </div>
-          )}
-
-                  {order.actualDelivery && (
-                    <div className="flex items-center justify-between p-2.5 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
-                      <div className="flex items-center space-x-2 space-x-reverse">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                        <span className="text-xs text-emerald-700 dark:text-emerald-300">التسليم الفعلي</span>
-                  </div>
-                      <span className="text-sm font-semibold text-emerald-900 dark:text-emerald-100">{formatDate(order.actualDelivery)}</span>
-                    </div>
-                  )}
-                </div>
-                </div>
-              </div>
-
-            {/* Package Information */}
+            {/* معلومات الطرد - صفوف مضغوطة */}
             {order?.packageId && (
-              <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-                <h4 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-                  <Package className="w-5 h-5 ml-2 text-[#FF9800]" />
-                  معلومات الطرد
+              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
+                  <Package className="w-3.5 h-3.5 text-[#FF9800]" /> معلومات الطرد
                 </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-600 dark:text-gray-400">رقم الطرد</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-gray-900 dark:text-white">{order.packageId}</span>
-                        <button
-                          onClick={() => copyToClipboard(order.packageId?.toString() || '', 'رقم الطرد')}
-                          className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
-                          title="نسخ رقم الطرد"
-                        >
-                          {copiedField === 'رقم الطرد' ? (
-                            <Check className="w-3 h-3 text-green-600 dark:text-green-400" />
-                          ) : (
-                            <Copy className="w-3 h-3 text-gray-500 dark:text-gray-400" />
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  
+                <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
+                  <span className="flex items-center gap-1">
+                    <span className="text-gray-500 dark:text-gray-400">رقم الطرد:</span>
+                    <span className="font-medium text-gray-900 dark:text-white">{order.packageId}</span>
+                    <button onClick={() => copyToClipboard(order.packageId?.toString() || '', 'رقم الطرد')} className="p-0.5 hover:bg-gray-200 dark:hover:bg-gray-600 rounded" title="نسخ رقم الطرد">
+                      {copiedField === 'رقم الطرد' ? <Check className="w-3 h-3 text-green-600" /> : <Copy className="w-3 h-3 text-gray-500 dark:text-gray-400" />}
+                    </button>
+                  </span>
                   {packageInfo?.externalPackageId && (
-                    <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-blue-600 dark:text-blue-400">Package ID</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold text-blue-900 dark:text-blue-100 font-mono">
-                            {packageInfo.externalPackageId}
-                          </span>
-                          <button
-                            onClick={() => copyToClipboard(packageInfo.externalPackageId!.toString(), 'Package ID')}
-                            className="p-1 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded transition-colors"
-                            title="نسخ Package ID"
-                          >
-                            {copiedField === 'Package ID' ? (
-                              <Check className="w-3 h-3 text-green-600 dark:text-green-400" />
-                            ) : (
-                              <Copy className="w-3 h-3 text-blue-600 dark:text-blue-400" />
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {packageInfo?.deliveryCost !== undefined && packageInfo.deliveryCost !== null && (
-                    <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-green-600 dark:text-green-400">تكلفة التوصيل</span>
-                        <span className="text-sm font-semibold text-green-900 dark:text-green-100">
-                          {packageInfo.deliveryCost}₪
-                      </span>
-                      </div>
-                    </div>
-                  )}
-                  
-                  <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-600 dark:text-gray-400">الحالة</span>
-                      <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                        packageStatus === 'confirmed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
-                        packageStatus === 'pending' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300' :
-                        packageStatus === 'shipped' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
-                        packageStatus === 'delivered' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' :
-                        'bg-gray-100 text-gray-700 dark:bg-gray-600 dark:text-gray-300'
-                      }`}>
-                        {
-                          packageStatus === 'pending' ? '⏳ في انتظار الإرسال' :
-                          packageStatus === 'confirmed' ? '✅ تم الإرسال بنجاح' :
-                          packageStatus === 'processing' ? '🔄 قيد المعالجة' :
-                          packageStatus === 'shipped' ? '📦 تم الشحن' :
-                          packageStatus === 'delivered' ? '✓ تم التسليم' :
-                          packageStatus === 'cancelled' ? '❌ ملغي' :
-                          'غير محدد'
-                        }
-                      </span>
-              </div>
-            </div>
-
-                  {packageInfo?.qrCode && (
-                    <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800 md:col-span-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs text-purple-600 dark:text-purple-400">QR Code</span>
-                        <div className="flex items-center gap-2 flex-1 justify-end">
-                          <span className="text-sm font-semibold text-purple-900 dark:text-purple-100 font-mono break-all text-left">
-                            {packageInfo.qrCode}
-                          </span>
-                          <button
-                            onClick={() => copyToClipboard(packageInfo.qrCode!, 'QR Code')}
-                            className="p-1 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded transition-colors flex-shrink-0"
-                            title="نسخ QR Code"
-                          >
-                            {copiedField === 'QR Code' ? (
-                              <Check className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
-                            ) : (
-                              <Copy className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {packageStatus === 'pending' && (
-                    <div className="md:col-span-2">
-                      <button
-                        onClick={handleResendPackage}
-                        disabled={resendingPackage}
-                        className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center relative overflow-hidden"
-                      >
-                        {resendingPackage ? (
-                          <>
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"></div>
-                            <div className="relative flex items-center">
-                              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin ml-2"></div>
-                              <span className="animate-pulse">جاري الإرسال...</span>
-                      </div>
-                          </>
-                        ) : (
-                          <>
-                            <Package className="w-4 h-4 ml-2" />
-                            إعادة الإرسال
-                          </>
-                        )}
+                    <span className="flex items-center gap-1">
+                      <span className="text-blue-600 dark:text-blue-400">Package ID:</span>
+                      <span className="font-mono font-medium text-blue-900 dark:text-blue-100">{packageInfo.externalPackageId}</span>
+                      <button onClick={() => copyToClipboard(packageInfo.externalPackageId!.toString(), 'Package ID')} className="p-0.5 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded" title="نسخ Package ID">
+                        {copiedField === 'Package ID' ? <Check className="w-3 h-3 text-green-600" /> : <Copy className="w-3 h-3 text-blue-600 dark:text-blue-400" />}
                       </button>
-                    </div>
+                    </span>
                   )}
-                      </div>
-                    </div>
+                  {packageInfo?.deliveryCost !== undefined && packageInfo.deliveryCost !== null && (
+                    <span className="text-green-700 dark:text-green-300 font-medium">{packageInfo.deliveryCost}₪ تكلفة التوصيل</span>
                   )}
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                    packageStatus === 'confirmed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
+                    packageStatus === 'pending' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300' :
+                    packageStatus === 'shipped' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
+                    packageStatus === 'delivered' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' :
+                    'bg-gray-100 text-gray-700 dark:bg-gray-600 dark:text-gray-300'
+                  }`}>
+                    {packageStatus === 'pending' ? '⏳ في انتظار الإرسال' : packageStatus === 'confirmed' ? '✅ تم الإرسال بنجاح' : packageStatus === 'processing' ? '🔄 قيد المعالجة' : packageStatus === 'shipped' ? '📦 تم الشحن' : packageStatus === 'delivered' ? '✓ تم التسليم' : packageStatus === 'cancelled' ? '❌ ملغي' : 'غير محدد'}
+                  </span>
+                </div>
+                {packageInfo?.qrCode && (
+                  <div className="mt-2 flex items-center gap-2 flex-wrap">
+                    <span className="text-xs text-purple-600 dark:text-purple-400">QR:</span>
+                    <span className="text-xs font-mono text-purple-900 dark:text-purple-100 break-all">{packageInfo.qrCode}</span>
+                    <button onClick={() => copyToClipboard(packageInfo.qrCode!, 'QR Code')} className="p-0.5 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded" title="نسخ QR Code">
+                      {copiedField === 'QR Code' ? <Check className="w-3 h-3 text-green-600" /> : <Copy className="w-3 h-3 text-purple-600 dark:text-purple-400" />}
+                    </button>
+                  </div>
+                )}
+                {packageStatus === 'pending' && (
+                  <button onClick={handleResendPackage} disabled={resendingPackage} className="mt-2 w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white text-xs font-medium rounded-lg flex items-center justify-center gap-1.5 relative overflow-hidden">
+                    {resendingPackage ? (<><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /><span>جاري الإرسال...</span></>) : (<><Package className="w-3.5 h-3.5" /> إعادة الإرسال</>)}
+                  </button>
+                )}
+              </div>
+            )}
                   
-            {/* Admin Actions - Grouped */}
-            {user?.role === 'admin' && (
-              <div className="mt-6 pt-6 border-t-2 border-gray-200 dark:border-gray-700">
-                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 flex items-center">
-                  <Package className="w-4 h-4 ml-2 text-[#FF9800]" />
+            {/* إجراءات الإدارة - مضغوط */}
+            {user?.role === 'admin' && hasPermission(user, PERMISSIONS.ORDERS_MANAGE) && (
+              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
+                  <Package className="w-3.5 h-3.5 text-[#FF9800]" />
                   إجراءات الإدارة
                 </h4>
-                <div className="space-y-3">
-                  {/* Shipping Actions Group */}
+                <div className="space-y-2">
                   {(order.status === 'ready_for_shipping' || order.status === 'processing' || order.status === 'confirmed') && 
                    (order.shippingCompany && (order.shippingAddress?.city || order.shippingAddress?.villageId)) && (
-                    <div className="p-4 bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-800 rounded-xl border-2 border-slate-200 dark:border-slate-700">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Truck className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                        <h5 className="text-sm font-semibold text-gray-900 dark:text-white">إجراءات الشحن</h5>
+                    <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <Truck className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                        <h5 className="text-xs font-semibold text-gray-900 dark:text-white">إجراءات الشحن</h5>
                       </div>
                       <div className="flex flex-col sm:flex-row gap-2">
                         <button
@@ -2623,361 +2307,128 @@ export default function OrderDetailPage() {
                     </div>
                   )}
                   
-                  {/* Status Update Actions Group */}
-                  {canUpdateOrder() && (
-                    <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl border-2 border-purple-200 dark:border-purple-800">
-                      <div className="flex items-center gap-2 mb-3">
-                        <CheckCircle className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                        <h5 className="text-sm font-semibold text-gray-900 dark:text-white">تحديث الحالة</h5>
-                      </div>
-                      <button
-                        onClick={() => openStatusModal(order.status)}
-                        className="btn-secondary-solid w-full flex items-center justify-center min-h-[44px] shadow-md hover:shadow-lg transition-all"
-                      >
-                        <CheckCircle2 className="w-4 h-4 ml-2" />
-                        تحديث حالة الطلب
-                      </button>
-                    </div>
-                  )}
                 </div>
               </div>
             )}
           </div>
         </div>
 
-        {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Unified Customer & Shipping Information */}
-           <div className="card">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
-                <User className="w-5 h-5 ml-2 text-[#FF9800]" />
-                معلومات العميل والعنوان
-             </h3>
-            </div>
-
-            {/* Customer Basic Info */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-              <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400">اسم العميل</label>
+        {/* Sidebar - مضغوط */}
+        <div className="space-y-4">
+          {/* العميل والعنوان - كتلة واحدة مضغوطة */}
+          <div className="card p-4">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-1.5">
+              <User className="w-4 h-4 text-[#FF9800]" />
+              العميل والعنوان
+            </h3>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2 py-1.5 border-b border-gray-100 dark:border-gray-700">
+                <span className="text-xs text-gray-500 dark:text-gray-400">الاسم</span>
+                <div className="flex items-center gap-1 min-w-0">
+                  <span className="text-sm font-medium text-gray-900 dark:text-white truncate">{order.shippingAddress?.fullName || '—'}</span>
                   {order.shippingAddress?.fullName && (
-                    <button
-                      onClick={() => copyToClipboard(order.shippingAddress.fullName, 'اسم العميل')}
-                      className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
-                      title="نسخ الاسم"
-                    >
-                      {copiedField === 'اسم العميل' ? (
-                        <Check className="w-3 h-3 text-green-600 dark:text-green-400" />
-                      ) : (
-                        <Copy className="w-3 h-3 text-gray-500 dark:text-gray-400" />
-                      )}
+                    <button onClick={() => copyToClipboard(order.shippingAddress!.fullName!, 'اسم العميل')} className="p-0.5 hover:bg-gray-200 dark:hover:bg-gray-600 rounded" title="نسخ الاسم">
+                      {copiedField === 'اسم العميل' ? <Check className="w-3 h-3 text-green-600" /> : <Copy className="w-3 h-3 text-gray-500 dark:text-gray-400" />}
                     </button>
                   )}
                 </div>
-                <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                   {order.shippingAddress?.fullName || 'غير محدد'}
-                 </p>
-               </div>
-               
-              <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400">رقم الهاتف</label>
+              </div>
+              <div className="flex items-center justify-between gap-2 py-1.5 border-b border-gray-100 dark:border-gray-700">
+                <span className="text-xs text-gray-500 dark:text-gray-400">الهاتف</span>
+                <div className="flex items-center gap-1 min-w-0">
+                  <span className="text-sm font-medium text-gray-900 dark:text-white truncate">{order.shippingAddress?.phone || '—'}</span>
                   {order.shippingAddress?.phone && (
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => copyToClipboard(order.shippingAddress.phone, 'رقم الهاتف')}
-                        className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
-                        title="نسخ رقم الهاتف"
-                      >
-                        {copiedField === 'رقم الهاتف' ? (
-                          <Check className="w-3 h-3 text-green-600 dark:text-green-400" />
-                        ) : (
-                          <Copy className="w-3 h-3 text-gray-500 dark:text-gray-400" />
-                        )}
-                      </button>
-                      <a
-                        href={`tel:${order.shippingAddress.phone}`}
-                        className="p-1 text-[#FF9800] hover:bg-orange-100 dark:hover:bg-orange-900/20 rounded transition-colors"
-                        title="اتصال"
-                      >
-                        <Phone className="w-3 h-3" />
-                      </a>
-                      <button
-                        onClick={handleWhatsAppConfirmation}
-                        className="p-1 text-green-600 hover:bg-green-100 dark:hover:bg-green-900/20 rounded transition-colors"
-                        title="واتساب"
-                      >
-                        <MessageCircle className="w-3 h-3" />
-                      </button>
-                    </div>
+                    <button onClick={() => copyToClipboard(order.shippingAddress!.phone!, 'رقم الهاتف')} className="p-0.5 hover:bg-gray-200 dark:hover:bg-gray-600 rounded" title="نسخ رقم الهاتف">
+                      {copiedField === 'رقم الهاتف' ? <Check className="w-3 h-3 text-green-600" /> : <Copy className="w-3 h-3 text-gray-500 dark:text-gray-400" />}
+                    </button>
                   )}
                 </div>
-                <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                  {order.shippingAddress?.phone || 'غير محدد'}
-                </p>
               </div>
-            </div>
-            
-            {/* Complete Address */}
-            <div className="mb-4 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
-                  <label className="text-xs font-medium text-blue-700 dark:text-blue-300">العنوان الكامل</label>
-                </div>
-                {order.shippingAddress && (
-                  <button
-                    onClick={() => {
-                      const fullAddress = [
-                        order.shippingAddress.street,
-                        order.shippingAddress?.villageName,
-                        order.shippingAddress?.governorate,
-                        order.shippingAddress?.postalCode && `الرمز البريدي: ${order.shippingAddress.postalCode}`
-                      ].filter(Boolean).join('، ');
-                      copyToClipboard(fullAddress, 'العنوان');
-                    }}
-                    className="p-1 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded transition-colors"
-                    title="نسخ العنوان"
-                  >
-                    {copiedField === 'العنوان' ? (
-                      <Check className="w-3 h-3 text-green-600 dark:text-green-400" />
-                    ) : (
-                      <Copy className="w-3 h-3 text-blue-600 dark:text-blue-400" />
-                    )}
-                  </button>
-                )}
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                  {order.shippingAddress?.street || 'غير محدد'}
-                </p>
-                {(order.shippingAddress?.villageName || order.shippingAddress?.governorate) && (
-                  <p className="text-xs text-blue-700 dark:text-blue-300">
-                    {[
-                      order.shippingAddress?.villageName,
-                      order.shippingAddress?.governorate
-                    ].filter(Boolean).join('، ')}
-                    {order.shippingAddress?.villageId && ` (ID: ${order.shippingAddress.villageId})`}
-                  </p>
-                )}
-                     {order.shippingAddress?.manualVillageName && !order.shippingAddress?.villageName && (
-                  <p className="text-xs font-medium text-yellow-700 dark:text-yellow-400">
-                    ⚠️ {order.shippingAddress.manualVillageName} (يدوي)
-                  </p>
-                )}
-                {order.shippingAddress?.postalCode && (
-                  <p className="text-xs text-blue-600 dark:text-blue-400">
-                    الرمز البريدي: {order.shippingAddress.postalCode}
-                  </p>
-                )}
-                 </div>
-               </div>
-
-            {/* Address Details Grid */}
-            {(order.shippingAddress?.governorate || order.shippingAddress?.villageName || order.shippingAddress?.postalCode) && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-                {order.shippingAddress?.governorate && (
-                  <div className="p-2.5 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                    <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">المحافظة</p>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">{order.shippingAddress.governorate}</p>
-             </div>
-                )}
-                {order.shippingAddress?.villageName && (
-                  <div className="p-2.5 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                    <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">القرية</p>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">
-                      {order.shippingAddress.villageName}
-                      {order.shippingAddress?.villageId && (
-                        <span className="text-xs text-gray-500 dark:text-gray-400 mr-1">(ID: {order.shippingAddress.villageId})</span>
-                      )}
-                    </p>
+              {order.shippingAddress && (
+                <div className="pt-1.5">
+                  <div className="flex items-center justify-between gap-1 mb-0.5">
+                    <span className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1"><MapPin className="w-3 h-3" /> العنوان</span>
+                    <button
+                      onClick={() => {
+                        const v = order.shippingAddress?.villageName;
+                        const g = order.shippingAddress?.governorate;
+                        const loc = (v && g && v === g) ? v : [v, g].filter(Boolean).join(' · ');
+                        const parts = [order.shippingAddress?.street, loc, order.shippingAddress?.postalCode && `الرمز: ${order.shippingAddress.postalCode}`].filter(Boolean);
+                        copyToClipboard(parts.join(' · '), 'العنوان');
+                      }}
+                      className="p-0.5 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded"
+                      title="نسخ العنوان"
+                    >
+                      {copiedField === 'العنوان' ? <Check className="w-3 h-3 text-green-600" /> : <Copy className="w-3 h-3 text-blue-600 dark:text-blue-400" />}
+                    </button>
                   </div>
-                )}
-              </div>
-            )}
-
-            {/* Address Notes */}
-            {order.shippingAddress?.notes && (
-              <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
-                <p className="text-xs font-medium text-amber-800 dark:text-amber-300 mb-1">ملاحظات العنوان</p>
-                <p className="text-sm text-amber-900 dark:text-amber-100">{order.shippingAddress.notes}</p>
-              </div>
-            )}
-
-            {/* Quick Actions - Enhanced */}
-             {order.shippingAddress?.phone && (
-               <div className="border-t-2 border-gray-200 dark:border-gray-600 pt-4">
-                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center">
-                  <MessageCircle className="w-4 h-4 ml-2 text-[#FF9800]" />
-                  التواصل السريع
-                </h4>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={handleWhatsAppConfirmation}
-                    className="btn-secondary-solid flex items-center justify-center px-4 py-2.5 min-h-[44px] shadow-sm hover:shadow-md transition-all group"
-                  >
-                    <MessageCircle className="w-4 h-4 ml-2 group-hover:scale-110 transition-transform" />
-                    واتساب
-                  </button>
-                  <a
-                    href={`tel:${order.shippingAddress.phone}`}
-                    className="btn-primary flex items-center justify-center px-4 py-2.5 min-h-[44px] shadow-sm hover:shadow-md transition-all group"
-                  >
-                    <Phone className="w-4 h-4 ml-2 group-hover:scale-110 transition-transform" />
-                    اتصال
-                  </a>
+                  <p className="text-xs text-gray-700 dark:text-gray-300 leading-snug">
+                    {(() => {
+                      const v = order.shippingAddress?.villageName;
+                      const g = order.shippingAddress?.governorate;
+                      const loc = (v && g && v === g) ? v : [v, g].filter(Boolean).join(' · ');
+                      return [order.shippingAddress?.street, loc, order.shippingAddress?.postalCode && `الرمز: ${order.shippingAddress.postalCode}`].filter(Boolean).join(' · ');
+                    })()}
+                    {order.shippingAddress?.villageId && <span className="text-gray-500 dark:text-gray-500"> (قرية #{order.shippingAddress.villageId})</span>}
+                  </p>
+                  {order.shippingAddress?.manualVillageName && !order.shippingAddress?.villageName && (
+                    <p className="text-[10px] text-yellow-600 dark:text-yellow-400 mt-0.5">⚠️ {order.shippingAddress.manualVillageName} (يدوي)</p>
+                  )}
                 </div>
-              </div>
-            )}
+              )}
+              {order.shippingAddress?.notes && (
+                <p className="text-[10px] text-amber-700 dark:text-amber-300 mt-1 pt-1 border-t border-amber-100 dark:border-amber-900/30">ملاحظات: {order.shippingAddress.notes}</p>
+              )}
+            </div>
           </div>
 
-          {/* Unified Financial Summary & Profits */}
-          <div className="card">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-              <DollarSign className="w-5 h-5 ml-2 text-[#FF9800]" />
-              الملخص المالي والأرباح
+          {/* الملخص المالي والأرباح - مضغوط بدون تكرار */}
+          <div className="card p-4">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-1.5">
+              <DollarSign className="w-4 h-4 text-[#FF9800]" />
+              الملخص المالي
             </h3>
-
-            {/* Order Summary */}
-            <div className="mb-6 p-4 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-xl border-2 border-gray-200 dark:border-gray-700">
-              <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">تفاصيل الطلب</h4>
-              <div className="space-y-2.5">
-                <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">المجموع الفرعي</span>
-                  <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                    {formatCurrency(order.subtotal)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">عمولة المنصة</span>
-                  <span className="text-sm font-semibold text-[#4CAF50] dark:text-[#4CAF50]">
-                    {formatCurrency(order.commission)}
-                  </span>
-                </div>
-                {order.marketerProfit && order.marketerProfit > 0 && (
-                  <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">ربح المسوق</span>
-                    <span className="text-sm font-semibold text-[#FF9800] dark:text-[#FF9800]">
-                      {formatCurrency(order.marketerProfit)}
-                    </span>
-                  </div>
-                )}
-                <div className="flex justify-between items-center pt-2">
-                  <span className="text-base font-bold text-gray-900 dark:text-white">الإجمالي</span>
-                  <span className="text-xl font-bold text-[#FF9800] dark:text-[#FF9800]">
-                    {formatCurrency(order.total)}
-                  </span>
-                </div>
+            <div className="space-y-1.5 text-sm">
+              <div className="flex justify-between items-center py-1">
+                <span className="text-gray-500 dark:text-gray-400">المجموع الفرعي</span>
+                <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(order.subtotal)}</span>
               </div>
-            </div>
-
-            {/* Profits Section */}
-            <div className="space-y-4">
-              {/* Marketer Profit - Show for marketers */}
-              {user?.role === 'marketer' && order.customerRole === 'marketer' && order.marketerProfit && order.marketerProfit > 0 && (
-                <div className="p-4 bg-gradient-to-br from-[#FF9800]/10 to-[#FF9800]/5 dark:from-[#FF9800]/20 dark:to-[#FF9800]/10 rounded-xl border-2 border-[#FF9800]/30 dark:border-[#FF9800]/40">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <DollarSign className="w-5 h-5 text-[#FF9800] dark:text-[#FF9800]" />
-                      <h4 className="text-sm font-bold text-gray-900 dark:text-white">ربحك من هذا الطلب</h4>
-                    </div>
-                    <span className="text-2xl font-bold text-[#FF9800] dark:text-[#FF9800]">
-                      {formatCurrency(order.marketerProfit)}
-                    </span>
-                  </div>
-                  <div className={`p-3 rounded-lg ${
-                    order.status === 'delivered'
-                      ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
-                      : 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800'
-                  }`}>
-                    <p className={`text-xs font-medium flex items-center gap-2 ${
-                      order.status === 'delivered'
-                        ? 'text-green-800 dark:text-green-300'
-                        : 'text-yellow-800 dark:text-yellow-300'
-                    }`}>
-                      {order.status === 'delivered' ? (
-                        <>
-                          <CheckCircle className="w-4 h-4" />
-                          تم إضافة الربح إلى محفظتك
-                        </>
-                      ) : (
-                        <>
-                          <Clock className="w-4 h-4" />
-                          في انتظار اكتمال الطلب لإضافة الربح
-                        </>
-                      )}
-                    </p>
-                  </div>
+              <div className="flex justify-between items-center py-1">
+                <span className="text-gray-500 dark:text-gray-400">عمولة المنصة</span>
+                <span className="font-medium text-[#4CAF50] dark:text-[#4CAF50]">{formatCurrency(order.commission)}</span>
+              </div>
+              {order.marketerProfit != null && order.marketerProfit > 0 && (
+                <div className="flex justify-between items-center py-1">
+                  <span className="text-gray-500 dark:text-gray-400">ربح المسوق</span>
+                  <span className="font-medium text-[#FF9800] dark:text-[#FF9800]">{formatCurrency(order.marketerProfit)}</span>
                 </div>
               )}
-
-              {/* Admin Commission - Show for admins */}
-              {user?.role === 'admin' && (
-                <div className="p-4 bg-gradient-to-br from-[#4CAF50]/10 to-[#4CAF50]/5 dark:from-[#4CAF50]/20 dark:to-[#4CAF50]/10 rounded-xl border-2 border-[#4CAF50]/30 dark:border-[#4CAF50]/40">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <DollarSign className="w-5 h-5 text-[#4CAF50] dark:text-[#4CAF50]" />
-                      <h4 className="text-sm font-bold text-gray-900 dark:text-white">عمولة الإدارة</h4>
-                    </div>
-                    <span className="text-2xl font-bold text-[#4CAF50] dark:text-[#4CAF50]">
-                      {formatCurrency(order.commission)}
-                    </span>
-                  </div>
-                  <div className={`p-3 rounded-lg ${
-                    order.status === 'delivered'
-                      ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
-                      : 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800'
-                  }`}>
-                    <p className={`text-xs font-medium flex items-center gap-2 ${
-                      order.status === 'delivered'
-                        ? 'text-green-800 dark:text-green-300'
-                        : 'text-yellow-800 dark:text-yellow-300'
-                    }`}>
-                      {order.status === 'delivered' ? (
-                        <>
-                          <CheckCircle className="w-4 h-4" />
-                          تم إضافة العمولة إلى محفظة الإدارة
-                        </>
-                      ) : (
-                        <>
-                          <Clock className="w-4 h-4" />
-                          في انتظار اكتمال الطلب لإضافة العمولة
-                        </>
-                      )}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-
-                     {/* Order Info */}
-           <div className="card">
-             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-               <Calendar className="w-5 h-5 ml-2 text-[#FF9800] dark:text-[#FF9800]" />
-               معلومات الطلب
-             </h3>
-            <div className="space-y-3">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">رقم الطلب</p>
-                <p className="font-medium text-gray-900 dark:text-white">#{order.orderNumber}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">طريقة الدفع</p>
-                <p className="font-medium text-gray-900 dark:text-white">{order.paymentMethod}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">حالة الدفع</p>
-                <p className="font-medium text-gray-900 dark:text-white">{order.paymentStatus}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">تاريخ الإنشاء</p>
-                <p className="font-medium text-gray-900 dark:text-white">{formatDate(order.createdAt)}</p>
+              <div className="flex justify-between items-center pt-2 mt-1 border-t border-gray-200 dark:border-gray-700">
+                <span className="font-bold text-gray-900 dark:text-white">الإجمالي</span>
+                <span className="text-base font-bold text-[#FF9800] dark:text-[#FF9800]">{formatCurrency(order.total)}</span>
               </div>
             </div>
+            {/* ربح المسوق / عمولة الإدارة - سطر واحد لكل منهما */}
+            {user?.role === 'marketer' && order.customerRole === 'marketer' && order.marketerProfit != null && order.marketerProfit > 0 && (
+              <div className={`mt-3 p-2 rounded-lg flex items-center justify-between gap-2 ${order.status === 'delivered' ? 'bg-green-50 dark:bg-green-900/20' : 'bg-[#FF9800]/10 dark:bg-[#FF9800]/20'}`}>
+                <span className="text-xs font-medium text-gray-900 dark:text-white">ربحك</span>
+                <span className="text-sm font-bold text-[#FF9800] dark:text-[#FF9800]">{formatCurrency(order.marketerProfit)}</span>
+                <span className={`text-[10px] flex items-center gap-1 ${order.status === 'delivered' ? 'text-green-700 dark:text-green-300' : 'text-yellow-700 dark:text-yellow-300'}`}>
+                  {order.status === 'delivered' ? <><CheckCircle className="w-3 h-3" /> مُضاف لمحفظتك</> : <><Clock className="w-3 h-3" /> بانتظار اكتمال الطلب</>}
+                </span>
+              </div>
+            )}
+            {user?.role === 'admin' && (
+              <div className={`mt-2 p-2 rounded-lg flex items-center justify-between gap-2 ${order.status === 'delivered' ? 'bg-green-50 dark:bg-green-900/20' : 'bg-[#4CAF50]/10 dark:bg-[#4CAF50]/20'}`}>
+                <span className="text-xs font-medium text-gray-900 dark:text-white">عمولة الإدارة</span>
+                <span className="text-sm font-bold text-[#4CAF50] dark:text-[#4CAF50]">{formatCurrency(order.commission)}</span>
+                <span className={`text-[10px] flex items-center gap-1 ${order.status === 'delivered' ? 'text-green-700 dark:text-green-300' : 'text-yellow-700 dark:text-yellow-300'}`}>
+                  {order.status === 'delivered' ? <><CheckCircle className="w-3 h-3" /> مُضافة</> : <><Clock className="w-3 h-3" /> بانتظار اكتمال الطلب</>}
+                </span>
+              </div>
+            )}
           </div>
+
 
           {/* Comments Section */}
           <div className="card">
@@ -3296,14 +2747,36 @@ export default function OrderDetailPage() {
                       </div>
                     </div>
                   ) : filteredVillages.length > 0 ? (
-                    <div className="relative village-search-container" ref={villageInputContainerRef}>
-                      <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none z-10">
-                        <Search className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                      </div>
-                      <input
-                        type="text"
-                        value={villageSearchQuery}
-                        onChange={(e) => {
+                    <div className="village-search-container">
+                      <div className="border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 focus-within:ring-2 focus-within:ring-[#FF9800] focus-within:border-transparent transition-all flex items-stretch min-h-[42px]" ref={villageInputContainerRef}>
+                        {/* Clear (X) - fixed width slot, responsive with field height */}
+                        <div className="flex-shrink-0 w-10 flex items-center justify-center min-w-[2.5rem]">
+                          {(villageSearchQuery || selectedVillageId) ? (
+                            <button
+                              type="button"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                isUserTypingRef.current = false;
+                                userClearedVillageRef.current = true;
+                                setVillageSearchQuery('');
+                                setSelectedVillageId(null);
+                                setSelectedVillageIndex(-1);
+                                setShowVillageDropdown(false);
+                              }}
+                              className="w-10 h-full min-h-[2.5rem] flex items-center justify-center rounded-l-lg hover:bg-gray-100 dark:hover:bg-slate-600 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors touch-manipulation"
+                              aria-label="مسح"
+                            >
+                              <X className="w-4 h-4 flex-shrink-0" />
+                            </button>
+                          ) : (
+                            <span className="w-10 min-w-[2.5rem] flex-shrink-0" aria-hidden />
+                          )}
+                        </div>
+                        <input
+                          type="text"
+                          value={villageSearchQuery}
+                          onChange={(e) => {
                           const newValue = e.target.value;
                           isUserTypingRef.current = true;
                           setVillageSearchQuery(newValue);
@@ -3322,8 +2795,8 @@ export default function OrderDetailPage() {
                           setTimeout(() => {
                             isUserTypingRef.current = false;
                           }, 100);
-                        }}
-                        onFocus={() => {
+                          }}
+                          onFocus={() => {
                           if (filteredVillages.length > 0) {
                             if (userClearedVillageRef.current) {
                               userClearedVillageRef.current = false;
@@ -3335,8 +2808,8 @@ export default function OrderDetailPage() {
                             }
                             setShowVillageDropdown(true);
                           }
-                        }}
-                        onClick={() => {
+                          }}
+                          onClick={() => {
                           if (filteredVillages.length > 0) {
                             if (userClearedVillageRef.current) {
                               userClearedVillageRef.current = false;
@@ -3421,30 +2894,16 @@ export default function OrderDetailPage() {
                             ? undefined
                             : "ابحث عن القرية أو المحافظة أو ID..."
                         }
-                        className="w-full pl-10 pr-10 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-[#FF9800] focus:border-transparent transition-all"
+                        className="flex-1 min-w-0 py-2.5 px-2 border-0 bg-transparent text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-gray-500 rounded-none focus:ring-0 focus:outline-none"
                         disabled={!canEditShipping()}
                         required
                         aria-label={canEditShipping() ? "بحث عن القرية" : "اختيار القرية غير متاح - الطلب عند شركة الشحن"}
                       />
-                      {(villageSearchQuery || selectedVillageId) && (
-                        <button
-                          type="button"
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            isUserTypingRef.current = false;
-                            userClearedVillageRef.current = true;
-                            setVillageSearchQuery('');
-                            setSelectedVillageId(null);
-                            setSelectedVillageIndex(-1);
-                            setShowVillageDropdown(false);
-                          }}
-                          className="absolute inset-y-0 left-0 pl-3 flex items-center hover:bg-gray-100 dark:hover:bg-slate-600 rounded-l-lg transition-colors z-10"
-                          aria-label="مسح"
-                        >
-                          <X className="w-4 h-4 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300" />
-                        </button>
-                      )}
+                        {/* Search icon - fixed width slot, responsive with field height */}
+                        <div className="flex-shrink-0 w-10 flex items-center justify-center min-w-[2.5rem] pointer-events-none text-gray-400 dark:text-gray-500 rounded-r-lg">
+                          <Search className="w-4 h-4 flex-shrink-0" />
+                        </div>
+                      </div>
                       
                       {/* Dropdown List - Rendered via Portal to prevent modal overflow clipping */}
                       {showVillageDropdown && filteredVillages.length > 0 && villageDropdownPos && typeof document !== 'undefined' && createPortal(
@@ -3474,11 +2933,10 @@ export default function OrderDetailPage() {
                               <button
                                 key={village.villageId}
                                 type="button"
-                                onClick={(e) => {
+                                onMouseDown={(e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
                                   isUserTypingRef.current = false;
-                                  // مسح القيمة القديمة واستبدالها فوراً بالقيمة الجديدة
                                   setSelectedVillageId(village.villageId);
                                   setVillageSearchQuery(village.villageName);
                                   setShippingCity(village.villageName);

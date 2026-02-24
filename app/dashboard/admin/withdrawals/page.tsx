@@ -20,6 +20,8 @@ import {
   Phone,
   Mail
 } from 'lucide-react';
+import { hasPermission, PERMISSIONS } from '@/lib/permissions';
+import ButtonLoader from '@/components/ui/ButtonLoader';
 
 interface WithdrawalRequest {
   _id: string;
@@ -94,7 +96,7 @@ export default function AdminWithdrawalsPage() {
       }
       return data;
     },
-    enabled: !!user && user.role === 'admin',
+    enabled: !!user && user.role === 'admin' && hasPermission(user, PERMISSIONS.WITHDRAWALS_VIEW),
     forceRefresh: false,
     onError: (error) => {
       toast.error(error.message || 'حدث خطأ في جلب طلبات السحب');
@@ -432,8 +434,8 @@ export default function AdminWithdrawalsPage() {
                     </div>
                   )}
                   
-                  {/* Action Buttons */}
-                  {withdrawal.status === 'pending' && (
+                  {/* Action Buttons - حسب withdrawals.process */}
+                  {withdrawal.status === 'pending' && hasPermission(user, PERMISSIONS.WITHDRAWALS_PROCESS) && (
                     <div className="flex flex-col sm:flex-row gap-2 mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200 dark:border-gray-700">
                       <Button
                         onClick={() => {
@@ -483,7 +485,7 @@ export default function AdminWithdrawalsPage() {
                     </div>
                   )}
                   
-                  {withdrawal.status === 'approved' && (
+                  {withdrawal.status === 'approved' && hasPermission(user, PERMISSIONS.WITHDRAWALS_PROCESS) && (
                     <div className="flex gap-2 mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200 dark:border-gray-700">
                       <Button
                         onClick={() => handleStatusUpdate(withdrawal._id, 'completed')}
@@ -507,24 +509,25 @@ export default function AdminWithdrawalsPage() {
         <div className="flex justify-center items-center gap-2 sm:gap-3 flex-wrap">
           <Button
             onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-            disabled={currentPage === 1}
+            disabled={currentPage === 1 || loading}
             variant="outline"
             size="sm"
-            className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 min-h-[44px] text-sm sm:text-base px-3 sm:px-4"
+            className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 min-h-[44px] text-sm sm:text-base px-3 sm:px-4 flex items-center gap-2"
           >
             السابق
           </Button>
           
-          <span className="flex items-center px-2 sm:px-3 py-1 text-xs sm:text-sm text-gray-700 dark:text-gray-300">
+          <span className="flex items-center gap-2 px-2 sm:px-3 py-1 text-xs sm:text-sm text-gray-700 dark:text-gray-300">
             صفحة {currentPage} من {totalPages}
+            {loading && <ButtonLoader variant="dark" size="sm" />}
           </span>
           
           <Button
             onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-            disabled={currentPage === totalPages}
+            disabled={currentPage === totalPages || loading}
             variant="outline"
             size="sm"
-            className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 min-h-[44px] text-sm sm:text-base px-3 sm:px-4"
+            className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 min-h-[44px] text-sm sm:text-base px-3 sm:px-4 flex items-center gap-2"
           >
             التالي
           </Button>

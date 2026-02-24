@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, type FieldErrors } from 'react-hook-form';
+import { hasPermission } from '@/lib/permissions';
 import { zodResolver } from '@hookform/resolvers/zod';
 import toast from 'react-hot-toast';
 import {
@@ -103,6 +104,8 @@ export function useProductForm({ mode, productId, user, onSuccess }: UseProductF
 
   const fetchSuppliers = useCallback(async () => {
     if (!isAdmin) return;
+    // صلاحيات دقيقة: جلب قائمة الموردين يتطلب users.view
+    if (user && !hasPermission(user as any, 'users.view')) return;
     try {
       const res = await fetch('/api/admin/users?role=supplier&status=active&limit=100');
       if (res.ok) {
@@ -114,7 +117,7 @@ export function useProductForm({ mode, productId, user, onSuccess }: UseProductF
     } catch {
       // silent
     }
-  }, [isAdmin]);
+  }, [isAdmin, user]);
 
   const fetchProduct = useCallback(async () => {
     if (mode !== 'edit' || !productId) return;

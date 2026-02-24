@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withRole } from '@/lib/auth';
+import { withPermission } from '@/lib/auth';
+import { PERMISSIONS } from '@/lib/permissions';
 import connectDB from '@/lib/database';
 import SystemSettings from '@/models/SystemSettings';
 import { settingsManager } from '@/lib/settings-manager';
@@ -583,6 +584,6 @@ async function updateAdminSettingsHandler(req: NextRequest, user: any) {
   }
 }
 
-// Apply rate limiting and authentication to admin settings endpoints
-export const GET = adminRateLimit(withRole(['admin'])(getAdminSettingsHandler));
-export const PUT = adminRateLimit(withRole(['admin'])(updateAdminSettingsHandler)); 
+// Apply rate limiting and permission check for admin settings
+export const GET = adminRateLimit(withPermission(PERMISSIONS.SETTINGS_MANAGE)(getAdminSettingsHandler));
+export const PUT = adminRateLimit(withPermission(PERMISSIONS.SETTINGS_MANAGE)(updateAdminSettingsHandler)); 

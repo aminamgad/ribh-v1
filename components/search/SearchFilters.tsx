@@ -4,7 +4,9 @@ import { useState, useEffect, useRef, useCallback, useMemo, memo, useTransition 
 import { Search, Filter, X, ChevronDown, Calendar, Download } from 'lucide-react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { hasPermission } from '@/lib/permissions';
 import MultiSelect from '@/components/ui/MultiSelect';
+import ButtonLoader from '@/components/ui/ButtonLoader';
 import toast from 'react-hot-toast';
 
 interface Category {
@@ -83,6 +85,7 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
   
   const [searchQuery, setSearchQuery] = useState(() => getParamValue('q'));
   const [categories, setCategories] = useState<Category[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(() => {
     const categoryParam = getParamValue('category');
     return categoryParam ? categoryParam.split(',').filter(Boolean) : [];
@@ -262,7 +265,8 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
   
   useEffect(() => {
     fetchCategories();
-    if (user?.role === 'admin') {
+    // صلاحيات دقيقة: جلب قائمة الموردين يتطلب users.view
+    if (user?.role === 'admin' && hasPermission(user as any, 'users.view')) {
       fetchSuppliers();
     }
     // Mark initial mount as complete after first render
@@ -270,7 +274,7 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
       isInitialMount.current = false;
     }, 100);
     return () => clearTimeout(timer);
-  }, [user?.role]);
+  }, [user?.role, user]);
 
   // Sync searchQuery from URL when it changes (e.g. from header search navigation)
   useEffect(() => {
@@ -473,13 +477,16 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
 
   const fetchCategories = async () => {
     try {
+      setLoadingCategories(true);
       const response = await fetch('/api/categories');
       if (response.ok) {
         const data = await response.json();
-        setCategories(data.categories);
+        setCategories(data.categories || []);
       }
     } catch (error) {
       // Silently handle errors
+    } finally {
+      setLoadingCategories(false);
     }
   };
 
@@ -497,10 +504,13 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
         
         setSuppliers(validSuppliers);
       } else {
-        toast.error('حدث خطأ أثناء جلب قائمة الموردين');
+        // لا نعرض خطأ عند 403 (عدم صلاحية) لأنه متوقع للموظف بدون users.view
+        if (response.status !== 403) {
+          toast.error('حدث خطأ أثناء جلب قائمة الموردين');
+        }
       }
     } catch (error) {
-      toast.error('حدث خطأ أثناء جلب قائمة الموردين');
+      // تجاهل الخطأ بصمت عند عدم الصلاحية
     } finally {
       setLoadingSuppliers(false);
     }
@@ -589,7 +599,10 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
     [searchQuery, selectedCategories, minPrice, maxPrice, selectedApprovalStatuses, user?.role, minStock, maxStock, selectedSuppliers, startDate, endDate, manuallyModified]
   );
 
+  const [exporting, setExporting] = useState(false);
+  
   const handleExport = async () => {
+    setExporting(true);
     try {
       const params = new URLSearchParams();
       
@@ -632,6 +645,8 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
       }
     } catch (error) {
       toast.error('حدث خطأ أثناء تصدير المنتجات');
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -725,10 +740,15 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
         <div className="flex justify-end">
           <button
             onClick={handleExport}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors"
+            disabled={exporting}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            <Download className="w-4 h-4" />
-            <span>تصدير Excel</span>
+            {exporting ? (
+              <ButtonLoader variant="light" size="sm" />
+            ) : (
+              <Download className="w-4 h-4" />
+            )}
+            <span>{exporting ? 'جاري التصدير...' : 'تصدير Excel'}</span>
           </button>
         </div>
       )}
@@ -789,6 +809,9 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
               <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                 الفئة
               </label>
+              {loadingCategories ? (
+                <div className="h-10 min-h-[44px] rounded-lg bg-gray-200 dark:bg-slate-700 animate-pulse" aria-hidden="true" />
+              ) : (
               <MultiSelect
                 options={categoryOptions}
                 selected={selectedCategories}
@@ -807,6 +830,7 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
                 }}
                 placeholder="جميع الفئات"
               />
+              )}
             </div>
 
             {/* Approval Status Filter - Admin Only */}
@@ -1001,7 +1025,8 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
                   </div>
                 </div>
 
-                {/* Suppliers Filter */}
+                {/* Suppliers Filter - يتطلب users.view */}
+                {user?.role === 'admin' && hasPermission(user as any, 'users.view') && (
                 <div className="mb-4">
                   <MultiSelect
                     options={supplierOptions}
@@ -1050,6 +1075,7 @@ function SearchFilters({ onSearch }: SearchFiltersProps) {
                     label="المورد"
                   />
                 </div>
+                )}
 
                 {/* Date Range Filter */}
                 <div>

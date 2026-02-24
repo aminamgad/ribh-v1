@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useDataCache } from '@/components/hooks/useDataCache';
-import { Search, Plus, Eye, CheckCircle, Truck, Package, Clock, DollarSign, Edit, X, RotateCcw, Download, Upload, Phone, Mail, MessageCircle, Printer, Trash2 } from 'lucide-react';
+import { Search, Plus, Eye, CheckCircle, Truck, Package, Clock, DollarSign, Edit, X, RotateCcw, Download, Upload, Phone, Mail, MessageCircle, Printer, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -15,6 +15,7 @@ import OrdersFilters from '@/components/orders/OrdersFilters';
 import BulkOrdersActions, { OrderCheckbox, SelectAllCheckbox } from '@/components/orders/BulkOrdersActions';
 import { OrderItem } from '@/types';
 import MediaThumbnail from '@/components/ui/MediaThumbnail';
+import { hasPermission, hasAnyOfPermissions, PERMISSIONS } from '@/lib/permissions';
 
 // Using the global OrderItem interface from types/index.ts
 
@@ -178,9 +179,6 @@ export default function OrdersPage() {
   // Export/Import modal states
   const [showExportModal, setShowExportModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
-  const [showDeleteOrderModal, setShowDeleteOrderModal] = useState(false);
-  const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
-  const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
 
   // Bulk operations state - with localStorage persistence
   // Bulk operations state - with localStorage persistence
@@ -269,34 +267,7 @@ export default function OrdersPage() {
     router.push(`/dashboard/orders/${order._id}?print=true`);
   };
 
-  const handleDeleteOrderClick = (order: Order) => {
-    setOrderToDelete(order);
-    setShowDeleteOrderModal(true);
-  };
-
-  const confirmDeleteOrderFromList = async () => {
-    if (!orderToDelete?._id) return;
-    setDeletingOrderId(orderToDelete._id);
-    try {
-      const res = await fetch(`/api/orders/${orderToDelete._id}`, { method: 'DELETE', credentials: 'include' });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.success) {
-        toast.success(data.message || 'تم حذف الطلب بنجاح');
-        setShowDeleteOrderModal(false);
-        setOrderToDelete(null);
-        refresh();
-      } else {
-        toast.error(data.error || 'فشل في حذف الطلب');
-      }
-    } catch {
-      toast.error('حدث خطأ أثناء حذف الطلب');
-    } finally {
-      setDeletingOrderId(null);
-    }
-  };
-
   const handleBulkPrint = (orderIds: string[]) => {
-    // Navigate to bulk print page with all order IDs
     const idsParam = orderIds.join(',');
     window.open(`/dashboard/orders/bulk-print?ids=${idsParam}`, '_blank');
     toast.success(`تم فتح ${orderIds.length} فاتورة للطباعة`);
@@ -304,20 +275,23 @@ export default function OrdersPage() {
 
   const handleBulkUpdate = async (action: string, data: any) => {
     try {
-      const response = await fetch('/api/admin/orders/manage', {
+      const isBulkDelete = action === 'delete';
+      const url = isBulkDelete ? '/api/admin/orders/bulk-delete' : '/api/admin/orders/manage';
+      const body = isBulkDelete
+        ? { orderIds: data.orderIds || [] }
+        : { ...data, action };
+
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...data,
-          action
-        }),
+        body: JSON.stringify(body),
       });
 
       if (response.ok) {
         const result = await response.json();
-        toast.success(result.message || 'تم تحديث الطلبات بنجاح');
+        toast.success(result.message || (isBulkDelete ? 'تم حذف الطلبات بنجاح' : 'تم تحديث الطلبات بنجاح'));
         refresh(); // Refresh orders list
       } else {
         const error = await response.json();
@@ -343,39 +317,56 @@ export default function OrdersPage() {
     }
   };
 
+  // رقم الصفحة الحالية وحد العرض (10 طلبات كحد أقصى)
+  const currentPage = useMemo(() => {
+    const p = new URLSearchParams(queryString || '').get('page');
+    const n = parseInt(p || '1', 10);
+    return isNaN(n) || n < 1 ? 1 : n;
+  }, [queryString]);
+
+  const ORDERS_PER_PAGE = 10;
+
   // Fetch function - use useCallback to ensure it uses latest queryString
   const fetchOrders = useCallback(async () => {
-    // Build proper query string - queryString is already formatted from URL
-    let apiQueryString = queryString;
+    const params = new URLSearchParams(queryString || '');
+    params.set('limit', String(ORDERS_PER_PAGE));
+    params.set('page', String(currentPage));
+    const apiQueryString = params.toString();
     
-    // Ensure it's properly formatted if not empty
-    if (queryString && queryString.trim()) {
-      // Parse and rebuild to ensure proper formatting
-      const params = new URLSearchParams(queryString);
-      apiQueryString = params.toString();
-    } else {
-      apiQueryString = '';
-    }
-    
-    const url = `/api/orders${apiQueryString ? `?${apiQueryString}` : ''}`;
+    const url = `/api/orders?${apiQueryString}`;
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error('Failed to fetch orders');
     }
     const data = await response.json();
     return data;
-  }, [queryString]);
+  }, [queryString, currentPage]);
 
   // Use cache hook for orders
-  const { data: ordersData, loading, refresh } = useDataCache<{ orders: Order[] }>({
+  // صلاحيات دقيقة: الأدمن يحتاج orders.view أو orders.manage لعرض قائمة الطلبات
+  const canViewOrders = !user || user.role !== 'admin' || hasAnyOfPermissions(user, [PERMISSIONS.ORDERS_VIEW, PERMISSIONS.ORDERS_MANAGE]);
+
+  const { data: ordersData, loading, refresh } = useDataCache<{ orders: Order[]; pagination?: { page: number; limit: number; total: number; pages: number } }>({
     key: cacheKey,
     fetchFn: fetchOrders,
-    enabled: !!user,
+    enabled: !!user && canViewOrders,
     forceRefresh: false
   });
 
   const orders = useMemo(() => ordersData?.orders || [], [ordersData?.orders]);
+  const pagination = ordersData?.pagination || { page: 1, limit: ORDERS_PER_PAGE, total: 0, pages: 0 };
   const searching = loading && orders.length > 0;
+
+  // الانتقال لصفحة معينة مع الحفاظ على الفلاتر
+  const goToPage = useCallback((page: number) => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(queryString || '');
+    params.set('page', String(page));
+    const newQuery = params.toString();
+    const newUrl = `/dashboard/orders${newQuery ? `?${newQuery}` : ''}`;
+    window.history.replaceState({ ...window.history.state, as: newUrl, url: newUrl }, '', newUrl);
+    window.dispatchEvent(new CustomEvent('urlchange', { detail: { query: newQuery } }));
+  }, [queryString]);
 
   // Clean up selected orders that no longer exist in the orders list
   useEffect(() => {
@@ -475,16 +466,16 @@ export default function OrdersPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-slate-100">
             {getRoleTitle()}
           </h1>
-          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1 sm:mt-2">
+          <p className="text-sm sm:text-base text-gray-600 dark:text-slate-400 mt-1 sm:mt-2">
             {getRoleDescription()}
           </p>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           {/* Export Button */}
-          {(user?.role === 'admin' || user?.role === 'supplier') && (
+          {(user?.role === 'supplier' || (user?.role === 'admin' && hasAnyOfPermissions(user, [PERMISSIONS.ORDERS_VIEW, PERMISSIONS.ORDERS_MANAGE]))) && (
             <button
               onClick={() => setShowExportModal(true)}
               className="btn-secondary flex items-center justify-center"
@@ -512,8 +503,8 @@ export default function OrdersPage() {
       {/* Filters */}
       <OrdersFilters onFiltersChange={handleFiltersChange} />
 
-      {/* Bulk Actions - Only for Admin */}
-      {user?.role === 'admin' && (
+      {/* Bulk Actions - Only for Admin with orders.manage */}
+      {user?.role === 'admin' && hasPermission(user, PERMISSIONS.ORDERS_MANAGE) && (
         <BulkOrdersActions
           orders={orders}
           selectedOrderIds={selectedOrderIds}
@@ -527,10 +518,46 @@ export default function OrdersPage() {
       )}
 
       {/* Orders List */}
-      {loading ? (
-        <div className="mobile-loading">
-          <div className="mobile-loading-spinner"></div>
-          <p className="text-gray-600 dark:text-gray-400 mt-4">جاري تحميل الطلبات...</p>
+      {loading && !ordersData ? (
+        /* Skeleton تحميل الطلبات */
+        <div className="card p-4 sm:p-6">
+          <div className="hidden lg:block">
+            <div className="animate-pulse space-y-4">
+              <div className="flex gap-4 py-3 border-b border-gray-200 dark:border-slate-700">
+                {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+                  <div key={i} className="h-4 flex-1 min-w-[60px] rounded bg-gray-200 dark:bg-slate-700" />
+                ))}
+              </div>
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((row) => (
+                <div key={row} className="flex gap-4 py-4 border-b border-gray-100 dark:border-slate-800">
+                  <div className="w-20 h-5 rounded bg-gray-200 dark:bg-slate-700 shrink-0" />
+                  <div className="flex-1 space-y-2 min-w-0">
+                    <div className="h-4 w-24 rounded bg-gray-200 dark:bg-slate-700" />
+                    <div className="h-3 w-16 rounded bg-gray-100 dark:bg-slate-600" />
+                  </div>
+                  <div className="flex-1 space-y-2 min-w-0">
+                    <div className="h-4 w-full max-w-[200px] rounded bg-gray-200 dark:bg-slate-700" />
+                  </div>
+                  <div className="w-16 h-5 rounded bg-gray-200 dark:bg-slate-700 shrink-0" />
+                  <div className="w-20 h-6 rounded-full bg-gray-200 dark:bg-slate-700 shrink-0" />
+                  <div className="w-24 h-5 rounded bg-gray-200 dark:bg-slate-700 shrink-0" />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="lg:hidden space-y-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="animate-pulse p-4 rounded-xl border border-gray-200 dark:border-slate-700">
+                <div className="flex justify-between mb-3">
+                  <div className="h-5 w-24 rounded bg-gray-200 dark:bg-slate-700" />
+                  <div className="h-6 w-16 rounded-full bg-gray-200 dark:bg-slate-700" />
+                </div>
+                <div className="h-4 w-32 rounded bg-gray-100 dark:bg-slate-600 mb-2" />
+                <div className="h-4 w-full rounded bg-gray-200 dark:bg-slate-700" />
+                <div className="h-10 w-full rounded-lg bg-gray-200 dark:bg-slate-700 mt-4" />
+              </div>
+            ))}
+          </div>
         </div>
       ) : searching ? (
         <div className="mobile-loading">
@@ -555,18 +582,17 @@ export default function OrdersPage() {
             <div className="overflow-x-auto w-full scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent">
               <table className="w-full bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-gray-100 dark:border-slate-700 overflow-hidden" style={{ minWidth: '100%', tableLayout: 'fixed' }}>
               <colgroup>
-                {user?.role === 'admin' && <col style={{ width: '50px' }} />}
-                <col style={{ width: '130px' }} />
+                {user?.role === 'admin' && hasPermission(user, PERMISSIONS.ORDERS_MANAGE) && <col style={{ width: '50px' }} />}
+                <col style={{ width: '150px' }} />
                 <col style={{ width: '200px' }} />
                 <col style={{ width: '280px' }} />
                 <col style={{ width: '120px' }} />
                 <col style={{ width: '140px' }} />
                 <col style={{ width: '140px' }} />
-                <col style={{ width: '180px' }} />
               </colgroup>
               <thead>
                 <tr className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-slate-800 dark:to-slate-700">
-                  {user?.role === 'admin' && (
+                  {user?.role === 'admin' && hasPermission(user, PERMISSIONS.ORDERS_MANAGE) && (
                     <th className="px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-200 bg-gradient-to-r from-gray-100 to-gray-50 dark:from-slate-800 dark:to-slate-700 sticky right-0 z-10 border-r-2 border-gray-300 dark:border-slate-600 shadow-[2px_0_4px_rgba(0,0,0,0.08)]">
                       <SelectAllCheckbox
                         allSelected={selectedOrderIds.length === orders.length && orders.length > 0}
@@ -588,7 +614,6 @@ export default function OrdersPage() {
                   <th className="px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-200 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-slate-800 dark:to-slate-700">المبلغ</th>
                   <th className="px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-200 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-slate-800 dark:to-slate-700">الحالة</th>
                   <th className="px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-200 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-slate-800 dark:to-slate-700 pr-4">التاريخ</th>
-                  <th className="px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-200 bg-gradient-to-l from-gray-100 to-gray-50 dark:from-slate-800 dark:to-slate-700 sticky left-0 z-20 border-l-2 border-gray-400 dark:border-slate-500 shadow-[-3px_0_6px_rgba(0,0,0,0.12)]">الإجراءات</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-slate-700/50">
@@ -605,7 +630,7 @@ export default function OrdersPage() {
                       }`}
                       onClick={() => router.push(`/dashboard/orders/${order._id}`)}
                     >
-                      {user?.role === 'admin' && (
+                      {user?.role === 'admin' && hasPermission(user, PERMISSIONS.ORDERS_MANAGE) && (
                         <td className={`px-3 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-slate-100 sticky right-0 z-10 border-r-2 border-gray-300 dark:border-slate-600 shadow-[2px_0_4px_rgba(0,0,0,0.08)] ${
                           isSelected ? 'bg-amber-50/80 dark:bg-amber-900/20' : 'bg-white dark:bg-slate-800'
                         }`}
@@ -627,15 +652,15 @@ export default function OrdersPage() {
                           </div>
                         </td>
                       )}
-                      <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-slate-100">
-                        <div className="flex items-center gap-2">
+                      <td className="px-3 py-3 text-sm text-gray-900 dark:text-slate-100 align-top">
+                        <div className="flex flex-col gap-1.5 min-w-0">
                           <span className="font-semibold text-gray-900 dark:text-gray-100">
                             {order.orderNumber}
                           </span>
                           {order.metadata?.source === 'easy_orders' && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-[#FF9800]/10 text-[#FF9800] dark:bg-[#FF9800]/20 dark:text-[#FF9800] border border-[#FF9800]/20">
-                              <span className="w-1.5 h-1.5 bg-[#FF9800] rounded-full"></span>
-                              EasyOrders
+                            <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] font-semibold w-fit bg-[#FF9800]/15 text-[#FF9800] dark:bg-[#FF9800]/25 dark:text-[#FFB74D] border border-[#FF9800]/25 dark:border-[#FF9800]/40 shrink-0">
+                              <span className="w-1.5 h-1.5 bg-[#FF9800] rounded-full shrink-0" aria-hidden />
+                              <span>EasyOrders</span>
                             </span>
                           )}
                         </div>
@@ -700,50 +725,6 @@ export default function OrdersPage() {
                       </td>
                       <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300 text-right pr-4 relative z-0 font-medium">
                         {new Date(order.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })}
-                      </td>
-                      <td className={`px-3 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-slate-100 sticky left-0 z-20 border-l-2 border-gray-400 dark:border-slate-500 shadow-[-3px_0_6px_rgba(0,0,0,0.12)] ${
-                        isSelected ? 'bg-blue-50 dark:bg-blue-900/30' : 'bg-white dark:bg-slate-800'
-                      }`}>
-                        <div className="flex items-center justify-start gap-2 flex-nowrap">
-                          <div
-                            className="p-2 text-[#FF9800] dark:text-[#FF9800] hover:bg-[#FF9800]/15 dark:hover:bg-[#FF9800]/25 rounded-lg transition-all duration-200 cursor-pointer flex-shrink-0 hover:scale-110 active:scale-95"
-                            title="عرض التفاصيل"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </div>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleWhatsAppContact(order);
-                            }}
-                            className="p-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 rounded-lg transition-all duration-200 flex-shrink-0 hover:scale-110 active:scale-95"
-                            title="تواصل عبر واتساب"
-                          >
-                            <MessageCircle className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handlePrintInvoice(order);
-                            }}
-                            className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-all duration-200 flex-shrink-0 hover:scale-110 active:scale-95"
-                            title="طباعة الفاتورة"
-                          >
-                            <Printer className="w-4 h-4" />
-                          </button>
-                          {user?.role === 'admin' && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteOrderClick(order);
-                              }}
-                              className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all duration-200 flex-shrink-0 hover:scale-110 active:scale-95"
-                              title="حذف الطلب"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
                       </td>
                     </tr>
                   );
@@ -841,99 +822,67 @@ export default function OrdersPage() {
                       </div>
                     </div>
 
-                    {/* Actions */}
-                    <div className="mobile-actions pt-2 border-t border-gray-200 dark:border-slate-700">
+                    {/* الإجراءات السريعة */}
+                    <div className="mobile-actions pt-2 border-t border-gray-200 dark:border-slate-700 flex gap-2">
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          router.push(`/dashboard/orders/${order._id}`);
-                        }}
-                        className="btn-primary flex-1 flex items-center justify-center min-h-[44px] text-sm sm:text-base font-medium"
+                        onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/orders/${order._id}`); }}
+                        className="btn-primary flex-1 flex items-center justify-center min-h-[44px] text-sm font-medium"
                       >
-                        <Eye className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
-                        عرض التفاصيل
+                        <Eye className="w-4 h-4 ml-2" />
+                        عرض
                       </button>
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleWhatsAppContact(order);
-                        }}
-                        className="btn-success flex items-center justify-center min-w-[44px] min-h-[44px] px-3 sm:px-4"
-                        title="تواصل عبر واتساب"
+                        onClick={(e) => { e.stopPropagation(); handleWhatsAppContact(order); }}
+                        className="btn-success flex items-center justify-center min-w-[44px] min-h-[44px] px-3"
+                        title="واتساب"
                       >
-                        <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                        <MessageCircle className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handlePrintInvoice(order);
-                        }}
-                        className="btn-secondary flex items-center justify-center min-w-[44px] min-h-[44px] px-3 sm:px-4"
-                        title="طباعة الفاتورة"
+                        onClick={(e) => { e.stopPropagation(); handlePrintInvoice(order); }}
+                        className="btn-secondary flex items-center justify-center min-w-[44px] min-h-[44px] px-3"
+                        title="طباعة"
                       >
-                        <Printer className="w-4 h-4 sm:w-5 sm:h-5" />
+                        <Printer className="w-4 h-4" />
                       </button>
-                      {user?.role === 'admin' && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteOrderClick(order);
-                          }}
-                          className="btn-danger flex items-center justify-center min-w-[44px] min-h-[44px] px-3 sm:px-4"
-                          title="حذف الطلب"
-                        >
-                          <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
-                        </button>
-                      )}
                     </div>
                   </div>
                 </div>
               );
             })}
           </div>
-        </div>
-      )}
 
-      {/* Delete Order Confirm Modal (admin) */}
-      {showDeleteOrderModal && orderToDelete && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6 border-2 border-gray-200 dark:border-slate-700">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
-                <Trash2 className="w-5 h-5 text-red-600 dark:text-red-400" />
+          {/* Pagination وعرض العدد */}
+          {pagination.total > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 sm:pt-6 border-t border-gray-200 dark:border-slate-700">
+              <p className="text-sm text-gray-600 dark:text-slate-400 order-2 sm:order-1">
+                عرض {pagination.total > 0 ? `${Math.min((pagination.page - 1) * pagination.limit + 1, pagination.total)}–${Math.min(pagination.page * pagination.limit, pagination.total)} من ${pagination.total}` : '0'} طلب
+              </p>
+              <div className="flex items-center gap-2 order-1 sm:order-2">
+                <button
+                  type="button"
+                  onClick={() => goToPage(pagination.page - 1)}
+                  disabled={pagination.page <= 1 || loading || pagination.pages <= 1}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-200 font-medium hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all min-h-[44px]"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                  السابق
+                </button>
+                <span className="px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-slate-200 bg-gray-100 dark:bg-slate-700 rounded-xl min-h-[44px] flex items-center">
+                  صفحة {pagination.page} من {pagination.pages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => goToPage(pagination.page + 1)}
+                  disabled={pagination.page >= pagination.pages || loading || pagination.pages <= 1}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-[#4CAF50]/50 bg-[#4CAF50]/10 dark:bg-[#4CAF50]/20 text-[#2E7D32] dark:text-[#4CAF50] font-medium hover:bg-[#4CAF50]/20 dark:hover:bg-[#4CAF50]/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all min-h-[44px]"
+                >
+                  التالي
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">حذف الطلب</h3>
             </div>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              هل أنت متأكد من حذف الطلب <strong className="text-gray-900 dark:text-slate-100">#{orderToDelete.orderNumber}</strong>؟ لا يمكن التراجع عن هذا الإجراء.
-            </p>
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => { setShowDeleteOrderModal(false); setOrderToDelete(null); }}
-                disabled={!!deletingOrderId}
-                className="btn-secondary"
-              >
-                إلغاء
-              </button>
-              <button
-                onClick={confirmDeleteOrderFromList}
-                disabled={!!deletingOrderId}
-                className="btn-danger flex items-center gap-2"
-              >
-                {deletingOrderId === orderToDelete._id ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    جاري الحذف...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="w-4 h-4" />
-                    حذف الطلب
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
+          )}
         </div>
       )}
 

@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { hasPermission, hasAnyOfPermissions, PERMISSIONS } from '@/lib/permissions';
 import { 
   MessageSquare, 
   CheckCircle, 
@@ -44,6 +46,7 @@ interface Message {
 
 export default function AdminMessagesPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
@@ -69,8 +72,17 @@ export default function AdminMessagesPage() {
     }
   }, [filter]);
 
+  // حارس الوصول: الأدمن يحتاج messages.view أو messages.moderate لعرض إدارة الرسائل
   useEffect(() => {
-    if (user?.role === 'admin') {
+    if (!user || user.role !== 'admin') return;
+    const canAccess = hasAnyOfPermissions(user, [PERMISSIONS.MESSAGES_VIEW, PERMISSIONS.MESSAGES_MODERATE]);
+    if (!canAccess) {
+      router.replace('/dashboard');
+    }
+  }, [user, router]);
+
+  useEffect(() => {
+    if (user?.role === 'admin' && hasAnyOfPermissions(user, [PERMISSIONS.MESSAGES_VIEW, PERMISSIONS.MESSAGES_MODERATE])) {
       fetchMessages();
     }
   }, [user, filter, fetchMessages]);
@@ -183,8 +195,8 @@ export default function AdminMessagesPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100 mb-2">إدارة الرسائل</h1>
-            <p className="text-gray-600 dark:text-slate-400">مراقبة وإدارة جميع الرسائل في النظام</p>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100 mb-2">مراجعة رسائل المنتجات</h1>
+            <p className="text-gray-600 dark:text-slate-400">اعتماد أو رفض رسائل الاستفسار بين المسوقين والموردين</p>
           </div>
           <button
             onClick={fetchMessages}
@@ -263,16 +275,16 @@ export default function AdminMessagesPage() {
                       <div className="flex items-center space-x-4 space-x-reverse mb-3 text-sm text-gray-600 dark:text-slate-400">
                         <div className="flex items-center">
                           <User className="w-4 h-4 ml-1" />
-                          <span>من: {message.senderId.name} ({message.senderId.role})</span>
+                          <span>من: {message.senderId?.name ?? 'غير محدد'} ({message.senderId?.role ?? '—'})</span>
                         </div>
                         <div className="flex items-center">
                           <User className="w-4 h-4 ml-1" />
-                          <span>إلى: {message.receiverId.name} ({message.receiverId.role})</span>
+                          <span>إلى: {message.receiverId?.name ?? 'غير محدد'} ({message.receiverId?.role ?? '—'})</span>
                         </div>
                         {message.productId && (
                           <div className="flex items-center">
                             <Package className="w-4 h-4 ml-1" />
-                            <span>المنتج: {message.productId.name}</span>
+                            <span>المنتج: {message.productId?.name ?? 'غير محدد'}</span>
                           </div>
                         )}
                       </div>
@@ -353,13 +365,13 @@ export default function AdminMessagesPage() {
                   <div>
                     <h3 className="font-semibold text-gray-900 dark:text-slate-100 mb-2">المرسل</h3>
                     <p className="text-gray-700 dark:text-slate-300">
-                      {selectedMessage.senderId.name} ({selectedMessage.senderId.role})
+                      {selectedMessage.senderId?.name ?? 'غير محدد'} ({selectedMessage.senderId?.role ?? '—'})
                     </p>
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900 dark:text-slate-100 mb-2">المستلم</h3>
                     <p className="text-gray-700 dark:text-slate-300">
-                      {selectedMessage.receiverId.name} ({selectedMessage.receiverId.role})
+                      {selectedMessage.receiverId?.name ?? 'غير محدد'} ({selectedMessage.receiverId?.role ?? '—'})
                     </p>
                   </div>
                 </div>
@@ -367,7 +379,7 @@ export default function AdminMessagesPage() {
                 {selectedMessage.productId && (
                   <div>
                     <h3 className="font-semibold text-gray-900 dark:text-slate-100 mb-2">المنتج</h3>
-                    <p className="text-gray-700 dark:text-slate-300">{selectedMessage.productId.name}</p>
+                    <p className="text-gray-700 dark:text-slate-300">{selectedMessage.productId?.name ?? 'غير محدد'}</p>
                   </div>
                 )}
 
@@ -407,7 +419,7 @@ export default function AdminMessagesPage() {
 
                 <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-slate-700">
                   <div className="flex items-center space-x-2 space-x-reverse">
-                    {selectedMessage.isApproved === null || selectedMessage.isApproved === undefined ? (
+                    {(selectedMessage.isApproved === null || selectedMessage.isApproved === undefined) && hasPermission(user!, PERMISSIONS.MESSAGES_MODERATE) ? (
                       <>
                         <button
                           onClick={() => handleApproveMessage(selectedMessage._id)}
@@ -424,9 +436,13 @@ export default function AdminMessagesPage() {
                           رفض
                         </button>
                       </>
-                    ) : (
+                    ) : (selectedMessage.isApproved !== null && selectedMessage.isApproved !== undefined) ? (
                       <span className="text-sm text-gray-500 dark:text-slate-400">
                         تم {selectedMessage.isApproved ? 'اعتماد' : 'رفض'} هذه الرسالة
+                      </span>
+                    ) : (
+                      <span className="text-sm text-gray-500 dark:text-slate-400">
+                        يتطلب صلاحية الموافقة على الرسائل
                       </span>
                     )}
                   </div>

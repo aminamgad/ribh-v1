@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withRole } from '@/lib/auth';
+import { withPermission } from '@/lib/auth';
+import { PERMISSIONS } from '@/lib/permissions';
+import { isValidPermission } from '@/lib/permissions';
 import connectDB from '@/lib/database';
 import User from '@/models/User';
 import Product from '@/models/Product';
@@ -33,7 +35,13 @@ async function getUsers(req: NextRequest, user: any) {
     
     // Filters
     if (role) {
-      query.role = role;
+      if (role === 'staff_admin') {
+        query.role = 'admin';
+        query.isStaff = true;
+        query.staffRole = 'custom';
+      } else {
+        query.role = role;
+      }
     }
     
     if (status === 'active') {
@@ -122,9 +130,25 @@ async function createUser(req: NextRequest, user: any) {
       phone: body.phone,
       password: body.password, // Don't hash here - let the model handle it
       role: body.role,
-      isActive: body.isActive,
-      isVerified: body.isVerified
+      isActive: body.isActive ?? true,
+      isVerified: body.isVerified ?? false,
     };
+
+    // موظف إدارة: isStaff, staffRole, permissions
+    if (body.role === 'admin' && body.isStaff) {
+      userData.isStaff = true;
+      userData.staffRole = body.staffRole === 'custom' ? 'custom' : 'full_admin';
+      if (userData.staffRole === 'custom' && Array.isArray(body.permissions)) {
+        userData.permissions = body.permissions.filter((p: string) => isValidPermission(p));
+      } else {
+        userData.permissions = undefined;
+      }
+    } else if (body.role === 'admin') {
+      // مدير نظام كامل (ليس موظفاً بصلاحيات محددة)
+      userData.isStaff = false;
+      userData.staffRole = undefined;
+      userData.permissions = undefined;
+    }
 
     // Auto-verify wholesaler accounts created by admin
     if (body.role === 'wholesaler') {
@@ -158,39 +182,25 @@ async function createUser(req: NextRequest, user: any) {
     const newUser = new User(userData);
     await newUser.save();
 
-    // Send notification to all admins about new user
+    // Send notification to admins with users.view permission only
     try {
-      // Get all admin users (excluding the current admin who created the user)
-      const adminUsers = await User.find({ 
-        role: 'admin', 
-        _id: { $ne: user._id } 
-      }).select('_id name').lean();
-      
-      // Create notification for each admin
-      const Notification = (await import('@/models/Notification')).default;
-      const notificationPromises = adminUsers.map(admin => 
-        Notification.create({
-          userId: admin._id,
+      const { sendNotificationToAdminsWithPermission } = await import('@/lib/notifications');
+      await sendNotificationToAdminsWithPermission(
+        PERMISSIONS.USERS_VIEW,
+        {
           title: 'مستخدم جديد',
           message: `تم إنشاء مستخدم جديد "${newUser.name}" بدور ${getRoleLabel(newUser.role)} من قبل ${user.name}`,
           type: 'info',
           actionUrl: '/dashboard/admin/users',
           metadata: { 
-            userId: newUser._id, 
+            userId: newUser._id?.toString?.() || String(newUser._id), 
             userRole: newUser.role,
-            createdBy: user._id,
+            createdBy: user._id?.toString?.() || String(user._id),
             createdByName: user.name
           }
-        })
+        },
+        { excludeUserId: user._id?.toString?.() || String(user._id) }
       );
-      
-      await Promise.all(notificationPromises);
-      logger.info('Notifications sent to admins for new user', {
-        adminCount: adminUsers.length,
-        newUserName: newUser.name,
-        newUserRole: newUser.role
-      });
-      
     } catch (error) {
       logger.error('Error sending notifications to admins', error, { newUserId: newUser._id });
     }
@@ -217,5 +227,5 @@ async function createUser(req: NextRequest, user: any) {
   }
 }
 
-export const GET = withRole(['admin'])(getUsers);
-export const POST = withRole(['admin'])(createUser); 
+export const GET = withPermission(PERMISSIONS.USERS_VIEW)(getUsers);
+export const POST = withPermission(PERMISSIONS.USERS_CREATE)(createUser); 

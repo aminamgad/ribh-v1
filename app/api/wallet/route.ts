@@ -158,39 +158,26 @@ async function requestWithdrawal(req: NextRequest, user: any) {
       }
     );
 
-    // Send notification to admins about withdrawal request
+    // Send notification to admins with withdrawals.view permission only
     try {
-      // Get all admin users
-      const User = (await import('@/models/User')).default;
-      const adminUsers = await User.find({ role: 'admin' }).select('_id name').lean();
-      
-      // Create notification for each admin
-      const Notification = (await import('@/models/Notification')).default;
-      const notificationPromises = adminUsers.map(admin => 
-        Notification.create({
-          userId: admin._id,
+      const { sendNotificationToAdminsWithPermission } = await import('@/lib/notifications');
+      await sendNotificationToAdminsWithPermission(
+        'withdrawals.view',
+        {
           title: 'طلب سحب جديد',
           message: `طلب سحب جديد بقيمة ${amount} ₪ من ${user.name}`,
           type: 'info',
           actionUrl: '/dashboard/wallet',
           metadata: { 
-            userId: user._id,
+            userId: user._id.toString(),
             userName: user.name,
             withdrawalAmount: amount,
             feeAmount,
             totalAmount: totalWithdrawal,
-            transactionId: transaction._id
+            transactionId: transaction._id.toString()
           }
-        })
+        }
       );
-      
-      await Promise.all(notificationPromises);
-      logger.info('Notifications sent to admins for withdrawal request', {
-        adminCount: adminUsers.length,
-        amount,
-        userId: user._id
-      });
-      
     } catch (error) {
       logger.error('Error sending notifications to admins', error, { userId: user._id });
     }

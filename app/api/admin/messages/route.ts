@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withRole } from '@/lib/auth';
+import { withRole, userHasPermission } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import Message from '@/models/Message';
 import Product from '@/models/Product'; // Import Product model for population
@@ -12,6 +12,12 @@ export const dynamic = 'force-dynamic';
 // GET /api/admin/messages - Get all messages with filtering
 async function getMessages(req: NextRequest, user: any) {
   try {
+    if (!userHasPermission(user, 'messages.view') && !userHasPermission(user, 'messages.moderate')) {
+      return NextResponse.json(
+        { error: 'غير مصرح لك بعرض الرسائل' },
+        { status: 403 }
+      );
+    }
     await connectDB();
     
     const { searchParams } = new URL(req.url);

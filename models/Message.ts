@@ -71,10 +71,12 @@ messageSchema.index({ receiverId: 1, isRead: 1, createdAt: -1 }); // For unread 
 messageSchema.index({ isApproved: 1, createdAt: -1 }); // For admin pending messages
 messageSchema.index({ productId: 1, isApproved: 1 }); // For product messages
 
-// Virtual for conversation ID
+// Virtual for conversation ID (يتعامل مع receiverId الفارغ)
 messageSchema.virtual('conversationId').get(function() {
-  const ids = [this.senderId.toString(), this.receiverId.toString()].sort();
-  return `${ids[0]}-${ids[1]}`;
+  const senderStr = this.senderId?.toString?.() ?? '';
+  const receiverStr = this.receiverId?.toString?.() ?? '';
+  const ids = [senderStr, receiverStr].filter(Boolean).sort();
+  return ids.length >= 2 ? `${ids[0]}-${ids[1]}` : senderStr || receiverStr || '';
 });
 
 // Static method to find conversations

@@ -53,6 +53,7 @@
   @apply bg-gradient-to-r from-[#FF9800] to-[#F57C00] bg-clip-text text-transparent;
 }
 
+
 /* دعم تقليل الحركة - accessibility */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -576,6 +577,10 @@ body::after {
   /* Mobile-optimized Card, Table, and Input Enhancements */
   .card {
     @apply bg-white/80 dark:bg-slate-800/95 dark:text-slate-100 backdrop-blur-sm rounded-lg sm:rounded-xl shadow-lg border border-gray-200/50 dark:border-slate-700/70 p-3 sm:p-4 md:p-6 transition-all duration-300 hover:shadow-xl dark:hover:shadow-slate-900/30;
+    text-align: start !important;
+    word-spacing: normal !important;
+    letter-spacing: normal !important;
+    text-justify: auto !important;
   }
   
   @media (min-width: 640px) {
@@ -699,6 +704,11 @@ body::after {
 
   .btn-secondary-solid {
     @apply inline-flex items-center justify-center px-4 py-2.5 text-sm font-semibold rounded-lg shadow-md text-white bg-gradient-to-r from-[#4CAF50] via-[#388E3C] to-[#2E7D32] hover:from-[#388E3C] hover:via-[#2E7D32] hover:to-[#1B5E20] focus:outline-none focus:ring-2 focus:ring-[#4CAF50] focus:ring-offset-2 dark:focus:ring-offset-slate-800 transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-[#4CAF50]/25 dark:shadow-[#4CAF50]/20 dark:from-[#4CAF50] dark:via-[#388E3C] dark:to-[#2E7D32] dark:hover:from-[#388E3C] dark:hover:via-[#2E7D32] dark:hover:to-[#1B5E20];
+  }
+
+  /* Export button - polished green style for تصدير actions */
+  .btn-export {
+    @apply inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl text-white bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 shadow-md shadow-emerald-500/25 hover:shadow-lg hover:shadow-emerald-500/30 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2 dark:focus:ring-offset-slate-800 transition-all duration-200 active:scale-[0.98];
   }
   
   @media (min-width: 640px) {

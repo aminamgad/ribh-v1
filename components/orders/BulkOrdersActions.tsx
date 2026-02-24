@@ -12,7 +12,8 @@ import {
   XCircle,
   AlertCircle,
   Save,
-  Search
+  Search,
+  Trash2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -515,7 +516,7 @@ export default function BulkOrdersActions({
     }
 
     // Actions that need a modal
-    if (['ship', 'update-shipping', 'cancel', 'return'].includes(action)) {
+    if (['ship', 'update-shipping', 'cancel', 'return', 'delete'].includes(action)) {
       setSelectedAction(action);
       setShowBulkModal(true);
       return;
@@ -907,6 +908,8 @@ export default function BulkOrdersActions({
         return Array.from(statuses).every(s => !['cancelled', 'delivered', 'returned'].includes(s));
       case 'return':
         return Array.from(statuses).every(s => ['shipped', 'delivered'].includes(s));
+      case 'delete':
+        return user?.role === 'admin';
       default:
         return true;
     }
@@ -1021,6 +1024,17 @@ export default function BulkOrdersActions({
                   إرجاع ({selectedCount})
                 </button>
               )}
+
+              {canPerformAction('delete') && (
+                <button
+                  onClick={() => handleBulkAction('delete')}
+                  disabled={processing || isLoading}
+                  className="btn-danger text-sm px-3 py-1.5 flex items-center"
+                >
+                  <Trash2 className="w-4 h-4 ml-1" />
+                  حذف ({selectedCount})
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1038,6 +1052,7 @@ export default function BulkOrdersActions({
                   {selectedAction === 'update-shipping' && 'تحديث معلومات الشحن'}
                   {selectedAction === 'cancel' && 'إلغاء الطلبات'}
                   {selectedAction === 'return' && 'إرجاع الطلبات'}
+                  {selectedAction === 'delete' && 'حذف الطلبات'}
                 </h3>
                 <button
                   onClick={() => {
@@ -2184,6 +2199,49 @@ export default function BulkOrdersActions({
                         <>
                           <RotateCcw className="w-4 h-4 ml-2" />
                           إرجاع ({selectedCount})
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Delete Action Form */}
+              {selectedAction === 'delete' && (
+                <div className="space-y-4">
+                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 flex items-start">
+                    <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 ml-2 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm text-red-800 dark:text-red-300">
+                      <p className="font-semibold mb-1">تنبيه: هذا الإجراء نهائي ولا يمكن التراجع عنه</p>
+                      <p>سيتم حذف {selectedCount} طلب بشكل دائم، بما في ذلك عكس الأرباح الموزعة وإرجاع المخزون إن وُجد. هل أنت متأكد؟</p>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end space-x-3 space-x-reverse pt-4">
+                    <button
+                      onClick={() => {
+                        setShowBulkModal(false);
+                        setSelectedAction(null);
+                      }}
+                      disabled={processing}
+                      className="btn-secondary"
+                    >
+                      إلغاء
+                    </button>
+                    <button
+                      onClick={() => executeBulkAction('delete')}
+                      disabled={processing}
+                      className="btn-danger flex items-center"
+                    >
+                      {processing ? (
+                        <>
+                          <div className="loading-spinner w-4 h-4 ml-2"></div>
+                          جاري الحذف...
+                        </>
+                      ) : (
+                        <>
+                          <Trash2 className="w-4 h-4 ml-2" />
+                          حذف ({selectedCount})
                         </>
                       )}
                     </button>

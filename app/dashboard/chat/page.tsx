@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { hasAnyOfPermissions, hasPermission, PERMISSIONS } from '@/lib/permissions';
 import { useChat } from '@/components/providers/ChatProvider';
 import { format } from 'date-fns';
 import { enUS } from 'date-fns/locale';
@@ -36,6 +38,7 @@ interface NewChatForm {
 
 export default function ChatPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const {
     chats,
     currentChat,
@@ -110,15 +113,24 @@ export default function ChatPage() {
 
   const fetchUsers = useCallback(async () => {
     try {
-      const response = await fetch('/api/admin/users');
+      const response = await fetch('/api/chat/users');
       if (response.ok) {
         const data = await response.json();
-        setUsers(data.users.filter((u: any) => u._id !== user?._id));
+        setUsers(data.users || []);
       }
     } catch (error) {
       // Silently handle errors
     }
-  }, [user?._id]);
+  }, []);
+
+  // حارس الوصول: الأدمن يحتاج messages.view أو messages.reply أو messages.moderate لعرض المحادثات
+  useEffect(() => {
+    if (!user || user.role !== 'admin') return;
+    const canAccess = hasAnyOfPermissions(user, [PERMISSIONS.MESSAGES_VIEW, PERMISSIONS.MESSAGES_REPLY, PERMISSIONS.MESSAGES_MODERATE]);
+    if (!canAccess) {
+      router.replace('/dashboard');
+    }
+  }, [user, router]);
 
   // Fetch users for admin
   useEffect(() => {
@@ -243,7 +255,8 @@ export default function ChatPage() {
   };
 
   const getMessageStatus = (message: any) => {
-    if (message.senderId._id !== user?._id) return null;
+    const senderId = (message.senderId as any)?._id ?? (message.senderId as any);
+    if (!senderId || String(senderId) !== String(user?._id)) return null;
     
     if (message.isRead) {
       return <CheckCheck className="w-3 h-3 text-[#4CAF50]" />;
@@ -271,9 +284,12 @@ export default function ChatPage() {
         {/* Header */}
         <div className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 p-3 sm:p-4">
           <div className="flex items-center justify-between mb-3 sm:mb-4">
-            <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-slate-100">
-              المحادثات
-            </h2>
+            <div>
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-slate-100">
+                محادثات الدعم
+              </h2>
+              <p className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400 mt-0.5">محادثات مباشرة مع الإدارة (بدون مراجعة)</p>
+            </div>
             <div className="flex items-center gap-1.5 sm:gap-2">
               <button
                 onClick={() => fetchChats()}
@@ -281,6 +297,7 @@ export default function ChatPage() {
               >
                 تحديث
               </button>
+              {(user?.role !== 'admin' || hasPermission(user, PERMISSIONS.MESSAGES_REPLY) || hasPermission(user, PERMISSIONS.MESSAGES_MODERATE)) && (
               <button
                 onClick={() => setShowNewChat(true)}
                 className="btn-primary text-xs sm:text-sm min-h-[36px] sm:min-h-[44px] px-2 sm:px-3"
@@ -288,6 +305,7 @@ export default function ChatPage() {
                 <span className="hidden sm:inline">محادثة جديدة</span>
                 <span className="sm:hidden">جديدة</span>
               </button>
+              )}
             </div>
           </div>
 
@@ -547,8 +565,8 @@ export default function ChatPage() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Message Input */}
-            {currentChat.status === 'active' ? (
+            {/* Message Input - الأدمن يحتاج messages.reply أو messages.moderate للإرسال */}
+            {currentChat.status === 'active' && (user?.role !== 'admin' || hasPermission(user, PERMISSIONS.MESSAGES_REPLY) || hasPermission(user, PERMISSIONS.MESSAGES_MODERATE)) ? (
               <div className="bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 p-2 sm:p-4 safe-area-bottom">
                 <div className="flex items-end gap-1.5 sm:gap-2">
                   <button
@@ -586,14 +604,21 @@ export default function ChatPage() {
                   </button>
                 </div>
               </div>
-            ) : (
+            ) : currentChat.status === 'active' && user?.role === 'admin' && !hasPermission(user, PERMISSIONS.MESSAGES_REPLY) && !hasPermission(user, PERMISSIONS.MESSAGES_MODERATE) ? (
+              <div className="bg-gray-800/50 border-t border-slate-700 p-3 sm:p-4 safe-area-bottom">
+                <div className="flex items-center gap-1.5 sm:gap-2 text-slate-400">
+                  <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                  <span className="text-xs sm:text-sm">يتطلب صلاحية الرد على الرسائل للإرسال</span>
+                </div>
+              </div>
+            ) : currentChat.status !== 'active' ? (
               <div className="bg-yellow-900/20 border-t border-yellow-800 p-3 sm:p-4 safe-area-bottom">
                 <div className="flex items-center gap-1.5 sm:gap-2 text-yellow-200">
                   <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
                   <span className="text-xs sm:text-sm">هذه المحادثة مغلقة</span>
                 </div>
               </div>
-            )}
+            ) : null}
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center p-4">
@@ -605,12 +630,14 @@ export default function ChatPage() {
               <p className="text-xs sm:text-sm text-slate-400 mb-3 sm:mb-4">
                 اختر محادثة من القائمة أو ابدأ محادثة جديدة
               </p>
+              {(user?.role !== 'admin' || hasPermission(user, PERMISSIONS.MESSAGES_REPLY) || hasPermission(user, PERMISSIONS.MESSAGES_MODERATE)) && (
               <button
                 onClick={() => setShowNewChat(true)}
                 className="btn-primary min-h-[44px] text-sm sm:text-base px-4 sm:px-6"
               >
                 بدء محادثة جديدة
               </button>
+              )}
             </div>
           </div>
         )}

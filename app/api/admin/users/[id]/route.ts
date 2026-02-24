@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withRole } from '@/lib/auth';
+import { withPermission } from '@/lib/auth';
+import { PERMISSIONS } from '@/lib/permissions';
+import { isValidPermission } from '@/lib/permissions';
 import connectDB from '@/lib/database';
 import User from '@/models/User';
 import Product from '@/models/Product';
@@ -111,6 +113,9 @@ async function updateUser(req: NextRequest, user: any, ...args: unknown[]) {
     if (params.id === user._id.toString()) {
       delete body.role;
       delete body.isActive;
+      delete body.isStaff;
+      delete body.staffRole;
+      delete body.permissions;
     }
 
     // Prepare update data based on role
@@ -122,6 +127,17 @@ async function updateUser(req: NextRequest, user: any, ...args: unknown[]) {
       isActive: body.isActive,
       isVerified: body.isVerified
     };
+
+    // صلاحيات الموظف (عند تعديل مستخدم إدارة)
+    if (body.role === 'admin' && body.isStaff !== undefined) {
+      updateData.isStaff = !!body.isStaff;
+      updateData.staffRole = body.staffRole === 'custom' ? 'custom' : 'full_admin';
+      if (updateData.staffRole === 'custom' && Array.isArray(body.permissions)) {
+        updateData.permissions = body.permissions.filter((p: string) => isValidPermission(p));
+      } else {
+        updateData.permissions = undefined;
+      }
+    }
 
     // Add marketing-specific fields
     if (body.role === 'marketer') {
@@ -222,6 +238,6 @@ async function deleteUser(req: NextRequest, user: any, ...args: unknown[]) {
   }
 }
 
-export const GET = withRole(['admin'])(getUserDetail);
-export const PUT = withRole(['admin'])(updateUser);
-export const DELETE = withRole(['admin'])(deleteUser); 
+export const GET = withPermission(PERMISSIONS.USERS_VIEW)(getUserDetail);
+export const PUT = withPermission(PERMISSIONS.USERS_UPDATE)(updateUser);
+export const DELETE = withPermission(PERMISSIONS.USERS_UPDATE)(deleteUser); 

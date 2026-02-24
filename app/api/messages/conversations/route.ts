@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/lib/auth';
+import { withAuth, userHasAnyPermission } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import Message from '@/models/Message';
 import User from '@/models/User'; // Import User model for population
@@ -13,16 +13,25 @@ async function getConversations(req: NextRequest, user: any) {
     
     logger.apiRequest('GET', '/api/messages/conversations', { userId: user._id, role: user.role });
     
-    // Get conversations with approved messages only
-    // Let's try a simpler approach first - get all messages for this user
-    const allMessages = await Message.find({
-      $or: [
+    // الأدمن يعرض جميع الرسائل المعتمدة (مع صلاحية رسائل)
+    const isAdminViewAll = user.role === 'admin' && userHasAnyPermission(user, ['messages.view', 'messages.moderate']);
+    
+    const query: any = {
+      isApproved: true
+    };
+    
+    if (isAdminViewAll) {
+      // الأدمن: عرض جميع الرسائل المعتمدة (بما فيها ذات receiverId فارغ)
+    } else {
+      // غير الأدمن: عرض رسائل المستخدم فقط (مرسل أو مستلم)، واستبعاد receiverId الفارغ
+      query.$or = [
         { senderId: user._id },
         { receiverId: user._id }
-      ],
-      isApproved: true,
-      receiverId: { $ne: null }
-    })
+      ];
+      query.receiverId = { $ne: null };
+    }
+    
+    const allMessages = await Message.find(query)
     .populate('senderId', 'name role')
     .populate('receiverId', 'name role')
     .sort({ createdAt: -1 });
@@ -33,12 +42,13 @@ async function getConversations(req: NextRequest, user: any) {
     const conversationMap = new Map();
     
     allMessages.forEach(message => {
-      const senderId = message.senderId._id.toString();
-      const receiverId = message.receiverId._id.toString();
+      const senderId = (message.senderId as any)?._id?.toString?.() ?? (message.senderId as any)?.toString?.();
+      const receiverId = (message.receiverId as any)?._id?.toString?.() ?? (message.receiverId as any)?.toString?.();
+      if (!senderId) return;
       const currentUserId = user._id.toString();
       
-      // Create conversation ID by sorting user IDs
-      const conversationId = [senderId, receiverId].sort().join('-');
+      // إنشاء معرف المحادثة: مع receiverId فارغ نستخدم senderId-null (رسائل قديمة إلى غير محدد)
+      const conversationId = receiverId ? [senderId, receiverId].sort().join('-') : `${senderId}-null`;
       
       if (!conversationMap.has(conversationId)) {
         conversationMap.set(conversationId, {
@@ -58,7 +68,8 @@ async function getConversations(req: NextRequest, user: any) {
       }
       
       // Count unread messages for current user
-      if (message.receiverId._id.toString() === currentUserId && !message.isRead) {
+      const recvId = (message.receiverId as any)?._id?.toString?.();
+      if (recvId && recvId === currentUserId && !message.isRead) {
         conversation.unreadCount++;
       }
     });
@@ -69,24 +80,25 @@ async function getConversations(req: NextRequest, user: any) {
     
     // Transform conversations for frontend
     const transformedConversations = conversations
-      .filter(conv => conv.lastMessage && conv.lastMessage.senderId && conv.lastMessage.receiverId)
+      .filter(conv => conv.lastMessage && conv.lastMessage.senderId)
       .map(conv => {
         const lastMessage = conv.lastMessage;
         
-        // Ensure we have valid sender and receiver data
-        if (!lastMessage.senderId._id || !lastMessage.receiverId._id) {
-          logger.warn('Skipping conversation with invalid user data', {
-            conversationId: conv._id,
-            hasSenderId: !!lastMessage.senderId?._id,
-            hasReceiverId: !!lastMessage.receiverId?._id
-          });
+        if (!lastMessage.senderId._id) {
+          logger.warn('Skipping conversation with invalid sender', { conversationId: conv._id });
           return null;
         }
         
-        const isSender = lastMessage.senderId._id.toString() === user._id.toString();
-        const otherUserId = isSender ? lastMessage.receiverId._id : lastMessage.senderId._id;
-        const otherUserName = isSender ? lastMessage.receiverId.name : lastMessage.senderId.name;
-        const otherUserRole = isSender ? lastMessage.receiverId.role : lastMessage.senderId.role;
+        const hasReceiver = lastMessage.receiverId?._id;
+        const isSender = lastMessage.senderId?._id?.toString() === user._id?.toString();
+        // للأدمن: عرض المرسل والمستلم (أو "غير محدد" إن لم يوجد)
+        const otherUserId = isAdminViewAll ? lastMessage.senderId._id : (isSender && hasReceiver ? lastMessage.receiverId._id : lastMessage.senderId._id);
+        const otherUserName = isAdminViewAll
+          ? `${lastMessage.senderId?.name ?? '?'} → ${hasReceiver ? (lastMessage.receiverId?.name ?? '?') : 'غير محدد'}`
+          : (isSender && hasReceiver ? lastMessage.receiverId.name : lastMessage.senderId.name);
+        const otherUserRole = isAdminViewAll
+          ? `${lastMessage.senderId?.role ?? '?'} → ${hasReceiver ? (lastMessage.receiverId?.role ?? '?') : '-'}`
+          : (isSender && hasReceiver ? lastMessage.receiverId.role : lastMessage.senderId.role);
         
         return {
           _id: conv._id,
@@ -99,11 +111,11 @@ async function getConversations(req: NextRequest, user: any) {
               name: lastMessage.senderId.name || 'مستخدم غير معروف',
               role: lastMessage.senderId.role || 'user'
             },
-            receiverId: {
+            receiverId: hasReceiver ? {
               _id: lastMessage.receiverId._id,
               name: lastMessage.receiverId.name || 'مستخدم غير معروف',
               role: lastMessage.receiverId.role || 'user'
-            },
+            } : { _id: null, name: 'غير محدد', role: '-' },
             isRead: lastMessage.isRead,
             isApproved: lastMessage.isApproved,
                          createdAt: lastMessage.createdAt,

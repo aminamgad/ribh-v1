@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo, useRef } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useDataCache } from '@/components/hooks/useDataCache';
 import { useCart } from '@/components/providers/CartProvider';
-import { Heart, ShoppingCart, Trash2, Package, Store, Link as LinkIcon, RotateCw } from 'lucide-react';
+import { Heart, ShoppingCart, Trash2, Package, Store, Share2, RotateCw } from 'lucide-react';
 import MediaThumbnail from '@/components/ui/MediaThumbnail';
 import EmptyState from '@/components/ui/EmptyState';
 import LoadingState from '@/components/ui/LoadingState';
@@ -118,9 +118,15 @@ export default function FavoritesPage() {
         refresh();
       } else {
         toast.error(data.error || 'فشل في تصدير المنتج');
+        setExportingProductId(null);
+        setShowExportModal(false);
+        setSelectedIntegrationId('');
       }
     } catch {
       toast.error('حدث خطأ أثناء تصدير المنتج');
+      setExportingProductId(null);
+      setShowExportModal(false);
+      setSelectedIntegrationId('');
     } finally {
       setExporting(false);
       exportLockRef.current = false;
@@ -348,10 +354,10 @@ export default function FavoritesPage() {
                       handleExportProduct(product._id);
                     }}
                     disabled={!!exportingProductId}
-                    className="text-xs sm:text-sm py-2 sm:py-2.5 min-h-[44px] px-3 flex items-center justify-center gap-1 rounded-lg bg-[#4CAF50] hover:bg-[#388E3C] text-white disabled:opacity-60"
+                    className="btn-export min-h-[44px] px-3 py-2 sm:py-2.5 text-xs sm:text-sm disabled:opacity-60"
                     title="تصدير إلى Easy Orders"
                   >
-                    <LinkIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     تصدير
                   </button>
                 )}
@@ -420,8 +426,8 @@ export default function FavoritesPage() {
             </div>
             <div className="flex gap-3">
               <button onClick={() => { setShowExportModal(false); setExportingProductId(null); }} className="btn-secondary flex-1" disabled={exporting}>إلغاء</button>
-              <button onClick={handleExportFromModal} disabled={exporting || !selectedIntegrationId} className="btn-primary flex-1 flex items-center justify-center">
-                {exporting ? <><RotateCw className="w-4 h-4 ml-2 animate-spin" /> جاري التصدير...</> : <><LinkIcon className="w-4 h-4 ml-2" /> تصدير</>}
+              <button onClick={handleExportFromModal} disabled={exporting || !selectedIntegrationId} className="btn-export flex-1 flex items-center justify-center px-4 py-2.5 text-sm">
+                {exporting ? <><RotateCw className="w-4 h-4 ml-2 animate-spin" /> جاري التصدير...</> : <><Share2 className="w-4 h-4 ml-2" /> تصدير</>}
               </button>
             </div>
           </div>

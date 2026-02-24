@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth, withRole } from '@/lib/auth';
+import { withAuth, withPermission } from '@/lib/auth';
+import { PERMISSIONS } from '@/lib/permissions';
 import connectDB from '@/lib/database';
 import WithdrawalRequest from '@/models/WithdrawalRequest';
 import Wallet from '@/models/Wallet';
@@ -497,6 +498,6 @@ async function updateAdminWithdrawalHandler(req: NextRequest, user: any) {
   }
 }
 
-// Apply rate limiting and authentication to admin withdrawals endpoints
-export const GET = adminRateLimit(withRole(['admin'])(getAdminWithdrawalsHandler));
-export const PUT = adminRateLimit(withRole(['admin'])(updateAdminWithdrawalHandler)); 
+// Apply rate limiting and permission check for admin withdrawals
+export const GET = adminRateLimit(withPermission(PERMISSIONS.WITHDRAWALS_VIEW)(getAdminWithdrawalsHandler));
+export const PUT = adminRateLimit(withPermission(PERMISSIONS.WITHDRAWALS_PROCESS)(updateAdminWithdrawalHandler)); 

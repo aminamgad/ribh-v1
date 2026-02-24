@@ -3,7 +3,9 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { hasPermission } from '@/lib/permissions';
 import { toast } from 'react-hot-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -94,9 +96,17 @@ interface SystemSettings {
 }
 
 export default function SettingsPage() {
+  const router = useRouter();
   const { user } = useAuth();
   const [settings, setSettings] = useState<SystemSettings | null>(null);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user && !hasPermission(user, 'settings.manage')) {
+      toast.error('ليس لديك صلاحية للوصول لإعدادات النظام');
+      router.replace('/dashboard');
+    }
+  }, [user, router]);
   const [saving, setSaving] = useState(false);
   const [recalculating, setRecalculating] = useState(false);
   const [recalcProgress, setRecalcProgress] = useState(0); // 0-100

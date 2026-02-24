@@ -21,21 +21,12 @@ interface User {
   lastLogin?: string;
   productCount?: number;
   orderCount?: number;
+  isStaff?: boolean;
+  staffRole?: 'full_admin' | 'custom';
+  permissions?: string[];
 }
 
-const roleLabels = {
-  admin: 'الإدارة',
-  supplier: 'المورد',
-  marketer: 'المسوق',
-  wholesaler: 'تاجر الجملة'
-};
-
-const roleColors = {
-  admin: 'bg-red-100 text-red-800',
-  supplier: 'bg-blue-100 text-blue-800',
-  marketer: 'bg-green-100 text-green-800',
-  wholesaler: 'bg-purple-100 text-purple-800'
-};
+import { hasPermission, getRoleDisplayLabel, getRoleDisplayColor } from '@/lib/permissions';
 
 // Memoized Stats Card Component to prevent unnecessary re-renders
 const StatsCard = memo(({ 
@@ -336,7 +327,7 @@ export default function AdminUsersPage() {
       }
       return response.json();
     },
-    enabled: !!user && user.role === 'admin',
+    enabled: !!user && user.role === 'admin' && hasPermission(user, 'users.view'),
     forceRefresh: false,
     onError: () => {
       toast.error('حدث خطأ أثناء جلب المستخدمين');
@@ -345,12 +336,8 @@ export default function AdminUsersPage() {
 
   const users = useMemo(() => usersData?.users || [], [usersData?.users]);
 
-  useEffect(() => {
-    if (user?.role !== 'admin') {
-      toast.error('غير مصرح لك بالوصول لهذه الصفحة');
-      return;
-    }
-  }, [user]);
+  const canViewUsers = hasPermission(user, 'users.view');
+  const canCreateUsers = hasPermission(user, 'users.create');
 
   // Listen for refresh events
   useEffect(() => {
@@ -437,8 +424,34 @@ export default function AdminUsersPage() {
     );
   }
 
+  // صلاحيات دقيقة: من لديه users.create فقط (بدون users.view) يرى زر الإضافة فقط
+  if (canCreateUsers && !canViewUsers) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100">إدارة المستخدمين</h1>
+            <p className="text-gray-600 dark:text-slate-400 mt-2">لديك صلاحية إضافة المستخدمين فقط. لا يمكنك عرض قائمة المستخدمين.</p>
+          </div>
+          <Link href="/dashboard/admin/users/new" className="btn-primary">
+            <UserPlus className="w-5 h-5 ml-2" />
+            إضافة مستخدم جديد
+          </Link>
+        </div>
+        <div className="card text-center py-16">
+          <Shield className="w-16 h-16 text-gray-400 dark:text-slate-500 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100 mb-2">لا يمكنك عرض القائمة</h3>
+          <p className="text-gray-600 dark:text-slate-400 mb-6">استخدم زر "إضافة مستخدم جديد" لإضافة مستخدم.</p>
+          <Link href="/dashboard/admin/users/new" className="btn-primary inline-flex">
+            <UserPlus className="w-5 h-5 ml-2" />
+            إضافة مستخدم جديد
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   // CRITICAL FIX: Only show full-page loading on initial load (when no data exists)
-  // After initial load, show loading indicator only for the table section
   const isInitialLoad = loading && !usersData;
 
   if (isInitialLoad) {
@@ -457,13 +470,15 @@ export default function AdminUsersPage() {
           <h1 className="text-3xl font-bold text-gray-900">إدارة المستخدمين</h1>
           <p className="text-gray-600 mt-2">إدارة جميع المستخدمين في المنصة</p>
         </div>
-        <Link
-          href="/dashboard/admin/users/new"
-          className="btn-primary"
-        >
-          <UserPlus className="w-4 h-4 ml-2" />
-          إضافة مستخدم جديد
-        </Link>
+        {user && hasPermission(user, 'users.create') && (
+          <Link
+            href="/dashboard/admin/users/new"
+            className="btn-primary"
+          >
+            <UserPlus className="w-4 h-4 ml-2" />
+            إضافة مستخدم جديد
+          </Link>
+        )}
       </div>
 
       {/* Stats - Using memoized components to prevent unnecessary re-renders */}
@@ -638,8 +653,8 @@ export default function AdminUsersPage() {
                       </div>
                     </td>
                     <td className="table-cell">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${roleColors[userItem.role as keyof typeof roleColors]}`}>
-                        {roleLabels[userItem.role as keyof typeof roleLabels]}
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleDisplayColor(userItem)}`}>
+                        {getRoleDisplayLabel(userItem)}
                       </span>
                     </td>
                     <td className="table-cell">

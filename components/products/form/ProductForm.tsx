@@ -4,6 +4,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Save, Package, ImageIcon, DollarSign, Layers, AlertCircle, X, Search, ChevronDown, ChevronUp } from 'lucide-react';
 import { useProductForm } from './useProductForm';
+import { hasPermission, PERMISSIONS } from '@/lib/permissions';
+import type { UserForPermission } from '@/lib/permissions';
 import type { ProductFormMode } from './useProductForm';
 import MediaUpload from '@/components/ui/MediaUpload';
 import ProductVariants from '@/components/ui/ProductVariants';
@@ -282,7 +284,7 @@ export default function ProductForm({ mode, productId, user }: ProductFormProps)
               </div>
             )}
 
-            {isAdmin && (
+            {isAdmin && hasPermission(user as UserForPermission | null | undefined, PERMISSIONS.USERS_VIEW) && (
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">المورد (اختياري)</label>
                 <div className="relative" ref={refs.supplierDropdownRef}>

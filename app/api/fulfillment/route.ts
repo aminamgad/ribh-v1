@@ -6,7 +6,6 @@ import Product from '@/models/Product';
 import { z } from 'zod';
 import { logger } from '@/lib/logger';
 import { handleApiError } from '@/lib/error-handler';
-import { sendNotificationToRole, sendNotificationToUser } from '@/lib/notifications';
 
 const fulfillmentProductSchema = z.object({
   productId: z.string().min(1, 'يجب اختيار منتج'),
@@ -181,14 +180,12 @@ async function createFulfillmentRequest(req: NextRequest, user: any) {
       });
     }
     
-    // Send notification to admins about new fulfillment request
+    // Send notification to admins with products.view permission (fulfillment is product-related)
     try {
-      // Get product names for the notification
       const productNames = products.map(product => product.name).join(', ');
-      
-      // Send notification to all admins using unified system
-      await sendNotificationToRole(
-        'admin',
+      const { sendNotificationToAdminsWithPermission } = await import('@/lib/notifications');
+      await sendNotificationToAdminsWithPermission(
+        'products.view',
         {
           title: 'طلب تخزين جديد',
           message: `طلب تخزين جديد من ${user.name || user.companyName} للمنتجات: ${productNames}`,
@@ -205,10 +202,7 @@ async function createFulfillmentRequest(req: NextRequest, user: any) {
             linkedOrdersCount: linkedOrders.length
           }
         },
-        {
-          sendEmail: false, // Don't send email for new fulfillment requests
-          sendSocket: true
-        }
+        { sendEmail: false, sendSocket: true }
       );
       
       logger.info('Notifications sent to admins for new fulfillment request', {

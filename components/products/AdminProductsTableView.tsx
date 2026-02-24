@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect, memo } from 'react';
-import { Eye, Edit, BarChart3, CheckCircle, XCircle, LayoutGrid, List, RotateCw, Clock, ShoppingCart, Heart } from 'lucide-react';
+import { Eye, Edit, BarChart3, CheckCircle, XCircle, LayoutGrid, List, RotateCw, Clock, ShoppingCart, Heart, Share2 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import MediaThumbnail from '@/components/ui/MediaThumbnail';
+import ButtonLoader from '@/components/ui/ButtonLoader';
 import { Package } from 'lucide-react';
 import { getCloudinaryThumbnailUrl, isCloudinaryUrl } from '@/lib/mediaUtils';
 import { getStockDisplayText } from '@/lib/product-helpers';
@@ -36,6 +38,7 @@ interface Product {
     sku?: string;
     images?: string[];
   }>;
+  metadata?: { easyOrdersProductId?: string };
 }
 
 interface AdminProductsTableViewProps {
@@ -53,6 +56,16 @@ interface AdminProductsTableViewProps {
   onAddToCart?: (product: Product) => void;
   isFavorite?: (productId: string) => boolean;
   onToggleFavorite?: (product: Product) => void;
+  /** عند الأدمن: إظهار رابط التعديل (حسب صلاحية products.manage) */
+  showEditLink?: boolean;
+  /** عند الأدمن: إظهار رابط إحصائيات المنتج (حسب صلاحية product_stats.view) */
+  showStatsLink?: boolean;
+  /** تصدير إلى Easy Orders للمسوق/تاجر الجملة */
+  showExport?: boolean;
+  onExport?: (product: Product) => void;
+  onUnlinkExport?: (product: Product) => void | Promise<void>;
+  exportingProductId?: string | null;
+  unlinkingProductId?: string | null;
 }
 
 const AdminProductsTableView = memo(function AdminProductsTableView({
@@ -66,8 +79,16 @@ const AdminProductsTableView = memo(function AdminProductsTableView({
   userRole = 'admin',
   onAddToCart,
   isFavorite,
-  onToggleFavorite
+  onToggleFavorite,
+  showEditLink = true,
+  showStatsLink = true,
+  showExport = false,
+  onExport,
+  onUnlinkExport,
+  exportingProductId = null,
+  unlinkingProductId = null
 }: AdminProductsTableViewProps) {
+  const router = useRouter();
   const isAdmin = userRole === 'admin';
   const isMarketerOrWholesaler = userRole === 'marketer' || userRole === 'wholesaler';
   
@@ -186,8 +207,8 @@ const AdminProductsTableView = memo(function AdminProductsTableView({
           </div>
         )}
 
-        {/* Grid View */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {/* Grid View - بطاقات مضغوطة */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
           {products.map((product) => {
             const marketerProfit = calculateMarketerProfit(userRole === 'wholesaler' ? product.wholesalerPrice : product.marketerPrice, product.minimumSellingPrice);
             const adminProfit = calculateAdminProfit(product.supplierPrice, product.marketerPrice);
@@ -195,103 +216,71 @@ const AdminProductsTableView = memo(function AdminProductsTableView({
             return (
               <div
                 key={product._id}
-                className="card hover:shadow-medium transition-shadow"
+                className="card hover:shadow-medium transition-shadow cursor-pointer"
+                onClick={() => router.push(`/dashboard/products/${product._id}`)}
               >
-                {/* Product Image */}
-                <div className="relative mb-4">
+                {/* صورة مضغوطة */}
+                <div className="relative mb-2">
                   <MediaThumbnail
                     media={product.images || []}
                     alt={product.name}
-                    className="w-full h-48 object-cover rounded-lg"
+                    className="w-full aspect-square object-cover rounded-lg"
                     showTypeBadge={false}
-                    width={300}
-                    height={192}
+                    width={240}
+                    height={240}
                     priority={products.indexOf(product) < 4}
-                    fallbackIcon={<Package className="w-12 h-12 text-gray-400 dark:text-slate-500" />}
+                    fallbackIcon={<Package className="w-10 h-10 text-gray-400 dark:text-slate-500" />}
                   />
                 </div>
 
-                {/* Product Info */}
-                <div className="space-y-3">
-                  <h3 className="font-semibold text-gray-900 dark:text-slate-100 line-clamp-2">
+                <div className="space-y-1.5">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-100 line-clamp-2 leading-snug" title={product.name}>
                     {product.name}
                   </h3>
 
-                  <div className="space-y-2 text-sm">
+                  {/* سطر واحد: مورد · حالة · مخزون */}
+                  <div className="flex items-center gap-1.5 flex-wrap text-xs text-gray-600 dark:text-slate-400">
+                    {isAdmin && <span>{product.supplierName || '—'}</span>}
+                    {isAdmin && <span className="text-gray-400 dark:text-slate-500">·</span>}
+                    {isAdmin && getStatusBadge(product)}
+                    <span className="text-gray-400 dark:text-slate-500">·</span>
+                    {getStockStatus(product)}
+                  </div>
+
+                  {/* سطر واحد: أسعار وأرباح */}
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
                     {isAdmin && (
-                      <div>
-                        <span className="text-gray-600 dark:text-slate-400">المورد: </span>
-                        <span className="font-medium">{product.supplierName || 'غير محدد'}</span>
-                      </div>
+                      <span className="text-gray-500 dark:text-slate-500">مورد {(product.supplierPrice ?? 0).toFixed(2)} ₪</span>
                     )}
-                    {isAdmin && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-600 dark:text-slate-400">الحالة:</span>
-                        {getStatusBadge(product)}
-                      </div>
-                    )}
-                    <div>
-                      <span className="text-gray-600 dark:text-slate-400">المخزون: </span>
-                      {getStockStatus(product)}
-                    </div>
-                    {isAdmin && (
-                      <div>
-                        <span className="text-gray-600 dark:text-slate-400">سعر المورد: </span>
-                        <span className="font-medium">{(product.supplierPrice ?? 0).toFixed(2)} ₪</span>
-                      </div>
-                    )}
-                    <div className="p-2">
-                      <span className="text-gray-600 dark:text-slate-400">
-                        {userRole === 'wholesaler' ? 'سعر تاجر الجملة: ' : 'سعر المسوق: '}
+                    <span className={`font-bold ${userRole !== 'wholesaler' && product.isMarketerPriceManuallyAdjusted ? 'text-orange-600 dark:text-orange-400' : 'text-primary-600 dark:text-primary-400'}`}>
+                      {userRole === 'wholesaler' ? 'جملة' : 'مسوق'} {((userRole === 'wholesaler' ? product.wholesalerPrice : product.marketerPrice) ?? 0).toFixed(2)} ₪
+                    </span>
+                    {product.minimumSellingPrice && (
+                      <span className={product.isMinimumPriceMandatory ? 'text-orange-600 dark:text-orange-400' : 'text-gray-500 dark:text-gray-400'}>
+                        أدنى {(product.minimumSellingPrice ?? 0).toFixed(2)} ₪
                       </span>
-                      <span className={`font-bold text-lg ${
-                        userRole !== 'wholesaler' && product.isMarketerPriceManuallyAdjusted
-                          ? 'text-orange-600 dark:text-orange-400'
-                          : 'text-gray-900 dark:text-slate-100'
-                      }`}>
-                        {((userRole === 'wholesaler' ? product.wholesalerPrice : product.marketerPrice) ?? 0).toFixed(2)} ₪
-                      </span>
-                      {product.minimumSellingPrice && (
-                        <div className={`text-xs mt-1 ${
-                          product.isMinimumPriceMandatory && product.minimumSellingPrice
-                            ? 'text-orange-600 dark:text-orange-400'
-                            : 'text-gray-500 dark:text-gray-400'
-                        }`}>
-                          السعر الأدنى: {(product.minimumSellingPrice ?? 0).toFixed(2)} ₪
-                        </div>
-                      )}
-                      <div className={`text-xs font-semibold mt-1 ${
-                        product.isMinimumPriceMandatory && product.minimumSellingPrice
-                          ? 'text-blue-600 dark:text-blue-400'
-                          : 'text-blue-600 dark:text-blue-400'
-                      }`}>
-                        ربح المسوق: {marketerProfit.toFixed(2)} ₪
-                      </div>
-                    </div>
+                    )}
+                    <span className="text-[#FF9800] dark:text-[#FF9800]">ربح م {marketerProfit.toFixed(2)} ₪</span>
                     {isAdmin && (
-                      <div>
-                        <span className="text-gray-600 dark:text-slate-400">ربح الإدارة: </span>
-                        <span className="font-bold text-primary-600 dark:text-primary-400">
-                          {adminProfit.toFixed(2)} ₪
-                        </span>
-                      </div>
+                      <span className="font-medium text-primary-600 dark:text-primary-400">ربح إ {adminProfit.toFixed(2)} ₪</span>
                     )}
                   </div>
 
-                  {/* Actions */}
-                  <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-slate-700">
+                  {/* إجراءات مضغوطة */}
+                  <div className="flex items-center justify-between pt-1.5 border-t border-gray-100 dark:border-slate-700 gap-1">
                     <Link
                       href={`/dashboard/products/${product._id}`}
+                      onClick={(e) => e.stopPropagation()}
                       className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 text-sm font-medium flex items-center"
                     >
                       <Eye className="w-4 h-4 ml-1" />
                       عرض
                     </Link>
-                    <div className="flex items-center space-x-2 space-x-reverse">
+                    <div className="flex items-center space-x-2 space-x-reverse" onClick={(e) => e.stopPropagation()}>
                       {isMarketerOrWholesaler && onToggleFavorite && isFavorite && (
                         <button
                           type="button"
-                          onClick={(e) => { e.preventDefault(); onToggleFavorite(product); }}
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleFavorite(product); }}
                           className={isFavorite(product._id) ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-slate-400 hover:text-red-600'}
                           title="المفضلة"
                         >
@@ -309,18 +298,43 @@ const AdminProductsTableView = memo(function AdminProductsTableView({
                           <ShoppingCart className="w-4 h-4" />
                         </button>
                       )}
-                      {isAdmin && (
+                      {showExport && isMarketerOrWholesaler && product.isApproved && !product.metadata?.easyOrdersProductId && onExport && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.preventDefault(); onExport(product); }}
+                          disabled={!!exportingProductId}
+                          className="btn-export inline-flex items-center justify-center gap-1 px-2 py-1 text-xs disabled:opacity-70"
+                          title="تصدير إلى Easy Orders"
+                        >
+                          {exportingProductId === product._id ? <ButtonLoader variant="light" size="sm" /> : <Share2 className="w-3.5 h-3.5" />}
+                          <span className="hidden sm:inline">{exportingProductId === product._id ? 'جاري...' : 'تصدير'}</span>
+                        </button>
+                      )}
+                      {showExport && isMarketerOrWholesaler && product.isApproved && product.metadata?.easyOrdersProductId && onUnlinkExport && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.preventDefault(); onUnlinkExport(product); }}
+                          disabled={!!unlinkingProductId}
+                          className="text-xs px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-xl disabled:opacity-60"
+                          title="إلغاء الربط"
+                        >
+                          مُصدّر
+                        </button>
+                      )}
+                      {isAdmin && showEditLink && (
                         <Link
                           href={`/dashboard/products/${product._id}/edit`}
+                          onClick={(e) => e.stopPropagation()}
                           className="text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100"
                           title="تعديل"
                         >
                           <Edit className="w-4 h-4" />
                         </Link>
                       )}
-                      {isAdmin && (
+                      {isAdmin && showStatsLink && (
                         <Link
                           href={`/dashboard/admin/product-stats?productId=${product._id}`}
+                          onClick={(e) => e.stopPropagation()}
                           className="text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300"
                           title="إحصائيات"
                         >
@@ -624,7 +638,30 @@ const AdminProductsTableView = memo(function AdminProductsTableView({
                             <ShoppingCart className="w-4 h-4" />
                           </button>
                         )}
-                        {isAdmin && (
+                        {showExport && isMarketerOrWholesaler && product.isApproved && !product.metadata?.easyOrdersProductId && onExport && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.preventDefault(); onExport(product); }}
+                            disabled={!!exportingProductId}
+                            className="btn-export inline-flex items-center justify-center gap-1 px-2 py-1 text-xs disabled:opacity-70"
+                            title="تصدير إلى Easy Orders"
+                          >
+                            {exportingProductId === product._id ? <ButtonLoader variant="light" size="sm" /> : <Share2 className="w-3.5 h-3.5" />}
+                            <span className="hidden sm:inline">{exportingProductId === product._id ? 'جاري...' : 'تصدير'}</span>
+                          </button>
+                        )}
+                        {showExport && isMarketerOrWholesaler && product.isApproved && product.metadata?.easyOrdersProductId && onUnlinkExport && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.preventDefault(); onUnlinkExport(product); }}
+                            disabled={!!unlinkingProductId}
+                            className="text-xs px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-xl transition-colors disabled:opacity-60"
+                            title="إلغاء الربط"
+                          >
+                            مُصدّر
+                          </button>
+                        )}
+                        {isAdmin && showEditLink && (
                           <Link
                             href={`/dashboard/products/${product._id}/edit`}
                             className="inline-flex items-center justify-center p-2.5 sm:p-1 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100"
@@ -633,7 +670,7 @@ const AdminProductsTableView = memo(function AdminProductsTableView({
                             <Edit className="w-4 h-4" />
                           </Link>
                         )}
-                        {isAdmin && (
+                        {isAdmin && showStatsLink && (
                           <Link
                             href={`/dashboard/admin/product-stats?productId=${product._id}`}
                             className="inline-flex items-center justify-center p-2.5 sm:p-1 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300"

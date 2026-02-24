@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withRole } from '@/lib/auth';
+import { withRole, userHasPermission } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import Message from '@/models/Message';
 import Product from '@/models/Product'; // Import Product model for population
@@ -12,6 +12,12 @@ export const dynamic = 'force-dynamic';
 // PUT /api/admin/messages/[id]/reject - Reject a message
 async function rejectMessage(req: NextRequest, user: any, ...args: unknown[]) {
   try {
+    if (!userHasPermission(user, 'messages.moderate')) {
+      return NextResponse.json(
+        { success: false, message: 'غير مصرح لك برفض الرسائل' },
+        { status: 403 }
+      );
+    }
     await connectDB();
     
     // Extract params from args - Next.js passes it as third parameter

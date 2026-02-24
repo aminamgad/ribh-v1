@@ -16,6 +16,7 @@ import Breadcrumbs from '@/components/ui/Breadcrumbs';
 import { Menu, X, RotateCw, Bell, ShoppingCart, MessageSquare, User, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import { getRoleDisplayLabel } from '@/lib/permissions';
 
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -52,8 +53,9 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       { pattern: '/dashboard/users', title: 'المستخدمين | ربح' },
       { pattern: '/dashboard/analytics', title: 'التحليلات | ربح' },
       { pattern: '/dashboard/integrations', title: 'التكاملات | ربح' },
-      { pattern: '/dashboard/messages', title: 'الرسائل | ربح' },
-      { pattern: '/dashboard/chat', title: 'المحادثة | ربح' },
+      { pattern: '/dashboard/admin/messages', title: 'مراجعة رسائل المنتجات | ربح' },
+      { pattern: '/dashboard/messages', title: 'رسائل المنتجات | ربح' },
+      { pattern: '/dashboard/chat', title: 'محادثات الدعم | ربح' },
       { pattern: '/dashboard/notifications', title: 'الإشعارات | ربح' },
       { pattern: '/dashboard/wallet', title: 'المحفظة | ربح' },
       { pattern: '/dashboard/withdrawals', title: 'السحوبات | ربح' },
@@ -127,13 +129,6 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     } finally {
       setTimeout(() => setIsRefreshing(false), 1000);
     }
-  };
-
-  const roleLabels = {
-    admin: 'الإدارة',
-    supplier: 'المورد',
-    marketer: 'المسوق',
-    wholesaler: 'تاجر الجملة'
   };
 
   // Load external chat widget for admin and marketer
@@ -572,10 +567,10 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                   <div className="px-4 py-3 border-b border-gray-100 dark:border-slate-700">
                     <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 truncate">{user?.name}</p>
                     <p className="text-xs text-gray-500 dark:text-slate-300 truncate">{user?.email}</p>
-                    {user?.role !== 'marketer' && (
+                    {user?.role !== 'marketer' && getRoleDisplayLabel(user) && (
                       <div className="mt-2">
                         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border bg-gradient-to-r from-[#FF9800]/20 to-[#F57C00]/20 dark:from-[#FF9800]/30 dark:to-[#F57C00]/30 text-[#FF9800] dark:text-[#FF9800] border-[#FF9800]/30 dark:border-[#FF9800]/40">
-                          {roleLabels[user?.role || 'marketer']}
+                          {getRoleDisplayLabel(user)}
                         </span>
                       </div>
                     )}

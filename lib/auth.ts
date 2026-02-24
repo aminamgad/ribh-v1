@@ -2,6 +2,7 @@ import jwt, { SignOptions } from 'jsonwebtoken';
 import { NextRequest, NextResponse } from 'next/server';
 import { User, UserRole } from '@/types/index';
 import { logger } from './logger';
+import { hasPermission as hasPermissionCheck, type PermissionKey } from './permissions';
 
 // Validate JWT_SECRET - must be set in production
 const getJWTSecret = (): string => {
@@ -270,6 +271,76 @@ export function requireCustomer(handler: AuthHandler) {
 
 export function requireSupplierOrAdmin(handler: AuthHandler) {
   return requireRole(['supplier', 'admin'])(handler);
+}
+
+// ============ Permission-based access (for admin / staff) ============
+
+/**
+ * تحقق إذا كان المستخدم يملك صلاحية معينة.
+ * - مدير نظام (admin وليس موظفاً) = كل الصلاحيات.
+ * - موظف full_admin = كل الصلاحيات.
+ * - موظف custom = فقط ما في user.permissions.
+ */
+export function userHasPermission(user: User, permission: string): boolean {
+  return hasPermissionCheck(user, permission);
+}
+
+
+export function userHasAnyPermission(user: User, permissions: string[]): boolean {
+  return permissions.some((p) => userHasPermission(user, p));
+}
+
+export function userHasAllPermissions(user: User, permissions: string[]): boolean {
+  return permissions.every((p) => userHasPermission(user, p));
+}
+
+function requirePermission(permission: PermissionKey) {
+  return (handler: AuthHandler) => {
+    return async (req: NextRequest, user: User, ...args: unknown[]): Promise<NextResponse> => {
+      if (!userHasPermission(user, permission)) {
+        logger.warn('Permission check failed', {
+          userId: user._id,
+          permission,
+          userStaffRole: (user as any).staffRole,
+        });
+        return NextResponse.json(
+          { success: false, message: 'ليس لديك صلاحية لهذا الإجراء' },
+          { status: 403 }
+        );
+      }
+      return handler(req, user, ...args);
+    };
+  };
+}
+
+function requireAnyPermission(permissions: PermissionKey[]) {
+  return (handler: AuthHandler) => {
+    return async (req: NextRequest, user: User, ...args: unknown[]): Promise<NextResponse> => {
+      if (!userHasAnyPermission(user, permissions)) {
+        logger.warn('Permission check failed (any)', {
+          userId: user._id,
+          permissions,
+        });
+        return NextResponse.json(
+          { success: false, message: 'ليس لديك صلاحية لهذا الإجراء' },
+          { status: 403 }
+        );
+      }
+      return handler(req, user, ...args);
+    };
+  };
+}
+
+/** يتطلب تسجيل الدخول + دور admin + صلاحية واحدة */
+export function withPermission(permission: PermissionKey) {
+  return (handler: AuthHandler) =>
+    requireAuth(requireRole(['admin'])(requirePermission(permission)(handler)));
+}
+
+/** يتطلب تسجيل الدخول + دور admin + أي صلاحية من القائمة */
+export function withAnyPermission(permissions: PermissionKey[]) {
+  return (handler: AuthHandler) =>
+    requireAuth(requireRole(['admin'])(requireAnyPermission(permissions)(handler)));
 }
 
 // Middleware for API routes

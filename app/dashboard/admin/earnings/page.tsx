@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useDataCache } from '@/components/hooks/useDataCache';
 import { DollarSign, TrendingUp, Users, Package, Calendar, Settings, BarChart3, PieChart, CalendarDays, Download } from 'lucide-react';
+import { hasPermission, PERMISSIONS } from '@/lib/permissions';
+import ButtonLoader from '@/components/ui/ButtonLoader';
 import toast from 'react-hot-toast';
 
 interface EarningsStatistics {
@@ -39,6 +41,7 @@ export default function AdminEarningsPage() {
   const [customDateRange, setCustomDateRange] = useState(false);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [exporting, setExporting] = useState(false);
 
   // Generate cache key based on period/date range
   const cacheKey = useMemo(() => {
@@ -73,7 +76,7 @@ export default function AdminEarningsPage() {
       }
       return response.json();
     },
-    enabled: !!user && user.role === 'admin',
+    enabled: !!user && user.role === 'admin' && hasPermission(user, PERMISSIONS.EARNINGS_VIEW),
     forceRefresh: false,
     onError: (error) => {
       toast.error(error.message || 'حدث خطأ أثناء جلب إحصائيات الأرباح');
@@ -85,7 +88,7 @@ export default function AdminEarningsPage() {
   const topEarners = earningsData?.topEarners || [];
 
   useEffect(() => {
-    if (user?.role !== 'admin') {
+    if (!user || user.role !== 'admin' || !hasPermission(user, PERMISSIONS.EARNINGS_VIEW)) {
       toast.error('غير مصرح لك بالوصول لهذه الصفحة');
       return;
     }
@@ -124,6 +127,7 @@ export default function AdminEarningsPage() {
   };
 
   const exportEarningsReport = async () => {
+    setExporting(true);
     try {
       let url = `/api/admin/earnings/export?period=${period}`;
       
@@ -137,21 +141,23 @@ export default function AdminEarningsPage() {
       
       if (response.ok) {
         const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
+        const blobUrl = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = url;
+        a.href = blobUrl;
         const fileName = customDateRange && startDate && endDate 
           ? `earnings-${startDate}-to-${endDate}.csv`
           : `earnings-${period}-${new Date().toISOString().split('T')[0]}.csv`;
         a.download = fileName;
         document.body.appendChild(a);
         a.click();
-        window.URL.revokeObjectURL(url);
+        window.URL.revokeObjectURL(blobUrl);
         document.body.removeChild(a);
         toast.success('تم تصدير تقرير الأرباح بنجاح');
       }
     } catch (error) {
       toast.error('حدث خطأ أثناء تصدير تقرير الأرباح');
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -273,14 +279,21 @@ export default function AdminEarningsPage() {
             )}
           </div>
           
+          {hasPermission(user, PERMISSIONS.EARNINGS_EXPORT) && (
           <button
             onClick={exportEarningsReport}
-            className="px-3 sm:px-4 py-2 bg-[#FF9800] hover:bg-[#F57C00] text-white rounded-md flex items-center justify-center space-x-2 space-x-reverse transition-colors min-h-[44px] text-xs sm:text-sm"
+            disabled={exporting}
+            className="px-3 sm:px-4 py-2 bg-[#FF9800] hover:bg-[#F57C00] text-white rounded-md flex items-center justify-center gap-2 transition-colors min-h-[44px] text-xs sm:text-sm disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            <Download className="w-4 h-4" />
-            <span className="hidden sm:inline">تصدير التقرير</span>
-            <span className="sm:hidden">تصدير</span>
+            {exporting ? (
+              <ButtonLoader variant="light" size="sm" />
+            ) : (
+              <Download className="w-4 h-4" />
+            )}
+            <span className="hidden sm:inline">{exporting ? 'جاري التصدير...' : 'تصدير التقرير'}</span>
+            <span className="sm:hidden">{exporting ? 'جاري...' : 'تصدير'}</span>
           </button>
+          )}
         </div>
       </div>
 

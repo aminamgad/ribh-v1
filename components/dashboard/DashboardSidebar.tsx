@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useSettings } from '@/components/providers/SettingsProvider';
+import { canAccessPath, getRoleDisplayLabel } from '@/lib/permissions';
 import {
   Home,
   ShoppingBag,
@@ -63,8 +64,8 @@ export default function DashboardSidebar({ onClose }: DashboardSidebarProps) {
     ];
 
     switch (user?.role) {
-      case 'admin':
-        return [
+      case 'admin': {
+        const adminItems = [
           ...baseItems,
           {
             href: '/dashboard/users',
@@ -138,13 +139,23 @@ export default function DashboardSidebar({ onClose }: DashboardSidebarProps) {
           },
           {
             href: '/dashboard/messages',
-            label: 'الرسائل',
+            label: 'رسائل المنتجات',
             icon: MessageSquare,
             gradient: 'from-[#FF9800] to-[#F57C00]',
             bgGradient: 'from-[#FF9800]/10 to-[#F57C00]/10 dark:from-[#FF9800]/20 dark:to-[#F57C00]/20',
             borderColor: 'border-[#FF9800]/20 dark:border-[#FF9800]/30',
             textColor: 'text-[#E65100] dark:text-[#FFB74D]',
             hoverTextColor: 'group-hover:text-[#E65100] dark:group-hover:text-[#FFB74D]',
+          },
+          {
+            href: '/dashboard/admin/messages',
+            label: 'مراجعة رسائل المنتجات',
+            icon: MessageSquare,
+            gradient: 'from-[#4CAF50] to-[#388E3C]',
+            bgGradient: 'from-[#4CAF50]/10 to-[#388E3C]/10 dark:from-[#4CAF50]/20 dark:to-[#388E3C]/20',
+            borderColor: 'border-[#4CAF50]/20 dark:border-[#4CAF50]/30',
+            textColor: 'text-[#2E7D32] dark:text-[#81C784]',
+            hoverTextColor: 'group-hover:text-[#2E7D32] dark:group-hover:text-[#81C784]',
           },
           {
             href: '/dashboard/admin/settings',
@@ -167,6 +178,8 @@ export default function DashboardSidebar({ onClose }: DashboardSidebarProps) {
             hoverTextColor: 'group-hover:text-[#2E7D32] dark:group-hover:text-[#81C784]',
           },
         ];
+        return adminItems.filter((item) => canAccessPath(user ?? undefined, item.href));
+      }
 
       case 'supplier':
         return [
@@ -223,7 +236,7 @@ export default function DashboardSidebar({ onClose }: DashboardSidebarProps) {
           },
           {
             href: '/dashboard/messages',
-            label: 'الرسائل',
+            label: 'رسائل المنتجات',
             icon: MessageSquare,
             gradient: 'from-[#4CAF50] to-[#388E3C]',
             bgGradient: 'from-[#4CAF50]/10 to-[#388E3C]/10 dark:from-[#4CAF50]/20 dark:to-[#388E3C]/20',
@@ -424,8 +437,7 @@ export default function DashboardSidebar({ onClose }: DashboardSidebarProps) {
               </p>
               {user?.role !== 'marketer' && (
                 <p className="text-[10px] sm:text-xs text-gray-600 dark:text-slate-400 truncate">
-                  {user?.role === 'admin' && 'مدير النظام'}
-                  {user?.role === 'supplier' && 'المورد'}
+                  {getRoleDisplayLabel(user)}
                 </p>
               )}
             </div>

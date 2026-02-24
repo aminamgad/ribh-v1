@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth, withRole } from '@/lib/auth';
+import { withAuth, withRole, userHasPermission } from '@/lib/auth';
 import connectDB from '@/lib/database';
 import Product from '@/models/Product';
 import Category from '@/models/Category';
@@ -90,6 +90,19 @@ async function getProducts(req: NextRequest, user: any) {
     await connectDB();
     
     logger.apiRequest('GET', '/api/products', { userId: user._id, role: user.role, userEmail: user.email });
+
+    // صلاحيات دقيقة: الأدمن يحتاج products.view لعرض قائمة المنتجات
+    if (user.role === 'admin' && !userHasPermission(user, 'products.view')) {
+      const { searchParams } = new URL(req.url);
+      const page = parseInt(searchParams.get('page') || '1');
+      const limit = parseInt(searchParams.get('limit') || '20');
+      return NextResponse.json({
+        success: true,
+        products: [],
+        pagination: { page, limit, total: 0, pages: 0 },
+        totalCount: 0,
+      });
+    }
     
     // Test database connection and get product count
     const totalProductCount = await Product.countDocuments({});
@@ -852,37 +865,24 @@ async function createProduct(req: NextRequest, user: any) {
     await product.populate('categoryId', 'name');
     await product.populate('supplierId', 'name companyName');
     
-    // Send notification to admins if supplier created the product
+    // Send notification to admins with products.approve permission if supplier created the product
     if (user.role === 'supplier') {
       try {
-        // Get all admin users
-        const User = (await import('@/models/User')).default;
-        const adminUsers = await User.find({ role: 'admin' }).select('_id name').lean();
-        
-        // Create notification for each admin
-        const Notification = (await import('@/models/Notification')).default;
-        const notificationPromises = adminUsers.map(admin => 
-          Notification.create({
-            userId: admin._id,
+        const { sendNotificationToAdminsWithPermission } = await import('@/lib/notifications');
+        await sendNotificationToAdminsWithPermission(
+          'products.approve',
+          {
             title: 'منتج جديد للمراجعة',
             message: `تم إضافة منتج جديد "${product.name}" من قبل ${user.name}`,
             type: 'info',
             actionUrl: `/dashboard/products/${product._id}`,
             metadata: { 
-              productId: product._id,
-              supplierId: user._id,
+              productId: product._id.toString(),
+              supplierId: user._id.toString(),
               supplierName: user.name
             }
-          })
+          }
         );
-        
-        await Promise.all(notificationPromises);
-        logger.info('Notifications sent to admins for new product', {
-          adminCount: adminUsers.length,
-          productId: product._id.toString(),
-          productName: product.name
-        });
-        
       } catch (error) {
         logger.error('Error sending notifications to admins', error, {
           productId: product._id.toString(),

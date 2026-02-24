@@ -174,6 +174,47 @@ export async function sendNotificationToRole(
 }
 
 /**
+ * إرسال إشعار لأدمن لديهم صلاحية معينة فقط (لفلترة الإشعارات حسب صلاحيات الموظف)
+ */
+export async function sendNotificationToAdminsWithPermission(
+  permission: string,
+  notificationData: NotificationData,
+  options: SendNotificationOptions & { excludeUserId?: string } = {}
+): Promise<void> {
+  try {
+    const User = (await import('@/models/User')).default;
+    const { hasPermission } = await import('@/lib/permissions');
+    const users = await User.find({ role: 'admin', isActive: true })
+      .select('_id role isStaff staffRole permissions')
+      .lean();
+    
+    const filteredIds: string[] = [];
+    for (const u of users) {
+      const uid = (u as any)._id?.toString?.() || String((u as any)._id);
+      if (options.excludeUserId && uid === options.excludeUserId) continue;
+      if (hasPermission(u as any, permission)) filteredIds.push(uid);
+    }
+    
+    if (filteredIds.length === 0) {
+      logger.debug('No admin users with permission for notification', { permission });
+      return;
+    }
+    
+    const { excludeUserId, ...sendOptions } = options;
+    await sendNotificationToUsers(filteredIds, notificationData, sendOptions);
+    
+    logger.info('Permission-filtered admin notification sent', {
+      permission,
+      userCount: filteredIds.length,
+      title: notificationData.title
+    });
+  } catch (error) {
+    logger.error('Error sending permission-filtered admin notification', error, { permission });
+    throw error;
+  }
+}
+
+/**
  * Send email notification (placeholder - to be implemented with email service)
  */
 async function sendEmailNotification(

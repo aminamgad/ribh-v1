@@ -3,16 +3,16 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useDataCache } from '@/components/hooks/useDataCache';
+import Link from 'next/link';
 import { 
   MessageSquare, 
   Send, 
   User, 
   Package, 
-  Calendar,
   Search,
-  Filter,
   X,
-  Bell
+  Bell,
+  ExternalLink
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -101,8 +101,8 @@ export default function MessagesPage() {
     if (!selectedConversation) return;
 
     try {
-      const otherUserId = selectedConversation.otherUser._id;
-      const conversationId = [user?._id, otherUserId].sort().join('-');
+      // conversation._id هو معرف المحادثة الفعلي (senderId-receiverId)
+      const conversationId = selectedConversation._id;
       
       const response = await fetch(`/api/messages/conversations/${conversationId}`);
       
@@ -124,7 +124,7 @@ export default function MessagesPage() {
     } catch (error) {
       toast.error('حدث خطأ أثناء جلب الرسائل');
     }
-  }, [selectedConversation, user?._id, fetchConversations]);
+  }, [selectedConversation, fetchConversations]);
 
   useEffect(() => {
     if (selectedConversation) {
@@ -197,7 +197,10 @@ export default function MessagesPage() {
         <div className="flex items-center justify-between mb-4 sm:mb-6 md:mb-8">
           <div className="flex items-center space-x-2 sm:space-x-4 space-x-reverse">
             <MessageSquare className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-primary-600 dark:text-primary-400" />
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-slate-100">الرسائل</h1>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-slate-100">رسائل المنتجات</h1>
+              <p className="text-xs sm:text-sm text-gray-500 dark:text-slate-400 mt-0.5">استفسارات المنتجات مع الموردين (تخضع لمراجعة الإدارة)</p>
+            </div>
           </div>
           {selectedConversation && (
             <button
@@ -245,9 +248,15 @@ export default function MessagesPage() {
               {filteredConversations.length === 0 ? (
                 <div className="p-6 sm:p-8 text-center">
                   <MessageSquare className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 dark:text-slate-500 mx-auto mb-3 sm:mb-4" />
-                  <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-400">
-                    {searchTerm ? 'لا توجد نتائج للبحث' : 'لا توجد محادثات بعد'}
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-400 mb-4">
+                    {searchTerm ? 'لا توجد نتائج للبحث' : 'لا توجد رسائل بعد'}
                   </p>
+                  {!searchTerm && (
+                    <Link href="/dashboard/products" className="inline-flex items-center gap-1.5 text-xs sm:text-sm text-[#FF9800] hover:text-[#F57C00] dark:text-[#FF9800] dark:hover:text-[#FFB74D] font-medium">
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      إرسال استفسار من صفحة المنتجات
+                    </Link>
+                  )}
                 </div>
               ) : (
                 filteredConversations.map((conversation) => (
@@ -273,7 +282,12 @@ export default function MessagesPage() {
                             {conversation.otherUser.name}
                           </h3>
                           <p className="text-xs sm:text-sm text-gray-500 dark:text-slate-400">
-                            {conversation.otherUser.role === 'marketer' ? 'مسوق' : 'تاجر'}
+                            {conversation.otherUser.role?.includes('→')
+                              ? conversation.otherUser.role
+                                .replace('marketer', 'مسوق')
+                                .replace('supplier', 'مورد')
+                                .replace('wholesaler', 'تاجر')
+                              : (conversation.otherUser.role === 'marketer' ? 'مسوق' : conversation.otherUser.role === 'supplier' ? 'مورد' : 'تاجر')}
                           </p>
                         </div>
                       </div>
@@ -316,7 +330,12 @@ export default function MessagesPage() {
                           {selectedConversation.otherUser.name}
                         </h3>
                         <p className="text-xs sm:text-sm text-gray-500 dark:text-slate-400">
-                          {selectedConversation.otherUser.role === 'marketer' ? 'مسوق' : 'تاجر'}
+                          {selectedConversation.otherUser.role?.includes('→')
+                            ? selectedConversation.otherUser.role
+                              .replace('marketer', 'مسوق')
+                              .replace('supplier', 'مورد')
+                              .replace('wholesaler', 'تاجر')
+                            : (selectedConversation.otherUser.role === 'marketer' ? 'مسوق' : selectedConversation.otherUser.role === 'supplier' ? 'مورد' : 'تاجر')}
                         </p>
                       </div>
                     </div>
@@ -399,11 +418,15 @@ export default function MessagesPage() {
                 <div className="text-center px-4">
                   <MessageSquare className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400 dark:text-slate-500 mx-auto mb-3 sm:mb-4" />
                   <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-slate-100 mb-2">
-                    اختر محادثة
+                    اختر رسالة
                   </h3>
-                  <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-400">
-                    اختر محادثة من القائمة لعرض الرسائل والرد عليها
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-400 mb-4">
+                    اختر رسالة من القائمة لعرض التفاصيل والرد عليها
                   </p>
+                  <Link href="/dashboard/products" className="inline-flex items-center gap-1.5 text-xs sm:text-sm text-[#FF9800] hover:text-[#F57C00] dark:text-[#FF9800] dark:hover:text-[#FFB74D] font-medium">
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    تصفح المنتجات لإرسال استفسار
+                  </Link>
                 </div>
               </div>
             )}

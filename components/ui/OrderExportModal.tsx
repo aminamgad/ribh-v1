@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Download, Calendar, FileSpreadsheet, FileText } from 'lucide-react';
+import ButtonLoader from '@/components/ui/ButtonLoader';
 import toast from 'react-hot-toast';
 
 interface OrderExportModalProps {
@@ -180,7 +181,7 @@ export default function OrderExportModal({ isOpen, onClose, userRole }: OrderExp
             >
               {exporting ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white ml-2"></div>
+                  <ButtonLoader variant="light" size="sm" className="ml-2" />
                   جاري التصدير...
                 </>
               ) : (
