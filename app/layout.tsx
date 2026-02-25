@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
 import './globals.css';
 import './arabic-fonts.css';
 import { Toaster } from 'react-hot-toast';
@@ -13,8 +12,6 @@ import { SettingsProvider } from '@/components/providers/SettingsProvider';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Analytics } from '@/components/Analytics';
 import ImageCacheInitializer from '@/components/ImageCacheInitializer';
-
-const inter = Inter({ subsets: ['latin'] });
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -108,7 +105,7 @@ export default function RootLayout({
                              color: '#fff',
                              padding: '16px',
                              borderRadius: '8px',
-                             fontFamily: 'Cairo, sans-serif',
+                             fontFamily: '"Playpen Sans Arabic", sans-serif',
                            },
                            success: {
                              duration: 3000,

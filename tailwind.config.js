@@ -9,13 +9,14 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        'arabic': ['Cairo', 'IBM Plex Sans Arabic', 'Tajawal', 'Arial', 'sans-serif'],
-        'cairo': ['Cairo', 'sans-serif'],
-        'tajawal': ['Tajawal', 'sans-serif'],
-        'ibm-plex': ['IBM Plex Sans Arabic', 'sans-serif'],
-        'sans': ['Cairo', 'IBM Plex Sans Arabic', 'Tajawal', 'Arial', 'sans-serif'],
-        'serif': ['Cairo', 'IBM Plex Sans Arabic', 'Tajawal', 'Georgia', 'serif'],
-        'mono': ['IBM Plex Sans Arabic', 'Cairo', 'Monaco', 'Consolas', 'monospace'],
+        'arabic': ['Playpen Sans Arabic', 'Arial', 'sans-serif'],
+        'playpen': ['Playpen Sans Arabic', 'sans-serif'],
+        'cairo': ['Playpen Sans Arabic', 'Cairo', 'sans-serif'],
+        'tajawal': ['Playpen Sans Arabic', 'Tajawal', 'sans-serif'],
+        'ibm-plex': ['Playpen Sans Arabic', 'IBM Plex Sans Arabic', 'sans-serif'],
+        'sans': ['Playpen Sans Arabic', 'Arial', 'sans-serif'],
+        'serif': ['Playpen Sans Arabic', 'Georgia', 'serif'],
+        'mono': ['Playpen Sans Arabic', 'Monaco', 'Consolas', 'monospace'],
       },
       colors: {
         primary: {
